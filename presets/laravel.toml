@@ -41,9 +41,26 @@ no-empty-comment = { preserve-single-line-comments = true }
 no-shorthand-ternary = { enabled = false }
 no-isset = { allow-array-checks = true }
 # Pragmatic thresholds for controllers, resources and dependency injection.
-halstead = { effort-threshold = 7000 }
-too-many-methods = { threshold = 20 }
-excessive-parameter-list = { threshold = 10 }
+halstead = { effort-threshold = 7000, level = "warning" }
+too-many-methods = { threshold = 20, level = "warning" }
+excessive-parameter-list = { threshold = 10, level = "warning" }
+# Design metrics are review advice, not proof of a broken Laravel application.
+cyclomatic-complexity = { level = "warning" }
+kan-defect = { level = "warning" }
+too-many-enum-cases = { level = "warning" }
+final-controller = { level = "warning" }
+no-empty = { level = "warning" }
+# These heuristics also flag Laravel validation maps, casts, route tokens and
+# deliberate handling of filesystem warnings. Keep them visible for review.
+no-literal-password = { level = "warning" }
+sensitive-parameter = { level = "warning" }
+no-error-control-operator = { level = "warning" }
+# Mago also flags a continue confined to a loop nested inside finally.
+# A warning retains review of actual return/throw cases without a false failure.
+no-unsafe-finally = { level = "warning" }
+# Tests may evaluate generated PHP to verify configuration/cache round trips.
+# Production eval remains an error, including code outside app/.
+no-eval = { exclude = ["tests/**"] }
 
 [analyzer]
 # Routes, container resolution, events and Eloquent invoke code indirectly.

@@ -34,7 +34,7 @@ final class Plugin implements PluginInterface, EventSubscriberInterface
             return;
         }
 
-        $message = new ConfigInstaller()->install(
+        $message = (new ConfigInstaller())->install(
             $root,
             dirname(__DIR__).'/presets/laravel.toml',
             (string) $event->getComposer()->getConfig()->get('vendor-dir'),

@@ -50,6 +50,37 @@ does not pin it.
 - Type errors and missing methods remain visible in the analyzer. Unused definition
   checks are disabled because Laravel often invokes definitions indirectly.
 
+### Linter diagnostic levels
+
+The default profile supports adoption in existing Laravel applications.
+Recommendations stay visible without making every recommendation fail the command.
+A successful lint run does not mean that every issue in the application is resolved.
+
+| Rules | Level and rationale |
+| --- | --- |
+| `cyclomatic-complexity`, `kan-defect`, `halstead`, `too-many-methods`, `excessive-parameter-list`, `too-many-enum-cases` | Warning: design metrics require context |
+| `final-controller`, `no-empty` | Warning: application style choices |
+| `no-literal-password` | Warning: Mago 1.48.1 also flags `'password' => 'hashed'` in casts and `'token' => 'required'` in validation rules |
+| `sensitive-parameter` | Warning: parameter name heuristics need review; the attribute remains useful for actual secrets |
+| `no-error-control-operator` | Warning: review error handling after `@`, as well as the operator itself |
+| `no-unsafe-finally` | Warning: Mago 1.48.1 also flags `continue` inside a loop contained in finally; actual return/throw statements still need review |
+| `no-eval` | Error in application code; only `tests/**` is excluded to allow checks of generated PHP configuration |
+
+Review security warnings: the default profile is not a standalone security gate.
+Security checks remain enabled outside the documented exclusions.
+Syntax errors still fail lint. To fail on warnings as well:
+
+```sh
+vendor/bin/mago lint --minimum-fail-level=warning
+```
+
+You can raise an individual rule's severity in the application configuration:
+
+```toml
+[linter.rules]
+no-literal-password = { level = "error" }
+```
+
 ```sh
 vendor/bin/mago config --show linter
 vendor/bin/mago list-files
@@ -121,11 +152,17 @@ PHP 8.2+, Composer 2, Mago ^1.48.1.
 ```sh
 composer validate --strict
 php tests/run.php
+php tests/preset.php
 ```
 
 Installer tests cover configuration creation, custom vendor directories, repeated
 installation, preservation of all eight user configuration variants, and fallback
 source paths.
+`tests/preset.php` runs the real Mago executable and checks Laravel casts and
+validation rules, visible secret warnings, a nested loop in finally, eval in tests,
+and failures for eval in application code and invalid syntax. Install dependencies
+first. To use an external executable, set `MAGO_BINARY` to a native executable on
+Windows or to the Composer PHP script at `vendor/bin/mago`.
 
 A real Composer path repository installation was also checked in an isolated
 Windows project: automatic configuration creation, native `vendor/bin/mago.bat lint`,

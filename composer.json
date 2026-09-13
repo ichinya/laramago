@@ -17,7 +17,7 @@
         "class": "Ichinya\\Laramago\\Plugin"
     },
     "scripts": {
-        "test": "@php tests/run.php",
+        "test": ["@php tests/run.php", "@php tests/preset.php"],
         "check": ["@composer validate --strict", "@test"]
     },
     "config": {
