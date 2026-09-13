@@ -1,0 +1,26 @@
+{
+    "name": "ichinya/laramago",
+    "description": "Laravel presets for the native Mago CLI, configured automatically by Composer.",
+    "type": "composer-plugin",
+    "license": "MIT",
+    "require": {
+        "php": "^8.2",
+        "composer-plugin-api": "^2.0",
+        "carthage-software/mago": "^1.48.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Ichinya\\Laramago\\": "src/"
+        }
+    },
+    "extra": {
+        "class": "Ichinya\\Laramago\\Plugin"
+    },
+    "scripts": {
+        "test": "@php tests/run.php",
+        "check": ["@composer validate --strict", "@test"]
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

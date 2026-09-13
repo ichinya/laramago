@@ -1,0 +1,10 @@
+# OPTIONAL FRAGMENT, not a standalone configuration.
+# Replace ignore = [] inside the existing [analyzer] section with this array.
+# Restrict these paths further to the files that actually need migration relief.
+# Mago does not infer Laravel metadata from these suppressions.
+ignore = [
+    { code = "mixed-argument", in = "app/Http/**" },
+    { code = "mixed-assignment", in = "app/Http/**" },
+    { code = "mixed-return-statement", in = "app/Http/Resources/**" },
+    { code = "mixed-property-type-coercion", in = "app/Models/**" },
+]

@@ -1,0 +1,59 @@
+# Shared Laravel defaults. Project-specific paths belong in the root config.
+
+version = "1"
+
+[source]
+excludes = [
+    "node_modules/**",
+    "bootstrap/cache/**",
+    "storage/**",
+    "**/*.blade.php",
+    "_ide_helper*.php",
+    ".phpstorm.meta.php",
+    ".phpstorm.meta.php/**",
+    "LaravelIdea/**",
+]
+
+[source.glob]
+literal-separator = true
+
+[formatter]
+preset = "pint"
+space-after-logical-not-unary-prefix-operator = true
+space-within-grouping-parenthesis = false
+inline-empty-control-braces = true
+inline-empty-closure-braces = true
+inline-empty-function-braces = true
+inline-empty-method-braces = true
+inline-empty-constructor-braces = true
+inline-empty-classlike-braces = true
+inline-empty-anonymous-class-braces = true
+
+[linter]
+integrations = ["laravel"]
+
+[linter.rules]
+# Laravel skeletons do not require declare(strict_types=1).
+strict-types = { enabled = false }
+ambiguous-function-call = { enabled = false }
+literal-named-argument = { enabled = false }
+no-empty-comment = { preserve-single-line-comments = true }
+no-shorthand-ternary = { enabled = false }
+no-isset = { allow-array-checks = true }
+# Pragmatic thresholds for controllers, resources and dependency injection.
+halstead = { effort-threshold = 7000 }
+too-many-methods = { threshold = 20 }
+excessive-parameter-list = { threshold = 10 }
+
+[analyzer]
+# Routes, container resolution, events and Eloquent invoke code indirectly.
+find-unused-definitions = false
+find-unused-parameters = false
+check-throws = false
+check-missing-override = false
+check-missing-type-hints = false
+register-super-globals = true
+# Keep expression, nullability and concrete type diagnostics enabled.
+find-unused-expressions = true
+ignore = []
+
