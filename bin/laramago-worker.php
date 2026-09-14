@@ -17,6 +17,6 @@ require $autoload;
 (new Worker(new Extension(
     identifier: 'ichinya/laramago',
     name: 'Laramago',
-    version: '0.1.0',
+    version: '0.0.1',
     analyzerPlugins: [new LaravelPlugin],
 )))->run();

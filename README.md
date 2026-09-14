@@ -3,7 +3,8 @@
 A Composer package with a Laravel preset for the native Mago CLI.
 
 ```sh
-composer require --dev ichinya/laramago
+composer config repositories.laramago vcs https://github.com/ichinya/laramago
+composer require --dev ichinya/laramago:0.0.1
 vendor/bin/mago lint
 ```
 
@@ -12,8 +13,9 @@ plugin. Once allowed, the plugin creates `mago.dist.json` in the application roo
 The `carthage-software/mago` dependency provides `vendor/bin/mago`; this package
 uses that executable directly, without a wrapper or Laravel service provider.
 
-The package is currently local. The command above is intended for use after
-publication to a Composer repository. See the local installation instructions below.
+Version `0.0.1` is the initial release. Until the package is registered on Packagist,
+use the GitHub VCS repository shown above. For local package development, see the
+path repository instructions below.
 
 ## How it works
 
@@ -147,7 +149,7 @@ Removing the package leaves the application configuration in place. Remove its
 `extends` reference and `extension-hosts.laramago` entry, or replace them with your
 own settings before running Mago again.
 
-## Local installation before publication
+## Local development installation
 
 Add a path repository to the test Laravel application's `composer.json`:
 
@@ -173,7 +175,7 @@ vendor/bin/mago lint
 
 Use `symlink: false` to test a regular package copy inside vendor.
 For CI, store plugin permission in the application's `config.allow-plugins`.
-The package has not been published or registered on Packagist.
+GitHub releases do not automatically register the package on Packagist.
 
 ## Development
 
