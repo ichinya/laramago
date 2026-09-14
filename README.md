@@ -147,6 +147,48 @@ The package has not been published or registered on Packagist.
 
 ## Development
 
+### Comparing with Larastan
+
+Larastan is an independent reference for Laravel behavior. Its code and PHPStan
+extensions are not copied into this package. Mago 1.48.1 provides a native PHP
+extension SDK; comparison results help select and verify future type providers.
+
+```sh
+php scripts/compare.php --project=C:/projects/laravel-app
+```
+
+The test application must have Mago and Larastan installed, a `phpstan.neon`
+configuration (or a dist variant), and a working Laravel bootstrap. The script
+runs the tools through the current PHP executable using the application's
+dependencies. It leaves application configuration, source files, and baselines
+unchanged. Analyzers may write their own caches; Larastan boots the Laravel container.
+
+The runs execute sequentially:
+
+1. Larastan with the application configuration.
+2. Larastan at the same level, with configuration-level `ignoreErrors` cleared.
+3. Larastan at the maximum level, with those suppressions cleared.
+4. Mago on the source paths from the PHPStan configuration.
+5. Both analyzers on `tests/fixtures/analysis/eloquent.php`: explicit `query()`,
+   magic `where()`, a misspelled method, a missing argument, and an invalid argument.
+
+Reports are stored in `var/comparisons/<project-name>/<UTC-timestamp>/`, which Git
+ignores. Override the directory with `--output`. `comparison.md` contains the
+overview; `summary.json` records versions, paths, levels, diagnostic codes, and
+exit statuses. Raw JSON and normalized diagnostics are saved separately for each run.
+`mago-only-location-candidates.json` lists Mago diagnostics on lines without a
+Larastan max diagnostic. These are candidates for investigation: matching line
+numbers do not establish equivalent meaning, and the absence of a Larastan
+diagnostic does not prove a Mago false positive. Each tool's own exclusions and
+source annotations remain in effect.
+
+Bootstrap errors and internal PHPStan failures abort the comparison; an incomplete
+run cannot count as a successful check with zero errors. On the first Windows run,
+`php artisan package:discover` may be needed to prevent parallel Larastan processes
+from attempting to create a missing package manifest at the same time.
+
+### Package checks
+
 PHP 8.2+, Composer 2, Mago ^1.48.1.
 
 ```sh
