@@ -1,0 +1,5 @@
+/var export-ignore
+/var/** export-ignore
+/vendor export-ignore
+/vendor/** export-ignore
+/composer.lock export-ignore

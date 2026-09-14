@@ -28,7 +28,15 @@ try {
     check($config['extends'] === 'dependencies/ichinya/laramago/presets/laravel.toml', 'Relocatable preset reference');
     check($config['source']['paths'] === ['app', 'routes'], 'Only existing Laravel paths');
     check($config['source']['includes'] === ['dependencies'], 'Custom vendor-dir');
-    $count += 3;
+    check(
+        $config['extension-hosts']['laramago']['command'] === [
+            'php',
+            'dependencies/ichinya/laramago/bin/laramago-worker.php',
+            'dependencies/autoload.php',
+        ],
+        'Relocatable worker and custom vendor autoloader',
+    );
+    $count += 4;
     $installer->install($root, $preset);
     check(file_get_contents($root.'/mago.dist.json') === $generated, 'Repeated install preserves config');
     $count++;
@@ -40,6 +48,10 @@ try {
             file_put_contents($file, 'user-owned content');
             $message = $installer->install($root, $preset);
             check(str_contains($message, 'preserved'), 'Existing config detected: '.$file);
+            check(
+                str_contains($message, 'extension-hosts.laramago.command'),
+                'Existing config receives worker setup instructions',
+            );
             check(file_get_contents($file) === 'user-owned content', 'Existing config untouched');
             check(
                 $extension === 'json' && $name === 'mago.dist' || ! file_exists($root.'/mago.dist.json'),

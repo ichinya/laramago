@@ -26,6 +26,11 @@ If the application has no Mago configuration, it creates a file such as:
     "source": {
         "paths": ["app", "bootstrap", "config", "database", "routes", "tests"],
         "includes": ["vendor"]
+    },
+    "extension-hosts": {
+        "laramago": {
+            "command": ["php", "vendor/ichinya/laramago/bin/laramago-worker.php", "vendor/autoload.php"]
+        }
     }
 }
 ```
@@ -89,10 +94,23 @@ vendor/bin/mago format --check
 vendor/bin/mago analyze
 ```
 
-Use `vendor/bin/mago.bat` in PowerShell. Laravel linter integration does not provide
-complete Eloquent support in the analyzer. The package does not generate overlays
-or replace Larastan. `examples/compatibility.toml` is an optional fragment with
-targeted suppressions for the `[analyzer]` section of your TOML configuration.
+Use `vendor/bin/mago.bat` in PowerShell. The analyzer extension currently supports
+magic `where`, `orWhere`, `whereNot`, and `orWhereNot` calls on Eloquent models.
+It reads signatures from the installed Laravel metadata and returns
+`Builder<YourModel>`, including the builder passed to a where callback. Native
+argument count, argument type, and named argument checks remain active.
+
+Declared methods keep their native behavior. Models with custom query factories,
+magic dispatchers, builder properties, or `UseEloquentBuilder` attributes are left
+to Mago's existing analysis until their semantics are supported. Other magic
+methods, model properties, relationships, scopes, and facades are still outside
+this initial extension's coverage. The package does not generate overlays or
+replace Larastan. `examples/compatibility.toml` is an optional fragment with
+targeted suppressions for your `[analyzer]` section.
+
+The worker uses Mago's bundled PHP SDK and the application's Composer autoloader.
+It does not bootstrap Laravel or connect to a database. The `php` executable must
+be on PATH; a project may override the worker command with a specific executable.
 
 ## Existing configuration
 
@@ -110,12 +128,24 @@ For a custom `vendor-dir`, use the path printed by the plugin.
 Keep your source paths and includes. Application settings override scalar values
 from the preset; Mago concatenates arrays, so inherited exclusions remain active.
 
+To enable analyzer support in an existing configuration, also add:
+
+```toml
+[extension-hosts.laramago]
+command = ["php", "vendor/ichinya/laramago/bin/laramago-worker.php", "vendor/autoload.php"]
+```
+
+For JSON or YAML, add the equivalent `extension-hosts` mapping. Use the worker and
+autoload paths printed by the plugin when the package or vendor directory is
+elsewhere. Existing configurations are preserved during updates, so applications
+installed before the analyzer extension was added need this one-time setup.
+
 Use this manual setup when automatic configuration creation is skipped, such as
 when Composer runs with `--no-plugins`.
 
 Removing the package leaves the application configuration in place. Remove its
-`extends` reference to the package or replace it with your own settings before
-running Mago again.
+`extends` reference and `extension-hosts.laramago` entry, or replace them with your
+own settings before running Mago again.
 
 ## Local installation before publication
 
@@ -150,8 +180,8 @@ The package has not been published or registered on Packagist.
 ### Comparing with Larastan
 
 Larastan is an independent reference for Laravel behavior. Its code and PHPStan
-extensions are not copied into this package. Mago 1.48.1 provides a native PHP
-extension SDK; comparison results help select and verify future type providers.
+extensions are not copied into this package. Our providers use Mago's native PHP
+extension SDK; comparison results guide their development and verification.
 
 ```sh
 php scripts/compare.php --project=C:/projects/laravel-app
@@ -195,6 +225,7 @@ PHP 8.2+, Composer 2, Mago ^1.48.1.
 composer validate --strict
 php tests/run.php
 php tests/preset.php
+php tests/analyzer.php
 ```
 
 Installer tests cover configuration creation, custom vendor directories, repeated
@@ -205,6 +236,11 @@ validation rules, visible secret warnings, a nested loop in finally, eval in tes
 and failures for eval in application code and invalid syntax. Install dependencies
 first. To use an external executable, set `MAGO_BINARY` to a native executable on
 Windows or to the Composer PHP script at `vendor/bin/mago`.
+
+`tests/analyzer.php` runs the real Mago analyzer and extension worker against
+isolated framework declarations. It checks magic calls, chained and callback model
+types, named arguments, invalid calls, and fallback for custom behavior. Use the
+comparison script with a Laravel application to verify the installed framework.
 
 A real Composer path repository installation was also checked in an isolated
 Windows project: automatic configuration creation, native `vendor/bin/mago.bat lint`,

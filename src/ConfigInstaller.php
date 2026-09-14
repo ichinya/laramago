@@ -14,12 +14,25 @@ final class ConfigInstaller
         $preset = str_replace('\\', '/', $preset);
         // Use a relocatable path for normal and custom vendor-dir installations.
         $reference = $this->relativePath($root, $preset);
+        $vendorReference = $vendor === null ? 'vendor' : $this->relativePath($root, str_replace('\\', '/', $vendor));
+        $workerCommand = [
+            'php',
+            $this->relativePath($root, dirname($preset, 2).'/bin/laramago-worker.php'),
+            $vendorReference.'/autoload.php',
+        ];
 
         foreach (['mago', 'mago.dist'] as $name) {
             foreach (['toml', 'yaml', 'yml', 'json'] as $extension) {
                 $file = $root.'/'.$name.'.'.$extension;
                 if (file_exists($file) || is_link($file)) {
-                    return 'Existing '.basename($file).' preserved. Ensure its extends includes: '.$reference;
+                    return (
+                        'Existing '
+                        .basename($file)
+                        .' preserved. Ensure its extends includes: '
+                        .$reference
+                        .'. For analyzer support, set extension-hosts.laramago.command to: '
+                        .json_encode($workerCommand, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)
+                    );
                 }
             }
         }
@@ -32,10 +45,9 @@ final class ConfigInstaller
             'extends' => $reference,
             'source' => [
                 'paths' => $paths === [] ? ['.'] : $paths,
-                'includes' => [
-                    $vendor === null ? 'vendor' : $this->relativePath($root, str_replace('\\', '/', $vendor)),
-                ],
+                'includes' => [$vendorReference],
             ],
+            'extension-hosts' => ['laramago' => ['command' => $workerCommand]],
         ];
         $contents = json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)."\n";
         // Exclusive creation: never overwrite a concurrent user's config.

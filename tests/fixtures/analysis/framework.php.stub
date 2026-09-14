@@ -1,0 +1,76 @@
+<?php
+
+declare(strict_types=1);
+
+// Materialized as PHP only inside the isolated analyzer test workspace.
+namespace Illuminate\Contracts\Database\Query;
+
+interface Expression {}
+
+namespace Illuminate\Database\Eloquent\Attributes;
+
+#[\Attribute(\Attribute::TARGET_CLASS)]
+final class UseEloquentBuilder
+{
+    public function __construct(
+        public string $builderClass,
+    ) {}
+}
+
+namespace Illuminate\Database\Eloquent;
+
+class Model
+{
+    protected static string $builder = Builder::class;
+
+    /** @return Builder<static> */
+    public static function query() {}
+
+    public function __call(string $method, array $parameters): mixed {}
+
+    public static function __callStatic(string $method, array $parameters): mixed {}
+
+    /** @return Builder<static> */
+    public function newEloquentBuilder($query) {}
+}
+
+/** @template TModel of Model */
+class Builder
+{
+    /**
+     * @param (\Closure(static): mixed)|string|array|\Illuminate\Contracts\Database\Query\Expression $column
+     * @param mixed $operator
+     * @param mixed $value
+     * @param string $boolean
+     * @return $this
+     */
+    public function where($column, $operator = null, $value = null, $boolean = 'and') {}
+
+    /**
+     * @param (\Closure(static): mixed)|string|array|\Illuminate\Contracts\Database\Query\Expression $column
+     * @param mixed $operator
+     * @param mixed $value
+     * @return $this
+     */
+    public function orWhere($column, $operator = null, $value = null) {}
+
+    /**
+     * @param (\Closure(static): mixed)|string|array|\Illuminate\Contracts\Database\Query\Expression $column
+     * @param mixed $operator
+     * @param mixed $value
+     * @param string $boolean
+     * @return $this
+     */
+    public function whereNot($column, $operator = null, $value = null, $boolean = 'and') {}
+
+    /**
+     * @param (\Closure(static): mixed)|string|array|\Illuminate\Contracts\Database\Query\Expression $column
+     * @param mixed $operator
+     * @param mixed $value
+     * @return $this
+     */
+    public function orWhereNot($column, $operator = null, $value = null) {}
+
+    /** @return TModel|null */
+    public function first() {}
+}
