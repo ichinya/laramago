@@ -4,7 +4,7 @@ A Composer package with a Laravel preset for the native Mago CLI.
 
 ```sh
 composer config repositories.laramago vcs https://github.com/ichinya/laramago
-composer require --dev ichinya/laramago:0.0.2
+composer require --dev ichinya/laramago:0.0.3
 vendor/bin/mago lint
 ```
 
@@ -13,7 +13,7 @@ plugin. Once allowed, the plugin creates `mago.dist.json` in the application roo
 The `carthage-software/mago` dependency provides `vendor/bin/mago`; this package
 uses that executable directly, without a wrapper or Laravel service provider.
 
-Version `0.0.2` adds static Eloquent property analysis without a database. The
+Version `0.0.3` adds model-aware factory result types and count tracking. The
 GitHub VCS repository shown above provides this version directly. For local
 package development, see the path repository instructions below.
 
@@ -179,9 +179,43 @@ This is a declarative schema reader, not a PHP interpreter. SQL dumps, arbitrary
 SQL or helper calls, conditional/dynamic schema changes, custom connections,
 custom cast classes, runtime table/cast changes, and untyped accessors are not
 inferred. Uncertain metadata stays unresolved; `$fillable` alone does not establish
-a type. Unknown properties and invalid assignments remain visible. This stage does
-not resolve ambiguous `factory()` / `find()` results, properties on collections,
-unbound base `Model` values, or request input properties.
+a type. Unknown properties and invalid assignments remain visible. Ambiguous
+`find()` results, properties on collections, unbound base `Model` values, and
+request input properties remain outside this provider's coverage.
+
+### Factory results
+
+The analyzer also tracks factory result types without creating models
+or executing factory definitions:
+
+```php
+User::factory()->create();                  // User
+User::factory()->active()->make();          // User, for a simple declared state
+User::factory(3)->create();                 // Collection<int, User>
+User::factory()->count(1)->create();         // Collection<int, User>
+User::factory(3)->count(null)->create();     // User
+User::factory(3)->createOne();               // User
+```
+
+Factory discovery reads `HasFactory<YourFactory>`, `UseFactory`, a static `$factory`
+property, or a concrete non-null `newFactory()` return contract. The default
+`App` / `App\Models` and `Database\Factories` naming convention is also supported.
+Model identity comes from the factory's `$model`, `Factory<YourModel>` declaration,
+or the default naming convention. These declarations must describe the actual
+factory association; application classes and custom resolvers are never executed.
+
+Count information survives assignments and standard fluent state methods. A
+single-return custom state chaining standard factory methods is also understood.
+`forEachSequence()` selects a collection; `sequence()` preserves the current count.
+Quiet creation, `makeOne()`, `createMany()`, `makeMany()`, `new()` and `times()` are
+covered. An integer count always selects a collection, including zero and one.
+
+Unknown counts, unpacked arguments, arbitrary custom states, and merged single
+and multiple branches retain `Model|Collection<int, Model>`. Core factory overrides
+and subclasses that directly mutate count/model state defer to native analysis.
+Runtime naming callbacks and custom collection implementations are not inferred.
+Native argument checks, protected property access, missing methods and invalid
+collection property access remain active.
 
 ## Existing configuration
 
@@ -298,6 +332,7 @@ php tests/run.php
 php tests/preset.php
 php tests/analyzer.php
 php tests/properties.php
+php tests/factories.php
 ```
 
 Installer tests cover configuration creation, custom vendor directories, repeated
@@ -320,6 +355,11 @@ schema changes, relationships, inherited/trait metadata, invalid accesses and wr
 additional migration directories, paths with spaces, concurrent worker requests,
 fresh metadata on subsequent runs, and visible parse failures. Fixture PHP remains
 in `.stub` files in the package so it cannot shadow the installed Laravel framework.
+
+`tests/factories.php` checks concrete factory discovery, count state through chains
+and variables, single and collection results, named arguments, custom declarations,
+unknown state and branch unions, protected properties, and native negative cases.
+Factory fixtures contain execution traps and require no environment file or database.
 
 A real Composer path repository installation was also checked in an isolated
 Windows project: automatic configuration creation, native `vendor/bin/mago.bat lint`,

@@ -1,0 +1,105 @@
+<?php
+
+// Declarations only: materialize this file inside an isolated test workspace.
+namespace Illuminate\Database\Eloquent\Attributes;
+#[\Attribute(\Attribute::TARGET_CLASS)]
+class UseFactory { public function __construct(public string $factoryClass) {} }
+
+namespace Illuminate\Database\Eloquent\Factories;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Collection;
+/** @template TFactory of Factory */
+trait HasFactory {
+    /** @param int|array|callable|null $count @param array|callable $state @return TFactory */
+    public static function factory($count = null, $state = []) {}
+    /** @return TFactory|null */
+    protected static function newFactory() {}
+}
+/** @template TModel of Model */
+abstract class Factory {
+    protected $model;
+    protected $count;
+    public function __construct(?int $count = null) {}
+    /** @return static */
+    public static function new(array|callable $attributes = []) {}
+    /** @return static */
+    public static function times(int $count) {}
+    /** @return static */
+    public function configure() {}
+    /** @return static */
+    public function count(?int $count) {}
+    /** @return static */
+    public function state(array|callable $state) {}
+    /** @return static */
+    public function sequence(mixed ...$sequence) {}
+    /** @return static */
+    public function forEachSequence(array ...$sequence) {}
+    /** @return static */
+    public function for(Factory|Model $factory, ?string $relationship = null) {}
+    /** @return static */
+    protected function newInstance(array $arguments = []) {}
+    /** @return Collection<int, TModel>|TModel */
+    public function create(array|callable $attributes = [], ?Model $parent = null) {}
+    /** @return Collection<int, TModel>|TModel */
+    public function createQuietly(array|callable $attributes = [], ?Model $parent = null) {}
+    /** @return Collection<int, TModel>|TModel */
+    public function make(array|callable $attributes = [], ?Model $parent = null) {}
+    /** @return TModel */
+    public function createOne(array|callable $attributes = []) {}
+    /** @return TModel */
+    public function createOneQuietly(array|callable $attributes = []) {}
+    /** @return TModel */
+    public function makeOne(array|callable $attributes = []) {}
+    /** @return TModel */
+    public function newModel(array $attributes = []) {}
+    /** @return Collection<int, TModel> */
+    public function createMany(int|iterable|null $records = null) {}
+    /** @return Collection<int, TModel> */
+    public function createManyQuietly(int|iterable|null $records = null) {}
+    /** @return Collection<int, TModel> */
+    public function makeMany(int|iterable|null $records = null) {}
+    /** @return class-string<TModel> */
+    public function modelName() {}
+}
+
+namespace App\Models;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
+/** @property int $id */
+class Person extends Model {
+    /** @use HasFactory<\Database\Factories\PersonFactory> */
+    use HasFactory;
+}
+class Employee extends Person {}
+class Convention extends Model { use HasFactory; }
+#[UseFactory(\Database\Factories\PersonFactory::class)]
+class Attributed extends Model { use HasFactory; }
+class Configured extends Model { use HasFactory; protected static $factory = \Database\Factories\PersonFactory::class; }
+class Resolved extends Model {
+    use HasFactory;
+    protected static function newFactory(): \Database\Factories\PersonFactory { throw new \RuntimeException('Do not execute the model.'); }
+}
+class CustomFactoryMethod extends Model { public static function factory(): int { return 1; } }
+class NoFactory extends Model {}
+class UnknownResolver extends Model { use HasFactory; protected static function newFactory() {} }
+
+namespace Database\Factories;
+use App\Models\Person as FactoryModel;
+use Illuminate\Database\Eloquent\Factories\Factory as BaseFactory;
+/** @extends BaseFactory<FactoryModel> */
+class PersonFactory extends BaseFactory {
+    public function active(): static { return $this->state(['active' => true]); }
+    public function pair(): static { return $this->count(2); }
+    public function single(): static { return $this->count(null); }
+    public function unknown(): static { throw new \RuntimeException('Do not execute the factory.'); }
+}
+class ConventionFactory extends BaseFactory { protected $model = \App\Models\Convention::class; }
+class DeclaredFactory extends PersonFactory { /** @return int */ public function create(array|callable $attributes = [], ?\Illuminate\Database\Eloquent\Model $parent = null): int { return 1; } }
+class CustomCountFactory extends PersonFactory { public function count(?int $count): static { return $this; } }
+class CustomMakeFactory extends PersonFactory { /** @return int */ public function make(array|callable $attributes = [], ?\Illuminate\Database\Eloquent\Model $parent = null): int { return 1; } }
+class MutableFactory extends PersonFactory { public function mutate(): void { $this->count = 2; } }
+class ConfiguredFactory extends PersonFactory { public function configure(): static { return $this->count(3); } }
+
+// This fixture and its method bodies must never be executed by the worker.
+throw new \RuntimeException('Factory declarations must not be loaded.');
