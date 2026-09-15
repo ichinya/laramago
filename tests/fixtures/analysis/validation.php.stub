@@ -1,0 +1,62 @@
+<?php
+
+// These declarations are parsed as dependencies and must never execute.
+namespace Illuminate\Contracts\Validation {
+
+interface Validator { /** @return array */ public function validated(); }
+}
+
+namespace Illuminate\Http {
+
+class Request {
+    public function __get(string $key): mixed {}
+    public function input($key = null, $default = null): mixed {}
+}
+}
+
+namespace Illuminate\Foundation\Http {
+
+class FormRequest extends \Illuminate\Http\Request {
+    /** @var \Illuminate\Contracts\Validation\Validator */
+    protected $validator;
+
+    /**
+     * @param array|int|string|null $key
+     * @param mixed $default
+     * @return mixed
+     */
+    public function validated($key = null, $default = null) {
+        throw new \RuntimeException('Do not execute validation.');
+    }
+}
+}
+
+namespace {
+    class StoreRecordRequest extends \Illuminate\Foundation\Http\FormRequest {
+        public function __construct() { throw new \RuntimeException('Do not construct requests.'); }
+        public function rules(): array { throw new \RuntimeException('Do not execute rules.'); }
+        protected function prepareForValidation(): void { throw new \RuntimeException('Do not prepare input.'); }
+    }
+    class ChildRecordRequest extends StoreRecordRequest {}
+    class OverrideRequest extends StoreRecordRequest {
+        public function validated($key = null, $default = null): string { return 'custom'; }
+    }
+    class InheritedOverrideRequest extends OverrideRequest {}
+    class ShapeRequest extends StoreRecordRequest {
+        /** @return array{title: string} */
+        public function validated($key = null, $default = null): array { return ['title' => 'custom']; }
+    }
+    trait CustomValidation { public function validated($key = null, $default = null): int { return 1; } }
+    class TraitRequest extends StoreRecordRequest { use CustomValidation; }
+    /** @method string validated(array|int|string|null $key = null, mixed $default = null) */
+    class DocumentedRequest extends StoreRecordRequest {}
+    class InheritedDocumentedRequest extends DocumentedRequest {}
+    class ShadowValidatorRequest extends StoreRecordRequest { protected $validator; }
+    class InheritedShadowValidatorRequest extends ShadowValidatorRequest {}
+    class UnrelatedValidation { public function validated(): string { return 'unrelated'; } }
+    class DeclaredRulesRequest extends StoreRecordRequest {
+        public function rules(): array { return ['count' => 'required|integer', 'title' => 'required|string']; }
+    }
+
+    throw new \RuntimeException('Validation fixtures must not execute.');
+}

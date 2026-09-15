@@ -19,7 +19,7 @@
         "class": "Ichinya\\Laramago\\Plugin"
     },
     "scripts": {
-        "test": ["@php tests/run.php", "@php tests/preset.php", "@php tests/analyzer.php", "@php tests/properties.php", "@php tests/factories.php", "@php tests/find.php", "@php tests/create.php"],
+        "test": ["@php tests/run.php", "@php tests/preset.php", "@php tests/analyzer.php", "@php tests/properties.php", "@php tests/factories.php", "@php tests/find.php", "@php tests/create.php", "@php tests/validation.php"],
         "check": ["@composer validate --strict", "@test"]
     },
     "config": {

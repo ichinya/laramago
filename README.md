@@ -4,7 +4,7 @@ A Composer package with a Laravel preset for the native Mago CLI.
 
 ```sh
 composer config repositories.laramago vcs https://github.com/ichinya/laramago
-composer require --dev ichinya/laramago:0.0.5
+composer require --dev ichinya/laramago:0.0.6
 vendor/bin/mago lint
 ```
 
@@ -13,7 +13,7 @@ plugin. Once allowed, the plugin creates `mago.dist.json` in the application roo
 The `carthage-software/mago` dependency provides `vendor/bin/mago`; this package
 uses that executable directly, without a wrapper or Laravel service provider.
 
-Version `0.0.5` adds model-aware result types for Eloquent creation methods.
+Version `0.0.6` adds array result types for complete validated form input.
 The GitHub VCS repository shown above provides this version directly. For local
 package development, see the path repository instructions below.
 
@@ -277,6 +277,34 @@ remain visible. Attribute arrays are checked against the builder signature;
 per-column mass-assignment validation and relationship creation remain separate
 work. First-class method references remain callable.
 
+### Validated form input
+
+Laramago resolves the complete result of
+`Illuminate\Foundation\Http\FormRequest::validated()` as `array<array-key, mixed>`:
+
+```php
+$request->validated();                   // array<array-key, mixed>
+$request->validated(null);               // array<array-key, mixed>
+$request->validated(default: []);         // array<array-key, mixed>
+$request->validated('title');             // native type, normally mixed
+$request->validated('title', 'Untitled'); // a default does not type existing input
+```
+
+Omitted keys and keys known to be `null` return the entire validated array.
+Named arguments and inherited form requests are supported. Non-null or unknown
+keys and unpacked argument lists defer to native analysis. Native parameter
+checking remains active; first-class method references remain callable.
+
+Explicit overrides, trait methods, PHPDoc contracts and more precise framework
+return types retain priority. Requests that redeclare the validator property
+also defer to native analysis.
+
+This provider does not execute the request, its validation rules, callbacks or
+application bootstrap. It does not infer field names or types from rules, assert
+that a particular key is present, or cast validated strings to numbers. Individual
+array values and field lookups retain their native types. Ordinary `input()` calls
+and magic request properties remain unchanged.
+
 ## Existing configuration
 
 The plugin preserves any `mago.{toml,yaml,yml,json}` or
@@ -395,6 +423,7 @@ php tests/properties.php
 php tests/factories.php
 php tests/find.php
 php tests/create.php
+php tests/validation.php
 ```
 
 Installer tests cover configuration creation, custom vendor directories, repeated
@@ -434,6 +463,13 @@ and callable references. A second worker run changes the fixture's builder
 signature to verify version-specific callback support and unavailable methods.
 The isolated project has no environment file or database and contains execution
 traps for model construction and application bootstrap.
+
+`tests/validation.php` checks complete validated arrays, null and named keys,
+unknown field values, native argument errors, inheritance, overrides and PHPDoc
+priority. A fresh worker run verifies a more precise framework return contract.
+The isolated project contains execution traps and needs no environment file or
+database; only the scenario file is analyzed, with request declarations included
+as dependencies.
 
 A real Composer path repository installation was also checked in an isolated
 Windows project: automatic configuration creation, native `vendor/bin/mago.bat lint`,
