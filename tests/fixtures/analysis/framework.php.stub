@@ -22,6 +22,16 @@ namespace Illuminate\Database\Eloquent;
 class Model
 {
     protected static string $builder = Builder::class;
+    protected $table;
+    protected $connection;
+    protected $casts = [];
+    protected $primaryKey = 'id';
+    protected $keyType = 'int';
+    public $incrementing = true;
+    public $timestamps = true;
+
+    public function __get(string $key): mixed {}
+    public function __set(string $key, mixed $value): void {}
 
     /** @return Builder<static> */
     public static function query() {}
@@ -33,6 +43,33 @@ class Model
     /** @return Builder<static> */
     public function newEloquentBuilder($query) {}
 }
+
+/** @template TKey of array-key @template TModel of Model */
+class Collection {}
+
+namespace Illuminate\Database\Eloquent\Casts;
+
+/**
+ * @template TGet
+ * @template TSet
+ */
+class Attribute {}
+
+namespace Illuminate\Database\Eloquent\Relations;
+
+/** @template TRelatedModel of \Illuminate\Database\Eloquent\Model */
+class BelongsTo {}
+/** @template TRelatedModel of \Illuminate\Database\Eloquent\Model */
+class HasOne {}
+/** @template TRelatedModel of \Illuminate\Database\Eloquent\Model */
+class HasMany {}
+
+namespace Carbon;
+
+interface CarbonInterface extends \DateTimeInterface {}
+class CarbonImmutable extends \DateTimeImmutable implements CarbonInterface {}
+
+namespace Illuminate\Database\Eloquent;
 
 /** @template TModel of Model */
 class Builder

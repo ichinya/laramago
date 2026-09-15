@@ -78,7 +78,7 @@ file_put_contents($workspace.'/mago.json', json_encode([
     'source' => ['paths' => ['cases.php'], 'includes' => ['framework.php']],
     'extension-hosts' => [
         'laramago' => [
-            'command' => [PHP_BINARY, $package.'/bin/laramago-worker.php', $package.'/vendor/autoload.php'],
+            'command' => [PHP_BINARY, $package.'/bin/laramago-worker.php', $package.'/vendor/autoload.php', $workspace],
             'workers' => 1,
         ],
     ],

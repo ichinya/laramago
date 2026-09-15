@@ -4,7 +4,7 @@ A Composer package with a Laravel preset for the native Mago CLI.
 
 ```sh
 composer config repositories.laramago vcs https://github.com/ichinya/laramago
-composer require --dev ichinya/laramago:0.0.1
+composer require --dev ichinya/laramago:0.0.2
 vendor/bin/mago lint
 ```
 
@@ -13,9 +13,9 @@ plugin. Once allowed, the plugin creates `mago.dist.json` in the application roo
 The `carthage-software/mago` dependency provides `vendor/bin/mago`; this package
 uses that executable directly, without a wrapper or Laravel service provider.
 
-Version `0.0.1` is the initial release. Until the package is registered on Packagist,
-use the GitHub VCS repository shown above. For local package development, see the
-path repository instructions below.
+Version `0.0.2` adds static Eloquent property analysis without a database. The
+GitHub VCS repository shown above provides this version directly. For local
+package development, see the path repository instructions below.
 
 ## How it works
 
@@ -104,15 +104,84 @@ argument count, argument type, and named argument checks remain active.
 
 Declared methods keep their native behavior. Models with custom query factories,
 magic dispatchers, builder properties, or `UseEloquentBuilder` attributes are left
-to Mago's existing analysis until their semantics are supported. Other magic
-methods, model properties, relationships, scopes, and facades are still outside
-this initial extension's coverage. The package does not generate overlays or
+to Mago's existing method analysis until their semantics are supported. Other magic
+methods, scopes, and facades are still outside this extension's coverage.
+The package does not generate overlays or
 replace Larastan. `examples/compatibility.toml` is an optional fragment with
 targeted suppressions for your `[analyzer]` section.
 
 The worker uses Mago's bundled PHP SDK and the application's Composer autoloader.
 It does not bootstrap Laravel or connect to a database. The `php` executable must
 be on PATH; a project may override the worker command with a specific executable.
+
+### Model properties without a database
+
+`vendor/bin/mago analyze` also resolves Eloquent properties from static source.
+There is no Artisan step, migration execution, model instantiation, or database
+inspection. The worker still requires the application's Composer autoloader.
+The linter command and its preset remain independent of model analysis.
+
+Supported information includes:
+
+- Migration `up()` methods with literal `Schema::create()` and `Schema::table()`
+  calls, column types, nullability, timestamps, foreign IDs, morph columns,
+  column/table renames, drops, and `change()`. `down()` methods are ignored.
+- Explicit or inherited `$table`, conventional English table names, and model keys.
+- `$casts` and literal `casts()` arrays, including inherited and trait methods:
+  scalar, decimal, array/JSON, collection, object, date, immutable date, and enum casts.
+- Typed `getNameAttribute()` / `setNameAttribute()` methods and
+  `Attribute<TGet, TSet>` contracts, with separate read and write types.
+- Standard relations with PHPDoc type arguments or a direct
+  `return $this->belongsTo(Related::class)`-style declaration. Many relations return
+  `Collection<int, Related>`; singular relations include `null` unless a statically
+  recognized `withDefault()` call provides a default.
+
+Native PHP properties and existing `@property`, `@property-read`, and
+`@property-write` contracts retain priority. Casts refine schema types and preserve
+schema nullability; without a known column, cast-derived attributes include `null`.
+Decimal casts read as `numeric-string`, while numeric writes are accepted. Uncast
+decimal and boolean columns retain driver-dependent numeric/string and boolean/flag
+alternatives; explicit casts give them precise PHP types. Ordinary date
+casts use `CarbonInterface` to allow Laravel's configurable date implementation;
+explicit immutable casts use `CarbonImmutable`.
+
+The worker finds the application root through Composer's installed-package metadata,
+including custom vendor directories. It recursively reads `database/migrations`
+and processes files in filename order. Add other migration directories in the
+application's `composer.json`:
+
+```json
+{
+    "extra": {
+        "laramago": {
+            "migration-paths": ["Modules/Billing/database/migrations"]
+        }
+    }
+}
+```
+
+These paths supplement `database/migrations` and are relative to the application
+root; absolute directory paths are also accepted. For isolated analysis workspaces,
+the worker accepts an optional third command argument specifying the project root:
+
+```toml
+[extension-hosts.laramago]
+command = ["php", "vendor/ichinya/laramago/bin/laramago-worker.php", "vendor/autoload.php", "."]
+```
+
+Migrations are read even when Mago analyzes only one application file. Metadata is
+cached only within a worker's analysis generation; subsequent runs read changed
+files. A missing default migration directory is supported. Read/parse failures or
+invalid migration configuration emit `ichinya/laramago/metadata-unavailable` warnings
+with the affected path and disable unreliable schema inference.
+
+This is a declarative schema reader, not a PHP interpreter. SQL dumps, arbitrary
+SQL or helper calls, conditional/dynamic schema changes, custom connections,
+custom cast classes, runtime table/cast changes, and untyped accessors are not
+inferred. Uncertain metadata stays unresolved; `$fillable` alone does not establish
+a type. Unknown properties and invalid assignments remain visible. This stage does
+not resolve ambiguous `factory()` / `find()` results, properties on collections,
+unbound base `Model` values, or request input properties.
 
 ## Existing configuration
 
@@ -221,13 +290,14 @@ from attempting to create a missing package manifest at the same time.
 
 ### Package checks
 
-PHP 8.2+, Composer 2, Mago ^1.48.1.
+PHP 8.2+, Composer 2, Mago ^1.48.1, PHP-Parser ^5.8, Doctrine Inflector ^2.1.
 
 ```sh
 composer validate --strict
 php tests/run.php
 php tests/preset.php
 php tests/analyzer.php
+php tests/properties.php
 ```
 
 Installer tests cover configuration creation, custom vendor directories, repeated
@@ -243,6 +313,13 @@ Windows or to the Composer PHP script at `vendor/bin/mago`.
 isolated framework declarations. It checks magic calls, chained and callback model
 types, named arguments, invalid calls, and fallback for custom behavior. Use the
 comparison script with a Laravel application to verify the installed framework.
+
+`tests/properties.php` exercises the real analyzer with migrations outside the host
+file set, without `.env` or application bootstrap. It covers property contracts,
+schema changes, relationships, inherited/trait metadata, invalid accesses and writes,
+additional migration directories, paths with spaces, concurrent worker requests,
+fresh metadata on subsequent runs, and visible parse failures. Fixture PHP remains
+in `.stub` files in the package so it cannot shadow the installed Laravel framework.
 
 A real Composer path repository installation was also checked in an isolated
 Windows project: automatic configuration creation, native `vendor/bin/mago.bat lint`,

@@ -1,0 +1,91 @@
+<?php
+
+namespace Example;
+
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+
+// Any attempt to load model source as PHP must fail the integration test.
+file_put_contents(__DIR__.'/model-executed', 'Unexpected application execution');
+throw new \RuntimeException('Model source must only be parsed.');
+
+enum Status: string { case Draft = 'draft'; case Published = 'published'; }
+
+/**
+ * @property string $documented
+ * @property-read string $read_only
+ * @property-write string $write_only
+ */
+class Person extends Model
+{
+    public string $declared = 'contract';
+    protected $casts = ['active' => 'boolean', 'amount' => 'decimal:2', 'settings' => 'array', 'status' => Status::class];
+
+    protected function casts(): array
+    {
+        return ['published_at' => 'immutable_datetime', 'score' => 'integer'];
+    }
+
+    public function getDisplayNameAttribute(): string { return 'Example'; }
+    public function setAliasAttribute(string $value): void {}
+
+    /** @return Attribute<string, int> */
+    protected function label(): Attribute { throw new \LogicException; }
+
+    public function manager(): BelongsTo { return $this->belongsTo(Person::class); }
+    public function members(): HasMany { return $this->hasMany(Person::class); }
+    public function profile(): HasOne { return $this->hasOne(Person::class)->withDefault(); }
+
+    /** @return BelongsTo<Person> */
+    public function documentedManager(): BelongsTo { throw new \LogicException; }
+}
+
+class BaseRecord extends Model { protected $table = 'people'; }
+class InheritedRecord extends BaseRecord {}
+class InheritedPerson extends Person { protected $table = 'people'; }
+class SelfPerson extends Model
+{
+    public function manager(): BelongsTo { return $this->belongsTo(self::class); }
+    public function peer(): BelongsTo { return $this->belongsTo(static::class); }
+}
+class InheritedSelfPerson extends SelfPerson { public function childOnly(): void {} }
+trait HasRating { protected function casts(): array { return ['rating' => 'int']; } }
+class RatedRecord extends Model { use HasRating; }
+class CustomKey extends Model
+{
+    protected $table = 'keys';
+    protected $primaryKey = 'code';
+    protected $keyType = 'string';
+    public $incrementing = false;
+}
+class UnknownRecord extends Model
+{
+    protected $fillable = ['imaginary'];
+    protected $casts = ['enabled' => 'boolean', 'mystery' => 'UnimplementedCast'];
+}
+class ConditionalRecord extends Model { protected $table = 'conditional_records'; }
+class ChangedRecord extends Model { protected $table = 'changed_records'; }
+class ExtraRecord extends Model {}
+class UntypedAccessor extends Model
+{
+    protected $table = 'people';
+    public function getNameAttribute($value) { return $value; }
+}
+class CustomDispatcher extends Model
+{
+    protected $table = 'people';
+    public function __get(string $key): mixed { return null; }
+}
+class OtherConnection extends Model { protected $table = 'people'; protected $connection = 'remote'; public $incrementing = false; }
+class DynamicRecord extends Model
+{
+    protected $table = 'people';
+    protected function casts(): array { return $this->loadDynamicCasts(); }
+}
+
+function acceptStatus(Status $status): void {}
+function acceptString(string $value): void {}

@@ -10,18 +10,26 @@ use Mago\Sdk\Analyzer\PluginRegistry;
 
 final class LaravelPlugin implements Plugin
 {
+    public function __construct(
+        private readonly string $projectRoot = '.',
+    ) {}
+
     public function getDefinition(): PluginDefinition
     {
         return new PluginDefinition(
             'ichinya/laramago',
             'Laravel',
-            'Laravel method signatures and model-aware query types.',
+            'Laravel method signatures, model properties and model-aware query types.',
         );
     }
 
     public function register(PluginRegistry $registry): void
     {
         $registry->registerMethodReturnTypeProvider(new EloquentWhereProvider);
+        $properties = new EloquentPropertyProvider($this->projectRoot);
+        $registry->registerPropertyTypeProvider($properties);
+        $registry->registerInitializationHook($properties);
+        $registry->registerBeforeAnalysisHook($properties);
         $registry->enableProviderMemoization();
     }
 }

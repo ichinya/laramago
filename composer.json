@@ -6,7 +6,9 @@
     "require": {
         "php": "^8.2",
         "composer-plugin-api": "^2.0",
-        "carthage-software/mago": "^1.48.1"
+        "carthage-software/mago": "^1.48.1",
+        "doctrine/inflector": "^2.1",
+        "nikic/php-parser": "^5.8"
     },
     "autoload": {
         "psr-4": {
@@ -17,7 +19,7 @@
         "class": "Ichinya\\Laramago\\Plugin"
     },
     "scripts": {
-        "test": ["@php tests/run.php", "@php tests/preset.php", "@php tests/analyzer.php"],
+        "test": ["@php tests/run.php", "@php tests/preset.php", "@php tests/analyzer.php", "@php tests/properties.php"],
         "check": ["@composer validate --strict", "@test"]
     },
     "config": {

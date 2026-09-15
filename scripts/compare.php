@@ -56,6 +56,13 @@ function runReport(array $command, string $project, string $output, string $name
     }
     fclose($pipes[0]);
     $exit = proc_close($process);
+    $log = file_get_contents($output.'/'.$name.'.log');
+    if (
+        str_starts_with($name, 'mago-')
+        && preg_match('/External analyzer provider failed|extension worker .*rejected request/i', $log)
+    ) {
+        throw new RuntimeException($name.' used native fallback after an extension failure: inspect its log.');
+    }
     $body = file_get_contents($output.'/'.$name.'.json');
     $json = trim($body) === '' ? [] : json_decode($body, true, flags: JSON_THROW_ON_ERROR);
     if (! in_array($exit, [0, 1], true)) {

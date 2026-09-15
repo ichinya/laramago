@@ -1,0 +1,51 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+file_put_contents(__DIR__.'/migration-executed', 'Unexpected migration execution');
+throw new RuntimeException('Migration source must only be parsed.');
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('people', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('nickname')->nullable();
+            $table->string('required')->nullable(false);
+            $table->string('previous_name');
+            $table->string('removed');
+            $table->string('removed_together');
+            $table->string('removed_by_name');
+            $table->boolean('active');
+            $table->boolean('uncast_flag');
+            $table->decimal('amount', 12, 2);
+            $table->json('settings')->nullable();
+            $table->string('status');
+            $table->timestamp('published_at')->nullable();
+            $table->integer('score');
+            $table->integer('documented');
+            $table->integer('declared');
+            $table->integer('changed');
+            $table->foreignId('manager_id')->nullable()->constrained('people');
+            $table->timestamps();
+            $table->rememberToken();
+            $table->nullableUuidMorphs('attachment');
+        });
+        Schema::create('keys', function (Blueprint $table) {
+            $table->string('code')->primary();
+        });
+        Schema::create('conditional_records', function (Blueprint $table) {
+            $table->string('value');
+            if (getenv('DYNAMIC_SCHEMA')) { $table->integer('value')->change(); }
+        });
+        Schema::create('old_records', function (Blueprint $table) {
+            $table->string('value');
+        });
+    }
+
+    public function down(): void { Schema::dropIfExists('people'); }
+};
