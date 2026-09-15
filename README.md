@@ -4,7 +4,7 @@ A Composer package with a Laravel preset for the native Mago CLI.
 
 ```sh
 composer config repositories.laramago vcs https://github.com/ichinya/laramago
-composer require --dev ichinya/laramago:0.0.4
+composer require --dev ichinya/laramago:0.0.5
 vendor/bin/mago lint
 ```
 
@@ -13,7 +13,7 @@ plugin. Once allowed, the plugin creates `mago.dist.json` in the application roo
 The `carthage-software/mago` dependency provides `vendor/bin/mago`; this package
 uses that executable directly, without a wrapper or Laravel service provider.
 
-Version `0.0.4` adds model-aware result types for Eloquent primary-key lookups.
+Version `0.0.5` adds model-aware result types for Eloquent creation methods.
 The GitHub VCS repository shown above provides this version directly. For local
 package development, see the path repository instructions below.
 
@@ -245,6 +245,38 @@ collection factories defer to native analysis. Relation forwarding and `findOr()
 callbacks remain separate work. First-class callable expressions stay callable;
 their later invocation is left to native analysis.
 
+### Creating models
+
+Laramago resolves `create()`, `createQuietly()`, `forceCreate()`,
+`forceCreateQuietly()`, `firstOrNew()`, `firstOrCreate()`, `createOrFirst()` and
+`updateOrCreate()` on models:
+
+```php
+User::create(['name' => 'Ada']);                       // User
+User::firstOrNew(['email' => 'ada@example.com']);       // User
+User::firstOrCreate(['email' => 'ada@example.com']);    // User
+User::updateOrCreate(['id' => 1], ['name' => 'Ada']);    // User
+```
+
+Results retain the concrete model class, including inherited and instance calls.
+These methods return one model when they return successfully. This type does not
+prove that a row was persisted: `firstOrNew()` may return an unsaved model, and
+model events may cancel a save. No model constructor, event, callback, application
+bootstrap or database query is executed during analysis.
+
+Parameter names, defaults and types come from the installed Laravel builder.
+This includes version-specific support for closure values; methods absent from
+that builder remain unknown. Native analysis handles declared builder calls such
+as `User::query()->create()`. Explicit methods, trait methods and PHPDoc contracts
+take priority. Custom builders, query dispatch, instance factories, hydration and
+event/guard wrappers defer to native analysis. Custom collections do not prevent
+inferring a single model result.
+
+Invalid arguments, unknown properties and methods, and invalid property writes
+remain visible. Attribute arrays are checked against the builder signature;
+per-column mass-assignment validation and relationship creation remain separate
+work. First-class method references remain callable.
+
 ## Existing configuration
 
 The plugin preserves any `mago.{toml,yaml,yml,json}` or
@@ -362,6 +394,7 @@ php tests/analyzer.php
 php tests/properties.php
 php tests/factories.php
 php tests/find.php
+php tests/create.php
 ```
 
 Installer tests cover configuration creation, custom vendor directories, repeated
@@ -394,6 +427,13 @@ Factory fixtures contain execution traps and require no environment file or data
 branches, `Arrayable`, union and unpacked identifiers, first-class callables,
 native argument validation, inheritance, PHPDoc priority and custom behavior.
 The real worker analyzes isolated declarations without loading an application.
+
+`tests/create.php` checks model creation and native builder calls, inherited and
+late-static results, argument errors, fresh property types, custom declarations
+and callable references. A second worker run changes the fixture's builder
+signature to verify version-specific callback support and unavailable methods.
+The isolated project has no environment file or database and contains execution
+traps for model construction and application bootstrap.
 
 A real Composer path repository installation was also checked in an isolated
 Windows project: automatic configuration creation, native `vendor/bin/mago.bat lint`,

@@ -10,12 +10,10 @@ use Mago\Sdk\Analyzer\Codebase;
 use Mago\Sdk\Analyzer\EffectiveCallableSignature;
 use Mago\Sdk\Analyzer\Invocation;
 use Mago\Sdk\Analyzer\Metadata\FunctionLikeMetadata;
-use Mago\Sdk\Analyzer\Metadata\MetadataFlags;
 use Mago\Sdk\Analyzer\MethodReturnTypeProvider;
 use Mago\Sdk\Analyzer\MethodTarget;
 use Mago\Sdk\Analyzer\ReturnTypeProviderContext;
 use Mago\Sdk\Analyzer\Type;
-use Mago\Sdk\Analyzer\Type\CallableParameter;
 use Mago\Sdk\Analyzer\Type\NamedObjectType;
 
 /** Selects the scalar or collection branch of Eloquent primary-key lookups. */
@@ -25,6 +23,13 @@ final class EloquentFindProvider implements MethodReturnTypeProvider, CallableSi
     private const BUILDER = 'Illuminate\\Database\\Eloquent\\Builder';
     private const COLLECTION = 'Illuminate\\Database\\Eloquent\\Collection';
     private const ARRAYABLE = 'Illuminate\\Contracts\\Support\\Arrayable';
+
+    private readonly EloquentModelDispatch $dispatch;
+
+    public function __construct()
+    {
+        $this->dispatch = new EloquentModelDispatch;
+    }
 
     public function getTargets(): array
     {
@@ -47,23 +52,8 @@ final class EloquentFindProvider implements MethodReturnTypeProvider, CallableSi
         ) {
             return null;
         }
-        $method = $this->method($context->codebase, self::BUILDER, $context->invocation->name);
-        if ($method === null) {
-            return null;
-        }
-        $parameters = [];
-        foreach ($method->parameters as $parameter) {
-            $parameters[] = new CallableParameter(
-                name: $parameter->name,
-                type: $parameter->type?->type ?? $parameter->declaredType?->type,
-                closureThisType: $parameter->closureThisType?->type,
-                byReference: $parameter->flags->contains(MetadataFlags::BY_REFERENCE),
-                variadic: $parameter->flags->contains(MetadataFlags::VARIADIC),
-                hasDefault: $parameter->flags->contains(MetadataFlags::HAS_DEFAULT),
-            );
-        }
 
-        return new EffectiveCallableSignature($parameters, displayName: self::BUILDER.'::'.$method->originalName);
+        return $this->dispatch->signature($context->codebase, $context->invocation->name);
     }
 
     public function getReturnType(ReturnTypeProviderContext $context): ?Type
@@ -127,64 +117,9 @@ final class EloquentFindProvider implements MethodReturnTypeProvider, CallableSi
 
             return $model !== null && $this->standardCollections($codebase, $model) ? $model : null;
         }
-        if (
-            ! $this->inherits($codebase, $atom->name, self::MODEL)
-            || $this->method($codebase, $atom->name, $call->name) !== null
-        ) {
-            return null;
-        }
-        foreach ([
-            '__call',
-            '__callStatic',
-            'newQuery',
-            'newModelQuery',
-            'newQueryWithoutScopes',
-            'newQueryWithoutRelationships',
-            'newEloquentBuilder',
-            'resolveCustomBuilderClass',
-        ] as $name) {
-            $method = $this->method($codebase, $atom->name, $name);
-            if ($method !== null && strcasecmp($method->identifier->class ?? '', self::MODEL) !== 0) {
-                return null;
-            }
-        }
-        $builder = $codebase->getDeclaringProperty($atom->name, '$builder') ?? $codebase->getProperty(
-            $atom->name,
-            '$builder',
-        );
-        if (
-            $builder !== null
-            && strcasecmp($builder->defaultType?->type->getLiteralClassString() ?? '', self::BUILDER) !== 0
-        ) {
-            return null;
-        }
-        foreach ($codebase->getMultipleClasses([$atom->name, ...$codebase->getClassAncestors($atom->name)]) as $class) {
-            foreach ([...($class?->pseudoMethods ?? []), ...($class?->staticPseudoMethods ?? [])] as $method) {
-                if (strcasecmp($method, $call->name) === 0) {
-                    return null;
-                }
-            }
-            foreach ($class?->attributes ?? [] as $attribute) {
-                if (
-                    strcasecmp($attribute->name, 'Illuminate\\Database\\Eloquent\\Attributes\\UseEloquentBuilder') === 0
-                ) {
-                    return null;
-                }
-            }
-        }
+        $model = $this->dispatch->modelType($codebase, $call);
 
-        // A lookup returns a fresh model, not the receiver's identity or property refinements.
-        $model = Type::fromAtomic(new NamedObjectType(
-            $atom->name,
-            $atom->parameters,
-            $atom->variances,
-            $atom->static,
-            false,
-            null,
-            $atom->remappedParameters,
-        ));
-
-        return $this->standardCollections($codebase, $model) ? $model : null;
+        return $model !== null && $this->standardCollections($codebase, $model) ? $model : null;
     }
 
     /** A custom collection contract must remain under native analysis. */
@@ -219,7 +154,7 @@ final class EloquentFindProvider implements MethodReturnTypeProvider, CallableSi
                 $atom->name,
                 ...$codebase->getClassAncestors($atom->name),
             ]) as $class) {
-                foreach ($class?->attributes ?? [] as $attribute) {
+                foreach ($class->attributes ?? [] as $attribute) {
                     if (strcasecmp($attribute->name, 'Illuminate\\Database\\Eloquent\\Attributes\\CollectedBy') === 0) {
                         return false;
                     }

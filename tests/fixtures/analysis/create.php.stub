@@ -1,0 +1,55 @@
+<?php
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Attributes\UseEloquentBuilder;
+
+/**
+ * @property int $id
+ * @property string|null $label
+ */
+class Record extends Model {
+    /** @return static */
+    public static function makeRecord() { return static::create(); }
+    public function __construct() { throw new RuntimeException('Do not construct models.'); }
+    protected static function booted(): void { throw new RuntimeException('Do not boot models.'); }
+}
+class ChildRecord extends Record {}
+class OtherRecord extends Model {}
+class DeclaredRecord extends Model { public static function create(array $attributes = []): string { return 'declared'; } }
+class InheritedDeclaredRecord extends DeclaredRecord {}
+/** @method static string create(array $attributes = []) */
+class DocumentedRecord extends Model {}
+class InheritedDocumentedRecord extends DocumentedRecord {}
+class CustomQueryRecord extends Model {
+    public function newQuery() { throw new RuntimeException('Do not execute query factories.'); }
+}
+class InheritedCustomQueryRecord extends CustomQueryRecord {}
+class CustomMagicRecord extends Model { public static function __callStatic(string $name, array $arguments): mixed {} }
+class CustomInstanceMagicRecord extends Model { public function __call(string $name, array $arguments): mixed {} }
+/** @extends Builder<Record> */
+class CustomBuilder extends Builder {
+    public function create(array $attributes = []): string { return 'declared'; }
+}
+class CustomBuilderRecord extends Model { protected static string $builder = CustomBuilder::class; }
+class InheritedCustomBuilderRecord extends CustomBuilderRecord {}
+#[UseEloquentBuilder(CustomBuilder::class)]
+class AttributedRecord extends Model {}
+/** @extends Collection<int, Record> */
+class RecordCollection extends Collection {}
+class CustomCollectionRecord extends Record {
+    public function newCollection(array $models = []): RecordCollection { return new RecordCollection; }
+}
+class CustomInstanceRecord extends Model { public function newInstance($attributes = [], $exists = false): OtherRecord {} }
+class InheritedCustomInstanceRecord extends CustomInstanceRecord {}
+class CustomHydrationRecord extends Model { public function newFromBuilder($attributes = [], $connection = null): OtherRecord {} }
+class CustomEventsRecord extends Model { public static function withoutEvents(callable $callback): string {} }
+class CustomGuardRecord extends Model { public static function unguarded(callable $callback): string {} }
+trait CustomCreation { public static function create(array $attributes = []): string { return 'trait'; } }
+class TraitRecord extends Model { use CustomCreation; }
+#[\Illuminate\Database\Eloquent\Attributes\CollectedBy(RecordCollection::class)]
+class CollectionAttributeRecord extends Record {}
+class UnrelatedCreation { public static function create(array $attributes = []): string { return 'unrelated'; } }
+
+throw new RuntimeException('Creation fixtures must not execute.');
