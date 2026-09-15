@@ -4,7 +4,7 @@ A Composer package with a Laravel preset for the native Mago CLI.
 
 ```sh
 composer config repositories.laramago vcs https://github.com/ichinya/laramago
-composer require --dev ichinya/laramago:0.0.3
+composer require --dev ichinya/laramago:0.0.4
 vendor/bin/mago lint
 ```
 
@@ -13,8 +13,8 @@ plugin. Once allowed, the plugin creates `mago.dist.json` in the application roo
 The `carthage-software/mago` dependency provides `vendor/bin/mago`; this package
 uses that executable directly, without a wrapper or Laravel service provider.
 
-Version `0.0.3` adds model-aware factory result types and count tracking. The
-GitHub VCS repository shown above provides this version directly. For local
+Version `0.0.4` adds model-aware result types for Eloquent primary-key lookups.
+The GitHub VCS repository shown above provides this version directly. For local
 package development, see the path repository instructions below.
 
 ## How it works
@@ -179,9 +179,9 @@ This is a declarative schema reader, not a PHP interpreter. SQL dumps, arbitrary
 SQL or helper calls, conditional/dynamic schema changes, custom connections,
 custom cast classes, runtime table/cast changes, and untyped accessors are not
 inferred. Uncertain metadata stays unresolved; `$fillable` alone does not establish
-a type. Unknown properties and invalid assignments remain visible. Ambiguous
-`find()` results, properties on collections, unbound base `Model` values, and
-request input properties remain outside this provider's coverage.
+a type. Unknown properties and invalid assignments remain visible. Properties on
+collections, unbound base `Model` values, and request input properties remain
+outside this property provider's coverage.
 
 ### Factory results
 
@@ -216,6 +216,34 @@ and subclasses that directly mutate count/model state defer to native analysis.
 Runtime naming callbacks and custom collection implementations are not inferred.
 Native argument checks, protected property access, missing methods and invalid
 collection property access remain active.
+
+### Primary-key lookups
+
+Laramago resolves `find()`, `findOrFail()`, `findOrNew()`,
+`findMany()` and `findSole()` on models and the standard Eloquent `Builder`:
+
+```php
+User::find(1);                         // User|null
+User::findOrFail(1);                   // User, when the call returns
+User::findOrNew(1);                    // User
+User::find([1, 2]);                    // Collection<int, User>
+User::query()->findOrFail([1, 2]);     // Collection<int, User>
+User::where('active', true)->find(1);  // User|null
+```
+
+Arrays and `Arrayable` identifiers select a collection, including empty arrays.
+`findMany()` always returns a collection; `findSole()` returns one model when it
+succeeds. Unknown identifiers, scalar/array unions and unpacked argument lists
+retain all possible result branches. `find()` keeps `null` in its scalar branch.
+No query is executed, and the analyzer does not assume that a database row exists.
+
+Magic model calls use parameter names, types and defaults from the installed
+Laravel builder, so named arguments, argument counts and invalid arguments remain
+checked. Declared methods and `@method` contracts retain priority, including
+inherited declarations. Custom builders, query factories, magic dispatchers and
+collection factories defer to native analysis. Relation forwarding and `findOr()`
+callbacks remain separate work. First-class callable expressions stay callable;
+their later invocation is left to native analysis.
 
 ## Existing configuration
 
@@ -333,6 +361,7 @@ php tests/preset.php
 php tests/analyzer.php
 php tests/properties.php
 php tests/factories.php
+php tests/find.php
 ```
 
 Installer tests cover configuration creation, custom vendor directories, repeated
@@ -360,6 +389,11 @@ in `.stub` files in the package so it cannot shadow the installed Laravel framew
 and variables, single and collection results, named arguments, custom declarations,
 unknown state and branch unions, protected properties, and native negative cases.
 Factory fixtures contain execution traps and require no environment file or database.
+
+`tests/find.php` exercises model and builder lookups, nullable and collection
+branches, `Arrayable`, union and unpacked identifiers, first-class callables,
+native argument validation, inheritance, PHPDoc priority and custom behavior.
+The real worker analyzes isolated declarations without loading an application.
 
 A real Composer path repository installation was also checked in an isolated
 Windows project: automatic configuration creation, native `vendor/bin/mago.bat lint`,

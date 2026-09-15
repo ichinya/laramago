@@ -1,0 +1,48 @@
+<?php
+
+// Materialized only inside an isolated analysis workspace; never executed.
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Attributes\UseEloquentBuilder;
+use Illuminate\Contracts\Support\Arrayable;
+
+/** @property int $id */
+class Record extends Model {}
+class ChildRecord extends Record {}
+class OtherRecord extends Model {}
+/** @implements Arrayable<int, int> */
+class RecordIds implements Arrayable { public function toArray(): array { return [1, 2]; } }
+class DeclaredRecord extends Model { public static function find(int $id): string { return 'declared'; } }
+class InheritedDeclaredRecord extends DeclaredRecord {}
+/** @method static string find(int $id) */
+class DocumentedRecord extends Model {}
+class InheritedDocumentedRecord extends DocumentedRecord {}
+class CustomQueryRecord extends Model {
+    /** @return Builder<static> */
+    public function newQuery() { throw new RuntimeException('Do not execute the query factory.'); }
+}
+class InheritedCustomQueryRecord extends CustomQueryRecord {}
+class CustomMagicRecord extends Model { public static function __callStatic(string $name, array $arguments): mixed {} }
+/** @extends Builder<Record> */
+class CustomBuilder extends Builder {
+    /** @return string */
+    public function find($id, $columns = ['*']): string { return 'declared'; }
+}
+class CustomBuilderRecord extends Model { protected static string $builder = CustomBuilder::class; }
+class InheritedCustomBuilderRecord extends CustomBuilderRecord {}
+#[UseEloquentBuilder(CustomBuilder::class)]
+class AttributedRecord extends Model {}
+/** @extends Collection<int, Record> */
+class RecordCollection extends Collection {}
+class CustomCollectionRecord extends Model {
+    public function newCollection(array $models = []): RecordCollection { return new RecordCollection; }
+}
+class CollectionPropertyRecord extends Model { protected static $collectionClass = RecordCollection::class; }
+#[\Illuminate\Database\Eloquent\Attributes\CollectedBy(RecordCollection::class)]
+class CollectionAttributeRecord extends Model {}
+class InheritedCollectionAttributeRecord extends CollectionAttributeRecord {}
+class CollectionResolverRecord extends Model { public function resolveCollectionFromAttribute(): string { return RecordCollection::class; } }
+class UnrelatedLookup { public static function find(int $id): string { return 'unrelated'; } }
+
+throw new RuntimeException('Lookup fixtures must not execute.');

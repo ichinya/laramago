@@ -7,6 +7,11 @@ namespace Illuminate\Contracts\Database\Query;
 
 interface Expression {}
 
+namespace Illuminate\Contracts\Support;
+
+/** @template TKey of array-key @template TValue */
+interface Arrayable { /** @return array<TKey, TValue> */ public function toArray(); }
+
 namespace Illuminate\Database\Eloquent\Attributes;
 
 #[\Attribute(\Attribute::TARGET_CLASS)]
@@ -16,6 +21,9 @@ final class UseEloquentBuilder
         public string $builderClass,
     ) {}
 }
+
+#[\Attribute(\Attribute::TARGET_CLASS)]
+final class CollectedBy { public function __construct(public string $collectionClass) {} }
 
 namespace Illuminate\Database\Eloquent;
 
@@ -110,4 +118,35 @@ class Builder
 
     /** @return TModel|null */
     public function first() {}
+
+    /**
+     * @param mixed $id
+     * @param array|string $columns
+     * @return ($id is (\Illuminate\Contracts\Support\Arrayable<array-key, mixed>|array<mixed>) ? Collection<int, TModel> : TModel|null)
+     */
+    public function find($id, $columns = ['*']) {}
+
+    /**
+     * @param mixed $id
+     * @param array|string $columns
+     * @return ($id is (\Illuminate\Contracts\Support\Arrayable<array-key, mixed>|array<mixed>) ? Collection<int, TModel> : TModel)
+     */
+    public function findOrFail($id, $columns = ['*']) {}
+
+    /**
+     * @param mixed $id
+     * @param array|string $columns
+     * @return ($id is (\Illuminate\Contracts\Support\Arrayable<array-key, mixed>|array<mixed>) ? Collection<int, TModel> : TModel)
+     */
+    public function findOrNew($id, $columns = ['*']) {}
+
+    /**
+     * @param \Illuminate\Contracts\Support\Arrayable|array $ids
+     * @param array|string $columns
+     * @return Collection<int, TModel>
+     */
+    public function findMany($ids, $columns = ['*']) {}
+
+    /** @param mixed $id @param array|string $columns @return TModel */
+    public function findSole($id, $columns = ['*']) {}
 }

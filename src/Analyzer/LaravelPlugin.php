@@ -26,6 +26,7 @@ final class LaravelPlugin implements Plugin
     public function register(PluginRegistry $registry): void
     {
         $registry->registerMethodReturnTypeProvider(new EloquentWhereProvider);
+        $registry->registerMethodReturnTypeProvider(new EloquentFindProvider);
         $factories = new EloquentFactoryProvider($this->projectRoot);
         $registry->registerMethodReturnTypeProvider($factories);
         $registry->registerInitializationHook($factories);
