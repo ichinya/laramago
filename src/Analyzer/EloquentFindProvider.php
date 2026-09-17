@@ -125,44 +125,7 @@ final class EloquentFindProvider implements MethodReturnTypeProvider, CallableSi
     /** A custom collection contract must remain under native analysis. */
     private function standardCollections(Codebase $codebase, Type $model): bool
     {
-        foreach ($model->atomicTypes as $atom) {
-            if (! $atom instanceof NamedObjectType || ! $this->inherits($codebase, $atom->name, self::MODEL)) {
-                return false;
-            }
-            foreach (['newCollection', 'resolveCollectionFromAttribute'] as $name) {
-                $method = $this->method($codebase, $atom->name, $name);
-                if (
-                    $method !== null
-                    && strcasecmp($method->identifier->class ?? '', self::MODEL) !== 0
-                    && strcasecmp($method->identifier->class ?? '', 'Illuminate\\Database\\Eloquent\\HasCollection')
-                        !== 0
-                ) {
-                    return false;
-                }
-            }
-            $collection = $codebase->getDeclaringProperty($atom->name, '$collectionClass') ?? $codebase->getProperty(
-                $atom->name,
-                '$collectionClass',
-            );
-            if (
-                $collection !== null
-                && strcasecmp($collection->defaultType?->type->getLiteralClassString() ?? '', self::COLLECTION) !== 0
-            ) {
-                return false;
-            }
-            foreach ($codebase->getMultipleClasses([
-                $atom->name,
-                ...$codebase->getClassAncestors($atom->name),
-            ]) as $class) {
-                foreach ($class->attributes ?? [] as $attribute) {
-                    if (strcasecmp($attribute->name, 'Illuminate\\Database\\Eloquent\\Attributes\\CollectedBy') === 0) {
-                        return false;
-                    }
-                }
-            }
-        }
-
-        return true;
+        return (new EloquentCollectionType)->resolve($codebase, $model) !== null;
     }
 
     private function method(Codebase $codebase, string $class, string $method): ?FunctionLikeMetadata

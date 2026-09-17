@@ -79,7 +79,10 @@ class CarbonImmutable extends \DateTimeImmutable implements CarbonInterface {}
 
 namespace Illuminate\Database\Eloquent;
 
-/** @template TModel of Model */
+/**
+ * @template TModel of Model
+ * @mixin \Illuminate\Database\Query\Builder
+ */
 class Builder
 {
     /** @return TModel */
@@ -140,8 +143,43 @@ class Builder
      */
     public function orWhereNot($column, $operator = null, $value = null) {}
 
-    /** @return TModel|null */
-    public function first() {}
+    /**
+     * @param array|string $columns
+     * @return TModel|null
+     */
+    public function first($columns = ['*']) {}
+
+    /**
+     * @param array|string $columns
+     * @return TModel
+     */
+    public function firstOrFail($columns = ['*']) {}
+
+    /**
+     * @param array|string $columns
+     * @return TModel
+     */
+    public function sole($columns = ['*']) {}
+
+    /**
+     * @param array|string $columns
+     * @return Collection<int, TModel>
+     */
+    public function get($columns = ['*']) {}
+
+    /**
+     * @param string|\Illuminate\Contracts\Database\Query\Expression $column
+     * @return $this
+     */
+    public function latest($column = null) {}
+
+    /**
+     * @param string|\Illuminate\Contracts\Database\Query\Expression $column
+     * @return $this
+     */
+    public function oldest($column = null) {}
+
+    public function __call(string $method, array $parameters): mixed {}
 
     /**
      * @param mixed $id
@@ -173,4 +211,40 @@ class Builder
 
     /** @param mixed $id @param array|string $columns @return TModel */
     public function findSole($id, $columns = ['*']) {}
+}
+
+namespace Illuminate\Database\Query;
+
+class Builder
+{
+    /**
+     * @param \Closure|Builder|\Illuminate\Database\Eloquent\Builder|\Illuminate\Contracts\Database\Query\Expression|string $column
+     * @param string $direction
+     * @return $this
+     */
+    public function orderBy($column, $direction = 'asc') {}
+
+    /**
+     * @param \Closure|Builder|\Illuminate\Database\Eloquent\Builder|\Illuminate\Contracts\Database\Query\Expression|string $column
+     * @return $this
+     */
+    public function orderByDesc($column) {}
+
+    /**
+     * @param \Illuminate\Contracts\Database\Query\Expression|string $columns
+     * @return int
+     */
+    public function count($columns = '*') {}
+
+    /**
+     * @param \Illuminate\Contracts\Database\Query\Expression|string $column
+     * @return mixed
+     */
+    public function sum($column) {}
+
+    /** @return bool */
+    public function exists() {}
+
+    /** @return bool */
+    public function doesntExist() {}
 }

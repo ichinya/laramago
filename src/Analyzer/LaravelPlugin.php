@@ -28,6 +28,7 @@ final class LaravelPlugin implements Plugin
         $registry->registerMethodReturnTypeProvider(new EloquentWhereProvider);
         $registry->registerMethodReturnTypeProvider(new EloquentFindProvider);
         $registry->registerMethodReturnTypeProvider(new EloquentCreateProvider);
+        $registry->registerMethodReturnTypeProvider(new EloquentQueryProvider);
         $registry->registerMethodReturnTypeProvider(new ValidatedInputProvider);
         $factories = new EloquentFactoryProvider($this->projectRoot);
         $registry->registerMethodReturnTypeProvider($factories);

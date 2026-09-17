@@ -19,14 +19,14 @@ final class EloquentModelDispatch
     private const MODEL = 'Illuminate\\Database\\Eloquent\\Model';
     private const BUILDER = 'Illuminate\\Database\\Eloquent\\Builder';
 
-    public function modelType(Codebase $codebase, Invocation $call): ?Type
+    public function modelType(Codebase $codebase, Invocation $call, string $methodClass = self::BUILDER): ?Type
     {
         $receiver = $call->receiverType;
         if (
             $receiver === null
             || count($receiver->atomicTypes) !== 1
             || ! $receiver->atomicTypes[0] instanceof NamedObjectType
-            || $this->method($codebase, self::BUILDER, $call->name) === null
+            || $this->method($codebase, $methodClass, $call->name) === null
         ) {
             return null;
         }
@@ -88,9 +88,12 @@ final class EloquentModelDispatch
         ));
     }
 
-    public function signature(Codebase $codebase, string $name): ?EffectiveCallableSignature
-    {
-        $method = $this->method($codebase, self::BUILDER, $name);
+    public function signature(
+        Codebase $codebase,
+        string $name,
+        string $methodClass = self::BUILDER,
+    ): ?EffectiveCallableSignature {
+        $method = $this->method($codebase, $methodClass, $name);
         if ($method === null) {
             return null;
         }
@@ -106,7 +109,7 @@ final class EloquentModelDispatch
             );
         }
 
-        return new EffectiveCallableSignature($parameters, displayName: self::BUILDER.'::'.$method->originalName);
+        return new EffectiveCallableSignature($parameters, displayName: $methodClass.'::'.$method->originalName);
     }
 
     public function overrides(Codebase $codebase, string $class, string $name, ?string $trait = null): bool

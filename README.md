@@ -4,7 +4,7 @@ A Composer package with a Laravel preset for the native Mago CLI.
 
 ```sh
 composer config repositories.laramago vcs https://github.com/ichinya/laramago
-composer require --dev ichinya/laramago:0.0.6
+composer require --dev ichinya/laramago:0.0.7
 vendor/bin/mago lint
 ```
 
@@ -13,7 +13,7 @@ plugin. Once allowed, the plugin creates `mago.dist.json` in the application roo
 The `carthage-software/mago` dependency provides `vendor/bin/mago`; this package
 uses that executable directly, without a wrapper or Laravel service provider.
 
-Version `0.0.6` adds array result types for complete validated form input.
+Version `0.0.7` adds model-aware Eloquent reads, sorting and aggregate signatures.
 The GitHub VCS repository shown above provides this version directly. For local
 package development, see the path repository instructions below.
 
@@ -277,6 +277,45 @@ remain visible. Attribute arrays are checked against the builder signature;
 per-column mass-assignment validation and relationship creation remain separate
 work. First-class method references remain callable.
 
+### Reading and sorting models
+
+Laramago resolves `first()`, `firstOrFail()`, `sole()`, `get()`, `latest()`,
+`oldest()`, `orderBy()`, `orderByDesc()`, `count()`, `sum()`, `exists()` and
+`doesntExist()` on models:
+
+```php
+User::first();                                  // User|null
+User::firstOrFail();                            // User, when the call returns
+User::sole();                                   // User, when the call returns
+User::get();                                    // Collection<int, User>
+User::latest()->first();                        // User|null
+User::orderBy('name')->orderByDesc('id')->get();  // Collection<int, User>
+User::where('active', true)->orderBy('id');       // Builder<User>
+User::count();                                  // installed integer contract
+User::exists();                                 // bool
+```
+
+Inherited, instance and class-string calls retain the model class. Forwarded
+`orderBy()` and `orderByDesc()` also preserve the model type on standard Eloquent
+builders. Declared builder reads use Laravel's own generic return contracts.
+
+Parameter names, defaults and types come from the installed Eloquent or Query
+Builder, including version-specific sorting directions. Aggregate return types
+also use installed metadata: `count()` can retain `int<0, max>`, while `sum()`
+stays `mixed` when that is Laravel's contract. Missing methods stay unknown.
+
+Declared methods and PHPDoc retain priority. Custom builders, query factories and
+magic dispatchers defer to native analysis. Reads also defer for custom hydration,
+instance factories and collection contracts. A named scope that shadows a forwarded
+Query Builder method prevents this provider from assigning the standard result.
+Local scope inference, runtime macros, relation forwarding and higher-order
+collection proxies such as `->map->someMethod()` remain separate work.
+
+No query, model constructor or application bootstrap runs during inference.
+`first()` remains nullable, and the analyzer does not assume a row exists.
+Unknown properties, collection property access, invalid writes and argument errors
+remain visible. First-class method references remain callable.
+
 ### Validated form input
 
 Laramago resolves the complete result of
@@ -424,6 +463,7 @@ php tests/factories.php
 php tests/find.php
 php tests/create.php
 php tests/validation.php
+php tests/queries.php
 ```
 
 Installer tests cover configuration creation, custom vendor directories, repeated
@@ -470,6 +510,13 @@ priority. A fresh worker run verifies a more precise framework return contract.
 The isolated project contains execution traps and needs no environment file or
 database; only the scenario file is analyzed, with request declarations included
 as dependencies.
+
+`tests/queries.php` checks model reads, sorting chains, aggregates, concrete model
+and collection types, nullable results, invalid returns and arguments, overrides
+and scope collisions. A fresh worker run verifies changed sorting direction and
+count contracts, plus unavailable methods. Only the scenario file is analyzed;
+framework and model declarations are dependencies. The workspace has a path with
+spaces, concurrent workers, execution traps, and no environment file or database.
 
 A real Composer path repository installation was also checked in an isolated
 Windows project: automatic configuration creation, native `vendor/bin/mago.bat lint`,

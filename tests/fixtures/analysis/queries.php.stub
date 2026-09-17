@@ -1,0 +1,54 @@
+<?php
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Attributes\UseEloquentBuilder;
+
+/**
+ * @property int $id
+ * @property string|null $label
+ */
+class Record extends Model {
+    public function __construct() { throw new RuntimeException('Do not construct models.'); }
+    protected static function booted(): void { throw new RuntimeException('Do not boot models.'); }
+}
+class ChildRecord extends Record {}
+class OtherRecord extends Model {}
+class DeclaredRecord extends Model { public static function first($columns = ['*']): string { return 'declared'; } }
+class InheritedDeclaredRecord extends DeclaredRecord {}
+/** @method static string first(array|string $columns = ['*']) */
+class DocumentedRecord extends Model {}
+class InheritedDocumentedRecord extends DocumentedRecord {}
+trait CustomRead { public static function first($columns = ['*']): string { return 'trait'; } }
+class TraitRecord extends Model { use CustomRead; }
+class CustomQueryRecord extends Model { public function newQuery() { throw new RuntimeException('Do not execute query factories.'); } }
+class InheritedCustomQueryRecord extends CustomQueryRecord {}
+class CustomMagicRecord extends Model { public static function __callStatic(string $name, array $arguments): mixed {} }
+/** @extends Builder<Record> */
+class CustomBuilder extends Builder {
+    /** @return string */
+    public function first($columns = ['*']): string { return 'custom'; }
+}
+class CustomBuilderRecord extends Model { protected static string $builder = CustomBuilder::class; }
+class InheritedCustomBuilderRecord extends CustomBuilderRecord {}
+#[UseEloquentBuilder(CustomBuilder::class)]
+class AttributedRecord extends Model {}
+/** @extends Collection<int, Record> */
+class RecordCollection extends Collection {}
+class CustomCollectionRecord extends Record { public function newCollection(array $models = []): RecordCollection { return new RecordCollection; } }
+class CollectionPropertyRecord extends Record { protected static $collectionClass = RecordCollection::class; }
+#[\Illuminate\Database\Eloquent\Attributes\CollectedBy(RecordCollection::class)]
+class CollectionAttributeRecord extends Record {}
+class InheritedCollectionAttributeRecord extends CollectionAttributeRecord {}
+class CustomHydrationRecord extends Record { public function newFromBuilder($attributes = [], $connection = null): OtherRecord {} }
+class CustomInstanceRecord extends Record { public function newInstance($attributes = [], $exists = false): OtherRecord {} }
+class OrderingScopeRecord extends Record { public function scopeOrderBy($query, $column): string { return 'scope'; } }
+class CountingScopeRecord extends Record { public function scopeCount($query): string { return 'scope'; } }
+class InheritedOrderingScopeRecord extends OrderingScopeRecord {}
+class CustomScopeDispatchRecord extends Record { public function hasNamedScope($name): bool { return true; } }
+class UnrelatedQuery { public static function first(): string { return 'unrelated'; } }
+class QueryExpression implements \Illuminate\Contracts\Database\Query\Expression {}
+enum QueryDirection { case Ascending; case Descending; }
+
+throw new RuntimeException('Query fixtures must not execute.');
