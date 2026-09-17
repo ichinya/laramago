@@ -22,7 +22,17 @@ final class EloquentScopeProvider implements MethodReturnTypeProvider, CallableS
 
     public function getTargets(): array
     {
-        return [MethodTarget::allMethods(self::MODEL), MethodTarget::allMethods(self::BUILDER)];
+        return [
+            MethodTarget::allMethods(self::MODEL),
+            MethodTarget::allMethods(self::BUILDER),
+            ...array_map(
+                static fn (string $method): MethodTarget => MethodTarget::exact(
+                    'Illuminate\\Database\\Query\\Builder',
+                    $method,
+                ),
+                EloquentQueryProvider::predicateMethods(),
+            ),
+        ];
     }
 
     public function getCallableSignature(CallableSignatureProviderContext $context): ?EffectiveCallableSignature

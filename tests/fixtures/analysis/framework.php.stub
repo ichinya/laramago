@@ -160,6 +160,18 @@ class Builder
     public function whereNot($column, $operator = null, $value = null, $boolean = 'and') {}
 
     /**
+     * @param mixed $id
+     * @return $this
+     */
+    public function whereKey($id) {}
+
+    /**
+     * @param mixed $id
+     * @return $this
+     */
+    public function whereKeyNot($id) {}
+
+    /**
      * @param (\Closure(static): mixed)|string|array|\Illuminate\Contracts\Database\Query\Expression $column
      * @param mixed $operator
      * @param mixed $value
@@ -244,6 +256,176 @@ namespace Illuminate\Database\Query;
 
 class Builder
 {
+    /**
+     * @param \Illuminate\Contracts\Database\Query\Expression|string $column
+     * @param mixed $values
+     * @param string $boolean
+     * @param bool $not
+     * @return $this
+     */
+    public function whereIn($column, $values, $boolean = 'and', $not = false) {}
+
+    /**
+     * @param \Illuminate\Contracts\Database\Query\Expression|string $column
+     * @param mixed $values
+     * @return $this
+     */
+    public function orWhereIn($column, $values) {}
+
+    /**
+     * @param \Illuminate\Contracts\Database\Query\Expression|string $column
+     * @param mixed $values
+     * @param string $boolean
+     * @return $this
+     */
+    public function whereNotIn($column, $values, $boolean = 'and') {}
+
+    /**
+     * @param \Illuminate\Contracts\Database\Query\Expression|string $column
+     * @param mixed $values
+     * @return $this
+     */
+    public function orWhereNotIn($column, $values) {}
+
+    /**
+     * @param string|array|\Illuminate\Contracts\Database\Query\Expression $columns
+     * @param string $boolean
+     * @param bool $not
+     * @return $this
+     */
+    public function whereNull($columns, $boolean = 'and', $not = false) {}
+
+    /**
+     * @param string|array|\Illuminate\Contracts\Database\Query\Expression $column
+     * @return $this
+     */
+    public function orWhereNull($column) {}
+
+    /**
+     * @param string|array|\Illuminate\Contracts\Database\Query\Expression $columns
+     * @param string $boolean
+     * @return $this
+     */
+    public function whereNotNull($columns, $boolean = 'and') {}
+
+    /**
+     * @param \Illuminate\Contracts\Database\Query\Expression|string $column
+     * @return $this
+     */
+    public function orWhereNotNull($column) {}
+
+    /**
+     * @param Builder|\Illuminate\Database\Eloquent\Builder<*>|\Illuminate\Contracts\Database\Query\Expression|string $column
+     * @param string $boolean
+     * @param bool $not
+     * @return $this
+     */
+    public function whereBetween($column, iterable $values, $boolean = 'and', $not = false) {}
+
+    /**
+     * @param Builder|\Illuminate\Database\Eloquent\Builder<*>|\Illuminate\Contracts\Database\Query\Expression|string $column
+     * @return $this
+     */
+    public function orWhereBetween($column, iterable $values) {}
+
+    /**
+     * @param Builder|\Illuminate\Database\Eloquent\Builder<*>|\Illuminate\Contracts\Database\Query\Expression|string $column
+     * @param string $boolean
+     * @return $this
+     */
+    public function whereNotBetween($column, iterable $values, $boolean = 'and') {}
+
+    /**
+     * @param Builder|\Illuminate\Database\Eloquent\Builder<*>|\Illuminate\Contracts\Database\Query\Expression|string $column
+     * @return $this
+     */
+    public function orWhereNotBetween($column, iterable $values) {}
+
+    /**
+     * @param \Illuminate\Contracts\Database\Query\Expression|string $column
+     * @param \DateTimeInterface|string|null $operator
+     * @param \DateTimeInterface|string|null $value
+     * @param string $boolean
+     * @return $this
+     */
+    public function whereDate($column, $operator, $value = null, $boolean = 'and') {}
+
+    /**
+     * @param \Illuminate\Contracts\Database\Query\Expression|string $column
+     * @param \DateTimeInterface|string|null $operator
+     * @param \DateTimeInterface|string|null $value
+     * @return $this
+     */
+    public function orWhereDate($column, $operator, $value = null) {}
+
+    /**
+     * @param \Illuminate\Contracts\Database\Query\Expression|string $column
+     * @param \DateTimeInterface|string|null $operator
+     * @param \DateTimeInterface|string|null $value
+     * @param string $boolean
+     * @return $this
+     */
+    public function whereTime($column, $operator, $value = null, $boolean = 'and') {}
+
+    /**
+     * @param \Illuminate\Contracts\Database\Query\Expression|string $column
+     * @param \DateTimeInterface|string|null $operator
+     * @param \DateTimeInterface|string|null $value
+     * @return $this
+     */
+    public function orWhereTime($column, $operator, $value = null) {}
+
+    /**
+     * @param \Illuminate\Contracts\Database\Query\Expression|string $column
+     * @param \DateTimeInterface|string|int|null $operator
+     * @param \DateTimeInterface|string|int|null $value
+     * @param string $boolean
+     * @return $this
+     */
+    public function whereDay($column, $operator, $value = null, $boolean = 'and') {}
+
+    /**
+     * @param \Illuminate\Contracts\Database\Query\Expression|string $column
+     * @param \DateTimeInterface|string|int|null $operator
+     * @param \DateTimeInterface|string|int|null $value
+     * @return $this
+     */
+    public function orWhereDay($column, $operator, $value = null) {}
+
+    /**
+     * @param \Illuminate\Contracts\Database\Query\Expression|string $column
+     * @param \DateTimeInterface|string|int|null $operator
+     * @param \DateTimeInterface|string|int|null $value
+     * @param string $boolean
+     * @return $this
+     */
+    public function whereMonth($column, $operator, $value = null, $boolean = 'and') {}
+
+    /**
+     * @param \Illuminate\Contracts\Database\Query\Expression|string $column
+     * @param \DateTimeInterface|string|int|null $operator
+     * @param \DateTimeInterface|string|int|null $value
+     * @return $this
+     */
+    public function orWhereMonth($column, $operator, $value = null) {}
+
+    /**
+     * @param \Illuminate\Contracts\Database\Query\Expression|string $column
+     * @param \DateTimeInterface|string|int|null $operator
+     * @param \DateTimeInterface|string|int|null $value
+     * @param string $boolean
+     * @return $this
+     */
+    public function whereYear($column, $operator, $value = null, $boolean = 'and') {}
+
+    /**
+     * @param \Illuminate\Contracts\Database\Query\Expression|string $column
+     * @param \DateTimeInterface|string|int|null $operator
+     * @param \DateTimeInterface|string|int|null $value
+     * @return $this
+     */
+    public function orWhereYear($column, $operator, $value = null) {}
+
     /**
      * @param \Closure|Builder|\Illuminate\Database\Eloquent\Builder|\Illuminate\Contracts\Database\Query\Expression|string $column
      * @param string $direction

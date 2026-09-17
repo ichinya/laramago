@@ -4,7 +4,7 @@ A Composer package with a Laravel preset for the native Mago CLI.
 
 ```sh
 composer config repositories.laramago vcs https://github.com/ichinya/laramago
-composer require --dev ichinya/laramago:0.0.10
+composer require --dev ichinya/laramago:0.0.11
 vendor/bin/mago lint
 ```
 
@@ -13,8 +13,8 @@ plugin. Once allowed, the plugin creates `mago.dist.json` in the application roo
 The `carthage-software/mago` dependency provides `vendor/bin/mago`; this package
 uses that executable directly, without a wrapper or Laravel service provider.
 
-Version `0.0.10` preserves model property types when migrations prepare scalar
-expressions inside Blueprint callbacks, without executing PHP or connecting to a database.
+Version `0.0.11` preserves model types through standard Eloquent query predicates,
+using installed framework signatures and retaining scope precedence.
 The GitHub VCS repository shown above provides this version directly. For local
 package development, see the path repository instructions below.
 
@@ -477,6 +477,42 @@ No query, model constructor or application bootstrap runs during inference.
 Unknown properties, collection property access, invalid writes and argument errors
 remain visible. First-class method references remain callable.
 
+### Query predicates
+
+Standard model filters retain `Builder<Model>` through static, instance, inherited
+and class-string calls. Query Builder predicates forwarded through an exact standard
+Eloquent builder retain its model type as well:
+
+```php
+User::whereIn('id', [1, 2])->get();                   // Collection<int, User>
+User::whereDate('created_at', '2026-01-01')->first();  // User|null
+User::whereMonth('created_at', 1)->firstOrFail();      // User
+User::whereKey(1)->exists();                         // bool
+```
+
+| Family | Supported methods |
+| --- | --- |
+| Primary key | `whereKey`, `whereKeyNot` |
+| Membership | `whereIn`, `whereNotIn`, `orWhereIn`, `orWhereNotIn` |
+| Null checks | `whereNull`, `whereNotNull`, `orWhereNull`, `orWhereNotNull` |
+| Ranges | `whereBetween`, `whereNotBetween`, `orWhereBetween`, `orWhereNotBetween` |
+| Dates and times | `whereDate`, `whereTime`, `whereDay`, `whereMonth`, `whereYear`, and their `orWhere` variants |
+
+Parameter types, names, defaults and arity come from the installed framework.
+For example, `whereIn()` retains Laravel's `mixed` values contract; the extension
+does not invent stricter argument types. Existing Mago checks on generic subquery
+arguments remain visible. Direct Query Builder calls retain their native result.
+
+Declared model methods and PHPDoc keep priority. Public Eloquent methods such as
+`whereKey()` precede named scopes; scopes precede forwarding to Query Builder.
+Mixin calls dispatched by Mago to Query Builder still use the original Eloquent
+receiver when resolving a scope. Custom builders, query factories and dispatchers
+retain the boundaries described above; unknown predicate names stay unknown.
+
+Filters do not prove that rows exist or narrow model property types. In particular,
+`whereNotNull('label')->firstOrFail()->label` retains the declared property contract,
+and `whereKey(1)->first()` remains nullable. Queries and callbacks are never executed.
+
 ### Higher-order mapping over models
 
 For standard Support and Eloquent collections of a single concrete model type,
@@ -685,6 +721,11 @@ in `.stub` files in the package so it cannot shadow the installed Laravel framew
 schema changes, nullable types, unknown properties and invalid writes through real
 Mago. It also verifies conservative handling of references, captured variables,
 dynamic calls and schema branches, without executing migrations or loading `.env`.
+
+`tests/predicates.php` checks predicate chains, native argument validation, scope
+precedence, installed signature changes and declaration priority through real Mago.
+It includes a provider-disabled comparison and preserves errors for nullable results,
+unknown properties and invalid writes, without application bootstrap or a database.
 
 `tests/factories.php` checks concrete factory discovery, count state through chains
 and variables, single and collection results, named arguments, custom declarations,

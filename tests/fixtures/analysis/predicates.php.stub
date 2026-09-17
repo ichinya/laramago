@@ -1,0 +1,36 @@
+<?php
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+
+class DeclaredPredicateRecord extends Record {
+    public static function whereIn(string $column, mixed $values): string { return 'declared'; }
+}
+class InheritedPredicateRecord extends DeclaredPredicateRecord {}
+/** @method static string whereIn(string $column, mixed $values) */
+class DocumentedPredicateRecord extends Record {}
+class InheritedDocumentedPredicateRecord extends DocumentedPredicateRecord {}
+trait CustomPredicate { public static function whereIn(string $column, mixed $values): string { return 'trait'; } }
+class TraitPredicateRecord extends Record { use CustomPredicate; }
+class PrivatePredicateRecord extends Record { private static function whereIn(string $column, mixed $values): string { return 'private'; } }
+class PredicateScopeRecord extends Record {
+    public function scopeWhereIn($query, string $column, mixed $values): string { return 'scope'; }
+}
+class InheritedPredicateScopeRecord extends PredicateScopeRecord {}
+class AttributedPredicateScopeRecord extends Record {
+    #[Scope]
+    protected function whereIn($query, string $column, mixed $values): string { return 'scope'; }
+}
+class PredicateScopeDispatchRecord extends Record { public function isScopeMethodWithAttribute($method): bool { return true; } }
+class KeyScopeRecord extends Record { public function scopeWhereKey($query, mixed $id): string { return 'scope'; } }
+/** @extends Builder<Record> */
+class PredicateBuilder extends Builder {
+    public function whereIn(string $column, mixed $values): string { return 'custom'; }
+}
+class PredicateBuilderRecord extends Record { protected static string $builder = PredicateBuilder::class; }
+class CustomInstanceDispatchRecord extends Record { public function __call(string $name, array $arguments): mixed {} }
+class UnrelatedPredicate { public static function whereIn(string $column, mixed $values): string { return 'unrelated'; } }
+enum PredicateBoolean { case And; case Or; }
+
+throw new RuntimeException('Predicate fixtures must not execute.');

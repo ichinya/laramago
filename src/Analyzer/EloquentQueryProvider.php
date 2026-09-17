@@ -15,7 +15,7 @@ use Mago\Sdk\Analyzer\ReturnTypeProviderContext;
 use Mago\Sdk\Analyzer\Type;
 use Mago\Sdk\Analyzer\Type\NamedObjectType;
 
-/** Bind common model reads and sorting to their installed builder signatures. */
+/** Bind common model reads, predicates and sorting to installed builder signatures. */
 final class EloquentQueryProvider implements MethodReturnTypeProvider, CallableSignatureProvider
 {
     private const MODEL = 'Illuminate\\Database\\Eloquent\\Model';
@@ -23,6 +23,31 @@ final class EloquentQueryProvider implements MethodReturnTypeProvider, CallableS
     private const QUERY = 'Illuminate\\Database\\Query\\Builder';
     private const READS = ['first', 'firstorfail', 'sole', 'get'];
     private const SORTS = ['latest', 'oldest', 'orderby', 'orderbydesc'];
+    private const KEYS = ['wherekey', 'wherekeynot'];
+    private const PREDICATES = [
+        'wherein',
+        'orwherein',
+        'wherenotin',
+        'orwherenotin',
+        'wherenull',
+        'orwherenull',
+        'wherenotnull',
+        'orwherenotnull',
+        'wherebetween',
+        'orwherebetween',
+        'wherenotbetween',
+        'orwherenotbetween',
+        'wheredate',
+        'orwheredate',
+        'wheretime',
+        'orwheretime',
+        'whereday',
+        'orwhereday',
+        'wheremonth',
+        'orwheremonth',
+        'whereyear',
+        'orwhereyear',
+    ];
     private const FORWARDED = ['orderby', 'orderbydesc', 'count', 'sum', 'exists', 'doesntexist'];
 
     private readonly EloquentModelDispatch $dispatch;
@@ -37,14 +62,31 @@ final class EloquentQueryProvider implements MethodReturnTypeProvider, CallableS
     public function getTargets(): array
     {
         $targets = [];
-        foreach ([...self::READS, ...self::SORTS, 'count', 'sum', 'exists', 'doesntexist'] as $method) {
+        foreach (array_unique([
+            ...self::READS,
+            ...self::SORTS,
+            ...self::FORWARDED,
+            ...self::PREDICATES,
+            ...self::KEYS,
+        ]) as $method) {
             $targets[] = MethodTarget::exact(self::MODEL, $method);
         }
-        foreach (['orderby', 'orderbydesc', 'get'] as $method) {
+        foreach (['orderby', 'orderbydesc', 'get', ...self::PREDICATES] as $method) {
             $targets[] = MethodTarget::exact(self::BUILDER, $method);
+        }
+        // Mixin resolution can dispatch to Query Builder while retaining the
+        // Eloquent receiver. Direct Query Builder calls must still defer.
+        foreach (self::PREDICATES as $method) {
+            $targets[] = MethodTarget::exact(self::QUERY, $method);
         }
 
         return $targets;
+    }
+
+    /** @return list<string> */
+    public static function predicateMethods(): array
+    {
+        return self::PREDICATES;
     }
 
     public function getCallableSignature(CallableSignatureProviderContext $context): ?EffectiveCallableSignature
@@ -66,7 +108,7 @@ final class EloquentQueryProvider implements MethodReturnTypeProvider, CallableS
             return null;
         }
         $name = strtolower($call->name);
-        if (in_array($name, self::SORTS, true)) {
+        if (in_array($name, [...self::SORTS, ...self::PREDICATES, ...self::KEYS], true)) {
             return Type::namedObject(self::BUILDER, $model);
         }
         if ($name === 'get') {
@@ -95,7 +137,22 @@ final class EloquentQueryProvider implements MethodReturnTypeProvider, CallableS
         if (! $atom instanceof NamedObjectType) {
             return null;
         }
-        if (in_array($name, self::FORWARDED, true)) {
+        if (in_array($name, self::PREDICATES, true)) {
+            // An installed Eloquent declaration wins over Query Builder forwarding.
+            if (
+                $codebase->getMethod(self::BUILDER, $name) !== null
+                || $codebase->getDeclaringMethod(self::BUILDER, $name) !== null
+            ) {
+                return null;
+            }
+            $metadata = $codebase->getClass(self::BUILDER);
+            foreach ([...($metadata->pseudoMethods ?? []), ...($metadata->staticPseudoMethods ?? [])] as $method) {
+                if (strcasecmp($method, $name) === 0) {
+                    return null;
+                }
+            }
+        }
+        if (in_array($name, [...self::FORWARDED, ...self::PREDICATES], true)) {
             // Named scopes precede Query Builder forwarding in Eloquent::__call.
             if (
                 $codebase->getMethod($atom->name, $name) !== null
@@ -104,6 +161,7 @@ final class EloquentQueryProvider implements MethodReturnTypeProvider, CallableS
                 || $codebase->getDeclaringMethod($atom->name, 'scope'.ucfirst($name)) !== null
                 || $this->dispatch->overrides($codebase, $atom->name, 'hasNamedScope')
                 || $this->dispatch->overrides($codebase, $atom->name, 'callNamedScope')
+                || $this->dispatch->overrides($codebase, $atom->name, 'isScopeMethodWithAttribute')
             ) {
                 return null;
             }
@@ -147,6 +205,8 @@ final class EloquentQueryProvider implements MethodReturnTypeProvider, CallableS
 
     private function methodClass(string $name): string
     {
-        return in_array(strtolower($name), self::FORWARDED, true) ? self::QUERY : self::BUILDER;
+        return in_array(strtolower($name), [...self::FORWARDED, ...self::PREDICATES], true)
+            ? self::QUERY
+            : self::BUILDER;
     }
 }
