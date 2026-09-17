@@ -4,7 +4,7 @@ A Composer package with a Laravel preset for the native Mago CLI.
 
 ```sh
 composer config repositories.laramago vcs https://github.com/ichinya/laramago
-composer require --dev ichinya/laramago:0.0.8
+composer require --dev ichinya/laramago:0.0.9
 vendor/bin/mago lint
 ```
 
@@ -13,8 +13,7 @@ plugin. Once allowed, the plugin creates `mago.dist.json` in the application roo
 The `carthage-software/mago` dependency provides `vendor/bin/mago`; this package
 uses that executable directly, without a wrapper or Laravel service provider.
 
-Version `0.0.8` expands static Laravel analysis with scopes, custom builders and
-collections, custom casts, and additional framework integrations.
+Version `0.0.9` adds typed higher-order mapping over Eloquent models.
 The GitHub VCS repository shown above provides this version directly. For local
 package development, see the path repository instructions below.
 
@@ -330,7 +329,7 @@ deferred portions of all fourteen integrations.
 | Relationship callbacks | Literal dotted paths for `whereHas`, `orWhereHas`, `whereDoesntHave`, `orWhereDoesntHave`; callback receives `Builder<Related>` | Concrete relationship PHPDoc required; `withWhereHas` is excluded because its eager-load callback can receive a relation |
 | Relation validation | Warns when a referenced existing method explicitly returns a known non-relation class, including nested paths | Missing methods may be dynamically registered and are not reported |
 | Authentication | `Request::user()` returns the configured model or null for literal session/token guards and Eloquent providers | `env()`, custom drivers, runtime resolver changes and fluent auth/guard calls are not inferred |
-| Collection filtering | Standard Support Collection `filter()` removes null/false, and whole-value `whereNotNull()` removes null; key types stay intact | Callback/keyed filtering and subclasses stay native; other falsy values remain conservative possibilities |
+| Collection operations | Standard Support Collection filtering and model method calls through `->map->method()` on standard Support/Eloquent collections | Filtering callbacks, custom collections and other higher-order operations defer; see the mapping contract below |
 | Facade roots | `getFacadeRoot()` returns `Service|null` for a single literal class-string accessor | Container aliases, service-binding implementation inference and magic facade calls defer |
 | Configuration | Literal `config('file.key')` reads from static configuration arrays, including shapes and known defaults | No environment evaluation, runtime mutations, package-merged defaults, or missing-key warnings; malformed source produces a warning |
 | Translation strings | Known PHP catalog string leaves for literal `trans`/`__` keys and an explicit locale | Dynamic/default locales, JSON precedence, custom paths/loaders and missing-reference diagnostics defer; native `view()` typing is retained |
@@ -439,12 +438,51 @@ collection contracts and defer for custom hydration, instance factories and
 unresolved collections. A named scope that shadows a forwarded Query Builder
 method prevents assigning the standard result. Scope, relation and explicit
 macro support have the boundaries described above; runtime macro discovery and
-higher-order collection proxies such as `->map->someMethod()` remain separate work.
+other higher-order operations remain separate work.
 
 No query, model constructor or application bootstrap runs during inference.
 `first()` remains nullable, and the analyzer does not assume a row exists.
 Unknown properties, collection property access, invalid writes and argument errors
 remain visible. First-class method references remain callable.
+
+### Higher-order mapping over models
+
+For standard Support and Eloquent collections of a single concrete model type,
+`->map->method()` preserves the collection around the model method's result:
+
+```php
+User::get()->map->getRawOriginal()->all(); // array<int, array<string, mixed>>
+$users->map->label();                     // Support Collection<TKey, string>
+$users->map->replicate();                 // Eloquent Collection<TKey, User>
+```
+
+The latter two examples assume `label(): string` on the model and a standard
+Eloquent collection of users. Keys are preserved. Eloquent keeps its collection
+type when every returned value is a model; otherwise the result uses the common
+Support collection type, which also accommodates an empty Eloquent collection.
+Nullable method results remain nullable collection values. A completed `void`
+method maps to `null`; a `never` method can only produce an empty collection.
+
+Concrete native/PHPDoc return contracts, array shapes, and top-level `static` /
+`$this` results are supported. Parameter-dependent PHPDoc branches use argument
+types and declared defaults; uncertain or unpacked arguments retain both branches.
+For example, `getRawOriginal()` returns attribute arrays, while a non-null or
+unknown key retains Laravel's `mixed` value contract. Mago still checks argument
+types, names, counts, visibility and unknown methods. Direct model calls and
+first-class method references retain native behavior.
+
+Support is limited to methods declared on model classes, their model ancestors,
+or Laravel's Eloquent `Concerns` traits. Mago dispatches mixin calls to the method's
+declaring class or trait, so unrelated application traits are currently deferred.
+Custom collection/proxy classes, non-model or class-string items, mixed item types,
+generic methods/classes, unresolved nested contextual types, property mapping
+(`->map->name`) and higher-order operations other than `map` defer to native analysis.
+Existing explicit method/PHPDoc contracts retain priority. No model method,
+collection callback, constructor, application bootstrap or database query executes.
+
+`php tests/higher-order-map.php` runs real Mago scenarios with isolated declarations,
+execution traps and concurrent workers in a path containing spaces. A comparison
+with analyzer plugins disabled reproduces the native proxy-chain errors.
 
 ### Validated form input
 

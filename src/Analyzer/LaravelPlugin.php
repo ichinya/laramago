@@ -25,6 +25,7 @@ final class LaravelPlugin implements Plugin
 
     public function register(PluginRegistry $registry): void
     {
+        $registry->registerMethodReturnTypeProvider(new HigherOrderMapProvider);
         $registry->registerMethodReturnTypeProvider(new EloquentRelationProvider);
         $registry->registerMethodReturnTypeProvider(new CollectionFilterProvider);
         $macros = new MacroProvider($this->projectRoot);

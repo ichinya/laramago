@@ -12,7 +12,7 @@ implementation; it does not imply support for every dynamic Laravel behavior.
 | Custom builder forwarding | Concrete public builder methods through a model, signatures and fluent results | Generic forwarded methods/classes and custom dispatch |
 | Generic builders and collections | Explicit concrete factory PHPDoc arguments, including reordered template parameters | Inferring missing arguments from class-string selectors or late-static templates |
 | Authentication | Request user model and nullability from literal standard auth configuration | Auth helper/guard chains, custom drivers, environment and runtime mutations |
-| Collection operations | Whole-value filter/null removal for exact Support Collection, preserving keys | Higher-order proxies, callback/key filtering and subclasses |
+| Collection operations | Whole-value filter/null removal for exact Support Collection; model method results through higher-order map on exact Support/Eloquent collections, preserving keys | Other proxy operations, property mapping, custom collections, unrelated application traits and callback/key filtering |
 | Advanced casts | Single-return literal Castable factories with concrete caster contracts | Generic interface substitution, conditional/anonymous factories and constructor arguments |
 | Factory collections | Custom model collections for counted create/createQuietly/make | Dynamic collection resolution; Laravel's explicit Many methods correctly keep the base collection |
 | Container and facades | Concrete class-string facade root types with nullability; native container helper inference verified | Binding implementation discovery, aliases and magic facade forwarding |
