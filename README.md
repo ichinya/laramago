@@ -4,7 +4,7 @@ A Composer package with a Laravel preset for the native Mago CLI.
 
 ```sh
 composer config repositories.laramago vcs https://github.com/ichinya/laramago
-composer require --dev ichinya/laramago:0.0.9
+composer require --dev ichinya/laramago:0.0.10
 vendor/bin/mago lint
 ```
 
@@ -13,7 +13,8 @@ plugin. Once allowed, the plugin creates `mago.dist.json` in the application roo
 The `carthage-software/mago` dependency provides `vendor/bin/mago`; this package
 uses that executable directly, without a wrapper or Laravel service provider.
 
-Version `0.0.9` adds typed higher-order mapping over Eloquent models.
+Version `0.0.10` preserves model property types when migrations prepare scalar
+expressions inside Blueprint callbacks, without executing PHP or connecting to a database.
 The GitHub VCS repository shown above provides this version directly. For local
 package development, see the path repository instructions below.
 
@@ -223,6 +224,37 @@ cached only within a worker's analysis generation; subsequent runs read changed
 files. A missing default migration directory is supported. Read/parse failures or
 invalid migration configuration emit `ichinya/laramago/metadata-unavailable` warnings
 with the affected path and disable unreliable schema inference.
+
+Within `Schema::create()` and `Schema::table()` callbacks, a fresh local variable
+may prepare a scalar expression without making the whole table unknown:
+
+```php
+Schema::create('entries', function (Blueprint $table) {
+    $table->id();
+    $table->string('code');
+    $table->string('label');
+    $expression = DB::getDriverName() === 'sqlite'
+        ? 'code || label'
+        : 'concat(code, label)';
+    $table->string('display')->virtualAs($expression);
+    $table->unsignedInteger('quantity')->nullable();
+});
+```
+
+Literal scalars, scalar operators, ternaries, string interpolation and earlier
+scalar locals are recognized. The only recognized call in these expressions is
+the resolved Laravel `DB::getDriverName()` facade call without arguments. Laramago
+does not invoke it, select a database driver, or evaluate the SQL expression.
+Column types and nullability still come from their explicit Blueprint declarations;
+`virtualAs()` and `storedAs()` do not supply a type themselves.
+
+Assignments must introduce a previously unmentioned local, excluding callback
+parameters, captures and superglobals. Reassignments, references, objects,
+arbitrary calls and conditional schema changes leave the table uncertain. Scalar
+knowledge is discarded when another kind of statement mentions a local, protecting
+against references passed through column arguments. Local values are not substituted
+into dynamic column names or nullable modifiers. These rules apply only inside
+Blueprint callbacks; arbitrary migration setup remains unsupported.
 
 This is a declarative schema reader, not a PHP interpreter. SQL dumps, arbitrary
 SQL or helper calls, conditional/dynamic schema changes, custom connections,
@@ -648,6 +680,11 @@ schema changes, relationships, inherited/trait metadata, invalid accesses and wr
 additional migration directories, paths with spaces, concurrent worker requests,
 fresh metadata on subsequent runs, and visible parse failures. Fixture PHP remains
 in `.stub` files in the package so it cannot shadow the installed Laravel framework.
+
+`tests/migration-locals.php` checks scalar migration preparation, generated columns,
+schema changes, nullable types, unknown properties and invalid writes through real
+Mago. It also verifies conservative handling of references, captured variables,
+dynamic calls and schema branches, without executing migrations or loading `.env`.
 
 `tests/factories.php` checks concrete factory discovery, count state through chains
 and variables, single and collection results, named arguments, custom declarations,

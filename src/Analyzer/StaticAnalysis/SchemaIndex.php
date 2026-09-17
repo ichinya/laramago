@@ -209,13 +209,18 @@ final class SchemaIndex
             $this->tables[$table] = [];
             unset($this->uncertain[$table]);
         }
+        $blueprint = $callback->params[0]->var->name;
+        $preparation = new SchemaPreparation($callback);
         foreach ($callback->stmts as $statement) {
+            if ($preparation->accepts($statement)) {
+                continue;
+            }
             if (! $statement instanceof Node\Stmt\Expression || ! $statement->expr instanceof Node\Expr\MethodCall) {
                 $this->uncertain[$table] = true;
                 continue;
             }
             [$receiver, $chain] = PhpSource::chain($statement->expr);
-            if (! $receiver instanceof Node\Expr\Variable || $receiver->name !== $callback->params[0]->var->name) {
+            if (! $receiver instanceof Node\Expr\Variable || $receiver->name !== $blueprint) {
                 $this->uncertain[$table] = true;
                 continue;
             }

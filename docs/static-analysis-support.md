@@ -6,6 +6,7 @@ implementation; it does not imply support for every dynamic Laravel behavior.
 
 | Integration | Implemented | Deferred |
 | --- | --- | --- |
+| Migration preparation | Fresh scalar locals inside Blueprint callbacks, including literal SQL-expression selection through `DB::getDriverName()` | PHP/SQL evaluation, variable column names, reassignments, references, arbitrary calls and conditional schema changes |
 | Relation forwarding | Standard relation result, sorting and selected aggregate methods | Custom relations/builders, MorphTo, exhaustive forwarding |
 | Relationship callbacks | Four whereHas-family methods, concrete PHPDoc related models and literal dotted paths | withWhereHas, dynamic paths, body-only relation inference |
 | Relation names | Existing methods returning a known non-relation class | Missing names that may be registered dynamically |
