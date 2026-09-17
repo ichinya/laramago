@@ -142,15 +142,13 @@ final class FactoryReflection
                 }
                 $mutation = (new NodeFinder)->findFirst($node->stmts ?? [], static function (Node $node): bool {
                     if (
-                        ! (
-                            $node instanceof Node\Expr\Assign
-                            || $node instanceof Node\Expr\AssignRef
-                            || $node instanceof Node\Expr\AssignOp
-                            || $node instanceof Node\Expr\PreInc
-                            || $node instanceof Node\Expr\PostInc
-                            || $node instanceof Node\Expr\PreDec
-                            || $node instanceof Node\Expr\PostDec
-                        )
+                        ! ($node instanceof Node\Expr\Assign
+                        || $node instanceof Node\Expr\AssignRef
+                        || $node instanceof Node\Expr\AssignOp
+                        || $node instanceof Node\Expr\PreInc
+                        || $node instanceof Node\Expr\PostInc
+                        || $node instanceof Node\Expr\PreDec
+                        || $node instanceof Node\Expr\PostDec)
                     ) {
                         return false;
                     }

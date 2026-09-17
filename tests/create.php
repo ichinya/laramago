@@ -99,9 +99,9 @@ $cases = [
     'inherited query deferred' => ['InheritedCustomQueryRecord::create();', 'void', ['non-documented-method']],
     'custom static magic deferred' => ['CustomMagicRecord::create();', 'void', ['non-documented-method']],
     'custom instance magic deferred' => ['CustomInstanceMagicRecord::create();', 'void', ['non-documented-method']],
-    'custom builder deferred' => ['CustomBuilderRecord::create();', 'void', ['non-documented-method']],
-    'inherited builder deferred' => ['InheritedCustomBuilderRecord::create();', 'void', ['non-documented-method']],
-    'builder attribute deferred' => ['AttributedRecord::create();', 'void', ['non-documented-method']],
+    'custom builder forwarded' => ['return CustomBuilderRecord::create();', 'string', []],
+    'inherited builder forwarded' => ['return InheritedCustomBuilderRecord::create();', 'string', []],
+    'builder attribute forwarded' => ['return AttributedRecord::create();', 'string', []],
     'custom builder declaration' => ['return (new CustomBuilder)->create();', 'string', []],
     'custom instance deferred' => ['CustomInstanceRecord::create();', 'void', ['non-documented-method']],
     'inherited instance deferred' => ['InheritedCustomInstanceRecord::create();', 'void', ['non-documented-method']],
@@ -140,7 +140,16 @@ function check_creation(array $cases, array $command, string $workspace): void
         PHP;
     $lines = [];
     foreach ($cases as $name => [$body, $return, $codes]) {
-        $source .= '/** @param Builder<Record> $builder @param class-string<Record> $class @return '.$return.' */'."\n";
+        $source .=
+            '/**'
+            ."\n"
+            .' * @param Builder<Record> $builder'
+            ."\n"
+            .' * @param class-string<Record> $class'
+            ."\n"
+            .' * @return '
+            .$return
+            ."\n */\n";
         $source .=
             'function scenario'
             .count($lines)

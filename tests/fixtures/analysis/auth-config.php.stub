@@ -1,0 +1,19 @@
+<?php
+use AuthMember as Member;
+file_put_contents(__DIR__.'/executed.txt', 'Configuration must never run.');
+return [
+    'defaults' => ['guard' => 'web'],
+    'guards' => [
+        'web' => ['driver' => 'session', 'provider' => 'members'],
+        'admin' => ['driver' => 'token', 'provider' => 'admins'],
+        'custom' => ['driver' => 'custom', 'provider' => 'members'],
+        'database' => ['driver' => 'session', 'provider' => 'database'],
+        'dynamic' => ['driver' => 'session', 'provider' => 'dynamic'],
+    ],
+    'providers' => [
+        'members' => ['driver' => 'eloquent', 'model' => Member::class],
+        'admins' => ['driver' => 'eloquent', 'model' => AuthAdmin::class],
+        'database' => ['driver' => 'database', 'table' => 'members'],
+        'dynamic' => ['driver' => 'eloquent', 'model' => env('AUTH_MODEL', Member::class)],
+    ],
+];

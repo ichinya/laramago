@@ -21,7 +21,6 @@ final class EloquentFindProvider implements MethodReturnTypeProvider, CallableSi
 {
     private const MODEL = 'Illuminate\\Database\\Eloquent\\Model';
     private const BUILDER = 'Illuminate\\Database\\Eloquent\\Builder';
-    private const COLLECTION = 'Illuminate\\Database\\Eloquent\\Collection';
     private const ARRAYABLE = 'Illuminate\\Contracts\\Support\\Arrayable';
 
     private readonly EloquentModelDispatch $dispatch;
@@ -64,7 +63,10 @@ final class EloquentFindProvider implements MethodReturnTypeProvider, CallableSi
             return null;
         }
         $name = strtolower($call->name);
-        $collection = Type::namedObject(self::COLLECTION, Type::int(), $model);
+        $collection = (new EloquentCollectionType)->resolve($context->codebase, $model);
+        if ($collection === null) {
+            return null;
+        }
         if ($name === 'findmany') {
             return $collection;
         }
@@ -115,15 +117,15 @@ final class EloquentFindProvider implements MethodReturnTypeProvider, CallableSi
         if (strcasecmp($atom->name, self::BUILDER) === 0) {
             $model = $atom->parameters[0] ?? null;
 
-            return $model !== null && $this->standardCollections($codebase, $model) ? $model : null;
+            return $model !== null && $this->knownCollections($codebase, $model) ? $model : null;
         }
         $model = $this->dispatch->modelType($codebase, $call);
 
-        return $model !== null && $this->standardCollections($codebase, $model) ? $model : null;
+        return $model !== null && $this->knownCollections($codebase, $model) ? $model : null;
     }
 
-    /** A custom collection contract must remain under native analysis. */
-    private function standardCollections(Codebase $codebase, Type $model): bool
+    /** Only statically resolved collection contracts can specialize lookup results. */
+    private function knownCollections(Codebase $codebase, Type $model): bool
     {
         return (new EloquentCollectionType)->resolve($codebase, $model) !== null;
     }

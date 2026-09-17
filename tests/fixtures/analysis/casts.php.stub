@@ -1,0 +1,80 @@
+<?php
+namespace Illuminate\Contracts\Database\Eloquent;
+/**
+ * @template TGet
+ * @template TSet */
+interface CastsAttributes { public function get($model, string $key, mixed $value, array $attributes); public function set($model, string $key, mixed $value, array $attributes); }
+interface CastsInboundAttributes { public function set($model, string $key, mixed $value, array $attributes); }
+interface Castable { public static function castUsing(array $arguments); }
+
+namespace CastExample;
+use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
+use Illuminate\Contracts\Database\Eloquent\CastsInboundAttributes;
+use Illuminate\Contracts\Database\Eloquent\Castable;
+use Illuminate\Database\Eloquent\Model;
+throw new \RuntimeException('Caster declarations must never execute.');
+class Money { public function amount(): int { return 1; } }
+class MoneyCast implements CastsAttributes {
+    public function __construct() { throw new \RuntimeException('Caster constructor executed.'); }
+    public function get($model, string $key, mixed $value, array $attributes): Money { throw new \RuntimeException('Getter executed.'); }
+    /** @param Money|int $value */
+    public function set($model, string $key, mixed $value, array $attributes): array { throw new \RuntimeException('Setter executed.'); }
+}
+class ChildMoneyCast extends MoneyCast {}
+class NullableCast implements CastsAttributes {
+    public function get($model, string $key, mixed $value, array $attributes): ?Money { return null; }
+    /** @param Money|null $value */
+    public function set($model, string $key, mixed $value, array $attributes): string { return ''; }
+}
+class InboundCast implements CastsInboundAttributes {
+    /** @param Money $value */
+    public function set($model, string $key, mixed $value, array $attributes): string { return ''; }
+}
+class UnknownCast implements CastsAttributes {
+    public function get($model, string $key, mixed $value, array $attributes) {}
+    public function set($model, string $key, mixed $value, array $attributes) {}
+}
+class DynamicCast implements Castable {
+    public static function castUsing(array $arguments) { throw new \RuntimeException('Factory executed.'); }
+}
+/** @template T */
+class GenericCast implements CastsAttributes {
+    /** @return list<T> */
+    public function get($model, string $key, mixed $value, array $attributes): array { return []; }
+    /** @param list<T> $value */
+    public function set($model, string $key, mixed $value, array $attributes): array { return []; }
+}
+class PlainClass { public function get(): Money { return new Money; } }
+/** @property string $documented */
+class Record extends Model {
+    protected $table = 'cast_records';
+    protected $casts = [
+        'money' => MoneyCast::class, 'nullable' => NullableCast::class,
+        'inbound' => InboundCast::class, 'without_schema' => MoneyCast::class,
+        'unknown' => UnknownCast::class, 'dynamic' => DynamicCast::class,
+        'generic' => GenericCast::class, 'plain' => PlainClass::class,
+        'child' => ChildMoneyCast::class, 'arguments' => 'CastExample\\MoneyCast:USD,2',
+        'documented' => MoneyCast::class, 'accessor' => MoneyCast::class,
+        'inbound_unknown' => InboundCast::class,
+    ];
+    public function getAccessorAttribute(): string { return ''; }
+}
+class ChildRecord extends Record {}
+class MethodRecord extends Model {
+    protected function casts(): array { return ['money' => MoneyCast::class]; }
+}
+class CustomResolverRecord extends Record { protected function resolveCasterClass($key) { return new UnknownCast; } }
+trait MoneyMethods {
+    public function get($model, string $key, mixed $value, array $attributes): Money { throw new \RuntimeException; }
+    /** @param Money $value */
+    public function set($model, string $key, mixed $value, array $attributes): array { return []; }
+}
+class TraitCast implements CastsAttributes { use MoneyMethods; }
+class TraitRecord extends Model { protected $casts = ['money' => TraitCast::class]; }
+class ArrayCast implements CastsAttributes {
+    /** @return array{amount: int} */
+    public function get($model, string $key, mixed $value, array $attributes): array { return ['amount' => 1]; }
+    /** @param array{amount: int} $value */
+    public function set($model, string $key, mixed $value, array $attributes): string { return ''; }
+}
+class ArrayRecord extends Model { protected $casts = ['money' => ArrayCast::class]; }

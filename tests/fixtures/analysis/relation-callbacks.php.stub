@@ -1,0 +1,64 @@
+<?php
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class CallbackRecord extends Model
+{
+    /** @return HasMany<CallbackPost> */
+    public function posts(): HasMany
+    {
+        throw new LogicException('Never execute');
+    }
+}
+
+class CallbackPost extends Model
+{
+    public string $title;
+}
+
+class CallbackChild extends CallbackRecord {}
+
+class CallbackComment extends Model {}
+
+class CallbackNested extends Model
+{
+    /** @return HasMany<CallbackRecord> */
+    public function records(): HasMany
+    {
+        throw new LogicException('Never execute');
+    }
+}
+
+class CallbackCustom extends CallbackRecord
+{
+    public static function whereHas(string $relation, ?Closure $callback = null): string
+    {
+        return 'custom';
+    }
+}
+
+class CallbackOverride extends CallbackRecord
+{
+    public function __call($method, $parameters)
+    {
+        return null;
+    }
+}
+
+class CallbackUndocumented extends Model
+{
+    public function posts(): HasMany
+    {
+        throw new LogicException('Never execute');
+    }
+}
+
+class CallbackCustomBuilder extends \Illuminate\Database\Eloquent\Builder
+{
+    /** @return string */
+    public function whereHas($relation, $callback = null): string
+    {
+        return 'custom';
+    }
+}

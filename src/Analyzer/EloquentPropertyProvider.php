@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\AttributeTypes;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\CustomCastTypes;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ModelReflection;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\SchemaIndex;
@@ -117,7 +118,17 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
             return null;
         }
         $reflection = new ModelReflection($codebase, $this->source());
-        foreach (['__get', '__set', 'getAttribute', 'setAttribute', 'getAttributeValue'] as $method) {
+        foreach ([
+            '__get',
+            '__set',
+            'getAttribute',
+            'setAttribute',
+            'getAttributeValue',
+            'castAttribute',
+            'resolveCasterClass',
+            'getClassCastableAttributeValue',
+            'setClassCastableAttribute',
+        ] as $method) {
             if ($reflection->customMethod($class, $method) !== null) {
                 return null;
             }
@@ -137,7 +148,18 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
             if (array_key_exists($property, $casts)) {
                 $cast = $casts[$property];
                 $type = is_string($cast) ? AttributeTypes::cast($cast, $codebase) : null;
-                $attribute = $type === null ? null : AttributeTypes::nullable($type, $column?->nullable ?? true);
+                $attribute = $type === null
+                    ? (
+                        is_string($cast)
+                            ? CustomCastTypes::resolve(
+                                $cast,
+                                $codebase,
+                                $column,
+                                $this->source(),
+                            )
+                            : null
+                    )
+                    : AttributeTypes::nullable($type, $column?->nullable ?? true);
             } elseif ($column !== null) {
                 $attribute = $reflection->automaticDate($class, $property)
                     ? AttributeTypes::nullable(AttributeTypes::date(), $column->nullable)

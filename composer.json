@@ -19,7 +19,7 @@
         "class": "Ichinya\\Laramago\\Plugin"
     },
     "scripts": {
-        "test": ["@php tests/run.php", "@php tests/preset.php", "@php tests/analyzer.php", "@php tests/properties.php", "@php tests/factories.php", "@php tests/find.php", "@php tests/create.php", "@php tests/validation.php", "@php tests/queries.php"],
+        "test": ["@php tests/run.php", "@php tests/preset.php", "@php tests/analyzer.php", "@php tests/properties.php", "@php tests/factories.php", "@php tests/find.php", "@php tests/create.php", "@php tests/validation.php", "@php tests/queries.php", "@php tests/scopes.php", "@php tests/casts.php", "@php tests/builders.php", "@php tests/relations.php", "@php tests/relation-names.php", "@php tests/relation-callbacks.php", "@php tests/builder-forwarding.php", "@php tests/generics.php", "@php tests/auth-types.php", "@php tests/collection-operations.php", "@php tests/advanced-casts.php", "@php tests/factory-collections.php", "@php tests/facade-roots.php", "@php tests/configuration.php", "@php tests/translation-strings.php", "@php tests/route-parameters.php", "@php tests/macros.php"],
         "check": ["@composer validate --strict", "@test"]
     },
     "config": {

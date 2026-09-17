@@ -1,0 +1,38 @@
+<?php
+namespace Illuminate\Support\Facades {
+    abstract class Facade {
+        /** @return mixed */
+        public static function getFacadeRoot() { throw new \RuntimeException('Do not execute facades.'); }
+        protected static function resolveFacadeInstance($name) { throw new \RuntimeException('Do not execute the container.'); }
+        protected static function getFacadeAccessor() { throw new \RuntimeException('Do not execute accessors.'); }
+    }
+}
+namespace {
+    throw new \RuntimeException('Do not bootstrap fixture source.');
+    class ServiceTarget { public function label(): string { return 'label'; } }
+    interface ServiceContract { public function label(): string; }
+    class ClassFacade extends \Illuminate\Support\Facades\Facade {
+        protected static function getFacadeAccessor() { return ServiceTarget::class; }
+    }
+    class ChildFacade extends ClassFacade {}
+    class InterfaceFacade extends \Illuminate\Support\Facades\Facade {
+        protected static function getFacadeAccessor() { return ServiceContract::class; }
+    }
+    class AliasFacade extends \Illuminate\Support\Facades\Facade {
+        protected static function getFacadeAccessor() { return 'service'; }
+    }
+    class DynamicFacade extends \Illuminate\Support\Facades\Facade {
+        protected static function getFacadeAccessor() { return getenv('SERVICE_CLASS'); }
+    }
+    class MultipleFacade extends ClassFacade {
+        protected static function getFacadeAccessor() { $ignored = 1; return ServiceTarget::class; }
+    }
+    class CustomResolverFacade extends ClassFacade {
+        protected static function resolveFacadeInstance($name) { return 123; }
+    }
+    class CustomRootFacade extends ClassFacade {
+        public static function getFacadeRoot(): int { return 123; }
+    }
+    /** @method static int getFacadeRoot() */
+    class DocumentedFacade extends ClassFacade {}
+}

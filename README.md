@@ -4,7 +4,7 @@ A Composer package with a Laravel preset for the native Mago CLI.
 
 ```sh
 composer config repositories.laramago vcs https://github.com/ichinya/laramago
-composer require --dev ichinya/laramago:0.0.7
+composer require --dev ichinya/laramago:0.0.8
 vendor/bin/mago lint
 ```
 
@@ -13,7 +13,8 @@ plugin. Once allowed, the plugin creates `mago.dist.json` in the application roo
 The `carthage-software/mago` dependency provides `vendor/bin/mago`; this package
 uses that executable directly, without a wrapper or Laravel service provider.
 
-Version `0.0.7` adds model-aware Eloquent reads, sorting and aggregate signatures.
+Version `0.0.8` expands static Laravel analysis with scopes, custom builders and
+collections, custom casts, and additional framework integrations.
 The GitHub VCS repository shown above provides this version directly. For local
 package development, see the path repository instructions below.
 
@@ -102,10 +103,9 @@ It reads signatures from the installed Laravel metadata and returns
 `Builder<YourModel>`, including the builder passed to a where callback. Native
 argument count, argument type, and named argument checks remain active.
 
-Declared methods keep their native behavior. Models with custom query factories,
-magic dispatchers, builder properties, or `UseEloquentBuilder` attributes are left
-to Mago's existing method analysis until their semantics are supported. Other magic
-methods, scopes, and facades are still outside this extension's coverage.
+Declared methods keep their native behavior. Custom query factories and magic
+dispatchers defer when their behavior is not statically known. Explicit custom
+builders, local scopes, and additional bounded integrations are described below.
 The package does not generate overlays or
 replace Larastan. `examples/compatibility.toml` is an optional fragment with
 targeted suppressions for your `[analyzer]` section.
@@ -113,6 +113,35 @@ targeted suppressions for your `[analyzer]` section.
 The worker uses Mago's bundled PHP SDK and the application's Composer autoloader.
 It does not bootstrap Laravel or connect to a database. The `php` executable must
 be on PATH; a project may override the worker command with a specific executable.
+
+### Local scopes without a database
+
+Local `scopeName()` methods are available through models and the standard
+`Builder`, including inherited and trait declarations. The analyzer removes the
+implicit query parameter and checks the remaining native/PHPDoc parameter types,
+named arguments, defaults, references and variadic parameters.
+
+```php
+// public function scopeActive(Builder $query, bool $enabled = true): void
+User::active(enabled: true)->findOrFail(1); // User
+User::query()->active();                   // Builder<User>
+```
+
+Scopes returning `void` or `null` retain `Builder<YourModel>`. Other declared
+results are preserved; `int|null`, for example, becomes `int|Builder<YourModel>`.
+An untyped scope result stays unknown. Generic scope methods and custom query or
+scope dispatchers defer to native analysis. Explicit methods and PHPDoc contracts
+retain priority. No scope body, model constructor or application bootstrap runs.
+
+Methods marked with `#[Scope]` are supported through `User::query()->active()`.
+Direct calls such as `User::active()` to a protected attributed method still
+produce Mago's native visibility/static-call diagnostics: the SDK signature
+provider cannot change access to a declared method. Use an explicit builder call
+for these scopes; Laramago does not suppress access diagnostics.
+
+`php tests/scopes.php` verifies scope behavior through the real Mago worker in
+an isolated workspace with spaces in its path, without an environment file or
+database. Fixtures include execution traps and negative argument/access cases.
 
 ### Model properties without a database
 
@@ -129,6 +158,11 @@ Supported information includes:
 - Explicit or inherited `$table`, conventional English table names, and model keys.
 - `$casts` and literal `casts()` arrays, including inherited and trait methods:
   scalar, decimal, array/JSON, collection, object, date, immutable date, and enum casts.
+- Custom `CastsAttributes` classes with concrete native/PHPDoc contracts on
+  `get()` and the value parameter of `set()`, including inherited/trait methods
+  and array shapes. Read and write types are independent.
+- `CastsInboundAttributes`: the write contract comes from `set()` and the read
+  contract from a known migration column. Without that column, analysis defers.
 - Typed `getNameAttribute()` / `setNameAttribute()` methods and
   `Attribute<TGet, TSet>` contracts, with separate read and write types.
 - Standard relations with PHPDoc type arguments or a direct
@@ -144,6 +178,22 @@ decimal and boolean columns retain driver-dependent numeric/string and boolean/f
 alternatives; explicit casts give them precise PHP types. Ordinary date
 casts use `CarbonInterface` to allow Laravel's configurable date implementation;
 explicit immutable casts use `CarbonImmutable`.
+
+Custom casts run on null values in Laravel, so their method contracts determine
+nullability independently of the database column. A nullable column can produce
+a non-null object; a non-null column can still have a nullable cast result.
+Laramago never constructs a caster or invokes `get()`, `set()` or `castUsing()`.
+For `Castable`, a factory consisting solely of `return ConcreteCaster::class`
+or `return new ConcreteCaster` is resolved statically, including inherited factories.
+Conditional factories, constructor arguments, contextual class names, anonymous
+casters and recursive Castable targets remain unresolved.
+Literal caster strings with constructor arguments are supported when the static
+model metadata resolves the string. Constructor arguments are not executed.
+Generic interface bindings alone are not used to narrow a `mixed` method
+parameter; use an explicit method PHPDoc contract for that case.
+
+`php tests/casts.php` checks custom casts through the real worker, including
+negative assignments, nullable behavior, inheritance, traits and execution traps.
 
 The worker finds the application root through Composer's installed-package metadata,
 including custom vendor directories. It recursively reads `database/migrations`
@@ -177,7 +227,8 @@ with the affected path and disable unreliable schema inference.
 
 This is a declarative schema reader, not a PHP interpreter. SQL dumps, arbitrary
 SQL or helper calls, conditional/dynamic schema changes, custom connections,
-custom cast classes, runtime table/cast changes, and untyped accessors are not
+dynamic `Castable::castUsing()` factories, unresolved generic cast contracts,
+runtime table/cast changes, and untyped accessors are not
 inferred. Uncertain metadata stays unresolved; `$fillable` alone does not establish
 a type. Unknown properties and invalid assignments remain visible. Properties on
 collections, unbound base `Model` values, and request input properties remain
@@ -213,9 +264,86 @@ covered. An integer count always selects a collection, including zero and one.
 Unknown counts, unpacked arguments, arbitrary custom states, and merged single
 and multiple branches retain `Model|Collection<int, Model>`. Core factory overrides
 and subclasses that directly mutate count/model state defer to native analysis.
-Runtime naming callbacks and custom collection implementations are not inferred.
+Runtime naming callbacks remain unresolved. Counted `create()`, `createQuietly()`
+and `make()` preserve a statically resolved model collection class. Laravel's
+`createMany()`, `createManyQuietly()` and `makeMany()` construct the base Eloquent
+collection, so those retain the base collection type.
 Native argument checks, protected property access, missing methods and invalid
 collection property access remain active.
+
+### Custom Eloquent builders
+
+Native query entry points (`query()`, `newQuery()`, `newModelQuery()`,
+`newQueryWithoutScopes()` and `newQueryWithoutRelationships()`) preserve a known,
+non-generic Eloquent builder subclass declared through `$builder`,
+`#[UseEloquentBuilder]` or a concrete `newEloquentBuilder()` return contract.
+Inherited declarations and positional/named attribute arguments are supported.
+
+```php
+// User declares a UserBuilder with an active() method.
+User::query()->active(); // UserBuilder; native argument checks stay active
+```
+
+The custom builder's own signatures and `@extends Builder<User>` declaration
+control subsequent calls. Explicit factory PHPDoc such as
+`@return CustomBuilder<User>` preserves concrete generic arguments; class-string
+selectors without arguments remain unresolved for generic builders.
+Public concrete custom methods also support direct calls such as `User::active()`,
+with native argument checks and builder-aware fluent results. Generic forwarded
+methods and declaring classes remain deferred. Existing query overrides remain native; dynamic builder resolvers and
+custom construction chains defer to native analysis. Constructors and factory
+bodies are never executed. Tests run with `php tests/builders.php`.
+
+### Custom Eloquent collections
+
+Model reads and primary-key lookups preserve an explicitly known, non-generic
+Eloquent collection subclass declared through:
+
+- A concrete `newCollection()` return type, including inherited declarations.
+- A literal `$collectionClass` class name.
+- A positional `#[CollectedBy(CollectionClass::class)]` attribute, including
+  inherited attributes. The nearest class attribute takes priority.
+
+For example, `User::get()`, `User::query()->get()` and `User::findMany([1])`
+retain a declared `UserCollection`, making its custom methods available for
+analysis. A custom `newCollection()` return contract takes priority over class
+attributes and properties. No collection constructor or factory is executed.
+
+Explicit `newCollection()` PHPDoc such as `@return CustomCollection<int, User>`
+preserves concrete generic arguments. Generic class-string selectors without
+arguments, unresolved return types and custom
+`resolveCollectionFromAttribute()` implementations still defer to native analysis.
+Collection subclasses can declare a fixed element type with `@extends`; Laramago
+does not invent template arguments from their names or parameter count. This
+support also covers counted factory results as described above.
+
+### Additional static integrations
+
+These integrations inspect declarations and syntax without booting the application.
+Unknown dynamic behavior keeps native Mago diagnostics and types.
+The [coverage matrix](docs/static-analysis-support.md) lists the implemented and
+deferred portions of all fourteen integrations.
+
+| Area | Supported subset | Boundaries |
+| --- | --- | --- |
+| Relation results | Standard relation forwarding for `first`, `firstOrFail`, `sole`, `get`, sorting and selected aggregates | Native declarations win; custom relations, `MorphTo` and custom related builders defer |
+| Relationship callbacks | Literal dotted paths for `whereHas`, `orWhereHas`, `whereDoesntHave`, `orWhereDoesntHave`; callback receives `Builder<Related>` | Concrete relationship PHPDoc required; `withWhereHas` is excluded because its eager-load callback can receive a relation |
+| Relation validation | Warns when a referenced existing method explicitly returns a known non-relation class, including nested paths | Missing methods may be dynamically registered and are not reported |
+| Authentication | `Request::user()` returns the configured model or null for literal session/token guards and Eloquent providers | `env()`, custom drivers, runtime resolver changes and fluent auth/guard calls are not inferred |
+| Collection filtering | Standard Support Collection `filter()` removes null/false, and whole-value `whereNotNull()` removes null; key types stay intact | Callback/keyed filtering and subclasses stay native; other falsy values remain conservative possibilities |
+| Facade roots | `getFacadeRoot()` returns `Service|null` for a single literal class-string accessor | Container aliases, service-binding implementation inference and magic facade calls defer |
+| Configuration | Literal `config('file.key')` reads from static configuration arrays, including shapes and known defaults | No environment evaluation, runtime mutations, package-merged defaults, or missing-key warnings; malformed source produces a warning |
+| Translation strings | Known PHP catalog string leaves for literal `trans`/`__` keys and an explicit locale | Dynamic/default locales, JSON precedence, custom paths/loaders and missing-reference diagnostics defer; native `view()` typing is retained |
+| Route parameters | Duplicate placeholders in literal native Router registration and Route `setUri()` calls | Facades, dynamic URIs, middleware and named-route registries defer; see [route validation](docs/route-parameters.md) |
+| Macros | Typed unconditional literal registrations from explicitly listed `extra.laramago.macro-files` | Catalog activation and completeness are user guarantees; see [macro catalogs](docs/macros.md) |
+
+Static configuration types describe the source defaults; applications that replace
+configuration, authentication resolvers or facade bindings at runtime need explicit
+contracts. `app(Foo::class)`, `resolve(Foo::class)` and standard container `make()`
+already receive native Mago generic inference and require no extra provider.
+
+Tests for these integrations run through `composer check`, including invalid
+arguments/results, nullable access and execution traps.
 
 ### Primary-key lookups
 
@@ -241,7 +369,7 @@ Magic model calls use parameter names, types and defaults from the installed
 Laravel builder, so named arguments, argument counts and invalid arguments remain
 checked. Declared methods and `@method` contracts retain priority, including
 inherited declarations. Custom builders, query factories, magic dispatchers and
-collection factories defer to native analysis. Relation forwarding and `findOr()`
+unresolved collection factories defer to native analysis. Relation forwarding and `findOr()`
 callbacks remain separate work. First-class callable expressions stay callable;
 their later invocation is left to native analysis.
 
@@ -297,19 +425,21 @@ User::exists();                                 // bool
 
 Inherited, instance and class-string calls retain the model class. Forwarded
 `orderBy()` and `orderByDesc()` also preserve the model type on standard Eloquent
-builders. Declared builder reads use Laravel's own generic return contracts.
+builders. Builder reads use Laravel's generic contracts and the explicitly
+resolved custom collection types described above.
 
 Parameter names, defaults and types come from the installed Eloquent or Query
 Builder, including version-specific sorting directions. Aggregate return types
 also use installed metadata: `count()` can retain `int<0, max>`, while `sum()`
 stays `mixed` when that is Laravel's contract. Missing methods stay unknown.
 
-Declared methods and PHPDoc retain priority. Custom builders, query factories and
-magic dispatchers defer to native analysis. Reads also defer for custom hydration,
-instance factories and collection contracts. A named scope that shadows a forwarded
-Query Builder method prevents this provider from assigning the standard result.
-Local scope inference, runtime macros, relation forwarding and higher-order
-collection proxies such as `->map->someMethod()` remain separate work.
+Declared methods and PHPDoc retain priority. The standard query provider defers
+for custom builders, query factories and magic dispatchers. Reads preserve known
+collection contracts and defer for custom hydration, instance factories and
+unresolved collections. A named scope that shadows a forwarded Query Builder
+method prevents assigning the standard result. Scope, relation and explicit
+macro support have the boundaries described above; runtime macro discovery and
+higher-order collection proxies such as `->map->someMethod()` remain separate work.
 
 No query, model constructor or application bootstrap runs during inference.
 `first()` remains nullable, and the analyzer does not assume a row exists.
@@ -454,17 +584,11 @@ from attempting to create a missing package manifest at the same time.
 PHP 8.2+, Composer 2, Mago ^1.48.1, PHP-Parser ^5.8, Doctrine Inflector ^2.1.
 
 ```sh
-composer validate --strict
-php tests/run.php
-php tests/preset.php
-php tests/analyzer.php
-php tests/properties.php
-php tests/factories.php
-php tests/find.php
-php tests/create.php
-php tests/validation.php
-php tests/queries.php
+composer check
 ```
+
+This validates Composer metadata and runs every integration script registered in
+`composer.json`. Individual scripts can also be run directly while developing.
 
 Installer tests cover configuration creation, custom vendor directories, repeated
 installation, preservation of all eight user configuration variants, and fallback

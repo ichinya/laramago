@@ -1,0 +1,16 @@
+<?php
+namespace CastExample;
+use Illuminate\Contracts\Database\Eloquent\Castable;
+use Illuminate\Database\Eloquent\Model;
+throw new \RuntimeException('Castable declarations must never execute.');
+class LiteralCastable implements Castable { public static function castUsing(array $arguments) { return MoneyCast::class; } }
+class InheritedCastable extends LiteralCastable {}
+class ArgumentCastable implements Castable { public static function castUsing(array $arguments) { return new MoneyCast($arguments); } }
+class InheritedCastableRecord extends Model { protected $casts = ['money' => InheritedCastable::class]; }
+class ArgumentCastableRecord extends Model { protected $casts = ['money' => ArgumentCastable::class]; }
+class ObjectCastable implements Castable { public static function castUsing(array $arguments) { return new MoneyCast; } }
+class NullableCastable implements Castable { public static function castUsing(array $arguments) { return NullableCast::class; } }
+class ConditionalCastable implements Castable { public static function castUsing(array $arguments) { if ($arguments) { return MoneyCast::class; } return NullableCast::class; } }
+class RecursiveCastable implements Castable { public static function castUsing(array $arguments) { return LiteralCastable::class; } }
+class NonCasterCastable implements Castable { public static function castUsing(array $arguments) { return Money::class; } }
+class CastableRecord extends Model { protected $casts = ['literal' => LiteralCastable::class, 'object' => ObjectCastable::class, 'nullable' => NullableCastable::class, 'conditional' => ConditionalCastable::class, 'recursive' => RecursiveCastable::class, 'invalid' => NonCasterCastable::class]; }

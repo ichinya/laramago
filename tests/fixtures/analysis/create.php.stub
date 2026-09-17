@@ -30,6 +30,7 @@ class CustomMagicRecord extends Model { public static function __callStatic(stri
 class CustomInstanceMagicRecord extends Model { public function __call(string $name, array $arguments): mixed {} }
 /** @extends Builder<Record> */
 class CustomBuilder extends Builder {
+    /** @return string */
     public function create(array $attributes = []): string { return 'declared'; }
 }
 class CustomBuilderRecord extends Model { protected static string $builder = CustomBuilder::class; }

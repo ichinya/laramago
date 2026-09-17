@@ -37,43 +37,8 @@ final class EloquentModelDispatch
         ) {
             return null;
         }
-        foreach ([
-            '__call',
-            '__callStatic',
-            'newQuery',
-            'newModelQuery',
-            'newQueryWithoutScopes',
-            'newQueryWithoutRelationships',
-            'newEloquentBuilder',
-            'resolveCustomBuilderClass',
-        ] as $name) {
-            if ($this->overrides($codebase, $atom->name, $name)) {
-                return null;
-            }
-        }
-        $builder = $codebase->getDeclaringProperty($atom->name, '$builder') ?? $codebase->getProperty(
-            $atom->name,
-            '$builder',
-        );
-        if (
-            $builder !== null
-            && strcasecmp($builder->defaultType?->type->getLiteralClassString() ?? '', self::BUILDER) !== 0
-        ) {
+        if (! $this->supportsModel($codebase, $atom->name, $call->name)) {
             return null;
-        }
-        foreach ($codebase->getMultipleClasses([$atom->name, ...$codebase->getClassAncestors($atom->name)]) as $class) {
-            foreach ([...($class->pseudoMethods ?? []), ...($class->staticPseudoMethods ?? [])] as $method) {
-                if (strcasecmp($method, $call->name) === 0) {
-                    return null;
-                }
-            }
-            foreach ($class->attributes ?? [] as $attribute) {
-                if (
-                    strcasecmp($attribute->name, 'Illuminate\\Database\\Eloquent\\Attributes\\UseEloquentBuilder') === 0
-                ) {
-                    return null;
-                }
-            }
         }
 
         // A forwarded operation does not return the receiver's existing property refinements.
@@ -86,6 +51,50 @@ final class EloquentModelDispatch
             null,
             $atom->remappedParameters,
         ));
+    }
+
+    public function supportsModel(Codebase $codebase, string $className, string $methodName): bool
+    {
+        foreach ([
+            '__call',
+            '__callStatic',
+            'newQuery',
+            'newModelQuery',
+            'newQueryWithoutScopes',
+            'newQueryWithoutRelationships',
+            'newEloquentBuilder',
+            'resolveCustomBuilderClass',
+        ] as $name) {
+            if ($this->overrides($codebase, $className, $name)) {
+                return false;
+            }
+        }
+        $builder = $codebase->getDeclaringProperty($className, '$builder') ?? $codebase->getProperty(
+            $className,
+            '$builder',
+        );
+        if (
+            $builder !== null
+            && strcasecmp($builder->defaultType?->type->getLiteralClassString() ?? '', self::BUILDER) !== 0
+        ) {
+            return false;
+        }
+        foreach ($codebase->getMultipleClasses([$className, ...$codebase->getClassAncestors($className)]) as $class) {
+            foreach ([...($class->pseudoMethods ?? []), ...($class->staticPseudoMethods ?? [])] as $method) {
+                if (strcasecmp($method, $methodName) === 0) {
+                    return false;
+                }
+            }
+            foreach ($class->attributes ?? [] as $attribute) {
+                if (
+                    strcasecmp($attribute->name, 'Illuminate\\Database\\Eloquent\\Attributes\\UseEloquentBuilder') === 0
+                ) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     public function signature(

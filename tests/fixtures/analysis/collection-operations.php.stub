@@ -1,0 +1,32 @@
+<?php
+namespace Illuminate\Support;
+/**
+ * @template TKey of array-key
+ * @template TValue
+ */
+class Collection {
+    /**
+     * @param callable(TValue, TKey): bool|null $callback
+     * @return static
+     */
+    public function filter(?callable $callback = null) { throw new \RuntimeException('Never execute collection methods.'); }
+    /**
+     * @param string|null $key
+     * @return static
+     */
+    public function whereNotNull($key = null) { throw new \RuntimeException('Never execute collection methods.'); }
+    /** @return TValue */
+    public function first() { throw new \RuntimeException('Never execute collection methods.'); }
+    /** @return TKey */
+    public function firstKey() { throw new \RuntimeException('Never execute collection methods.'); }
+}
+/** @extends Collection<int, string|null> */
+class CustomCollection extends Collection {}
+
+namespace Illuminate\Database\Eloquent;
+/**
+ * @template TKey of array-key
+ * @template TValue
+ * @extends \Illuminate\Support\Collection<TKey, TValue>
+ */
+class Collection extends \Illuminate\Support\Collection {}

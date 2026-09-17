@@ -1,0 +1,37 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+
+/** @extends Collection<int, CustomPerson> */
+class People extends Collection {
+    public function names(string $separator = ','): string { throw new \RuntimeException('Do not execute collection code.'); }
+}
+/** @property int $id */
+class CustomPerson extends Model {
+    use HasFactory;
+    protected static $collectionClass = People::class;
+}
+class MethodPerson extends Model {
+    use HasFactory;
+    public function newCollection(array $models = []): People { throw new \RuntimeException('Do not execute model code.'); }
+}
+class UnknownPerson extends Model {
+    use HasFactory;
+    public function newCollection(array $models = []) { throw new \RuntimeException('Do not execute model code.'); }
+}
+
+namespace Database\Factories;
+use Illuminate\Database\Eloquent\Factories\Factory;
+class CustomPersonFactory extends Factory { protected $model = \App\Models\CustomPerson::class; }
+class MethodPersonFactory extends Factory { protected $model = \App\Models\MethodPerson::class; }
+class UnknownPersonFactory extends Factory { protected $model = \App\Models\UnknownPerson::class; }
+class OverriddenFactory extends CustomPersonFactory {
+    /** @return int */
+    public function create(array|callable $attributes = [], ?\Illuminate\Database\Eloquent\Model $parent = null): int { return 1; }
+}
+
+throw new \RuntimeException('Factory collection declarations must never execute.');

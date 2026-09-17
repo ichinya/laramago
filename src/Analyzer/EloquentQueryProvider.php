@@ -40,7 +40,7 @@ final class EloquentQueryProvider implements MethodReturnTypeProvider, CallableS
         foreach ([...self::READS, ...self::SORTS, 'count', 'sum', 'exists', 'doesntexist'] as $method) {
             $targets[] = MethodTarget::exact(self::MODEL, $method);
         }
-        foreach (['orderby', 'orderbydesc'] as $method) {
+        foreach (['orderby', 'orderbydesc', 'get'] as $method) {
             $targets[] = MethodTarget::exact(self::BUILDER, $method);
         }
 
@@ -130,6 +130,9 @@ final class EloquentQueryProvider implements MethodReturnTypeProvider, CallableS
         $receiver = $receiverType->atomicTypes[0];
         if (! $receiver instanceof NamedObjectType || strcasecmp($receiver->name, self::BUILDER) !== 0) {
             return $this->dispatch->modelType($codebase, $call, $this->methodClass($call->name));
+        }
+        if (strtolower($call->name) === 'get' && $codebase->getMethod(self::BUILDER, 'get') !== null) {
+            return $receiver->parameters[0] ?? null;
         }
         if (
             $codebase->getMethod(self::BUILDER, $call->name) !== null

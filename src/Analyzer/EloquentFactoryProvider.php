@@ -173,7 +173,16 @@ final class EloquentFactoryProvider implements MethodReturnTypeProvider, Initial
             return $many;
         }
         if (in_array($name, ['create', 'createquietly', 'make'], true)) {
-            return $count === null ? Type::union($single, $many) : ((string) $count === 'null' ? $single : $many);
+            if ($count !== null && (string) $count === 'null') {
+                return $single;
+            }
+            // Counted make/create use Model::newCollection; *Many build the base collection directly.
+            $collection = (new EloquentCollectionType)->resolve($context->codebase, $single);
+            if ($collection === null) {
+                return null;
+            }
+
+            return $count === null ? Type::union($single, $collection) : $collection;
         }
 
         return null;

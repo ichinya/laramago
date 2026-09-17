@@ -1,0 +1,45 @@
+<?php
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+
+throw new RuntimeException('Scope declarations must never execute.');
+
+class ScopeRecord extends Model
+{
+    public function scopeActive(Builder $query, bool $enabled = true): void { throw new RuntimeException('Scope executed.'); }
+    public function scopeNamed(Builder $query, string $name): void {}
+    public function scopeTags(Builder $query, string ...$tags): void {}
+    public function scopeTotal(Builder $query): int { return 1; }
+    public function scopeMaybe(Builder $query): ?int { return null; }
+    /** @return Builder<ScopeRecord> */
+    public function scopeExplicit(Builder $query): Builder { return $query; }
+    #[Scope]
+    protected function recent(Builder $query, int $days = 7): void {}
+    public function scopeUnknown(Builder $query) {}
+    private function scopeSecret(Builder $query): void {}
+    public function scopeMalformed(string $query): void {}
+    public function scopeNone(Builder $query): null { return null; }
+    public function scopeStop(Builder $query): never { throw new RuntimeException('Stop.'); }
+    public function scopeByReference(Builder $query, string &$name): void {}
+    /** @param list<string> $names */
+    public function scopeNames(Builder $query, array $names): void {}
+    #[Scope]
+    public function direct(Builder $query): void {}
+    #[Scope]
+    private function hidden(Builder $query): void {}
+    public function scopeWhere(Builder $query): int { return 1; }
+}
+class ChildScopeRecord extends ScopeRecord {}
+trait VisibleScope { public function scopeVisible(Builder $query): void {} }
+class TraitScopeRecord extends Model { use VisibleScope; }
+class CustomScopeRecord extends ScopeRecord { public function callNamedScope($scope, array $parameters = []): mixed {} }
+/** @method static string active() */
+class DocumentedScopeRecord extends ScopeRecord {}
+class DeclaredScopeRecord extends ScopeRecord { public static function active(): string { return ''; } }
+class CustomScopeBuilder extends Builder {}
+class CustomBuilderScopeRecord extends ScopeRecord { protected static string $builder = CustomScopeBuilder::class; }
+class InheritedCustomScopeRecord extends CustomScopeRecord {}
+/** @method static string active() */
+class ParentDocumentedScopeRecord extends ScopeRecord {}
+class ChildDocumentedScopeRecord extends ParentDocumentedScopeRecord {}

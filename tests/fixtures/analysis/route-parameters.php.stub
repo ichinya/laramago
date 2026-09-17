@@ -1,0 +1,56 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Illuminate\Routing;
+
+throw new \RuntimeException('Routing fixture must never execute.');
+
+class Route
+{
+    public function setUri(string $uri): self { return $this; }
+}
+
+class Router
+{
+    public function get(string $uri, mixed $action = null): Route { return new Route; }
+    public function post(string $uri, mixed $action = null): Route { return new Route; }
+    public function put(string $uri, mixed $action = null): Route { return new Route; }
+    public function patch(string $uri, mixed $action = null): Route { return new Route; }
+    public function delete(string $uri, mixed $action = null): Route { return new Route; }
+    public function options(string $uri, mixed $action = null): Route { return new Route; }
+    public function any(string $uri, mixed $action = null): Route { return new Route; }
+    /**
+     * @param list<string> $methods
+     */
+    public function match(array $methods, string $uri, mixed $action = null): Route { return new Route; }
+    /**
+     * @param list<string> $methods
+     */
+    public function addRoute(array $methods, string $uri, mixed $action): Route { return new Route; }
+}
+
+class ExtendedRouter extends Router {}
+
+class CustomRouter extends Router
+{
+    public function get(string $uri, mixed $action = null): Route { return new Route; }
+}
+
+class CustomRoute extends Route
+{
+    public function setUri(string $uri): self { return $this; }
+}
+
+namespace Illuminate\Support\Facades;
+
+/**
+ * @method static \Illuminate\Routing\Route get(string $uri, mixed $action = null)
+ */
+class Route
+{
+    /**
+     * @param list<mixed> $arguments
+     */
+    public static function __callStatic(string $method, array $arguments): mixed { return null; }
+}

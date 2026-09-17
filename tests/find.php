@@ -11,6 +11,46 @@ mkdir($workspace);
 copy(__DIR__.'/fixtures/analysis/framework.php.stub', $workspace.'/framework.php');
 copy(__DIR__.'/fixtures/analysis/find.php.stub', $workspace.'/models.php');
 $cases = [
+    'custom collection method' => ['return CustomCollectionRecord::findMany([1])->marker();', 'string', []],
+    'custom builder lookup collection' => [
+        'return CollectionPropertyRecord::query()->find([1]);',
+        'RecordCollection',
+        [],
+    ],
+    'custom collection scalar lookup' => ['return CustomCollectionRecord::find(1);', 'CustomCollectionRecord|null', []],
+    'custom collection unknown id' => [
+        'return CustomCollectionRecord::find($unknown);',
+        'CustomCollectionRecord|RecordCollection|null',
+        [],
+    ],
+    'custom collection invalid property' => [
+        'CollectionPropertyRecord::findMany([1])->id;',
+        'void',
+        ['non-existent-property', 'unused-statement'],
+    ],
+    'custom collection typo method' => [
+        'CollectionPropertyRecord::findMany([1])->markerr();',
+        'void',
+        ['non-existent-method'],
+    ],
+    'generic collection deferred' => ['GenericCollectionRecord::findMany([1]);', 'void', ['non-documented-method']],
+    'invalid collection class deferred' => [
+        'InvalidCollectionRecord::findMany([1]);',
+        'void',
+        ['non-documented-method'],
+    ],
+    'untyped collection method deferred' => [
+        'UnknownCollectionRecord::findMany([1]);',
+        'void',
+        ['non-documented-method'],
+    ],
+    'inherited collection method' => ['return InheritedCollectionMethodRecord::findMany([1]);', 'RecordCollection', []],
+    'nearest collection attribute wins' => [
+        'return OverriddenCollectionAttributeRecord::findMany([1])->alternate();',
+        'int',
+        [],
+    ],
+    'collection method beats attribute' => ['return MethodPriorityRecord::findMany([1])->marker();', 'string', []],
     'scalar find' => ['return Record::find(1);', 'Record|null', []],
     'string find' => ['return Record::find("example-id");', 'Record|null', []],
     'null find' => ['return Record::find(null);', 'Record|null', []],
@@ -58,7 +98,7 @@ $cases = [
     ],
     'nullable lookup stays nullable' => ['acceptRecord(Record::find(1));', 'void', ['possibly-null-argument']],
     'property after lookup' => ['return Record::findOrFail(1)->id;', 'int', []],
-    'nullable property access' => ['return Record::find(1)->id;', 'int', ['possibly-null-property-access']],
+    'nullable property access' => ['echo Record::find(1)->id;', 'void', ['possibly-null-property-access']],
     'collection property access' => ['Record::find([1])->id;', 'void', ['non-existent-property', 'unused-statement']],
     'property typo' => ['Record::findOrFail(1)->idd;', 'void', ['non-documented-property', 'unused-statement']],
     'missing id' => ['Record::find();', 'void', ['too-few-arguments']],
@@ -75,16 +115,16 @@ $cases = [
     'custom query deferred' => ['CustomQueryRecord::find(1);', 'void', ['non-documented-method']],
     'inherited custom query deferred' => ['InheritedCustomQueryRecord::find(1);', 'void', ['non-documented-method']],
     'custom magic deferred' => ['CustomMagicRecord::find(1);', 'void', ['non-documented-method']],
-    'custom builder property deferred' => ['CustomBuilderRecord::find(1);', 'void', ['non-documented-method']],
-    'inherited custom builder deferred' => [
-        'InheritedCustomBuilderRecord::find(1);',
-        'void',
-        ['non-documented-method'],
+    'custom builder property forwarded' => ['return CustomBuilderRecord::find(1);', 'string', []],
+    'inherited custom builder forwarded' => [
+        'return InheritedCustomBuilderRecord::find(1);',
+        'string',
+        [],
     ],
-    'custom builder attribute deferred' => ['AttributedRecord::find(1);', 'void', ['non-documented-method']],
+    'custom builder attribute forwarded' => ['return AttributedRecord::find(1);', 'string', []],
     'custom builder declaration preserved' => ['return (new CustomBuilder)->find(1);', 'string', []],
-    'custom collection deferred' => ['CustomCollectionRecord::find([1]);', 'void', ['non-documented-method']],
-    'collection property deferred' => ['CollectionPropertyRecord::find([1]);', 'void', ['non-documented-method']],
+    'custom collection contract' => ['return CustomCollectionRecord::find([1]);', 'RecordCollection', []],
+    'collection property contract' => ['return CollectionPropertyRecord::find([1]);', 'RecordCollection', []],
     'unrelated lookup preserved' => ['return UnrelatedLookup::find(1);', 'string', []],
     'first class lookup stays callable' => ['return Record::find(...);', 'Closure', []],
     'first class many stays callable' => ['return Record::findMany(...);', 'Closure', []],
@@ -104,11 +144,11 @@ $cases = [
         'void',
         ['invalid-argument'],
     ],
-    'collection attribute deferred' => ['CollectionAttributeRecord::findMany([1]);', 'void', ['non-documented-method']],
-    'inherited collection attribute deferred' => [
-        'InheritedCollectionAttributeRecord::findMany([1]);',
-        'void',
-        ['non-documented-method'],
+    'collection attribute contract' => ['return CollectionAttributeRecord::findMany([1]);', 'RecordCollection', []],
+    'inherited collection attribute contract' => [
+        'return InheritedCollectionAttributeRecord::findMany([1]);',
+        'RecordCollection',
+        [],
     ],
     'collection resolver deferred' => ['CollectionResolverRecord::findMany([1]);', 'void', ['non-documented-method']],
 ];
@@ -123,7 +163,15 @@ $source = <<<'PHP'
 $lines = [];
 foreach ($cases as $name => [$body, $return, $codes]) {
     $source .=
-        '/** @param Builder<Record> $builder @param Builder<Record|OtherRecord> $models @param Arrayable<int, int> $ids @return '
+        '/**'
+        ."\n"
+        .' * @param Builder<Record> $builder'
+        ."\n"
+        .' * @param Builder<Record|OtherRecord> $models'
+        ."\n"
+        .' * @param Arrayable<int, int> $ids'
+        ."\n"
+        .' * @return '
         .$return
         .' */'
         ."\n";

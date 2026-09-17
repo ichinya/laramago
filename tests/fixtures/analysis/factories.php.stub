@@ -10,7 +10,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Collection;
 /** @template TFactory of Factory */
 trait HasFactory {
-    /** @param int|array|callable|null $count @param array|callable $state @return TFactory */
+    /**
+ * @param int|array|callable|null $count
+ * @param array|callable $state
+ * @return TFactory */
     public static function factory($count = null, $state = []) {}
     /** @return TFactory|null */
     protected static function newFactory() {}

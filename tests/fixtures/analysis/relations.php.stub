@@ -1,0 +1,16 @@
+<?php
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+class RelatedRecord extends Model { public string $title; }
+class OwnerRecord extends Model {
+    /** @return HasMany<RelatedRecord> */
+    public function records() { throw new LogicException('Must not execute relation methods.'); }
+}
+/** @extends HasMany<RelatedRecord> */
+class CustomRelation extends HasMany { public function firstOrFail(): string { return 'custom'; } }
+class CustomOwner extends Model {
+    public function records(): CustomRelation { throw new LogicException('Must not execute.'); }
+}
+class UnknownOwner extends Model {
+    public function records(): HasMany { throw new LogicException('Must not execute.'); }
+}

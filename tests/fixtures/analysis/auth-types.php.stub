@@ -1,0 +1,22 @@
+<?php
+namespace Illuminate\Contracts\Auth {
+    interface Authenticatable {}
+}
+namespace Illuminate\Http {
+    class Request {
+        /** @return \Illuminate\Contracts\Auth\Authenticatable|null */
+        public function user(?string $guard = null) { return null; }
+    }
+}
+namespace {
+    class AuthMember implements \Illuminate\Contracts\Auth\Authenticatable {
+        public string $email;
+    }
+    class AuthAdmin implements \Illuminate\Contracts\Auth\Authenticatable {
+        public int $level;
+    }
+    class ChildAuthRequest extends \Illuminate\Http\Request {}
+    class CustomAuthRequest extends \Illuminate\Http\Request {
+        public function user(?string $guard = null): ?AuthAdmin { return null; }
+    }
+}

@@ -112,7 +112,7 @@ $cases = [
     'union model generic stays ambiguous' => [
         'acceptPerson($union->count(null)->create());',
         'void',
-        ['less-specific-argument'],
+        ['possibly-invalid-argument'],
     ],
     'custom count override stays ambiguous' => [
         'acceptPerson(CustomCountFactory::new()->create());',
@@ -147,7 +147,15 @@ $cases['explicit reset after configuration'] = [
 $lines = [];
 foreach ($cases as $name => [$body, $return, $codes]) {
     $source .=
-        '/** @param Factory<Person> $generic @param Factory<Person|Convention> $union @return '.$return.' */'."\n";
+        '/**'
+        ."\n"
+        .' * @param Factory<Person> $generic'
+        ."\n"
+        .' * @param Factory<Person|Convention> $union'
+        ."\n"
+        .' * @return '
+        .$return
+        ."\n */\n";
     $source .=
         'function scenario'
         .count($lines)

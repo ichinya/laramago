@@ -1,0 +1,48 @@
+<?php
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Attributes\UseEloquentBuilder;
+throw new RuntimeException('Builder fixtures must never execute.');
+/** @extends Builder<BuilderRecord> */
+class RecordBuilder extends Builder {
+    public function __construct() { throw new RuntimeException('Builder constructed.'); }
+    public function active(bool $enabled = true): static { return $this; }
+    public function label(): string { return 'custom'; }
+}
+class BuilderRecord extends Model { protected static string $builder = RecordBuilder::class; }
+class ChildBuilderRecord extends BuilderRecord {}
+#[UseEloquentBuilder(RecordBuilder::class)]
+class AttributeBuilderRecord extends Model {}
+#[UseEloquentBuilder(builderClass: RecordBuilder::class)]
+class NamedAttributeBuilderRecord extends Model {}
+class ChildAttributeBuilderRecord extends AttributeBuilderRecord {}
+class FactoryBuilderRecord extends Model { public function newEloquentBuilder($query): RecordBuilder { throw new RuntimeException('Factory executed.'); } }
+class ChildFactoryBuilderRecord extends FactoryBuilderRecord {}
+/** @extends Builder<BuilderRecord> */
+class AlternateBuilder extends Builder { public function alternate(): int { return 1; } }
+#[UseEloquentBuilder(AlternateBuilder::class)]
+class OverrideAttributeBuilderRecord extends AttributeBuilderRecord {}
+#[UseEloquentBuilder(AlternateBuilder::class)]
+class FactoryPriorityRecord extends FactoryBuilderRecord {}
+/**
+ * @template T of Model
+ * @extends Builder<T> */
+class GenericBuilder extends Builder {}
+class GenericBuilderRecord extends Model { protected static string $builder = GenericBuilder::class; }
+class InvalidBuilderRecord extends Model { protected static string $builder = stdClass::class; }
+class UnknownFactoryRecord extends Model { public function newEloquentBuilder($query) {} }
+class CustomResolverRecord extends BuilderRecord { protected function resolveCustomBuilderClass(): string { return AlternateBuilder::class; } }
+class DeclaredQueryRecord extends BuilderRecord { /** @return AlternateBuilder */ public static function query(): AlternateBuilder { throw new RuntimeException; } }
+class CustomSetModelBuilder extends RecordBuilder { public function setModel($model): AlternateBuilder { throw new RuntimeException; } }
+class CustomConstructionRecord extends Model { protected static string $builder = CustomSetModelBuilder::class; }
+
+class NativeForwardingRecord extends BuilderRecord { public static function label(): int { return 1; } }
+/** @method static int label() */
+class DocumentedForwardingRecord extends BuilderRecord {}
+class CustomForwardingRecord extends BuilderRecord { public static function __callStatic(string $name, array $arguments): mixed { throw new RuntimeException('Never execute.'); } }
+class SecureRecordBuilder extends RecordBuilder { private function secret(): string { return ''; } protected function internal(): string { return ''; } }
+class SecureForwardingRecord extends Model { protected static string $builder = SecureRecordBuilder::class; }
+class ScopedForwardingRecord extends BuilderRecord { public function scopeActive(Builder $query): int { return 1; } }
+/** @extends Builder<NativeOverrideRecord> */
+class NativeOverrideBuilder extends Builder { public function create(array $attributes = []): string { return 'override'; } }
+class NativeOverrideRecord extends Model { protected static string $builder = NativeOverrideBuilder::class; }

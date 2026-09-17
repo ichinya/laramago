@@ -1,0 +1,21 @@
+<?php
+namespace Illuminate\Support\Traits {
+trait Macroable {
+    public static function macro(string $name, mixed $macro): void { throw new \RuntimeException('Registration executed.'); }
+    public static function hasMacro(string $name): bool { return false; }
+    public function __call(string $name, array $args): mixed { throw new \RuntimeException('Macro executed.'); }
+    public static function __callStatic(string $name, array $args): mixed { throw new \RuntimeException('Macro executed.'); }
+}
+}
+namespace {
+    class MacroBox { use \Illuminate\Support\Traits\Macroable; public static function native(): string { return ''; } }
+    /**
+     * @method static string documented(int $value)
+     */
+    class DocumentedBox { use \Illuminate\Support\Traits\Macroable; }
+    class CustomBox { use \Illuminate\Support\Traits\Macroable; public function __call(string $name, array $args): mixed { return null; } }
+    class DynamicBox { use \Illuminate\Support\Traits\Macroable; }
+    class MixinBox { use \Illuminate\Support\Traits\Macroable; }
+    class FlushedBox { use \Illuminate\Support\Traits\Macroable; }
+    class ChildMacroBox extends MacroBox {}
+}

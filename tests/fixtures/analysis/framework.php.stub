@@ -9,10 +9,15 @@ interface Expression {}
 
 namespace Illuminate\Contracts\Support;
 
-/** @template TKey of array-key @template TValue */
+/**
+ * @template TKey of array-key
+ * @template TValue */
 interface Arrayable { /** @return array<TKey, TValue> */ public function toArray(); }
 
 namespace Illuminate\Database\Eloquent\Attributes;
+
+#[\Attribute(\Attribute::TARGET_METHOD)]
+final class Scope {}
 
 #[\Attribute(\Attribute::TARGET_CLASS)]
 final class UseEloquentBuilder
@@ -44,6 +49,15 @@ class Model
     /** @return Builder<static> */
     public static function query() {}
 
+    /** @return Builder<static> */
+    public function newQuery() {}
+    /** @return Builder<static> */
+    public function newModelQuery() {}
+    /** @return Builder<static> */
+    public function newQueryWithoutScopes() {}
+    /** @return Builder<static> */
+    public function newQueryWithoutRelationships() {}
+
     public function __call(string $method, array $parameters): mixed {}
 
     public static function __callStatic(string $method, array $parameters): mixed {}
@@ -52,7 +66,9 @@ class Model
     public function newEloquentBuilder($query) {}
 }
 
-/** @template TKey of array-key @template TModel of Model */
+/**
+ * @template TKey of array-key
+ * @template TModel of Model */
 class Collection {}
 
 namespace Illuminate\Database\Eloquent\Casts;
@@ -97,16 +113,24 @@ class Builder
     /** @return TModel */
     public function forceCreateQuietly(array $attributes = []) {}
 
-    /** @param (\Closure(): array)|array $values @return TModel */
+    /**
+ * @param (\Closure(): array)|array $values
+ * @return TModel */
     public function firstOrNew(array $attributes = [], \Closure|array $values = []) {}
 
-    /** @param (\Closure(): array)|array $values @return TModel */
+    /**
+ * @param (\Closure(): array)|array $values
+ * @return TModel */
     public function firstOrCreate(array $attributes = [], \Closure|array $values = []) {}
 
-    /** @param (\Closure(): array)|array $values @return TModel */
+    /**
+ * @param (\Closure(): array)|array $values
+ * @return TModel */
     public function createOrFirst(array $attributes = [], \Closure|array $values = []) {}
 
-    /** @param (\Closure(): array)|array $values @return TModel */
+    /**
+ * @param (\Closure(): array)|array $values
+ * @return TModel */
     public function updateOrCreate(array $attributes, \Closure|array $values = []) {}
 
     /**
@@ -209,7 +233,10 @@ class Builder
      */
     public function findMany($ids, $columns = ['*']) {}
 
-    /** @param mixed $id @param array|string $columns @return TModel */
+    /**
+ * @param mixed $id
+ * @param array|string $columns
+ * @return TModel */
     public function findSole($id, $columns = ['*']) {}
 }
 

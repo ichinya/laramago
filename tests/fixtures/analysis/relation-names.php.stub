@@ -1,0 +1,35 @@
+<?php
+namespace Illuminate\Database\Eloquent {
+class Model {
+    /** @return Builder<static> */ public static function query() {}
+    public function load(string|array $relations): static { return $this; }
+}
+/** @template TModel of Model */
+class Builder {
+    public function with(string|array $relations): static { return $this; }
+    public function whereHas(string $relation, ?\Closure $callback = null): static { return $this; }
+}
+} namespace Illuminate\Database\Eloquent\Relations {
+/** @template TRelatedModel of \Illuminate\Database\Eloquent\Model */
+class Relation {}
+/**
+ * @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+ * @extends Relation<TRelatedModel> */
+class HasMany extends Relation {}
+} namespace {
+    use Illuminate\Database\Eloquent\Model;
+    use Illuminate\Database\Eloquent\Relations\HasMany;
+    interface RelationNameContract {}
+    class RelationNameRecord extends Model {
+        public function contract(): RelationNameContract { throw new \RuntimeException('Must not execute'); }
+        /** @return HasMany<RelationNameChild> */ public function children(): HasMany { throw new \RuntimeException('Must not execute'); }
+        public function label(): \DateTimeImmutable { throw new \RuntimeException('Must not execute'); }
+        public function unknown() { throw new \RuntimeException('Must not execute'); }
+    }
+    class RelationNameChild extends Model {
+        public function label(): \DateTimeImmutable { throw new \RuntimeException('Must not execute'); }
+    }
+    class DynamicRelationNameRecord extends RelationNameRecord {
+        public function __call(string $name, array $arguments): mixed { throw new \RuntimeException('Must not execute'); }
+    }
+}

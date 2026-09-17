@@ -34,7 +34,7 @@ class InheritedCustomBuilderRecord extends CustomBuilderRecord {}
 #[UseEloquentBuilder(CustomBuilder::class)]
 class AttributedRecord extends Model {}
 /** @extends Collection<int, Record> */
-class RecordCollection extends Collection {}
+class RecordCollection extends Collection { public function marker(): string { return 'custom'; } }
 class CustomCollectionRecord extends Model {
     public function newCollection(array $models = []): RecordCollection { return new RecordCollection; }
 }
@@ -44,5 +44,19 @@ class CollectionAttributeRecord extends Model {}
 class InheritedCollectionAttributeRecord extends CollectionAttributeRecord {}
 class CollectionResolverRecord extends Model { public function resolveCollectionFromAttribute(): string { return RecordCollection::class; } }
 class UnrelatedLookup { public static function find(int $id): string { return 'unrelated'; } }
+
+/**
+ * @template T of Model
+ * @extends Collection<int, T> */
+class GenericRecordCollection extends Collection {}
+class GenericCollectionRecord extends Model { protected static $collectionClass = GenericRecordCollection::class; }
+class InvalidCollectionRecord extends Model { protected static $collectionClass = \stdClass::class; }
+class UnknownCollectionRecord extends Model { public function newCollection(array $models = []) { return new RecordCollection; } }
+class InheritedCollectionMethodRecord extends CustomCollectionRecord {}
+class AlternateCollection extends Collection { public function alternate(): int { return 1; } }
+#[\Illuminate\Database\Eloquent\Attributes\CollectedBy(AlternateCollection::class)]
+class OverriddenCollectionAttributeRecord extends CollectionAttributeRecord {}
+#[\Illuminate\Database\Eloquent\Attributes\CollectedBy(AlternateCollection::class)]
+class MethodPriorityRecord extends CustomCollectionRecord {}
 
 throw new RuntimeException('Lookup fixtures must not execute.');

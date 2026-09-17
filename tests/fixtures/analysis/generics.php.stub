@@ -1,0 +1,63 @@
+<?php
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+throw new RuntimeException('Generic fixtures must never execute.');
+/**
+ * @template T of Model
+ * @extends Builder<T>
+ */
+class TypedBuilder extends Builder {
+    /** @return T */
+    public function record() { throw new RuntimeException('Builder executed.'); }
+    /** @param T $value */
+    public function accept(Model $value): void {}
+}
+/**
+ * @template K of array-key
+ * @template V of Model
+ * @extends Collection<K, V>
+ */
+class TypedCollection extends Collection {
+    /** @return V */
+    public function record() { throw new RuntimeException('Collection executed.'); }
+}
+class GenericRecord extends Model {
+    /** @return TypedBuilder<GenericRecord> */
+    public function newEloquentBuilder($query): TypedBuilder { throw new RuntimeException('Builder factory executed.'); }
+}
+class CollectionRecord extends Model {
+    /** @return TypedCollection<int, CollectionRecord> */
+    public function newCollection(array $models = []): TypedCollection { throw new RuntimeException('Collection factory executed.'); }
+}
+class ChildGenericRecord extends GenericRecord {}
+class OtherRecord extends Model {}
+class UnboundRecord extends Model {
+    public function newEloquentBuilder($query): TypedBuilder { throw new RuntimeException; }
+}
+class PropertyRecord extends Model { protected static string $builder = TypedBuilder::class; }
+
+class ChildCollectionRecord extends CollectionRecord {}
+
+/**
+ * @template Label of string
+ * @template Entity of Model
+ * @extends Builder<Entity>
+ */
+class ReorderedBuilder extends Builder {
+    /** @return Label */
+    public function label() { throw new RuntimeException; }
+    /** @return Entity */
+    public function record() { throw new RuntimeException; }
+}
+class ReorderedRecord extends Model {
+    /** @return ReorderedBuilder<string, ReorderedRecord> */
+    public function newEloquentBuilder($query): ReorderedBuilder { throw new RuntimeException; }
+}
+class UnboundCollectionRecord extends Model {
+    public function newCollection(array $models = []): TypedCollection { throw new RuntimeException; }
+}
+class UnknownArgumentRecord extends Model {
+    /** @return TypedBuilder<mixed> */
+    public function newEloquentBuilder($query): TypedBuilder { throw new RuntimeException; }
+}
