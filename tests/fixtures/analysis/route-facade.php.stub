@@ -1,0 +1,16 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Illuminate\Support\Facades;
+
+/**
+ * @method static \Illuminate\Routing\Route get(string $uri, mixed $action = null)
+ * @method static \Illuminate\Routing\Route match(array $methods, string $uri, mixed $action = null)
+ */
+class Route extends Facade
+{
+    protected static function getFacadeAccessor(): string { return 'router'; }
+}
+
+class CustomRouteFacade extends Route {}

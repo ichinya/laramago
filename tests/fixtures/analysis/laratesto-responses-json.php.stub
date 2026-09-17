@@ -1,0 +1,27 @@
+<?php
+
+namespace Laratesto\Testing {
+    class AssertableJson
+    {
+        public function has(string|int $key, int|\Closure|null $length = null, ?\Closure $callback = null): static { return $this; }
+        public function first(\Closure $callback): static { return $this; }
+        public function each(\Closure $callback): static { return $this; }
+        public function where(string $key, mixed $expected): static { return $this; }
+        public function etc(): static { return $this; }
+    }
+}
+
+namespace {
+    class CustomLaratestoScope extends \Laratesto\Testing\AssertableJson
+    {
+        public function custom(): static { return $this; }
+    }
+
+    class AlteredLaratestoScope extends \Laratesto\Testing\AssertableJson
+    {
+        public function first(\Closure $callback): string { return ''; }
+    }
+
+    /** @method string first(\Closure $callback) */
+    class DocumentedLaratestoScope extends \Laratesto\Testing\AssertableJson {}
+}

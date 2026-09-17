@@ -1,0 +1,26 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\Schema;
+
+throw new RuntimeException('Migration source must never execute.');
+
+return new class extends Migration {
+    public function up(): void
+    {
+        Schema::table('ordered_literals', function ($table) {
+            $from = 'previous';
+            $to = 'value';
+            $table->renameColumn($from, $to);
+            $names = ['removed'];
+            $table->dropColumn($names);
+            $column = 'value';
+            $table->string($column)->change();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::drop('ordered_literals');
+    }
+};

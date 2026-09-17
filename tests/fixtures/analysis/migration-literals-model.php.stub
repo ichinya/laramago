@@ -1,0 +1,6 @@
+<?php
+
+class LiteralModel extends \Illuminate\Database\Eloquent\Model
+{
+    protected $table = 'literal_table';
+}

@@ -1,0 +1,6 @@
+<?php
+
+\Illuminate\Testing\TestResponse::macro(
+    'assertInertia',
+    function (int $value): string { return (string) $value; },
+);

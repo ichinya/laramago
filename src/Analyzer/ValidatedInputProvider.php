@@ -4,17 +4,35 @@ declare(strict_types=1);
 
 namespace Ichinya\Laramago\Analyzer;
 
+use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\RequestRuleFields;
 use Mago\Sdk\Analyzer\Codebase;
+use Mago\Sdk\Analyzer\InitializationContext;
+use Mago\Sdk\Analyzer\InitializationHook;
 use Mago\Sdk\Analyzer\MethodReturnTypeProvider;
 use Mago\Sdk\Analyzer\MethodTarget;
 use Mago\Sdk\Analyzer\ReturnTypeProviderContext;
 use Mago\Sdk\Analyzer\Type;
 use Mago\Sdk\Analyzer\Type\NamedObjectType;
 
-/** Preserves the array returned by FormRequest when no input field is selected. */
-final class ValidatedInputProvider implements MethodReturnTypeProvider
+/** Refines validated results from literal rules without typing raw request input. */
+final class ValidatedInputProvider implements MethodReturnTypeProvider, InitializationHook
 {
     private const FORM_REQUEST = 'Illuminate\\Foundation\\Http\\FormRequest';
+
+    private ?PhpSource $source = null;
+    private ?ContainerBindings $bindings = null;
+
+    public function __construct(
+        private readonly string $root = '.',
+    ) {}
+
+    public function initialize(InitializationContext $context): void
+    {
+        $this->source = null;
+        $this->bindings = null;
+    }
 
     public function getTargets(): array
     {
@@ -33,6 +51,10 @@ final class ValidatedInputProvider implements MethodReturnTypeProvider
         ) {
             return null;
         }
+        $bindings = $this->bindings ??= new ContainerBindings($this->root);
+        if ($bindings->configured('validator') || $bindings->configured('Illuminate\\Contracts\\Validation\\Factory')) {
+            return null;
+        }
         foreach ($call->arguments as $argument) {
             if ($argument->unpacked || $argument->placeholder) {
                 return null;
@@ -40,13 +62,48 @@ final class ValidatedInputProvider implements MethodReturnTypeProvider
         }
         $key = $call->getArgument(0, 'key');
         $keyType = $key?->type;
+        $fields = RequestRuleFields::resolve(
+            $receiver->atomicTypes[0]->name,
+            $context->codebase,
+            $this->source ??= new PhpSource($this->root),
+        );
         // data_get returns the entire validated array for an omitted or null key.
-        // Selecting a field says nothing about its value, even with a default.
         if ($key !== null && ($keyType === null || ! $context->types->isContainedBy($keyType, Type::null()))) {
-            return null;
+            $name = $keyType?->getLiteralString();
+            $field = $name === null || $fields === null ? null : RequestRuleFields::select($fields, $name);
+            if ($field === null) {
+                return null;
+            }
+            $default = $call->getArgument(1, 'default');
+            if (
+                $field->optional
+                && $default !== null
+                && (
+                    $default->type === null
+                    || ! $context->types->isContainedBy(
+                        $default->type,
+                        Type::union(
+                            Type::null(),
+                            Type::string(),
+                            Type::int(),
+                            Type::float(),
+                            Type::bool(),
+                            Type::array(Type::union(Type::int(), Type::string()), Type::mixed()),
+                        ),
+                    )
+                )
+            ) {
+                // data_get evaluates Closure defaults. Unknown or object defaults
+                // need callable return analysis and therefore defer to Laravel.
+                return null;
+            }
+
+            return $field->optional ? Type::union($field->type, $default?->type ?? Type::null()) : $field->type;
         }
 
-        return Type::array(Type::union(Type::int(), Type::string()), Type::mixed());
+        return $fields === null
+            ? Type::array(Type::union(Type::int(), Type::string()), Type::mixed())
+            : RequestRuleFields::shape($fields);
     }
 
     private function nativeMethod(Codebase $codebase, string $class): bool

@@ -1,0 +1,77 @@
+<?php
+
+declare(strict_types=1);
+
+namespace MixedReproduction;
+
+final class Entry
+{
+    public function label(): string
+    {
+        return 'entry';
+    }
+}
+
+final class Contracts
+{
+    /** @param array<string, string> $options @return array{Entry, string} */
+    public function inlineTags(array $options): array
+    {
+        return [new Entry, 'path'];
+    }
+
+    /**
+     * @param array<string, string> $options
+     * @return array{Entry, string}
+     */
+    public function separateTags(array $options): array
+    {
+        return [new Entry, 'path'];
+    }
+
+    public function rawTuple(): array
+    {
+        return [new Entry, 'path'];
+    }
+
+    public function rawCallback(\Closure $callback): mixed
+    {
+        return $callback();
+    }
+
+    /**
+     * @template T
+     * @param \Closure(): T $callback
+     * @return T
+     */
+    public function typedCallback(\Closure $callback): mixed
+    {
+        return $callback();
+    }
+
+    public function input(string $key, mixed $default = null): mixed
+    {
+        return $default;
+    }
+}
+
+trait FluentDates
+{
+    public static function create(): ?static
+    {
+        return new static;
+    }
+
+    /** @return static */
+    public function start()
+    {
+        return $this;
+    }
+}
+
+final class DateValue
+{
+    use FluentDates;
+}
+
+function consumeString(string $value): void {}

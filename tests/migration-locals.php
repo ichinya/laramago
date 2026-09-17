@@ -67,7 +67,7 @@ $preparations = [
     'unknown constant' => ['$sql = DATABASE_EXPRESSION;', false],
     'class constant' => ['$sql = Settings::EXPRESSION;', false],
     'include expression' => ['$sql = include "schema.php";', false],
-    'variable column name stays unknown' => ['$name = "value"; $table->integer($name)->change();', false],
+    'literal variable column name' => ['$name = "value"; $table->integer($name)->change();', true],
     'prior argument variable' => ['$table->string("other")->default($alias); $alias = "x";', false],
     'reference hidden in argument' => ['$table->string("other")->default($alias =& $table); $alias = "x";', false],
     'scalar knowledge expires' => ['$sql = "x"; $table->string("other")->default($sql); $new = $sql;', false],
@@ -141,11 +141,12 @@ $migration .= <<<'PHP'
 file_put_contents($workspace.'/database/migrations/001_locals.php', $migration);
 file_put_contents($workspace.'/models.php', $models);
 $cases['literal local'][0] = 'return (new LocalEntry0)->renamed;';
+$cases['literal variable column name'][1] = 'int';
 $cases += [
-    'local nullable value is not evaluated' => [
+    'local nullable literal is retained' => [
         'return (new '.$modelNames['dynamic nullable preserves other columns'].')->optional;',
-        'mixed',
-        ['non-documented-property'],
+        '?string',
+        [],
     ],
     'generated column type' => ['return (new LocalEntry1)->computed;', 'string', []],
     'nullable column type' => ['return (new LocalEntry1)->quantity;', '?int', []],
@@ -179,7 +180,12 @@ $config = [
     'source' => ['paths' => ['cases.php'], 'includes' => ['framework.php', 'models.php']],
     'extension-hosts' => [
         'laramago' => [
-            'command' => [PHP_BINARY, $package.'/bin/laramago-worker.php', $package.'/vendor/autoload.php', $workspace],
+            'command' => [
+                PHP_BINARY,
+                $package.'/bin/laramago-worker.php',
+                $package.'/vendor/autoload.php',
+                $workspace,
+            ],
             'workers' => 3,
         ],
     ],

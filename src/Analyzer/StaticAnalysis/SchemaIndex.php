@@ -212,7 +212,13 @@ final class SchemaIndex
         $blueprint = $callback->params[0]->var->name;
         $preparation = new SchemaPreparation($callback);
         foreach ($callback->stmts as $statement) {
+            // Snapshot before accepts() expires values mentioned by this statement.
+            $arguments = clone $preparation;
             if ($preparation->accepts($statement)) {
+                continue;
+            }
+            if ($statement instanceof Node\Stmt\Foreach_) {
+                $this->blueprintLoop($table, $blueprint, $statement, $arguments);
                 continue;
             }
             if (! $statement instanceof Node\Stmt\Expression || ! $statement->expr instanceof Node\Expr\MethodCall) {
@@ -224,7 +230,57 @@ final class SchemaIndex
                 $this->uncertain[$table] = true;
                 continue;
             }
-            $this->blueprint($table, $chain);
+            if (! $arguments->safeArguments($chain)) {
+                $this->uncertain[$table] = true;
+                continue;
+            }
+            $this->blueprint($table, $chain, $arguments);
+        }
+    }
+
+    private function blueprintLoop(
+        string $table,
+        string $blueprint,
+        Node\Stmt\Foreach_ $loop,
+        SchemaPreparation $preparation,
+    ): void {
+        $iterations = $preparation->iterations($loop);
+        if ($iterations === null) {
+            $this->uncertain[$table] = true;
+
+            return;
+        }
+        // No assignments, branching, nested loops, break/continue, callbacks or
+        // helpers: every body statement must be a direct Blueprint declaration.
+        $chains = [];
+        foreach ($loop->stmts as $statement) {
+            if ($statement instanceof Node\Stmt\Nop) {
+                continue;
+            }
+            if (! $statement instanceof Node\Stmt\Expression || ! $statement->expr instanceof Node\Expr\MethodCall) {
+                $this->uncertain[$table] = true;
+
+                return;
+            }
+            [$receiver, $chain] = PhpSource::chain($statement->expr);
+            if (! $receiver instanceof Node\Expr\Variable || $receiver->name !== $blueprint) {
+                $this->uncertain[$table] = true;
+
+                return;
+            }
+            $chains[] = [$statement, $chain];
+        }
+        foreach ($iterations as $iteration) {
+            foreach ($chains as [$statement, $chain]) {
+                $arguments = clone $iteration;
+                $iteration->accepts($statement);
+                if (! $arguments->safeArguments($chain)) {
+                    $this->uncertain[$table] = true;
+
+                    return;
+                }
+                $this->blueprint($table, $chain, $arguments);
+            }
         }
     }
 
@@ -261,7 +317,7 @@ final class SchemaIndex
     }
 
     /** @param list<Node\Expr\MethodCall> $chain */
-    private function blueprint(string $table, array $chain): void
+    private function blueprint(string $table, array $chain, SchemaPreparation $arguments): void
     {
         if ($chain === []) {
             $this->uncertain[$table] = true;
@@ -291,16 +347,16 @@ final class SchemaIndex
         )) {
             return;
         }
-        $name = PhpSource::value(PhpSource::argument($call->args, 0, 'column'));
+        $name = $arguments->value(PhpSource::argument($call->args, 0, 'column'));
         if ($method === 'dropcolumn' || $method === 'dropconstrainedforeignid') {
             if ($method === 'dropcolumn') {
-                $name = PhpSource::value(PhpSource::argument($call->args, 0, 'columns'));
+                $name = $arguments->value(PhpSource::argument($call->args, 0, 'columns'));
                 if (count($call->args) > 1) {
                     $name = array_map(static fn (Node\Arg|Node\VariadicPlaceholder $arg): mixed => $arg
                         instanceof Node\Arg
                         && ! $arg->unpack
                         && $arg->name === null
-                            ? PhpSource::value($arg->value)
+                            ? $arguments->value($arg->value)
                             : UnknownValue::Value, $call->args);
                 }
             }
@@ -316,8 +372,8 @@ final class SchemaIndex
             return;
         }
         if ($method === 'renamecolumn') {
-            $from = PhpSource::value(PhpSource::argument($call->args, 0, 'from'));
-            $to = PhpSource::value(PhpSource::argument($call->args, 1, 'to'));
+            $from = $arguments->value(PhpSource::argument($call->args, 0, 'from'));
+            $to = $arguments->value(PhpSource::argument($call->args, 1, 'to'));
             if (is_string($from) && is_string($to)) {
                 unset($this->tables[$table][$to]);
                 if (isset($this->tables[$table][$from])) {
@@ -354,7 +410,7 @@ final class SchemaIndex
             ['softdeletes', 'softdeletestz', 'softdeletesdatetime', 'dropsoftdeletes', 'dropsoftdeletestz'],
             true,
         )) {
-            $name = $name === UnknownValue::Value ? 'deleted_at' : $name;
+            $name = PhpSource::argument($call->args, 0, 'column') === null ? 'deleted_at' : $name;
             if (! is_string($name)) {
                 $this->uncertain[$table] = true;
             } elseif (str_starts_with($method, 'drop')) {
@@ -378,7 +434,7 @@ final class SchemaIndex
             ],
             true,
         )) {
-            $name = PhpSource::value(PhpSource::argument($call->args, 0, 'name'));
+            $name = $arguments->value(PhpSource::argument($call->args, 0, 'name'));
             if (! is_string($name)) {
                 $this->uncertain[$table] = true;
 
@@ -455,7 +511,7 @@ final class SchemaIndex
             $modifierName = $modifier->name instanceof Node\Identifier ? strtolower($modifier->name->toString()) : '';
             if ($modifierName === 'nullable') {
                 $argument = PhpSource::argument($modifier->args, 0, 'value');
-                $value = $argument === null ? true : PhpSource::value($argument);
+                $value = $argument === null ? true : $arguments->value($argument);
                 if (! is_bool($value)) {
                     unset($this->tables[$table][$name]);
 

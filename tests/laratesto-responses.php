@@ -1,0 +1,385 @@
+<?php
+
+declare(strict_types=1);
+
+$binary = getenv('MAGO_BINARY') ?: __DIR__.'/../vendor/bin/mago';
+$command = str_ends_with($binary, '.exe') ? [$binary] : [PHP_BINARY, $binary];
+$package = str_replace('\\', '/', dirname(__DIR__));
+$workspace = str_replace('\\', '/', sys_get_temp_dir()).'/laramago laratesto responses '.bin2hex(random_bytes(8));
+mkdir($workspace);
+mkdir($workspace.'/bootstrap');
+mkdir($workspace.'/vendor/ichinya/laratesto/src/Testing', recursive: true);
+mkdir($workspace.'/dependencies/ichinya/laratesto/src/Testing', recursive: true);
+copy(
+    __DIR__.'/fixtures/analysis/laratesto-responses.php.stub',
+    $workspace.'/vendor/ichinya/laratesto/src/Testing/LaravelResponse.php',
+);
+copy(
+    __DIR__.'/fixtures/analysis/laratesto-responses-json.php.stub',
+    $workspace.'/vendor/ichinya/laratesto/src/Testing/AssertableJson.php',
+);
+copy(__DIR__.'/fixtures/analysis/laratesto-responses-inertia.php.stub', $workspace.'/inertia.php');
+copy(__DIR__.'/fixtures/analysis/laratesto-responses.php.stub', $workspace.'/lookalike-response.php');
+copy(__DIR__.'/fixtures/analysis/laratesto-responses-json.php.stub', $workspace.'/lookalike-json.php');
+copy(
+    __DIR__.'/fixtures/analysis/laratesto-responses.php.stub',
+    $workspace.'/dependencies/ichinya/laratesto/src/Testing/LaravelResponse.php',
+);
+copy(
+    __DIR__.'/fixtures/analysis/laratesto-responses-json.php.stub',
+    $workspace.'/dependencies/ichinya/laratesto/src/Testing/AssertableJson.php',
+);
+copy(__DIR__.'/fixtures/analysis/laratesto-responses-macro.php.stub', $workspace.'/bootstrap/macros.php');
+file_put_contents(
+    $workspace.'/bootstrap.php',
+    '<?php throw new RuntimeException("Application bootstrap must never execute.");',
+);
+file_put_contents($workspace.'/composer.json', json_encode([
+    'autoload' => ['files' => ['bootstrap.php']],
+], JSON_THROW_ON_ERROR));
+$config = [
+    'extends' => $package.'/presets/laravel.toml',
+    'php-version' => '8.2',
+    'source' => [
+        'paths' => ['cases.php'],
+        'includes' => [
+            'vendor/ichinya/laratesto/src/Testing/LaravelResponse.php',
+            'vendor/ichinya/laratesto/src/Testing/AssertableJson.php',
+            'inertia.php',
+        ],
+    ],
+    'extension-hosts' => [
+        'laramago' => [
+            'command' => [
+                PHP_BINARY,
+                $package.'/bin/laramago-worker.php',
+                $package.'/vendor/autoload.php',
+                $workspace,
+            ],
+            'workers' => 2,
+        ],
+    ],
+];
+file_put_contents($workspace.'/mago.json', json_encode($config, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+
+$helpers = <<<'PHP'
+    <?php
+    function acceptInertia(\Inertia\Testing\AssertableInertia $value): void {}
+    function acceptJson(\Laratesto\Testing\AssertableJson $value): void {}
+    function acceptResponse(\Laratesto\Testing\LaravelResponse $value): void {}
+    function acceptString(string $value): void {}
+    function acceptMixed(mixed $value): void {}
+    PHP;
+$parameters =
+    '\Laratesto\Testing\LaravelResponse $response, '
+    .'\Laratesto\Testing\AssertableJson $json, '
+    .'CustomLaratestoScope $custom, '
+    .'AlteredLaratestoScope $altered, '
+    .'DocumentedLaratestoScope $documented';
+$cases = [
+    'inertia callback and response return' => [
+        'return $response->assertInertia(fn ($page) => acceptInertia($page))->assertStatus(200);',
+        '\Laratesto\Testing\LaravelResponse',
+        [],
+    ],
+    'inertia callback rejects response' => [
+        '$response->assertInertia(fn ($page) => acceptResponse($page));',
+        'void',
+        ['invalid-argument'],
+    ],
+    'inertia null callback' => ['return $response->assertInertia(null);', '\Laratesto\Testing\LaravelResponse', []],
+    'inertia named callback' => [
+        '$response->assertInertia(callback: fn ($page) => acceptInertia($page));',
+        'void',
+        [],
+    ],
+    'inertia named typo preserved' => [
+        '$response->assertInertia(typo: null);',
+        'void',
+        ['invalid-named-argument'],
+    ],
+    'json callback scope' => ['$response->assertJson(fn ($json) => acceptJson($json));', 'void', []],
+    'json nested scopes' => [
+        '$response->assertJson(fn ($json) => $json->has("users", fn ($users) => $users->first(fn ($user) => acceptJson($user))));',
+        'void',
+        [],
+    ],
+    'json length callback scope' => [
+        '$response->assertJson(fn ($json) => $json->has("users", 1, fn ($user) => acceptJson($user)));',
+        'void',
+        [],
+    ],
+    'json each scope' => [
+        '$response->assertJson(fn ($json) => $json->each(fn ($item) => acceptJson($item)));',
+        'void',
+        [],
+    ],
+    'json array contract' => ['$response->assertJson(["ok" => true], true);', 'void', []],
+    'json null rejected' => ['$response->assertJson(null);', 'void', ['null-argument']],
+    'first null rejected' => ['$json->first(null);', 'void', ['null-argument']],
+    'first callback required' => ['$json->first();', 'void', ['too-few-arguments']],
+    'nested subtype preserved' => [
+        '$custom->has("items", fn ($scope) => $scope->custom());',
+        'void',
+        [],
+    ],
+    'explicit fluent override wins' => [
+        'return $altered->first(fn ($value) => acceptMixed($value));',
+        'string',
+        [],
+    ],
+    'documented fluent override wins' => [
+        'return $documented->first(fn ($value) => acceptMixed($value));',
+        'string',
+        [],
+    ],
+];
+check_laratesto_responses($cases, $command, $workspace, $helpers, $parameters);
+
+$config['analyzer'] = ['disable-default-plugins' => true];
+file_put_contents($workspace.'/mago.json', json_encode($config, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+check_laratesto_responses(
+    [
+        'disabled inertia callback remains broad' => [
+            '$response->assertInertia(fn ($page) => acceptInertia($page));',
+            'void',
+            ['mixed-argument'],
+        ],
+        'disabled json callback remains broad' => [
+            '$response->assertJson(fn ($json) => acceptJson($json));',
+            'void',
+            ['mixed-argument'],
+        ],
+    ],
+    $command,
+    $workspace,
+    $helpers,
+    $parameters,
+);
+
+unset($config['analyzer']);
+$config['source']['includes'] = [
+    'vendor/ichinya/laratesto/src/Testing/LaravelResponse.php',
+    'vendor/ichinya/laratesto/src/Testing/AssertableJson.php',
+];
+file_put_contents($workspace.'/mago.json', json_encode($config, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+$withoutInertiaHelpers = <<<'PHP'
+    <?php
+    function acceptString(string $value): void {}
+    function acceptMixed(mixed $value): void {}
+    PHP;
+check_laratesto_responses(
+    [
+        'missing Inertia remains broad' => [
+            '$response->assertInertia(fn ($page) => acceptString($page));',
+            'void',
+            ['mixed-argument'],
+        ],
+        'json remains available without Inertia' => [
+            '$response->assertJson(fn ($json) => $json->where("ok", true));',
+            'void',
+            [],
+        ],
+    ],
+    $command,
+    $workspace,
+    $withoutInertiaHelpers,
+    '\Laratesto\Testing\LaravelResponse $response',
+);
+
+$config['source']['includes'] = ['lookalike-response.php', 'lookalike-json.php', 'inertia.php'];
+file_put_contents($workspace.'/mago.json', json_encode($config, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+check_laratesto_responses(
+    [
+        'same-name response outside package is deferred' => [
+            '$response->assertJson(fn ($json) => acceptJson($json));',
+            'void',
+            ['mixed-argument'],
+        ],
+    ],
+    $command,
+    $workspace,
+    $helpers,
+    $parameters,
+);
+
+$config['source']['includes'] = [
+    'dependencies/ichinya/laratesto/src/Testing/LaravelResponse.php',
+    'dependencies/ichinya/laratesto/src/Testing/AssertableJson.php',
+    'inertia.php',
+];
+file_put_contents($workspace.'/mago.json', json_encode($config, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+check_laratesto_responses(
+    [
+        'custom dependency directory is supported' => [
+            '$response->assertJson(fn ($json) => acceptJson($json));',
+            'void',
+            [],
+        ],
+        'custom dependency directory keeps negative typing' => [
+            '$response->assertJson(fn ($json) => acceptResponse($json));',
+            'void',
+            ['invalid-argument'],
+        ],
+    ],
+    $command,
+    $workspace,
+    $helpers,
+    $parameters,
+);
+
+$config['source']['includes'] = [
+    'vendor/ichinya/laratesto/src/Testing/LaravelResponse.php',
+    'vendor/ichinya/laratesto/src/Testing/AssertableJson.php',
+    'inertia.php',
+];
+file_put_contents($workspace.'/mago.json', json_encode($config, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+file_put_contents($workspace.'/composer.json', json_encode([
+    'extra' => ['laramago' => ['macro-files' => ['bootstrap/macros.php']]],
+], JSON_THROW_ON_ERROR));
+check_laratesto_responses(
+    [
+        'custom TestResponse macro replacement is deferred' => [
+            '$response->assertInertia(fn ($page) => acceptInertia($page));',
+            'void',
+            ['mixed-argument'],
+        ],
+    ],
+    $command,
+    $workspace,
+    $helpers,
+    $parameters,
+);
+file_put_contents($workspace.'/composer.json', '{}');
+
+copy(
+    __DIR__.'/fixtures/analysis/laratesto-responses-altered.php.stub',
+    $workspace.'/vendor/ichinya/laratesto/src/Testing/LaravelResponse.php',
+);
+copy(
+    __DIR__.'/fixtures/analysis/laratesto-responses-altered-json.php.stub',
+    $workspace.'/vendor/ichinya/laratesto/src/Testing/AssertableJson.php',
+);
+$config['source']['includes'] = [
+    'vendor/ichinya/laratesto/src/Testing/LaravelResponse.php',
+    'vendor/ichinya/laratesto/src/Testing/AssertableJson.php',
+    'inertia.php',
+];
+file_put_contents($workspace.'/mago.json', json_encode($config, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+$alteredParameters = '\Laratesto\Testing\LaravelResponse $response, \Laratesto\Testing\AssertableJson $json';
+check_laratesto_responses(
+    [
+        'altered inertia contract wins' => [
+            'return $response->assertInertia(fn ($value) => acceptMixed($value));',
+            'string',
+            [],
+        ],
+        'altered inertia callback PHPDoc wins' => ['return $response->assertInertia();', 'string', []],
+        'altered json contract wins' => [
+            'return $response->assertJson(fn ($value) => acceptMixed($value));',
+            'string',
+            [],
+        ],
+        'altered nested contract wins' => [
+            'return $json->first(fn ($value) => acceptMixed($value));',
+            'string',
+            [],
+        ],
+        'altered callback PHPDoc rejects built-in scope' => [
+            '$response->assertInertia(fn ($value) => acceptInertia($value));',
+            'void',
+            ['invalid-argument'],
+        ],
+    ],
+    $command,
+    $workspace,
+    $helpers,
+    $alteredParameters,
+);
+
+if (is_file($workspace.'/.env')) {
+    throw new RuntimeException('The offline fixture must not have an environment file.');
+}
+$resolvedWorkspace = realpath($workspace);
+if ($resolvedWorkspace === false) {
+    throw new RuntimeException('Cannot resolve the test workspace for cleanup.');
+}
+$files = new RecursiveIteratorIterator(
+    new RecursiveDirectoryIterator($resolvedWorkspace, FilesystemIterator::SKIP_DOTS),
+    RecursiveIteratorIterator::CHILD_FIRST,
+);
+foreach ($files as $file) {
+    $resolvedFile = realpath($file->getPathname());
+    if (
+        $resolvedFile === false
+        || ! str_starts_with($resolvedFile, $resolvedWorkspace.DIRECTORY_SEPARATOR)
+    ) {
+        throw new RuntimeException('Refusing cleanup outside the test workspace.');
+    }
+    $file->isDir() ? rmdir($resolvedFile) : unlink($resolvedFile);
+}
+rmdir($workspace);
+
+/**
+ * @param array<string, array{string, string, list<string>}> $cases
+ * @param list<string> $command
+ */
+function check_laratesto_responses(
+    array $cases,
+    array $command,
+    string $workspace,
+    string $helpers,
+    string $parameters,
+): void {
+    $source = $helpers;
+    $lines = [];
+    foreach ($cases as $name => [$body, $return, $codes]) {
+        $source .= '/** @return '.$return.' */'."\n";
+        $source .= 'function scenario'.count($lines).'('.$parameters.') { '.$body.' }'."\n";
+        $lines[substr_count($source, "\n")] = [$name, $codes];
+    }
+    file_put_contents($workspace.'/cases.php', $source);
+    $process = proc_open(
+        [...$command, '--workspace', $workspace, 'analyze', '--reporting-format=json'],
+        [
+            0 => ['pipe', 'r'],
+            1 => ['file', $workspace.'/report.json', 'w'],
+            2 => ['file', $workspace.'/stderr.log', 'w'],
+        ],
+        $pipes,
+    );
+    if (! is_resource($process)) {
+        throw new RuntimeException('Cannot start Mago.');
+    }
+    fclose($pipes[0]);
+    $exit = proc_close($process);
+    $log = file_get_contents($workspace.'/stderr.log');
+    if ($exit !== 1 || preg_match('/External analyzer provider failed|extension worker .*rejected request/i', $log)) {
+        throw new RuntimeException('Expected native negative diagnostics without extension fallback; inspect '
+        .$workspace);
+    }
+    $report = json_decode(file_get_contents($workspace.'/report.json'), true, flags: JSON_THROW_ON_ERROR);
+    $actual = [];
+    foreach ($report['issues'] ?? [] as $issue) {
+        $primary = array_values(array_filter(
+            $issue['annotations'],
+            static fn (array $annotation): bool => $annotation['kind'] === 'Primary',
+        ))[0];
+        $actual[$primary['span']['start']['line'] + 1][] = $issue['code'];
+    }
+    foreach ($lines as $line => [$name, $expected]) {
+        $codes = $actual[$line] ?? [];
+        sort($codes);
+        sort($expected);
+        if ($codes !== $expected) {
+            throw new RuntimeException(
+                $name.': expected '.json_encode($expected).', got '.json_encode($codes).'; see '.$workspace,
+            );
+        }
+        unset($actual[$line]);
+        echo 'PASS: '.$name."\n";
+    }
+    if ($actual !== []) {
+        throw new RuntimeException('Unexpected diagnostics outside Laratesto response scenarios; inspect '.$workspace);
+    }
+}

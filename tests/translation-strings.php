@@ -5,7 +5,17 @@ declare(strict_types=1);
 $binary = getenv('MAGO_BINARY') ?: __DIR__.'/../vendor/bin/mago';
 $command = str_ends_with($binary, '.exe') ? [$binary] : [PHP_BINARY, $binary];
 $package = str_replace('\\', '/', dirname(__DIR__));
-foreach (['enabled', 'native', 'legacy', 'ambiguous', 'json', 'custom', 'contract'] as $mode) {
+foreach ([
+    'enabled',
+    'native',
+    'legacy',
+    'ambiguous',
+    'json',
+    'json-literals',
+    'malformed-json',
+    'custom',
+    'contract',
+] as $mode) {
     $workspace = str_replace('\\', '/', sys_get_temp_dir()).'/laramago translations '.bin2hex(random_bytes(8));
     $catalogRoot = $mode === 'legacy' ? 'resources/lang' : 'lang';
     mkdir($workspace.'/'.$catalogRoot.'/en', 0777, true);
@@ -43,23 +53,35 @@ foreach (['enabled', 'native', 'legacy', 'ambiguous', 'json', 'custom', 'contrac
     }
     if ($mode === 'json') {
         file_put_contents($workspace.'/lang/en.json', '{"messages.welcome": ["override"]}');
+    } elseif ($mode === 'json-literals') {
+        file_put_contents($workspace.'/lang/en.json', json_encode([
+            'messages.welcome' => 'JSON wins',
+            'messages.dynamic' => 'Static JSON wins',
+            'JSON phrase' => 'A phrase',
+            'Empty JSON' => '',
+            'Zero JSON' => '0',
+        ], JSON_THROW_ON_ERROR));
+    } elseif ($mode === 'malformed-json') {
+        file_put_contents($workspace.'/lang/en.json', '{');
     }
-    $narrow = in_array($mode, ['enabled', 'legacy'], true);
+    $welcomeNarrow = in_array($mode, ['enabled', 'legacy', 'json-literals'], true);
+    $phpNarrow = in_array($mode, ['enabled', 'legacy', 'json', 'json-literals'], true);
+    $jsonLiteral = $mode === 'json-literals';
     $cases = [
         'literal string' => [
             'return trans("messages.welcome", [], "en");',
             'string',
-            $narrow ? [] : ['invalid-return-statement'],
+            $welcomeNarrow ? [] : ['invalid-return-statement'],
         ],
         'double underscore' => [
             'return __("messages.welcome", [], "en");',
             'string',
-            $narrow ? [] : ['invalid-return-statement'],
+            $welcomeNarrow ? [] : ['invalid-return-statement'],
         ],
         'named nested key' => [
             'return trans(locale: "en", key: "messages.nested.title");',
             'string',
-            $narrow ? [] : ['invalid-return-statement'],
+            $phpNarrow ? [] : ['invalid-return-statement'],
         ],
         'wrong expected result' => ['return trans("messages.welcome", [], "en");', 'int', ['invalid-return-statement']],
         'group remains union' => ['return trans("messages.group", [], "en");', 'array|string', []],
@@ -69,6 +91,26 @@ foreach (['enabled', 'native', 'legacy', 'ambiguous', 'json', 'custom', 'contrac
             ['invalid-return-statement'],
         ],
         'dynamic remains union' => ['return trans("messages.dynamic", [], "en");', 'array|string', []],
+        'json overrides dynamic php leaf' => [
+            'return trans("messages.dynamic", [], "en");',
+            'string',
+            $jsonLiteral ? [] : ['invalid-return-statement'],
+        ],
+        'json phrase' => [
+            'return trans("JSON phrase", [], "en");',
+            'string',
+            $jsonLiteral ? [] : ['invalid-return-statement'],
+        ],
+        'json empty string follows translator fallback' => [
+            'return trans("Empty JSON", [], "en");',
+            'string',
+            $jsonLiteral ? [] : ['invalid-return-statement'],
+        ],
+        'json zero string follows translator fallback' => [
+            'return trans("Zero JSON", [], "en");',
+            'string',
+            $jsonLiteral ? [] : ['invalid-return-statement'],
+        ],
         'duplicate respects final entry' => [
             'return trans("messages.duplicate", [], "en");',
             'string',

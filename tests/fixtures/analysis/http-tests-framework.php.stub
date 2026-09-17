@@ -1,0 +1,45 @@
+<?php
+
+namespace Illuminate\Support\Traits {
+    trait Macroable
+    {
+        public static function macro(string $name, mixed $macro): void {}
+        public static function hasMacro(string $name): bool { return false; }
+        public function __call(string $name, array $arguments): mixed { return null; }
+        public static function __callStatic(string $name, array $arguments): mixed { return null; }
+    }
+}
+
+namespace Illuminate\Testing\Fluent\Concerns {
+    trait Has
+    {
+        /** @return static */
+        public function has($key, $length = null, ?\Closure $callback = null): static { return $this; }
+    }
+}
+
+namespace Illuminate\Testing\Fluent {
+    class AssertableJson
+    {
+        use Concerns\Has;
+
+        public function first(\Closure $callback): static { return $this; }
+        public function each(\Closure $callback): static { return $this; }
+        public function where(string $key, mixed $expected): static { return $this; }
+        public function etc(): static { return $this; }
+    }
+}
+
+namespace Illuminate\Testing {
+    class TestResponse
+    {
+        use \Illuminate\Support\Traits\Macroable {
+            __call as macroCall;
+        }
+
+        /** @param array|callable $value @return $this */
+        public function assertJson($value, $strict = false) { return $this; }
+        public function assertStatus(int $status): static { return $this; }
+        public function __call($method, $arguments): mixed { return $this->macroCall($method, $arguments); }
+    }
+}

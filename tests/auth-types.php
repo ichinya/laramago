@@ -6,11 +6,27 @@ declare(strict_types=1);
 $binary = getenv('MAGO_BINARY') ?: __DIR__.'/../vendor/bin/mago';
 $command = str_ends_with($binary, '.exe') ? [$binary] : [PHP_BINARY, $binary];
 $package = str_replace('\\', '/', dirname(__DIR__));
-foreach (['literal', 'dynamic-default', 'missing'] as $configurationMode) {
+foreach (['literal', 'dynamic-default', 'missing', 'altered-request', 'mixed-request'] as $configurationMode) {
     $workspace = str_replace('\\', '/', sys_get_temp_dir()).'/laramago auth '.bin2hex(random_bytes(8));
     mkdir($workspace);
     mkdir($workspace.'/config');
     copy(__DIR__.'/fixtures/analysis/auth-types.php.stub', $workspace.'/models.php');
+    if ($configurationMode === 'altered-request') {
+        $models = file_get_contents($workspace.'/models.php');
+        file_put_contents($workspace.'/models.php', str_replace(
+            '\\Illuminate\\Contracts\\Auth\\Authenticatable|null',
+            '\\AuthAdmin|null',
+            $models,
+        ));
+    }
+    if ($configurationMode === 'mixed-request') {
+        $models = file_get_contents($workspace.'/models.php');
+        file_put_contents($workspace.'/models.php', str_replace(
+            '\\Illuminate\\Contracts\\Auth\\Authenticatable|null',
+            'mixed',
+            $models,
+        ));
+    }
     if ($configurationMode !== 'missing') {
         $configuration = file_get_contents(__DIR__.'/fixtures/analysis/auth-config.php.stub');
         if ($configurationMode === 'dynamic-default') {
@@ -24,6 +40,7 @@ foreach (['literal', 'dynamic-default', 'missing'] as $configurationMode) {
     }
     $cases = [
         'default guard' => ['return (new Request)->user();', '?AuthMember', []],
+        'falsey guard' => ['return (new Request)->user("0");', '?AuthMember', []],
         'null guard' => ['return (new Request)->user(null);', '?AuthMember', []],
         'explicit guard' => ['return (new Request)->user("admin");', '?AuthAdmin', []],
         'named guard' => ['return (new Request)->user(guard: "admin");', '?AuthAdmin', []],
@@ -63,6 +80,32 @@ foreach (['literal', 'dynamic-default', 'missing'] as $configurationMode) {
                 'return (new Request)->user("admin");',
                 $configurationMode === 'missing' ? '?Authenticatable' : '?AuthAdmin',
                 [],
+            ],
+        ];
+    }
+    if ($configurationMode === 'altered-request') {
+        $cases = [
+            'changed request declaration' => ['return (new Request)->user();', '?AuthAdmin', []],
+            'request declaration not replaced' => [
+                'return (new Request)->user();',
+                '?AuthMember',
+                ['invalid-return-statement'],
+            ],
+        ];
+    }
+    if ($configurationMode === 'mixed-request') {
+        $cases = [
+            'mixed request default refined' => ['return (new Request)->user();', '?AuthMember', []],
+            'mixed request literal guard refined' => ['return (new Request)->user("admin");', '?AuthAdmin', []],
+            'mixed request nullability preserved' => [
+                'return (new Request)->user();',
+                'AuthMember',
+                ['invalid-return-statement', 'nullable-return-statement'],
+            ],
+            'mixed request wrong model' => [
+                'return (new Request)->user();',
+                '?AuthAdmin',
+                ['invalid-return-statement'],
             ],
         ];
     }

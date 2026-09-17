@@ -1,0 +1,134 @@
+<?php
+namespace Illuminate\Database\Eloquent\Concerns;
+trait HasRelationships {
+    /** @return \Illuminate\Database\Eloquent\Relations\MorphTo<\Illuminate\Database\Eloquent\Model, $this> */
+    public function morphTo($name = null, $type = null, $id = null, $ownerKey = null) { throw new \RuntimeException('Factory must never execute.'); }
+    /** @template T of \Illuminate\Database\Eloquent\Model
+     * @param class-string<T> $related
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany<T, $this> */
+    public function belongsToMany($related, $table = null, $foreignPivotKey = null, $relatedPivotKey = null, $parentKey = null, $relatedKey = null, $relation = null) { throw new \RuntimeException('Factory must never execute.'); }
+    /** @template T of \Illuminate\Database\Eloquent\Model
+     * @template I of \Illuminate\Database\Eloquent\Model
+     * @param class-string<I> $through
+     * @param class-string<T> $related
+     * @return \Illuminate\Database\Eloquent\Relations\HasManyThrough<T, I, $this> */
+    public function hasManyThrough($related, $through, $firstKey = null, $secondKey = null, $localKey = null, $secondLocalKey = null) { throw new \RuntimeException('Factory must never execute.'); }
+    /** @template T of \Illuminate\Database\Eloquent\Model
+     * @template I of \Illuminate\Database\Eloquent\Model
+     * @param class-string<I> $through
+     * @param class-string<T> $related
+     * @return \Illuminate\Database\Eloquent\Relations\HasOneThrough<T, I, $this> */
+    public function hasOneThrough($related, $through, $firstKey = null, $secondKey = null, $localKey = null, $secondLocalKey = null) { throw new \RuntimeException('Factory must never execute.'); }
+    /** @template T of \Illuminate\Database\Eloquent\Model
+     * @param class-string<T> $related
+     * @return \Illuminate\Database\Eloquent\Relations\MorphOne<T, $this> */
+    public function morphOne($related, $name, $type = null, $id = null, $localKey = null) { throw new \RuntimeException('Factory must never execute.'); }
+    /** @template T of \Illuminate\Database\Eloquent\Model
+     * @param class-string<T> $related
+     * @return \Illuminate\Database\Eloquent\Relations\MorphMany<T, $this> */
+    public function morphMany($related, $name, $type = null, $id = null, $localKey = null) { throw new \RuntimeException('Factory must never execute.'); }
+    /** @template T of \Illuminate\Database\Eloquent\Model
+     * @param class-string<T> $related
+     * @return \Illuminate\Database\Eloquent\Relations\MorphToMany<T, $this> */
+    public function morphToMany($related, $name, $table = null, $foreignPivotKey = null, $relatedPivotKey = null, $parentKey = null, $relatedKey = null, $relation = null, $inverse = false) { throw new \RuntimeException('Factory must never execute.'); }
+    /** @template T of \Illuminate\Database\Eloquent\Model
+     * @param class-string<T> $related
+     * @return \Illuminate\Database\Eloquent\Relations\MorphToMany<T, $this> */
+    public function morphedByMany($related, $name, $table = null, $foreignPivotKey = null, $relatedPivotKey = null, $parentKey = null, $relatedKey = null, $relation = null) { throw new \RuntimeException('Factory must never execute.'); }
+    protected function newBelongsToMany(...$arguments) { throw new \RuntimeException('Factory must never execute.'); }
+    protected function newHasManyThrough(...$arguments) { throw new \RuntimeException('Factory must never execute.'); }
+    protected function newHasOneThrough(...$arguments) { throw new \RuntimeException('Factory must never execute.'); }
+    protected function newMorphOne(...$arguments) { throw new \RuntimeException('Factory must never execute.'); }
+    protected function newMorphMany(...$arguments) { throw new \RuntimeException('Factory must never execute.'); }
+    protected function newMorphToMany(...$arguments) { throw new \RuntimeException('Factory must never execute.'); }
+    protected function newRelatedThroughInstance($class) { throw new \RuntimeException('Factory must never execute.'); }
+    public function joiningTable($related, $instance = null) { throw new \RuntimeException('Factory must never execute.'); }
+
+    /** @template T of \Illuminate\Database\Eloquent\Model
+     * @param class-string<T> $related
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany<T, $this> */
+    public function hasMany($related, ?string $foreignKey = null, ?string $localKey = null) { throw new \RuntimeException('Factory must never execute.'); }
+    /** @template T of \Illuminate\Database\Eloquent\Model
+     * @param class-string<T> $related
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne<T, $this> */
+    public function hasOne($related, ?string $foreignKey = null, ?string $localKey = null) { throw new \RuntimeException('Factory must never execute.'); }
+    /** @template T of \Illuminate\Database\Eloquent\Model
+     * @param class-string<T> $related
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo<T, $this> */
+    public function belongsTo($related, ?string $foreignKey = null, ?string $ownerKey = null, ?string $relation = null) { throw new \RuntimeException('Factory must never execute.'); }
+    protected function newHasMany($query, $parent, $foreignKey, $localKey) { throw new \RuntimeException('Factory must never execute.'); }
+    protected function newHasOne($query, $parent, $foreignKey, $localKey) { throw new \RuntimeException('Factory must never execute.'); }
+    protected function newBelongsTo($query, $child, $foreignKey, $ownerKey, $relation) { throw new \RuntimeException('Factory must never execute.'); }
+    protected function newRelatedInstance($class) { throw new \RuntimeException('Factory must never execute.'); }
+}
+
+namespace Illuminate\Database\Eloquent\Relations;
+/** @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+ * @template TDeclaringModel of \Illuminate\Database\Eloquent\Model
+ * @mixin \Illuminate\Database\Eloquent\Builder<TRelatedModel> */
+class Relation {
+    public function __call(string $method, array $arguments): mixed {}
+    /** @return TRelatedModel */
+    public function getRelated() {}
+    /** @return TDeclaringModel */
+    public function getParent() {}
+    /** @return \Illuminate\Database\Eloquent\Builder<TRelatedModel> */
+    public function getQuery() {}
+    /** @return $this */
+    public function where(string $column, mixed $value) {}
+}
+
+class Pivot extends \Illuminate\Database\Eloquent\Model {}
+class MorphPivot extends Pivot {}
+/** @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+ * @template TDeclaringModel of \Illuminate\Database\Eloquent\Model
+ * @extends Relation<TRelatedModel, TDeclaringModel> */
+class MorphOne extends Relation {
+}
+/** @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+ * @template TDeclaringModel of \Illuminate\Database\Eloquent\Model
+ * @extends Relation<TRelatedModel, TDeclaringModel> */
+class MorphMany extends Relation {
+}
+/** @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+ * @template TDeclaringModel of \Illuminate\Database\Eloquent\Model
+ * @template TPivotModel of \Illuminate\Database\Eloquent\Relations\Pivot = \Illuminate\Database\Eloquent\Relations\Pivot
+ * @template TAccessor of string = 'pivot'
+ * @extends Relation<TRelatedModel, TDeclaringModel> */
+class BelongsToMany extends Relation {
+    /** @return $this */
+    public function withTimestamps($createdAt = null, $updatedAt = null) {}
+}
+/** @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+ * @template TDeclaringModel of \Illuminate\Database\Eloquent\Model
+ * @template TPivotModel of \Illuminate\Database\Eloquent\Relations\Pivot = \Illuminate\Database\Eloquent\Relations\MorphPivot
+ * @template TAccessor of string = 'pivot'
+ * @extends BelongsToMany<TRelatedModel, TDeclaringModel, TPivotModel, TAccessor> */
+class MorphToMany extends BelongsToMany {
+}
+/** @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+ * @template TIntermediateModel of \Illuminate\Database\Eloquent\Model
+ * @template TDeclaringModel of \Illuminate\Database\Eloquent\Model
+ * @extends Relation<TRelatedModel, TDeclaringModel> */
+class HasOneOrManyThrough extends Relation {
+    /** @return $this */
+    public function withTrashedParents() {}
+    /** @return TIntermediateModel */
+    public function getThroughParent() {}
+}
+/** @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+ * @template TIntermediateModel of \Illuminate\Database\Eloquent\Model
+ * @template TDeclaringModel of \Illuminate\Database\Eloquent\Model
+ * @extends HasOneOrManyThrough<TRelatedModel, TIntermediateModel, TDeclaringModel> */
+class HasOneThrough extends HasOneOrManyThrough {
+}
+/** @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+ * @template TIntermediateModel of \Illuminate\Database\Eloquent\Model
+ * @template TDeclaringModel of \Illuminate\Database\Eloquent\Model
+ * @extends HasOneOrManyThrough<TRelatedModel, TIntermediateModel, TDeclaringModel> */
+class HasManyThrough extends HasOneOrManyThrough {
+}
+/** @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+ * @template TDeclaringModel of \Illuminate\Database\Eloquent\Model
+ * @extends Relation<TRelatedModel, TDeclaringModel> */
+class MorphTo extends Relation {}

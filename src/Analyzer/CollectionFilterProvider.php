@@ -18,10 +18,16 @@ use Mago\Sdk\Analyzer\Type\SimpleAtomicTypeKind;
 final class CollectionFilterProvider implements MethodReturnTypeProvider
 {
     private const COLLECTION = 'Illuminate\\Support\\Collection';
+    private const ELOQUENT = 'Illuminate\\Database\\Eloquent\\Collection';
 
     public function getTargets(): array
     {
-        return [MethodTarget::exact(self::COLLECTION, 'filter'), MethodTarget::exact(self::COLLECTION, 'whereNotNull')];
+        return [
+            MethodTarget::exact(self::COLLECTION, 'filter'),
+            MethodTarget::exact(self::COLLECTION, 'whereNotNull'),
+            MethodTarget::exact(self::ELOQUENT, 'filter'),
+            MethodTarget::exact(self::ELOQUENT, 'whereNotNull'),
+        ];
     }
 
     public function getReturnType(ReturnTypeProviderContext $context): ?Type
@@ -34,7 +40,7 @@ final class CollectionFilterProvider implements MethodReturnTypeProvider
         $atom = $receiver->atomicTypes[0];
         if (
             ! $atom instanceof NamedObjectType
-            || $atom->name !== self::COLLECTION
+            || ! in_array($atom->name, [self::COLLECTION, self::ELOQUENT], true)
             || count($atom->parameters ?? []) !== 2
         ) {
             return null;
@@ -42,6 +48,29 @@ final class CollectionFilterProvider implements MethodReturnTypeProvider
         $keyType = $atom->parameters[0] ?? null;
         $valueType = $atom->parameters[1] ?? null;
         if ($keyType === null || $valueType === null) {
+            return null;
+        }
+        if (
+            $atom->name === self::ELOQUENT
+            && ! $context->types->isContainedBy($valueType, Type::union(
+                Type::namedObject('Illuminate\\Database\\Eloquent\\Model'),
+                Type::null(),
+            ))
+        ) {
+            return null;
+        }
+        $method = $context->codebase->getMethod($atom->name, $call->name) ?? $context->codebase->getDeclaringMethod(
+            $atom->name,
+            $call->name,
+        );
+        if (
+            $method === null
+            || ! in_array(
+                $method->identifier->class,
+                [self::COLLECTION, 'Illuminate\\Support\\Traits\\EnumeratesValues'],
+                true,
+            )
+        ) {
             return null;
         }
         // Subclass overrides, callbacks, keyed filtering and unpacked arguments retain native contracts.
@@ -93,6 +122,6 @@ final class CollectionFilterProvider implements MethodReturnTypeProvider
         }
         $filtered = $values === [] ? Type::never() : Type::fromAtomics(...$values);
 
-        return Type::namedObject(self::COLLECTION, $keyType, $filtered);
+        return Type::namedObject($atom->name, $keyType, $filtered);
     }
 }

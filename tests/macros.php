@@ -21,7 +21,7 @@ file_put_contents($workspace.'/bootstrap/macros.php', <<<'PHP'
     MacroBox::macro('native', fn(): int => 1);
     DocumentedBox::macro('documented', fn(int $value): int => $value);
     CustomBox::macro('custom', fn(): string => '');
-    if (true) { MacroBox::macro('conditional', fn(): string => ''); }
+    if ($unknownCondition) { MacroBox::macro('conditional', fn(): string => ''); }
     MacroBox::macro('duplicate', fn(): string => '');
     MacroBox::macro('duplicate', fn(): int => 1);
     MacroBox::macro('untyped', fn($value) => $value);
@@ -61,7 +61,7 @@ $cases = [
     'wrong return' => ['return MacroBox::label(3);', 'int', ['invalid-return-statement']],
     'native declaration wins' => ['return MacroBox::native();', 'string', []],
     'multiline documentation wins' => ['return DocumentedBox::documented(1);', 'string', []],
-    'conditional deferred' => [
+    'unknown conditional deferred' => [
         'return MacroBox::conditional();',
         'string',
         ['mixed-return-statement', 'non-documented-method'],

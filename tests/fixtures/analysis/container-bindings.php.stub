@@ -1,0 +1,178 @@
+<?php
+
+namespace ContainerFixtures {
+    interface ServiceContract
+    {
+        public function label(string $prefix = 'service'): string;
+    }
+
+    abstract class AbstractService
+    {
+        abstract public function enabled(): bool;
+    }
+
+    final class Service implements ServiceContract
+    {
+        public function label(string $prefix = 'service'): string
+        {
+            return $prefix;
+        }
+
+        public function touch(string &$value): void
+        {
+            $value = 'changed';
+        }
+    }
+
+    final class AbstractImplementation extends AbstractService
+    {
+        public function enabled(): bool
+        {
+            return true;
+        }
+    }
+
+    final class AlternateService implements ServiceContract
+    {
+        public function label(string $prefix = 'alternate'): string
+        {
+            return $prefix;
+        }
+    }
+
+    final class WrongService {}
+
+    /** @template TValue */
+    final class GenericService {}
+
+    interface WrongContract {}
+
+    interface ConditionalContract {}
+
+    interface RuntimeContract {}
+
+    interface ClosureContract {}
+
+    interface ConflictContract {}
+
+    interface GenericContract {}
+
+    final class ConditionalImplementation implements ConditionalContract {}
+
+    final class RuntimeImplementation implements RuntimeContract {}
+
+    final class ClosureImplementation implements ClosureContract {}
+
+    final class ConflictImplementation implements ConflictContract {}
+
+    final class AlternateConflictImplementation implements ConflictContract {}
+
+    class ContractFacade extends \Illuminate\Support\Facades\Facade
+    {
+        protected static function getFacadeAccessor()
+        {
+            return ServiceContract::class;
+        }
+    }
+
+    class AliasFacade extends \Illuminate\Support\Facades\Facade
+    {
+        protected static function getFacadeAccessor()
+        {
+            return 'service.deep';
+        }
+    }
+
+    class UnknownAliasFacade extends \Illuminate\Support\Facades\Facade
+    {
+        protected static function getFacadeAccessor()
+        {
+            return 'unknown.alias';
+        }
+    }
+
+    class WrongFacade extends \Illuminate\Support\Facades\Facade
+    {
+        protected static function getFacadeAccessor()
+        {
+            return WrongContract::class;
+        }
+    }
+
+    class NativeFacade extends ContractFacade
+    {
+        public static function label(): int
+        {
+            return 1;
+        }
+    }
+
+    /** @method static int label() */
+    class DocumentedFacade extends ContractFacade {}
+
+    class CustomResolverFacade extends ContractFacade
+    {
+        protected static function resolveFacadeInstance($name)
+        {
+            return new WrongService;
+        }
+    }
+
+    class CustomDispatcherFacade extends ContractFacade
+    {
+        public static function __callStatic(string $method, array $arguments): mixed
+        {
+            return null;
+        }
+    }
+
+    class GenericFacade extends \Illuminate\Support\Facades\Facade
+    {
+        protected static function getFacadeAccessor()
+        {
+            return GenericContract::class;
+        }
+    }
+
+    final class CustomContainer extends \Illuminate\Container\Container
+    {
+        public function make($abstract, array $parameters = []): int
+        {
+            return 1;
+        }
+    }
+}
+
+namespace {
+    throw new \RuntimeException('Container binding catalogs must never execute.');
+
+    app()->bind(\ContainerFixtures\ServiceContract::class, \ContainerFixtures\Service::class);
+    app()->singleton(\ContainerFixtures\AbstractService::class, \ContainerFixtures\AbstractImplementation::class);
+    app()->bind('service.primary', \ContainerFixtures\Service::class);
+    app()->alias('service.primary', 'service.alias');
+    app()->alias('service.alias', 'service.deep');
+    app()->alias('service.primary', 'portal');
+    \Illuminate\Container\Container::getInstance()->bind('static.service', \ContainerFixtures\Service::class);
+
+    app()->bind(\ContainerFixtures\WrongContract::class, \ContainerFixtures\WrongService::class);
+    app()->alias('missing.target', 'unknown.alias');
+    app()->alias('cycle.second', 'cycle.first');
+    app()->alias('cycle.first', 'cycle.second');
+    app()->bind(\ContainerFixtures\ConflictContract::class, \ContainerFixtures\ConflictImplementation::class);
+    app()->bind(\ContainerFixtures\ConflictContract::class, \ContainerFixtures\AlternateConflictImplementation::class);
+    app()->bind(
+        \ContainerFixtures\ClosureContract::class,
+        fn (): \ContainerFixtures\ClosureImplementation => new \ContainerFixtures\ClosureImplementation,
+    );
+    app()->bind(\ContainerFixtures\GenericContract::class, \ContainerFixtures\GenericService::class);
+
+    if (PHP_VERSION_ID > 0) {
+        app()->bind(\ContainerFixtures\ConditionalContract::class, \ContainerFixtures\ConditionalImplementation::class);
+        app()->alias('static.service', 'portal');
+    }
+
+    function registerRuntimeBinding(): void
+    {
+        app()->bind(\ContainerFixtures\RuntimeContract::class, \ContainerFixtures\RuntimeImplementation::class);
+    }
+}

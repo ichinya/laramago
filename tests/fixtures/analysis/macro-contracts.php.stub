@@ -1,0 +1,110 @@
+<?php
+
+namespace Illuminate\Support\Traits {
+    trait Macroable
+    {
+        public static function macro(string $name, mixed $macro): void
+        {
+            throw new \RuntimeException('Registration executed.');
+        }
+
+        public static function hasMacro(string $name): bool
+        {
+            return false;
+        }
+
+        public static function flushMacros(): void
+        {
+            throw new \RuntimeException('Flush executed.');
+        }
+
+        public function __call(string $name, array $arguments): mixed
+        {
+            throw new \RuntimeException('Macro executed.');
+        }
+
+        public static function __callStatic(string $name, array $arguments): mixed
+        {
+            throw new \RuntimeException('Macro executed.');
+        }
+    }
+}
+
+namespace {
+    class LiteralConditionBox
+    {
+        use \Illuminate\Support\Traits\Macroable;
+    }
+
+    class OrderedConditionBox
+    {
+        use \Illuminate\Support\Traits\Macroable;
+    }
+
+    class UnknownConditionBox
+    {
+        use \Illuminate\Support\Traits\Macroable;
+    }
+
+    class DuplicateConditionBox
+    {
+        use \Illuminate\Support\Traits\Macroable;
+    }
+
+    class FlushedConditionBox
+    {
+        use \Illuminate\Support\Traits\Macroable;
+    }
+
+    class NativeConditionBox
+    {
+        use \Illuminate\Support\Traits\Macroable;
+
+        public static function native(): string
+        {
+            return '';
+        }
+    }
+
+    /**
+     * @method static string documented(int $value)
+     */
+    class DocumentedConditionBox
+    {
+        use \Illuminate\Support\Traits\Macroable;
+    }
+
+    class CustomConditionBox
+    {
+        use \Illuminate\Support\Traits\Macroable;
+
+        public static function hasMacro(string $name): bool
+        {
+            return true;
+        }
+    }
+
+    class ParentConditionBox
+    {
+        use \Illuminate\Support\Traits\Macroable;
+    }
+
+    class ChildConditionBox extends ParentConditionBox {}
+
+    class ForeignConditionGuard
+    {
+        public static function hasMacro(string $name): bool
+        {
+            return false;
+        }
+    }
+
+    class InheritedConditionGuard extends LiteralConditionBox {}
+
+    class BaseRegistryGuard
+    {
+        use \Illuminate\Support\Traits\Macroable;
+    }
+
+    class ChildRegistryGuard extends BaseRegistryGuard {}
+}

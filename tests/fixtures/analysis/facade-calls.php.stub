@@ -1,0 +1,206 @@
+<?php
+
+namespace Illuminate\Support\Facades {
+    abstract class Facade
+    {
+        /** @return mixed */
+        public static function getFacadeRoot()
+        {
+            throw new \RuntimeException('Do not execute facades.');
+        }
+
+        /** @return mixed */
+        protected static function resolveFacadeInstance($name)
+        {
+            throw new \RuntimeException('Do not resolve facades.');
+        }
+
+        /** @return mixed */
+        protected static function getFacadeAccessor()
+        {
+            throw new \RuntimeException('Do not execute accessors.');
+        }
+
+        public static function __callStatic(string $method, array $arguments): mixed
+        {
+            throw new \RuntimeException('Do not dispatch facades.');
+        }
+    }
+}
+
+namespace {
+    throw new \RuntimeException('Facade fixtures must never execute.');
+
+    class FacadeService
+    {
+        public function label(string $prefix = 'service'): string
+        {
+            return $prefix;
+        }
+
+        public function active(bool $enabled): bool
+        {
+            return $enabled;
+        }
+
+        public function count(): ?int
+        {
+            return null;
+        }
+
+        public function fluent(): static
+        {
+            return $this;
+        }
+
+        /** @return list<static> */
+        public function copies(): array
+        {
+            return [$this];
+        }
+
+        public function touch(string &$value): void
+        {
+            $value = 'changed';
+        }
+
+        protected function internal(): string
+        {
+            return '';
+        }
+
+        private function secret(): string
+        {
+            return '';
+        }
+
+        public static function staticLabel(): string
+        {
+            return 'static';
+        }
+
+        /**
+         * @template TValue
+         * @param TValue $value
+         * @return TValue
+         */
+        public function mirror(mixed $value): mixed
+        {
+            return $value;
+        }
+    }
+
+    interface FacadeServiceContract
+    {
+        public function enabled(int $identifier): bool;
+    }
+
+    /** @template TValue */
+    class GenericFacadeService
+    {
+        /** @return TValue */
+        public function value(): mixed
+        {
+            return null;
+        }
+    }
+
+    /** @template TValue */
+    class GenericFacadeParent
+    {
+        /** @return TValue */
+        public function inheritedValue(): mixed
+        {
+            return null;
+        }
+    }
+
+    /** @extends GenericFacadeParent<string> */
+    class BoundFacadeService extends GenericFacadeParent {}
+
+    class LiteralCallFacade extends \Illuminate\Support\Facades\Facade
+    {
+        protected static function getFacadeAccessor()
+        {
+            return FacadeService::class;
+        }
+    }
+
+    class InheritedCallFacade extends LiteralCallFacade {}
+
+    class InterfaceCallFacade extends \Illuminate\Support\Facades\Facade
+    {
+        protected static function getFacadeAccessor()
+        {
+            return FacadeServiceContract::class;
+        }
+    }
+
+    class AliasCallFacade extends \Illuminate\Support\Facades\Facade
+    {
+        protected static function getFacadeAccessor()
+        {
+            return 'facade.service';
+        }
+    }
+
+    class DynamicCallFacade extends \Illuminate\Support\Facades\Facade
+    {
+        protected static function getFacadeAccessor()
+        {
+            return getenv('FACADE_SERVICE');
+        }
+    }
+
+    class MultipleCallFacade extends LiteralCallFacade
+    {
+        protected static function getFacadeAccessor()
+        {
+            $ignored = true;
+            return FacadeService::class;
+        }
+    }
+
+    class CustomResolverCallFacade extends LiteralCallFacade
+    {
+        protected static function resolveFacadeInstance($name)
+        {
+            return new FacadeService();
+        }
+    }
+
+    class CustomDispatcherCallFacade extends LiteralCallFacade
+    {
+        public static function __callStatic(string $method, array $arguments): mixed
+        {
+            return null;
+        }
+    }
+
+    class NativeCallFacade extends LiteralCallFacade
+    {
+        public static function label(): int
+        {
+            return 1;
+        }
+    }
+
+    /** @method static int label() */
+    class DocumentedCallFacade extends LiteralCallFacade {}
+
+    class GenericServiceCallFacade extends \Illuminate\Support\Facades\Facade
+    {
+        protected static function getFacadeAccessor()
+        {
+            return GenericFacadeService::class;
+        }
+    }
+
+    class BoundGenericCallFacade extends \Illuminate\Support\Facades\Facade
+    {
+        protected static function getFacadeAccessor()
+        {
+            return BoundFacadeService::class;
+        }
+    }
+}

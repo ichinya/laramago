@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ichinya\Laramago\Analyzer;
 
+use Mago\Sdk\Analyzer\Metadata\MetadataFlags;
 use Mago\Sdk\Analyzer\MethodReturnTypeProvider;
 use Mago\Sdk\Analyzer\MethodTarget;
 use Mago\Sdk\Analyzer\ReturnTypeProviderContext;
@@ -48,14 +49,9 @@ final class HigherOrderMapProvider implements MethodReturnTypeProvider
         }
         $value = $proxy->parameters[1] ?? null;
         $collection = $proxy->parameters[2] ?? null;
-        $model = $value?->atomicTypes[0] ?? null;
         $container = $collection?->atomicTypes[0] ?? null;
         if (
             $value === null
-            || count($value->atomicTypes) !== 1
-            || ! $model instanceof NamedObjectType
-            || ($model->parameters ?? []) !== []
-            || ($model->intersections ?? []) !== []
             || $collection === null
             || count($collection->atomicTypes) !== 1
             || ! $container instanceof NamedObjectType
@@ -77,46 +73,73 @@ final class HigherOrderMapProvider implements MethodReturnTypeProvider
             return null;
         }
         $codebase = $context->codebase;
-        foreach ($codebase->getMultipleClasses([
-            self::PROXY,
-            $model->name,
-            ...$codebase->getClassAncestors($model->name),
-        ]) as $class) {
-            foreach ([...($class->pseudoMethods ?? []), ...($class->staticPseudoMethods ?? [])] as $name) {
-                if (strcasecmp($name, $call->name) === 0) {
+        // Without a shared resolved callback signature, argument-bearing union dispatch
+        // can be valid on one branch and invalid on another.
+        if (count($value->atomicTypes) > 1 && $call->arguments !== []) {
+            return null;
+        }
+        $returns = null;
+        foreach ($value->atomicTypes as $model) {
+            if (
+                ! $model instanceof NamedObjectType
+                || ($model->parameters ?? []) !== []
+                || ($model->intersections ?? []) !== []
+            ) {
+                return null;
+            }
+            foreach ($codebase->getMultipleClasses([
+                self::PROXY,
+                $model->name,
+                ...$codebase->getClassAncestors($model->name),
+            ]) as $class) {
+                foreach ([...($class->pseudoMethods ?? []), ...($class->staticPseudoMethods ?? [])] as $name) {
+                    if (strcasecmp($name, $call->name) === 0) {
+                        return null;
+                    }
+                }
+            }
+            if (
+                $codebase->getMethod(self::PROXY, $call->name) !== null
+                || $codebase->getDeclaringMethod(self::PROXY, $call->name) !== null
+                || $codebase->getMethod($container->name, 'map') === null
+            ) {
+                return null;
+            }
+            foreach ($call->arguments as $argument) {
+                if ($argument->placeholder) {
                     return null;
                 }
             }
-        }
-        if (
-            $codebase->getMethod(self::PROXY, $call->name) !== null
-            || $codebase->getDeclaringMethod(self::PROXY, $call->name) !== null
-            || $codebase->getMethod($container->name, 'map') === null
-        ) {
-            return null;
-        }
-        foreach ($call->arguments as $argument) {
-            if ($argument->placeholder) {
+            $method = $codebase->getMethod($model->name, $call->name) ?? $codebase->getDeclaringMethod(
+                $model->name,
+                $call->name,
+            );
+            if (
+                $method === null
+                || $method->visibility !== Visibility::Public
+                || $method->static
+                || $method->templates !== []
+                || ($codebase->getClassLike($method->identifier->class ?? $model->name)->templates ?? []) !== []
+            ) {
                 return null;
             }
+            if (count($value->atomicTypes) > 1) {
+                foreach ($method->parameters as $parameter) {
+                    if (
+                        ! $parameter->flags->contains(MetadataFlags::HAS_DEFAULT)
+                        && ! $parameter->flags->contains(MetadataFlags::VARIADIC)
+                    ) {
+                        return null;
+                    }
+                }
+            }
+            $return = (new HigherOrderMapResult)->resolve($method, Type::fromAtomic($model), $context);
+            if ($return === null) {
+                return null;
+            }
+            $returns = $returns === null ? $return : Type::union($returns, $return);
         }
-        $method = $codebase->getMethod($model->name, $call->name) ?? $codebase->getDeclaringMethod(
-            $model->name,
-            $call->name,
-        );
-        if (
-            $method === null
-            || $method->visibility !== Visibility::Public
-            || $method->static
-            || $method->templates !== []
-            || ($codebase->getClassLike($method->identifier->class ?? $model->name)->templates ?? []) !== []
-        ) {
-            return null;
-        }
-        $return = (new HigherOrderMapResult)->resolve($method, $value, $context);
-        if ($return === null) {
-            return null;
-        }
+        $return = $returns;
         // Eloquent switches to a base collection if any mapped value is not a model.
         // The base type also includes empty Eloquent collections and mixed branches.
         $resultClass = $container->name === self::ELOQUENT

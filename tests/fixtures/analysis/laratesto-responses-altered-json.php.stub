@@ -1,0 +1,9 @@
+<?php
+
+namespace Laratesto\Testing {
+    class AssertableJson
+    {
+        /** @param \Closure(\stdClass): mixed $callback */
+        public function first(\Closure $callback): string { return ''; }
+    }
+}

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ConfigurationIndex;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Mago\Sdk\Analyzer\BeforeAnalysisContext;
 use Mago\Sdk\Analyzer\BeforeAnalysisHook;
@@ -28,6 +29,7 @@ use Mago\Sdk\Reporting\Level;
 final class ConfigurationProvider implements FunctionReturnTypeProvider, InitializationHook, BeforeAnalysisHook
 {
     private ?ConfigurationIndex $index = null;
+    private ?ContainerBindings $bindings = null;
 
     public function __construct(
         private readonly string $root,
@@ -36,6 +38,7 @@ final class ConfigurationProvider implements FunctionReturnTypeProvider, Initial
     public function initialize(InitializationContext $context): void
     {
         $this->index = null;
+        $this->bindings = null;
     }
 
     public function getTargets(): array
@@ -45,6 +48,10 @@ final class ConfigurationProvider implements FunctionReturnTypeProvider, Initial
 
     public function beforeAnalysis(BeforeAnalysisContext $context): void
     {
+        $this->bindings ??= new ContainerBindings($this->root);
+        if ($this->bindings->configured('config')) {
+            return;
+        }
         $index = $this->index ??= new ConfigurationIndex(new PhpSource($this->root));
         $anchor = $this->frameworkHelper($context->codebase)?->location;
         if ($anchor !== null) {
@@ -60,12 +67,23 @@ final class ConfigurationProvider implements FunctionReturnTypeProvider, Initial
 
     public function getReturnType(ReturnTypeProviderContext $context): ?Type
     {
-        $call = $context->invocation;
         $return = $this->frameworkHelper($context->codebase)?->returnType?->type;
         // A concrete application declaration always wins over the framework helper.
         if ($return === null || count($return->atomicTypes) !== 1 || ! $return->atomicTypes[0] instanceof MixedType) {
             return null;
         }
+
+        return $this->literalRead($context);
+    }
+
+    /** Resolve a proven read from Laravel's application configuration singleton. */
+    public function literalRead(ReturnTypeProviderContext $context): ?Type
+    {
+        $this->bindings ??= new ContainerBindings($this->root);
+        if ($this->bindings->configured('config')) {
+            return null;
+        }
+        $call = $context->invocation;
         $argument = $call->getArgument(0, 'key');
         $key = $argument?->type?->getLiteralString();
         if ($argument === null || $argument->unpacked || $argument->placeholder || $key === null) {

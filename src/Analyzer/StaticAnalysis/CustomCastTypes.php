@@ -26,6 +26,7 @@ final class CustomCastTypes
         Codebase $codebase,
         ?Column $column,
         ?PhpSource $source = null,
+        bool $allowFactory = true,
     ): ?PropertyType {
         $class = explode(':', $cast, 2)[0];
         $metadata = $codebase->getClassLike($class);
@@ -38,13 +39,13 @@ final class CustomCastTypes
         }
         $parents = array_map(strtolower(...), $codebase->getClassAncestors($class));
         if (in_array(self::CASTABLE, $parents, true)) {
-            $target = $source === null ? null : CastableTarget::resolve($class, $codebase, $source);
+            $target = $source === null || ! $allowFactory ? null : CastableTarget::resolve($class, $codebase, $source);
             if ($target === null || strcasecmp($target, $class) === 0) {
                 return null;
             }
 
             // Resolve one concrete caster, never recursively invoke Castable factories.
-            return self::resolve($target, $codebase, $column);
+            return self::resolve($target, $codebase, $column, $source, false);
         }
         $inbound = in_array(self::INBOUND, $parents, true);
         if (in_array(self::CASTABLE, $parents, true) || ! $inbound && ! in_array(self::CONTRACT, $parents, true)) {
@@ -53,12 +54,19 @@ final class CustomCastTypes
         $setter = self::method($codebase, $class, 'set');
         $parameter = $setter->parameters[2] ?? null;
         $write = $parameter->type->type ?? $parameter?->declaredType?->type;
+        $generics = $source === null ? null : new CastGenericTypes($codebase, $source, $class);
+        if ($write !== null && $generics !== null) {
+            $write = $generics->substitute($write);
+        }
         if ($write === null || self::unresolved($write)) {
             return null;
         }
         $getter = self::method($codebase, $class, 'get');
         // Inbound casts leave the stored value unchanged when reading.
         $read = $getter->returnType->type ?? $getter?->declaredReturnType?->type;
+        if ($read !== null && $generics !== null) {
+            $read = $generics->substitute($read);
+        }
         if ($inbound) {
             $read = $column === null ? null : AttributeTypes::column($column)->readType;
         }

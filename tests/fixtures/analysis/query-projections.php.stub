@@ -1,0 +1,32 @@
+<?php
+
+use Illuminate\Database\Eloquent\Model;
+
+class ProjectionRecord extends Model
+{
+    protected $table = 'projection_records';
+    protected $casts = ['active' => 'bool', 'amount' => 'decimal:2'];
+    public function getLabelAttribute($value): int { throw new RuntimeException('Accessor must not run.'); }
+}
+
+class ProjectionCustom extends ProjectionRecord
+{
+    public function newQuery() { throw new RuntimeException('Query must not run.'); }
+}
+
+class ProjectionNative extends ProjectionRecord
+{
+    public static function value($column): int { return 1; }
+}
+
+/** @method static int value(string $column) */
+class ProjectionDocumented extends ProjectionRecord {}
+
+class ProjectionCastedAlias extends ProjectionRecord
+{
+    protected $casts = ['selected_name' => 'int'];
+}
+
+function projectionString(string $value): void {}
+function projectionBool(bool $value): void {}
+function projectionInt(int $value): void {}

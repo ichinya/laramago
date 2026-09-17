@@ -1,0 +1,17 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\Schema;
+
+throw new RuntimeException('Migration source must never execute.');
+
+return new class extends Migration {
+    public function up(): void
+    {
+        Schema::table('ordered_literals', function ($table) {
+            $column = 'value';
+            $nullable = true;
+            $table->integer($column)->nullable($nullable)->change();
+        });
+    }
+};

@@ -1,0 +1,173 @@
+<?php
+
+namespace Illuminate\Support\Traits {
+    trait Macroable
+    {
+        public static function macro(string $name, mixed $macro): void {}
+
+        public static function hasMacro(string $name): bool
+        {
+            return false;
+        }
+
+        public function __call(string $name, array $arguments): mixed
+        {
+            return null;
+        }
+    }
+}
+
+namespace Illuminate\Testing {
+    class TestResponse
+    {
+        use \Illuminate\Support\Traits\Macroable {
+            __call as macroCall;
+        }
+
+        public function assertStatus(int $status): static
+        {
+            return $this;
+        }
+
+        public function __call($method, $arguments): mixed
+        {
+            return $this->macroCall($method, $arguments);
+        }
+    }
+}
+
+namespace Inertia\Testing {
+    class AssertableInertia
+    {
+        /** @var string */
+        private $component;
+
+        /** @var string */
+        private $url;
+
+        /** @var string|null */
+        private $version;
+
+        /** @var bool */
+        private $encryptHistory;
+
+        /** @var bool */
+        private $clearHistory;
+
+        /** @var array<string, mixed> */
+        private $flash;
+
+        public static function fromTestResponse(\Illuminate\Testing\TestResponse $response): self
+        {
+            return new self;
+        }
+
+        /** @return mixed */
+        private function prop(?string $key = null)
+        {
+            return null;
+        }
+
+        /** @return array<string, mixed> */
+        public function toArray()
+        {
+            return array_merge(
+                [
+                    'component' => $this->component,
+                    'props' => $this->prop(),
+                    'url' => $this->url,
+                    'version' => $this->version,
+                    'flash' => $this->flash,
+                ],
+                $this->encryptHistory ? ['encryptHistory' => true] : [],
+                $this->clearHistory ? ['clearHistory' => true] : [],
+            );
+        }
+    }
+
+    class TestResponseMacros
+    {
+        public function assertInertia(): \Closure
+        {
+            return fn (?\Closure $callback = null) => null;
+        }
+
+        public function inertiaPage(): \Closure
+        {
+            return function () {
+                return AssertableInertia::fromTestResponse($this)->toArray();
+            };
+        }
+
+        public function inertiaProps(): \Closure
+        {
+            return fn (?string $propName = null) => null;
+        }
+
+        public function assertInertiaFlash(): \Closure
+        {
+            return fn (string $key, mixed $expected = null) => null;
+        }
+
+        public function assertInertiaFlashMissing(): \Closure
+        {
+            return fn (string $key) => null;
+        }
+    }
+}
+
+namespace Inertia {
+    class ServiceProvider
+    {
+        protected function registerTestingMacros(): void {}
+    }
+}
+
+namespace Laratesto\Testing {
+    final readonly class LaravelResponse
+    {
+        public function inertiaPage(?string $key = null): mixed
+        {
+            return $this->frameworkAssertion('inertiaPage', [$key]);
+        }
+
+        public function assertStatus(int $status): static
+        {
+            return $this;
+        }
+
+        private function frameworkAssertion(string $method, array $arguments): mixed
+        {
+            return null;
+        }
+    }
+}
+
+namespace {
+    class ExplicitPageResponse extends \Illuminate\Testing\TestResponse
+    {
+        public function inertiaPage(): string
+        {
+            return '';
+        }
+    }
+
+    class ExplicitPropsResponse extends \Illuminate\Testing\TestResponse
+    {
+        public function inertiaProps(?string $propName = null): string
+        {
+            return '';
+        }
+    }
+
+    /** @method string inertiaPage() */
+    class DocumentedPageResponse extends \Illuminate\Testing\TestResponse {}
+
+    class CustomDispatchResponse extends \Illuminate\Testing\TestResponse
+    {
+        public function __call($method, $arguments): mixed
+        {
+            return null;
+        }
+    }
+}

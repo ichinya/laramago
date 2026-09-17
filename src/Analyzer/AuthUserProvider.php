@@ -4,24 +4,24 @@ declare(strict_types=1);
 
 namespace Ichinya\Laramago\Analyzer;
 
-use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Mago\Sdk\Analyzer\InitializationContext;
 use Mago\Sdk\Analyzer\InitializationHook;
+use Mago\Sdk\Analyzer\Metadata\MetadataFlags;
 use Mago\Sdk\Analyzer\MethodReturnTypeProvider;
 use Mago\Sdk\Analyzer\MethodTarget;
 use Mago\Sdk\Analyzer\ReturnTypeProviderContext;
 use Mago\Sdk\Analyzer\Type;
+use Mago\Sdk\Analyzer\Type\MixedType;
 use Mago\Sdk\Analyzer\Type\NamedObjectType;
-use Mago\Sdk\Analyzer\Type\ScalarType;
-use Mago\Sdk\Analyzer\Type\StringType;
-use PhpParser\Node;
 
-/** Resolves conventional Request authentication from literal configuration without executing it. */
+/** Resolves conventional authentication users without executing configuration or application code. */
 final class AuthUserProvider implements MethodReturnTypeProvider, InitializationHook
 {
     private const REQUEST = 'Illuminate\\Http\\Request';
+    private const MANAGER = 'Illuminate\\Auth\\AuthManager';
+    private const FACADE = 'Illuminate\\Support\\Facades\\Auth';
 
-    private ?PhpSource $source = null;
+    private ?AuthConfiguration $configuration = null;
 
     public function __construct(
         private readonly string $root,
@@ -29,12 +29,18 @@ final class AuthUserProvider implements MethodReturnTypeProvider, Initialization
 
     public function initialize(InitializationContext $context): void
     {
-        $this->source = null;
+        $this->configuration = null;
     }
 
     public function getTargets(): array
     {
-        return [MethodTarget::exact(self::REQUEST, 'user')];
+        return [
+            MethodTarget::exact(self::REQUEST, 'user'),
+            MethodTarget::exact(self::MANAGER, 'user'),
+            MethodTarget::exact('Illuminate\\Contracts\\Auth\\Guard', 'user'),
+            MethodTarget::exact('Illuminate\\Contracts\\Auth\\StatefulGuard', 'user'),
+            MethodTarget::exact(self::FACADE, 'user'),
+        ];
     }
 
     public function getReturnType(ReturnTypeProviderContext $context): ?Type
@@ -44,137 +50,74 @@ final class AuthUserProvider implements MethodReturnTypeProvider, Initialization
         if (count($atoms) !== 1 || ! $atoms[0] instanceof NamedObjectType) {
             return null;
         }
-        $method = $context->codebase->getMethod($atoms[0]->name, 'user') ?? $context->codebase->getDeclaringMethod(
-            $atoms[0]->name,
-            'user',
-        );
-        if ($method === null || strcasecmp($method->identifier->class ?? '', self::REQUEST) !== 0) {
-            return null;
-        }
-        $resolver = $context->codebase->getMethod(
-            $atoms[0]->name,
-            'getUserResolver',
-        ) ?? $context->codebase->getDeclaringMethod($atoms[0]->name, 'getUserResolver');
-        if ($resolver !== null && strcasecmp($resolver->identifier->class ?? '', self::REQUEST) !== 0) {
-            return null;
-        }
-        foreach ($context->codebase->getMultipleClasses([
-            $atoms[0]->name,
-            ...$context->codebase->getClassAncestors($atoms[0]->name),
-        ]) as $metadata) {
-            foreach ($metadata->pseudoMethods ?? [] as $name) {
-                if (strcasecmp($name, 'user') === 0) {
-                    return null;
-                }
-            }
-        }
-        foreach ($call->arguments as $argument) {
-            if ($argument->unpacked || $argument->placeholder) {
+        $name = $atoms[0]->name;
+        if (in_array($name, [self::MANAGER, self::FACADE], true)) {
+            // A concrete method on a replacement framework declaration remains authoritative.
+            $class = $context->codebase->getClass($name);
+            if ($class === null || $call->arguments !== []) {
                 return null;
             }
-        }
-        $config = $this->configuration();
-        if ($config === null) {
-            return null;
-        }
-        $guardArgument = $call->getArgument(0, 'guard');
-        $guard = null;
-        if ($guardArgument !== null && (string) $guardArgument->type !== 'null') {
-            $guardAtoms = $guardArgument->type?->atomicTypes ?? [];
+            $method = $context->codebase->getMethod($name, 'user');
             if (
-                count($guardAtoms) !== 1
-                || ! $guardAtoms[0] instanceof ScalarType
-                || ! $guardAtoms[0]->refinement instanceof StringType
+                $name === self::FACADE
+                && $method === null
+                || $method !== null
+                && ! $method->flags->contains(MetadataFlags::MAGIC_METHOD)
             ) {
                 return null;
             }
-            $guard = $guardAtoms[0]->refinement->literalValue;
-            if ($guard === null) {
+            $method ??= $context->codebase->getMethod($call->declaringClass ?? '', 'user');
+            $return = $method?->returnType?->type;
+            if ($return === null) {
+                return null;
+            }
+            $contract = Type::union(Type::namedObject('Illuminate\\Contracts\\Auth\\Authenticatable'), Type::null());
+            if (
+                ! $context->types->isContainedBy($return, $contract)
+                || ! $context->types->isContainedBy($contract, $return)
+            ) {
                 return null;
             }
         } else {
-            $guard = $this->literal($this->entry($this->entry($config, 'defaults'), 'guard'));
-        }
-        if (! is_string($guard)) {
-            return null;
-        }
-        $guardConfig = $this->entry($this->entry($config, 'guards'), $guard);
-        $driver = $this->literal($this->entry($guardConfig, 'driver'));
-        if (! in_array($driver, ['session', 'token'], true)) {
-            return null;
-        }
-        $providerName = $this->literal($this->entry($guardConfig, 'provider'));
-        if (! is_string($providerName)) {
-            return null;
-        }
-        $provider = $this->entry($this->entry($config, 'providers'), $providerName);
-        if ($this->literal($this->entry($provider, 'driver')) !== 'eloquent') {
-            return null;
-        }
-        $model = $this->literal($this->entry($provider, 'model'));
-        if (! is_string($model) || $context->codebase->getClass($model) === null) {
-            return null;
-        }
-        $type = Type::namedObject($model);
-        if (! $context->types->isContainedBy(
-            $type,
-            Type::namedObject('Illuminate\\Contracts\\Auth\\Authenticatable'),
-        )) {
-            return null;
-        }
-
-        return Type::union($type, Type::null());
-    }
-
-    private function configuration(): ?Node\Expr\Array_
-    {
-        if (! is_file($this->root.'/config/auth.php')) {
-            return null;
-        }
-        $this->source ??= new PhpSource($this->root);
-        $nodes = $this->source->read('config/auth.php') ?? [];
-        $result = null;
-        foreach ($nodes as $node) {
-            if ($node instanceof Node\Stmt\Return_) {
-                if ($result !== null || ! $node->expr instanceof Node\Expr\Array_) {
-                    return null;
-                }
-                $result = $node->expr;
-            } elseif (
-                ! $node instanceof Node\Stmt\Use_
-                && ! $node instanceof Node\Stmt\Declare_
-                && ! $node instanceof Node\Stmt\Expression
-                && ! $node instanceof Node\Stmt\Nop
+            $method = $context->codebase->getMethod($name, 'user') ?? $context->codebase->getDeclaringMethod(
+                $name,
+                'user',
+            );
+            if ($method === null || strcasecmp($method->identifier->class ?? '', self::REQUEST) !== 0) {
+                return null;
+            }
+            $contract = Type::union(Type::namedObject('Illuminate\\Contracts\\Auth\\Authenticatable'), Type::null());
+            $return = $method->returnType?->type;
+            $atoms = $return?->atomicTypes ?? [];
+            $standardMixed = count($atoms) === 1 && $atoms[0] instanceof MixedType;
+            if (
+                $return === null
+                || ! $standardMixed
+                && (! $context->types->isContainedBy($return, $contract)
+                || ! $context->types->isContainedBy($contract, $return))
             ) {
                 return null;
             }
-        }
-
-        return $result;
-    }
-
-    private function entry(?Node $array, string $key): ?Node
-    {
-        if (! $array instanceof Node\Expr\Array_) {
-            return null;
-        }
-        $result = null;
-        foreach ($array->items as $item) {
-            if ($item->unpack || ! $item->key instanceof Node\Scalar\String_) {
+            $resolver = $context->codebase->getMethod(
+                $name,
+                'getUserResolver',
+            ) ?? $context->codebase->getDeclaringMethod($name, 'getUserResolver');
+            if ($resolver !== null && strcasecmp($resolver->identifier->class ?? '', self::REQUEST) !== 0) {
                 return null;
             }
-            if ($item->key->value === $key) {
-                $result = $item->value;
+            foreach ($context->codebase->getMultipleClasses([
+                $name,
+                ...$context->codebase->getClassAncestors($name),
+            ]) as $metadata) {
+                foreach ($metadata->pseudoMethods ?? [] as $pseudo) {
+                    if (strcasecmp($pseudo, 'user') === 0) {
+                        return null;
+                    }
+                }
             }
         }
+        $configuration = $this->configuration ??= new AuthConfiguration($this->root);
 
-        return $result;
-    }
-
-    private function literal(?Node $node): ?string
-    {
-        $value = PhpSource::value($node);
-
-        return is_string($value) ? $value : null;
+        return $configuration->userType($configuration->guardName($call, 'guard'), $context);
     }
 }

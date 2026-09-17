@@ -1,0 +1,103 @@
+<?php
+namespace RelationFixtures;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\{BelongsToMany, HasManyThrough, HasOneThrough, MorphOne, MorphMany, MorphToMany};
+use RelationFixtures\Entry as Item;
+
+class Entry extends Model { public string $title; public int $id; }
+class OtherEntry extends Model { public int $level; }
+class Intermediate extends Model {}
+class Owner extends Model {
+    public function dynamicMorphTarget(): \Illuminate\Database\Eloquent\Relations\MorphTo { return $this->morphTo('subject'); }
+    /** @return BelongsToMany<OtherEntry, $this> */
+    public function documentedMembers(): BelongsToMany { return $this->belongsToMany(Item::class); }
+    public function members(): BelongsToMany { return $this->belongsToMany(Item::class); }
+    public function distantEntries(): HasManyThrough { return $this->hasManyThrough(Item::class, Intermediate::class); }
+    public function distantEntry(): HasOneThrough { return $this->hasOneThrough(related: Item::class, through: Intermediate::class); }
+    public function image(): MorphOne { return $this->morphOne(Item::class, 'imageable'); }
+    public function images(): MorphMany { return $this->morphMany(Item::class, 'imageable'); }
+    public function tags(): MorphToMany { return $this->morphToMany(Item::class, 'taggable', inverse: false); }
+    public function taggedEntries(): MorphToMany { return $this->morphedByMany(Item::class, 'taggable'); }
+    public function timestamped(): BelongsToMany { return $this->belongsToMany(Item::class, 'entry_owner')->withTimestamps()->withTimestamps(updatedAt: 'changed_at'); }
+    public function timestampedTags(): MorphToMany { return $this->morphToMany(Item::class, 'taggable')->withTimestamps(); }
+    public function trashedDistant(): HasManyThrough { return $this->hasManyThrough(Item::class, Intermediate::class)->withTrashedParents(); }
+    public function missingThrough(): HasManyThrough { return $this->hasManyThrough(Item::class); }
+    public function unknownThrough(): HasManyThrough { return $this->hasManyThrough(Item::class, MissingModel::class); }
+    public function genericThrough(): HasOneThrough { return $this->hasOneThrough(Item::class, GenericOwner::class); }
+    public function dynamicThrough(): HasManyThrough { return $this->hasManyThrough(Item::class, $this->modelClass()); }
+    public function missingMorphName(): MorphMany { return $this->morphMany(Item::class); }
+    public function dynamicMorphName(): MorphMany { return $this->morphMany(Item::class, $this->modelClass()); }
+    public function nullMorphName(): MorphMany { return $this->morphMany(Item::class, null); }
+    public function badInverse(): MorphToMany { return $this->morphToMany(Item::class, 'taggable', inverse: 'yes'); }
+    public function customPivot(): BelongsToMany { return $this->belongsToMany(Item::class, CustomPivot::class); }
+    public function dynamicTimestamp(): BelongsToMany { return $this->belongsToMany(Item::class)->withTimestamps($this->modelClass()); }
+    public function invalidTimestampName(): BelongsToMany { return $this->belongsToMany(Item::class)->withTimestamps(unknown: 'value'); }
+    public function unsupportedModifier(): BelongsToMany { return $this->belongsToMany(Item::class)->where('id', 1); }
+
+    public function __construct() { throw new \RuntimeException('Models must never execute.'); }
+    public function entries(): HasMany { return $this->hasMany(Item::class); }
+    public function featured(): HasOne { return $this->hasOne(Item::class, 'owner_id', 'id'); }
+    public function parentEntry(): BelongsTo { return $this->belongsTo(Item::class, 'entry_id', 'id', 'parentEntry'); }
+    public function named(): HasMany { return $this->hasMany(localKey: 'id', related: Item::class, foreignKey: null); }
+    public function selfRelation(): HasOne { return $this->hasOne(self::class); }
+    public function staticRelation(): HasOne { return $this->hasOne(static::class); }
+    /** A descriptive comment is not an explicit return contract. */
+    public function described(): HasMany { return $this->hasMany(Item::class); }
+    /** @return HasMany<OtherEntry, $this> */
+    public function documented(): HasMany { return $this->hasMany(Item::class); }
+    /** @phpstan-return HasMany<OtherEntry, $this> */
+    public function phpstanDocumented(): HasMany { return $this->hasMany(Item::class); }
+    /** @return HasMany */
+    public function broadContract(): HasMany { return $this->hasMany(Item::class); }
+    public function conditional(): HasMany { if (random_int(0, 1)) { return $this->hasMany(Item::class); } return $this->hasMany(OtherEntry::class); }
+    public function local(): HasMany { $type = Item::class; return $this->hasMany($type); }
+    public function dynamic(): HasMany { return $this->hasMany($this->modelClass()); }
+    public function modelClass(): string { throw new \RuntimeException('Application methods must never execute.'); }
+    public function literalString(): HasMany { return $this->hasMany('RelationFixtures\\Entry'); }
+    public function modified(): HasMany { return $this->hasMany(Item::class)->where('id', 1); }
+    public function parameterized(bool $active = true): HasMany { return $this->hasMany(Item::class); }
+    public function nullable(): ?HasMany { return $this->hasMany(Item::class); }
+    public function untyped() { return $this->hasMany(Item::class); }
+    public function unrelated(): HasMany { return $this->hasMany(\stdClass::class); }
+    public function mismatched(): HasOne { return $this->hasMany(Item::class); }
+    public function unpacked(): HasMany { return $this->hasMany(...[Item::class]); }
+    public function dynamicKey(): HasMany { return $this->hasMany(Item::class, $this->modelClass()); }
+    public function missingTarget(): HasMany { return $this->hasMany(MissingModel::class); }
+    public function invalidName(): HasMany { return $this->hasMany(target: Item::class); }
+    public function duplicate(): HasMany { return $this->hasMany(Item::class, related: OtherEntry::class); }
+    protected function hidden(): HasMany { return $this->hasMany(Item::class); }
+    private function secret(): HasMany { return $this->hasMany(Item::class); }
+    public function callHidden(): string { return $this->hidden()->firstOrFail()->title; }
+}
+class ChildOwner extends Owner {}
+trait HasEntries {
+    public function entries(): HasMany { return $this->hasMany(Item::class); }
+    public function selfEntries(): HasMany { return $this->hasMany(self::class); }
+}
+class TraitOwner extends Model { use HasEntries; }
+class OverrideOwner extends Owner { public function entries(): HasMany { return $this->hasMany(OtherEntry::class); } }
+class FactoryOverride extends Owner { public function hasMany($related, $foreignKey = null, $localKey = null) { throw new \RuntimeException('Factory must not execute.'); } }
+class ConstructorOverride extends Owner { protected function newHasMany($query, $parent, $foreignKey, $localKey) { throw new \RuntimeException('Constructor must not execute.'); } }
+class RelatedOverride extends Owner { protected function newRelatedInstance($class) { throw new \RuntimeException('Resolver must not execute.'); } }
+class InheritedFactoryOverride extends FactoryOverride {}
+trait CustomFactory { public function hasMany($related, $foreignKey = null, $localKey = null) { throw new \RuntimeException('Trait factory must not execute.'); } }
+class TraitFactoryOverride extends Owner { use CustomFactory; }
+/** @method HasMany<OtherEntry, $this> hasMany(string $related, ?string $foreignKey = null, ?string $localKey = null) */
+class DocumentedFactory extends Owner {}
+/** @template T of Model */
+class GenericOwner extends Owner {}
+class GenericRelatedOwner extends Owner { public function entries(): HasMany { return $this->hasMany(GenericOwner::class); } }
+class UndefinedKeyOwner extends Owner { public function entries(): HasMany { return $this->hasMany(Item::class, MISSING_KEY); } }
+class ParentTargetOwner extends Owner { public function entries(): HasMany { return $this->hasMany(parent::class); } }
+class CustomRelation extends HasMany {}
+class CustomRelationOwner extends Owner { public function entries(): CustomRelation { return $this->hasMany(Item::class); } }
+class CustomPivot extends \Illuminate\Database\Eloquent\Relations\Pivot {}
+class ThroughFactoryOverride extends Owner { protected function newRelatedThroughInstance($class) { throw new \RuntimeException('Factory must never execute.'); } }
+class ManyFactoryOverride extends Owner { protected function newBelongsToMany(...$arguments) { throw new \RuntimeException('Factory must never execute.'); } }
+class MorphFactoryOverride extends Owner { public function morphToMany($related, $name, $table = null, $foreignPivotKey = null, $relatedPivotKey = null, $parentKey = null, $relatedKey = null, $relation = null, $inverse = false) { throw new \RuntimeException('Factory must never execute.'); } }
+class JoiningTableOverride extends Owner { public function joiningTable($related, $instance = null) { throw new \RuntimeException('Factory must never execute.'); } }
+throw new \RuntimeException('Fixture source must never execute.');

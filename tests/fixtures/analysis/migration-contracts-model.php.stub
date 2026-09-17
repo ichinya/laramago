@@ -1,0 +1,6 @@
+<?php
+
+class ContractModel extends \Illuminate\Database\Eloquent\Model
+{
+    protected $table = 'contract_table';
+}

@@ -11,6 +11,12 @@ mkdir($workspace.'/config');
 mkdir($workspace.'/bootstrap');
 $helpers = 'dependencies with spaces/laravel/framework/src/Illuminate/Foundation/helpers.php';
 mkdir(dirname($workspace.'/'.$helpers), 0777, true);
+$framework = $workspace.'/dependencies with spaces/laravel/framework/src/Illuminate';
+mkdir($framework.'/Support/Facades', 0777, true);
+mkdir($framework.'/Config', 0777, true);
+copy(__DIR__.'/fixtures/analysis/configuration-facade-base.php.stub', $framework.'/Support/Facades/Facade.php');
+copy(__DIR__.'/fixtures/analysis/configuration-facade.php.stub', $framework.'/Support/Facades/Config.php');
+copy(__DIR__.'/fixtures/analysis/configuration-repository.php.stub', $framework.'/Config/Repository.php');
 file_put_contents($workspace.'/bootstrap/app.php', '<?php throw new RuntimeException("Bootstrap executed.");');
 file_put_contents(
     $workspace.'/'.$helpers,
@@ -63,6 +69,26 @@ $cases = [
     'dynamic namespace deferred' => ["return config('dynamic.missing', 42);", 'int', ['mixed-return-statement']],
     'conditional namespace deferred' => ["return config('conditional.count');", 'int', ['mixed-return-statement']],
     'unknown array root deferred' => ["return config('example');", 'array', ['mixed-return-statement']],
+    'native config facade literal' => [
+        "return \\Illuminate\\Support\\Facades\\Config::get('example.count');",
+        'int',
+        [],
+    ],
+    'native config facade named default' => [
+        "return \\Illuminate\\Support\\Facades\\Config::get(default: 42, key: 'example.absent');",
+        'int',
+        [],
+    ],
+    'native config facade dynamic key deferred' => [
+        '$key = (string) random_int(1, 2); return \\Illuminate\\Support\\Facades\\Config::get($key);',
+        'int',
+        ['mixed-return-statement'],
+    ],
+    'arbitrary configuration repository deferred' => [
+        "return (new \\Illuminate\\Config\\Repository)->get('example.count');",
+        'int',
+        ['mixed-return-statement'],
+    ],
 ];
 $source = "<?php\n";
 $lines = [];
@@ -75,17 +101,34 @@ file_put_contents($workspace.'/cases.php', $source);
 file_put_contents($workspace.'/mago.json', json_encode([
     'extends' => $package.'/presets/laravel.toml',
     'php-version' => '8.2',
-    'source' => ['paths' => ['cases.php'], 'includes' => [$helpers]],
+    'source' => [
+        'paths' => ['cases.php'],
+        'includes' => [
+            $helpers,
+            'dependencies with spaces/laravel/framework/src/Illuminate/Support/Facades/Facade.php',
+            'dependencies with spaces/laravel/framework/src/Illuminate/Support/Facades/Config.php',
+            'dependencies with spaces/laravel/framework/src/Illuminate/Config/Repository.php',
+        ],
+    ],
     'extension-hosts' => [
         'laramago' => [
-            'command' => [PHP_BINARY, $package.'/bin/laramago-worker.php', $package.'/vendor/autoload.php', $workspace],
+            'command' => [
+                PHP_BINARY,
+                $package.'/bin/laramago-worker.php',
+                $package.'/vendor/autoload.php',
+                $workspace,
+            ],
             'workers' => 3,
         ],
     ],
 ], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
 $process = proc_open(
     [...$command, '--workspace', $workspace, 'analyze', '--reporting-format=json'],
-    [0 => ['pipe', 'r'], 1 => ['file', $workspace.'/report.json', 'w'], 2 => ['file', $workspace.'/stderr.log', 'w']],
+    [
+        0 => ['pipe', 'r'],
+        1 => ['file', $workspace.'/report.json', 'w'],
+        2 => ['file', $workspace.'/stderr.log', 'w'],
+    ],
     $pipes,
 );
 if (! is_resource($process)) {
@@ -122,6 +165,54 @@ if ($actual !== []) {
     throw new RuntimeException('Unexpected diagnostics outside configuration scenarios; inspect '.$workspace);
 }
 
+$assertAlteredContractWins = static function (string $name, array $expected) use ($command, $workspace): void {
+    file_put_contents(
+        $workspace.'/cases.php',
+        '<?php function alteredContract(): string { return \\Illuminate\\Support\\Facades\\Config::get("example.count"); }',
+    );
+    $process = proc_open(
+        [...$command, '--workspace', $workspace, 'analyze', '--reporting-format=json'],
+        [
+            0 => ['pipe', 'r'],
+            1 => ['file', $workspace.'/altered.json', 'w'],
+            2 => ['file', $workspace.'/altered.log', 'w'],
+        ],
+        $pipes,
+    );
+    if (! is_resource($process)) {
+        throw new RuntimeException('Cannot start Mago.');
+    }
+    fclose($pipes[0]);
+    $exit = proc_close($process);
+    $report = json_decode(file_get_contents($workspace.'/altered.json'), true, flags: JSON_THROW_ON_ERROR);
+    $codes = array_column($report['issues'] ?? [], 'code');
+    if (
+        $exit !== ($expected === [] ? 0 : 1)
+        || $codes !== $expected
+        || preg_match(
+            '/External analyzer provider failed|extension worker .*rejected request/i',
+            file_get_contents($workspace.'/altered.log'),
+        )
+    ) {
+        throw new RuntimeException($name.' must retain its installed return contract; inspect '.$workspace);
+    }
+    echo 'PASS: '.$name."\n";
+};
+$configFacadePath = $framework.'/Support/Facades/Config.php';
+$configFacadeSource = file_get_contents($configFacadePath);
+file_put_contents($configFacadePath, str_replace(
+    '@method static mixed get',
+    '@method static string get',
+    $configFacadeSource,
+));
+$assertAlteredContractWins('altered facade contract priority', []);
+file_put_contents($configFacadePath, $configFacadeSource);
+$repositoryPath = $framework.'/Config/Repository.php';
+$repositorySource = file_get_contents($repositoryPath);
+file_put_contents($repositoryPath, str_replace('@return mixed', '@return string', $repositorySource));
+$assertAlteredContractWins('altered repository contract priority', ['mixed-return-statement']);
+file_put_contents($repositoryPath, $repositorySource);
+
 file_put_contents(
     $workspace.'/'.$helpers,
     '<?php function config(?string $key = null, mixed $default = null): string { throw new RuntimeException("Helper executed."); }',
@@ -149,7 +240,11 @@ echo "PASS: concrete helper declaration priority\n";
 file_put_contents($workspace.'/config/broken.php', '<?php return [');
 $process = proc_open(
     [...$command, '--workspace', $workspace, 'analyze', '--reporting-format=json'],
-    [0 => ['pipe', 'r'], 1 => ['file', $workspace.'/warning.json', 'w'], 2 => ['file', $workspace.'/warning.log', 'w']],
+    [
+        0 => ['pipe', 'r'],
+        1 => ['file', $workspace.'/warning.json', 'w'],
+        2 => ['file', $workspace.'/warning.log', 'w'],
+    ],
     $pipes,
 );
 if (! is_resource($process)) {
@@ -173,7 +268,11 @@ $configuration['source']['includes'] = ['custom-helper.php'];
 file_put_contents($workspace.'/mago.json', json_encode($configuration, JSON_THROW_ON_ERROR));
 $process = proc_open(
     [...$command, '--workspace', $workspace, 'analyze', '--reporting-format=json'],
-    [0 => ['pipe', 'r'], 1 => ['file', $workspace.'/custom.json', 'w'], 2 => ['file', $workspace.'/custom.log', 'w']],
+    [
+        0 => ['pipe', 'r'],
+        1 => ['file', $workspace.'/custom.json', 'w'],
+        2 => ['file', $workspace.'/custom.log', 'w'],
+    ],
     $pipes,
 );
 if (! is_resource($process)) {

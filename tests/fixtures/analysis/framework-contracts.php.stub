@@ -1,0 +1,37 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Illuminate\Contracts\Translation {
+    interface Translator {}
+}
+
+namespace {
+    /**
+     * @param string|null $key
+     * @param array<array-key, mixed> $replace
+     * @return ($key is null ? \Illuminate\Contracts\Translation\Translator : array|string)
+     */
+    function trans(
+        $key = null,
+        $replace = [],
+        $locale = null,
+    ): \Illuminate\Contracts\Translation\Translator|array|string {
+        throw new \LogicException('Framework helpers must never execute.');
+    }
+
+    /**
+     * @param string|null $key
+     * @param array<array-key, mixed> $replace
+     * @return ($key is null ? null : array|string)
+     */
+    function __($key = null, $replace = [], $locale = null): string|array|null
+    {
+        throw new \LogicException('Framework helpers must never execute.');
+    }
+
+    function config(?string $key = null, mixed $default = null): mixed
+    {
+        throw new \LogicException('Framework helpers must never execute.');
+    }
+}

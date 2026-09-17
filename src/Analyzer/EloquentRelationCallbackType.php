@@ -4,20 +4,27 @@ declare(strict_types=1);
 
 namespace Ichinya\Laramago\Analyzer;
 
+use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\RelationMethodInference;
 use Mago\Sdk\Analyzer\Codebase;
 use Mago\Sdk\Analyzer\Type;
 use Mago\Sdk\Analyzer\Type\NamedObjectType;
 use Mago\Sdk\Analyzer\Type\Visibility;
 
-/** Resolves only concrete, documented non-polymorphic relationship targets. */
+/** Resolves concrete documented or syntax-proven relationship targets. */
 final class EloquentRelationCallbackType
 {
     private const MODEL = 'Illuminate\\Database\\Eloquent\\Model';
 
-    public function related(Codebase $codebase, Type $model, string $path, string $methodName): ?Type
+    public function __construct(
+        private readonly PhpSource $source,
+    ) {}
+
+    public function relation(Codebase $codebase, Type $model, string $path, string $methodName): ?Type
     {
         $dispatch = new EloquentModelDispatch;
         $related = $model;
+        $return = null;
         foreach (explode('.', $path) as $name) {
             $class = $related->atomicTypes[0];
             if (! $class instanceof NamedObjectType) {
@@ -33,6 +40,11 @@ final class EloquentRelationCallbackType
                 return null;
             }
             $return = $method->returnType->type ?? $method->declaredReturnType?->type;
+            // Explicit PHPDoc remains authoritative, even when it is broad or unsupported.
+            if (! ($method->returnType?->fromDocblock ?? false)) {
+                $return =
+                    (new RelationMethodInference($codebase, $this->source))->infer($class->name, $name) ?? $return;
+            }
             $relation = $return !== null && count($return->atomicTypes) === 1 ? $return->atomicTypes[0] : null;
             if (
                 ! $relation instanceof NamedObjectType
@@ -75,6 +87,6 @@ final class EloquentRelationCallbackType
             }
         }
 
-        return $related;
+        return $return;
     }
 }

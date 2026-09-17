@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ichinya\Laramago\Analyzer;
 
+use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Mago\Sdk\Analyzer\CallableSignatureOverride;
 use Mago\Sdk\Analyzer\CallableSignatureProviderContext;
 use Mago\Sdk\Analyzer\EffectiveCallableSignature;
@@ -16,12 +17,16 @@ use Mago\Sdk\Analyzer\Type\CallableSignature;
 use Mago\Sdk\Analyzer\Type\CallableType;
 use Mago\Sdk\Analyzer\Type\NamedObjectType;
 
-/** Contextual callback typing for literal, documented relationship paths. */
+/** Contextual callback typing for literal, statically resolved relationship paths. */
 final class EloquentRelationCallbackProvider implements CallableSignatureOverride, MethodReturnTypeProvider
 {
     private const BUILDER = 'Illuminate\\Database\\Eloquent\\Builder';
     private const MODEL = 'Illuminate\\Database\\Eloquent\\Model';
-    private const METHODS = ['wherehas', 'orwherehas', 'wheredoesnthave', 'orwheredoesnthave'];
+    private const METHODS = ['wherehas', 'orwherehas', 'wheredoesnthave', 'orwheredoesnthave', 'withwherehas'];
+
+    public function __construct(
+        private readonly string $root,
+    ) {}
 
     public function getTargets(): array
     {
@@ -49,7 +54,11 @@ final class EloquentRelationCallbackProvider implements CallableSignatureOverrid
         $onBuilder = strcasecmp($atom->name, self::BUILDER) === 0;
         $model = $onBuilder ? $atom->parameters[0] ?? null : $dispatch->modelType($context->codebase, $call);
         $modelAtom = $model !== null && count($model->atomicTypes) === 1 ? $model->atomicTypes[0] : null;
-        if ($model === null || ! $modelAtom instanceof NamedObjectType) {
+        if (
+            $model === null
+            || ! $modelAtom instanceof NamedObjectType
+            || ! $dispatch->supportsModel($context->codebase, $modelAtom->name, $call->name)
+        ) {
             return null;
         }
         $native = $dispatch->signature($context->codebase, $call->name);
@@ -68,23 +77,29 @@ final class EloquentRelationCallbackProvider implements CallableSignatureOverrid
         ) {
             return $native;
         }
-        $related = (new EloquentRelationCallbackType)->related($context->codebase, $model, $match[1], $call->name);
-        if ($related === null) {
+        $relation = (new EloquentRelationCallbackType(new PhpSource($this->root)))->relation(
+            $context->codebase,
+            $model,
+            $match[1],
+            $call->name,
+        );
+        $relationAtom = $relation?->atomicTypes[0] ?? null;
+        $related = $relationAtom instanceof NamedObjectType ? $relationAtom->parameters[0] ?? null : null;
+        if ($relation === null || $related === null) {
             return $native;
         }
         if ($native === null) {
             return null;
         }
+        $query = Type::namedObject(self::BUILDER, $related);
+        // Existence constraints receive a Builder; eager-load constraints receive
+        // the actual Relation. The callback must accept both invocations.
+        if (strcasecmp($call->name, 'withWhereHas') === 0) {
+            $query = Type::union($query, $relation);
+        }
         $callback = Type::fromAtomic(
             new CallableType(
-                new CallableSignature(
-                    false,
-                    true,
-                    [new CallableParameter('$query', Type::namedObject(self::BUILDER, $related))],
-                    Type::mixed(),
-                    null,
-                    [],
-                ),
+                new CallableSignature(false, true, [new CallableParameter('$query', $query)], Type::mixed(), null, []),
                 null,
             ),
         );

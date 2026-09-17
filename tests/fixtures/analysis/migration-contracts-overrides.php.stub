@@ -1,0 +1,9 @@
+<?php
+
+class NativeContract extends ContractEntry0
+{
+    public bool $value = false;
+}
+
+/** @property bool $value */
+class DocumentedContract extends ContractEntry0 {}

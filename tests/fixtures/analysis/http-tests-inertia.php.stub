@@ -1,0 +1,52 @@
+<?php
+
+namespace Inertia\Testing {
+    class AssertableInertia extends \Illuminate\Testing\Fluent\AssertableJson
+    {
+        public function component(?string $value = null, ?bool $shouldExist = null): static { return $this; }
+        public function loadDeferredProps(\Closure|array|string $groupsOrCallback, ?\Closure $callback = null): static { return $this; }
+        public function reload(?\Closure $callback = null, array|string|null $only = null, array|string|null $except = null): static { return $this; }
+        public function reloadOnly(array|string $only, ?\Closure $callback = null): static { return $this; }
+        public function reloadExcept(array|string $except, ?\Closure $callback = null): static { return $this; }
+    }
+
+    class TestResponseMacros
+    {
+        public function assertInertia(): \Closure
+        {
+            return function (?\Closure $callback = null) {};
+        }
+    }
+}
+
+namespace Inertia {
+    class ServiceProvider
+    {
+        protected function registerTestingMacros(): void {}
+    }
+}
+
+namespace {
+    class ExplicitInertiaResponse extends \Illuminate\Testing\TestResponse
+    {
+        public function assertInertia(\Closure $callback): string { return ''; }
+    }
+
+    /** @method string assertInertia(\Closure $callback) */
+    class DocumentedInertiaResponse extends \Illuminate\Testing\TestResponse {}
+
+    class CustomDispatchResponse extends \Illuminate\Testing\TestResponse
+    {
+        public function __call($method, $arguments): mixed { return null; }
+    }
+
+    class AlteredJsonResponse extends \Illuminate\Testing\TestResponse
+    {
+        public function assertJson(\Closure $value, bool $strict = false): string { return ''; }
+    }
+
+    class AlteredInertiaScope extends \Inertia\Testing\AssertableInertia
+    {
+        public function first(\Closure $callback): string { return ''; }
+    }
+}

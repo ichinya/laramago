@@ -1,0 +1,171 @@
+<?php
+
+namespace Illuminate\Support;
+
+/**
+ * @template TKey of array-key
+ * @template TValue
+ * @property-read HigherOrderCollectionProxy<'map', TValue, static> $map
+ */
+class Collection
+{
+    /** @return array<TKey, TValue> */
+    public function all()
+    {
+        throw new \RuntimeException('Never execute collections.');
+    }
+
+    /**
+     * @template TMapValue
+     * @param callable(TValue, TKey): TMapValue $callback
+     * @return static<TKey, TMapValue>
+     */
+    public function map(callable $callback)
+    {
+        throw new \RuntimeException('Never execute callbacks.');
+    }
+
+    /**
+     * @template TMinResult = mixed
+     * @param (callable(TValue): TMinResult)|string|null $callback
+     * @return ($callback is callable ? ?TMinResult : ($callback is null ? ?TValue : mixed))
+     */
+    public function min($callback = null)
+    {
+        throw new \RuntimeException('Never execute aggregates.');
+    }
+
+    /**
+     * @template TMaxResult = mixed
+     * @param (callable(TValue): TMaxResult)|string|null $callback
+     * @return ($callback is callable ? ?TMaxResult : ($callback is null ? ?TValue : mixed))
+     */
+    public function max($callback = null)
+    {
+        throw new \RuntimeException('Never execute aggregates.');
+    }
+
+    /**
+     * @template TReturnType
+     * @param (callable(TValue, TKey): TReturnType)|string|null $callback
+     * @return ($callback is callable ? TReturnType : mixed)
+     */
+    public function sum($callback = null)
+    {
+        throw new \RuntimeException('Never execute aggregates.');
+    }
+
+    /**
+     * @param callable(TValue, TKey): bool|null $callback
+     * @return static
+     */
+    public function filter(?callable $callback = null)
+    {
+        throw new \RuntimeException('Never execute callbacks.');
+    }
+
+    /** @return static */
+    public function whereNotNull($key = null)
+    {
+        throw new \RuntimeException('Never execute collections.');
+    }
+
+    public function __get(string $name): mixed
+    {
+        throw new \RuntimeException('Never execute properties.');
+    }
+}
+
+/**
+ * @template TMethod of string
+ * @template TValue
+ * @template TCollection
+ * @mixin TValue
+ */
+class HigherOrderCollectionProxy
+{
+    public function __call(string $method, array $arguments): mixed
+    {
+        throw new \RuntimeException('Never execute methods.');
+    }
+
+    public function __get(string $property): mixed
+    {
+        throw new \RuntimeException('Never execute properties.');
+    }
+}
+
+namespace Illuminate\Database\Eloquent;
+
+class Model
+{
+    public function __call(string $name, array $arguments): mixed
+    {
+        throw new \RuntimeException('Never execute models.');
+    }
+}
+
+/**
+ * @template TKey of array-key
+ * @template TModel of Model
+ * @extends \Illuminate\Support\Collection<TKey, TModel>
+ */
+class Collection extends \Illuminate\Support\Collection {}
+
+namespace CollectionContracts;
+
+class Record extends \Illuminate\Database\Eloquent\Model
+{
+    public int $quantity;
+
+    public function amount(): int
+    {
+        throw new \RuntimeException('Never execute methods.');
+    }
+
+    public float $price;
+    public ?string $label;
+    /** @var numeric-string */
+    public string $numeric;
+    protected int $secret;
+    protected $casts = ['rating' => 'integer'];
+
+    public function getScoreAttribute(): float
+    {
+        throw new \RuntimeException('Never execute accessors.');
+    }
+
+    public function __construct()
+    {
+        throw new \RuntimeException('Never construct models.');
+    }
+}
+
+class OtherRecord extends \Illuminate\Database\Eloquent\Model
+{
+    public float $quantity;
+
+    public function amount(): float
+    {
+        throw new \RuntimeException('Never execute methods.');
+    }
+}
+
+class MissingRecord extends \Illuminate\Database\Eloquent\Model {}
+
+/** @extends \Illuminate\Support\Collection<int, Record> */
+class OverrideCollection extends \Illuminate\Support\Collection
+{
+    public function sum($callback = null): string
+    {
+        throw new \RuntimeException('Never execute custom methods.');
+    }
+
+    /** @return string */
+    public function min($callback = null)
+    {
+        throw new \RuntimeException('Never execute documented methods.');
+    }
+}
+
+throw new \RuntimeException('Never load fixture files.');

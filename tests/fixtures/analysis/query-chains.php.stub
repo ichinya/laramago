@@ -1,0 +1,22 @@
+<?php
+
+class ChainRecord extends ProjectionRecord
+{
+    protected $casts = ['key_text' => 'int'];
+}
+
+class ChainNative extends ProjectionRecord
+{
+    public static function pluck($column, $key = null): int { return 1; }
+}
+
+/** @method static int pluck(string $column, ?string $key = null) */
+class ChainDocumented extends ProjectionRecord {}
+
+class ChainHydration extends ProjectionRecord
+{
+    public function newFromBuilder($attributes = [], $connection = null): static
+    {
+        throw new RuntimeException('Hydration must not execute.');
+    }
+}

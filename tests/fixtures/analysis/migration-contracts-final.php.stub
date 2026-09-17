@@ -1,0 +1,20 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\Schema;
+
+throw new RuntimeException('Migration source must only be parsed.');
+
+return new class extends Migration {
+    public function up(): void
+    {
+        Schema::table('renamed_contracts', function ($table) {
+            foreach (['value'] as $column) {
+                $table->integer($column)->nullable()->change();
+            }
+            foreach (['removed'] as $removed) {
+                $table->dropColumn($removed);
+            }
+        });
+    }
+};

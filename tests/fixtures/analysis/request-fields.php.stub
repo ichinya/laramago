@@ -1,0 +1,74 @@
+<?php
+
+// Dependencies are parsed only. No fixture may be loaded or executed.
+namespace Illuminate\Contracts\Validation {
+    interface Validator { /** @return array */ public function validated(); }
+}
+namespace Illuminate\Http {
+    class Request {
+        public function __get(string $key): mixed {}
+        public function input($key = null, $default = null): mixed {}
+    }
+}
+namespace Illuminate\Foundation\Http {
+    class FormRequest extends \Illuminate\Http\Request {
+        /** @var \Illuminate\Contracts\Validation\Validator */
+        protected $validator;
+        /** @param array|int|string|null $key @return mixed */
+        public function validated($key = null, $default = null) {
+            throw new \RuntimeException('Do not execute validation.');
+        }
+    }
+}
+namespace {
+    class LiteralFieldsRequest extends \Illuminate\Foundation\Http\FormRequest {
+        public function rules(): array {
+            return [
+                'title' => 'required|string',
+                'nickname' => ['sometimes', 'string'],
+                'description' => 'present|nullable|string',
+                'note' => 'nullable|string',
+                'enabled' => 'required|boolean',
+                'optional_enabled' => 'boolean',
+                'amount' => 'required|numeric',
+                'count' => 'required|integer',
+                'tags' => 'required|array',
+                'optional_tags' => 'array',
+                'filled_tags' => 'filled|array',
+                'sometimes_required' => 'sometimes|required|string',
+                'required_nullable' => 'required|nullable|string',
+                'email' => 'bail|required|string|email|max:255',
+            ];
+        }
+    }
+    class InheritedFieldsRequest extends LiteralFieldsRequest {}
+    class DynamicFieldsRequest extends LiteralFieldsRequest {
+        public function rules(): array { return random_int(0, 1) ? ['title' => 'required|string'] : []; }
+    }
+    class ObjectRuleFieldsRequest extends LiteralFieldsRequest {
+        public function rules(): array { return ['title' => ['required', new \stdClass]]; }
+    }
+    class UnknownRuleFieldsRequest extends LiteralFieldsRequest {
+        public function rules(): array { return ['title' => 'required|string|custom']; }
+    }
+    class ExcludedFieldsRequest extends LiteralFieldsRequest {
+        public function rules(): array { return ['title' => 'required|string|exclude']; }
+    }
+    class NestedFieldsRequest extends LiteralFieldsRequest {
+        public function rules(): array { return ['profile.title' => 'required|string']; }
+    }
+    class HookFieldsRequest extends LiteralFieldsRequest {
+        public function withValidator($validator): void { throw new \RuntimeException('Never execute hooks.'); }
+    }
+    class PreparedFieldsRequest extends LiteralFieldsRequest {
+        protected function prepareForValidation(): void { throw new \RuntimeException('Never execute hooks.'); }
+    }
+    class OverrideFieldsRequest extends LiteralFieldsRequest {
+        public function validated($key = null, $default = null): int { return 7; }
+    }
+    /** @method int validated(array|int|string|null $key = null, mixed $default = null) */
+    class DocumentedFieldsRequest extends LiteralFieldsRequest {}
+    class ShadowFieldsRequest extends LiteralFieldsRequest { protected $validator; }
+    class FieldTarget { public string $title = ''; }
+    throw new \RuntimeException('Request fixtures must not execute.');
+}

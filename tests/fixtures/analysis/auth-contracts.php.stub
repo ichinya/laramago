@@ -1,0 +1,20 @@
+<?php
+file_put_contents(__DIR__.'/classes-executed.txt', 'Application code must never run.');
+
+class ContractNativeGuard implements \Illuminate\Contracts\Auth\Guard {
+    public function user(): ?AuthAdmin { return null; }
+    public function id(): int|string|null { return null; }
+    public function check(): bool { return false; }
+}
+
+class ContractDocGuard implements \Illuminate\Contracts\Auth\Guard {
+    /** @return AuthAdmin|null */
+    public function user(): ?\Illuminate\Contracts\Auth\Authenticatable { return null; }
+    public function id(): int|string|null { return null; }
+    public function check(): bool { return false; }
+}
+
+/** @method \AuthAdmin|null user(?string $guard = null) */
+class ContractDocRequest extends \Illuminate\Http\Request {}
+
+class ContractWrongClass {}

@@ -1,0 +1,11 @@
+<?php
+
+namespace Laratesto\Testing {
+    final readonly class LaravelResponse
+    {
+        public function assertInertia(?\Closure $callback = null): static { return $this; }
+        /** @param array<array-key, mixed>|callable $expected */
+        public function assertJson(array|callable $expected, bool $strict = false): static { return $this; }
+        public function assertStatus(int $status): static { return $this; }
+    }
+}

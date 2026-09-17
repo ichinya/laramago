@@ -54,6 +54,15 @@ final class EloquentBuilderType
                 $return = $documented;
             }
             $atom = $return?->atomicTypes[0] ?? null;
+            // A factory's nested `static` refers to the model on which it is called.
+            // Rebind it before checking that the resulting builder arguments are concrete.
+            if ($return !== null && $atom instanceof NamedObjectType && ! $atom->static && ! $atom->isThis) {
+                $return = (new EloquentBuilderGenericTypes(
+                    new NamedObjectType($model, null, null, false, false, null, false),
+                    [],
+                ))->substitute($return);
+                $atom = $return?->atomicTypes[0] ?? null;
+            }
             if (
                 $factory->static
                 || $factory->visibility !== Visibility::Public

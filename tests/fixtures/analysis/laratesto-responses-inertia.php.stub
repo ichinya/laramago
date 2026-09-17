@@ -1,0 +1,17 @@
+<?php
+
+namespace Inertia\Testing {
+    class AssertableInertia {}
+
+    class TestResponseMacros
+    {
+        public function assertInertia(): \Closure { return fn (?\Closure $callback = null) => null; }
+    }
+}
+
+namespace Inertia {
+    class ServiceProvider
+    {
+        protected function registerTestingMacros(): void {}
+    }
+}

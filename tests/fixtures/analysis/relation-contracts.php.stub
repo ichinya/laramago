@@ -1,0 +1,52 @@
+<?php
+namespace RelationFixtures;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\{HasMany, BelongsToMany, MorphToMany};
+
+trait LateEntries {
+    public function lateEntries(): HasMany { return $this->hasMany(static::class); }
+}
+class TraitChild extends TraitOwner { use LateEntries; }
+class ReimportedChild extends TraitOwner { use HasEntries; }
+/** @template T of Model */
+trait GenericEntries { public function genericEntries(): HasMany { return $this->hasMany(Entry::class); } }
+class GenericTraitOwner extends Model { use GenericEntries; }
+/** @template T of Model */
+class DocumentedGenericOwner extends Model {
+    /** @return HasMany<T, $this> */
+    public function documentedGeneric(): HasMany { throw new \RuntimeException('Must never execute.'); }
+}
+/** @extends DocumentedGenericOwner<Entry> */
+class ConcreteGenericOwner extends DocumentedGenericOwner {}
+trait NestedEntries { use HasEntries; }
+class NestedOwner extends Model { use NestedEntries; }
+class AliasedOwner extends Model { use HasEntries { entries as aliasEntries; } }
+class OverrideTraitOwner extends Model {
+    use HasEntries;
+    public function entries(): HasMany { return $this->hasMany(OtherEntry::class); }
+}
+trait DocumentedEntries {
+    /** @return HasMany<OtherEntry, $this> */
+    public function documentedEntries(): HasMany { return $this->hasMany(Entry::class); }
+    /** @return HasMany */
+    public function broadEntries(): HasMany { return $this->hasMany(Entry::class); }
+}
+class FactoryTraitOwner extends Model { use HasEntries, CustomFactory; }
+class SecondPivot extends \Illuminate\Database\Eloquent\Relations\Pivot {}
+class CustomMorphPivot extends \Illuminate\Database\Eloquent\Relations\MorphPivot {}
+class ContractOwner extends Model {
+    use DocumentedEntries;
+    public function linked(): BelongsToMany { return $this->belongsToMany(Entry::class)->using(CustomPivot::class)->as('membership')->withTimestamps(); }
+    public function morphLinked(): MorphToMany { return $this->morphToMany(Entry::class, 'taggable')->using(class: CustomMorphPivot::class)->as(accessor: 'tag'); }
+    public function relinked(): BelongsToMany { return $this->belongsToMany(Entry::class)->using(CustomPivot::class)->as('first')->using(SecondPivot::class)->as('second'); }
+    public function dynamicPivot(): BelongsToMany { return $this->belongsToMany(Entry::class)->using($this->modelClass()); }
+    public function nonPivot(): BelongsToMany { return $this->belongsToMany(Entry::class)->using(Entry::class); }
+    public function invalidUsingName(): BelongsToMany { return $this->belongsToMany(Entry::class)->using(pivot: CustomPivot::class); }
+    public function missingUsing(): BelongsToMany { return $this->belongsToMany(Entry::class)->using(); }
+    public function dynamicAccessor(): BelongsToMany { return $this->belongsToMany(Entry::class)->as($this->modelClass()); }
+    public function emptyAccessor(): BelongsToMany { return $this->belongsToMany(Entry::class)->as(''); }
+    public function invalidMorphPivot(): MorphToMany { return $this->morphToMany(Entry::class, 'taggable')->using(CustomPivot::class); }
+    public function modelClass(): string { throw new \RuntimeException('Must never execute.'); }
+}
+throw new \RuntimeException('Fixture must never execute.');

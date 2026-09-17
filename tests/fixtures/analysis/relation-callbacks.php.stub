@@ -15,6 +15,10 @@ class CallbackRecord extends Model
 class CallbackPost extends Model
 {
     public string $title;
+
+    /** @param \Illuminate\Database\Eloquent\Builder<CallbackPost> $query
+     * @return \Illuminate\Database\Eloquent\Builder<CallbackPost> */
+    public function scopeTitled($query, string $title) { return $query; }
 }
 
 class CallbackChild extends CallbackRecord {}
@@ -61,4 +65,38 @@ class CallbackCustomBuilder extends \Illuminate\Database\Eloquent\Builder
     {
         return 'custom';
     }
+}
+
+class CallbackInferred extends Model
+{
+    public function one(): \Illuminate\Database\Eloquent\Relations\HasOne { return $this->hasOne(CallbackPost::class); }
+    public function parent(): \Illuminate\Database\Eloquent\Relations\BelongsTo { return $this->belongsTo(CallbackPost::class); }
+    public function members(): \Illuminate\Database\Eloquent\Relations\BelongsToMany { return $this->belongsToMany(CallbackPost::class)->withTimestamps(); }
+    public function through(): \Illuminate\Database\Eloquent\Relations\HasManyThrough { return $this->hasManyThrough(CallbackPost::class, CallbackRecord::class); }
+    public function throughOne(): \Illuminate\Database\Eloquent\Relations\HasOneThrough { return $this->hasOneThrough(CallbackPost::class, CallbackRecord::class); }
+    public function image(): \Illuminate\Database\Eloquent\Relations\MorphOne { return $this->morphOne(CallbackPost::class, 'imageable'); }
+    public function images(): \Illuminate\Database\Eloquent\Relations\MorphMany { return $this->morphMany(CallbackPost::class, 'imageable'); }
+    public function tags(): \Illuminate\Database\Eloquent\Relations\MorphToMany { return $this->morphToMany(CallbackPost::class, 'taggable'); }
+    public function inverseTags(): \Illuminate\Database\Eloquent\Relations\MorphToMany { return $this->morphedByMany(CallbackPost::class, 'taggable'); }
+    public function posts(): HasMany { return $this->hasMany(CallbackPost::class); }
+    public function records(): HasMany { return $this->hasMany(CallbackRecord::class); }
+    /** @return HasMany<CallbackRecord, $this> */
+    public function documented(): HasMany { return $this->hasMany(CallbackPost::class); }
+    private function hidden(): HasMany { return $this->hasMany(CallbackPost::class); }
+    protected function protectedPosts(): HasMany { return $this->hasMany(CallbackPost::class); }
+    public static function staticPosts(): HasMany { throw new LogicException('Never execute'); }
+    /** @return HasMany<Model, $this> */
+    public function broadDocumented(): HasMany { return $this->hasMany(CallbackPost::class); }
+    public function chained(): HasMany { return $this->hasMany(CallbackPost::class)->where('active', true); }
+    public function parameterized(string $key = 'id'): HasMany { return $this->hasMany(CallbackPost::class); }
+    public function customPosts(): HasMany { return $this->hasMany(CallbackCustomPost::class); }
+}
+class CallbackInferredChild extends CallbackInferred {}
+class CallbackCustomPost extends CallbackPost
+{
+    public function newEloquentBuilder($query) { throw new LogicException('Never execute'); }
+}
+class CallbackCustomFactory extends CallbackInferred
+{
+    public function hasMany($related, ?string $foreignKey = null, ?string $localKey = null) { throw new LogicException('Never execute'); }
 }

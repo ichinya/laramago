@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ichinya\Laramago\Analyzer;
 
+use Ichinya\Laramago\Analyzer\StaticAnalysis\MacroCallable;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\MacroIndex;
 use Mago\Sdk\Analyzer\CallableSignatureProvider;
 use Mago\Sdk\Analyzer\CallableSignatureProviderContext;
@@ -98,6 +99,9 @@ final class MacroProvider implements MethodReturnTypeProvider, CallableSignature
             return null;
         }
         $contract = $index->contracts[strtolower($class)][$call->name] ?? null;
+        if ($contract instanceof MacroCallable) {
+            $contract = $contract->contract($codebase);
+        }
         if (
             $contract === null
             || $codebase->getMethod($class, $call->name) !== null
@@ -105,16 +109,19 @@ final class MacroProvider implements MethodReturnTypeProvider, CallableSignature
         ) {
             return null;
         }
-        // A subclass can mutate an inherited static macro registry. Without
-        // modeling property redeclarations, catalog inheritance remains ambiguous.
-        foreach (array_keys($index->contracts + $index->blocked) as $registeredClass) {
-            if (in_array(
-                strtolower($class),
-                array_map(strtolower(...), $codebase->getClassAncestors($registeredClass)),
-                true,
-            )) {
+        foreach ($index->conditions($class, $call->name) as $dependency) {
+            if (
+                $codebase->getClassLike($dependency)?->directParentClass !== null
+                || ! $this->usesMacroable($codebase, $dependency)
+                || $this->hasCatalogSubclassMutation($codebase, $index, $dependency)
+            ) {
                 return null;
             }
+        }
+        // A subclass can mutate an inherited static macro registry. Without
+        // modeling property redeclarations, catalog inheritance remains ambiguous.
+        if ($this->hasCatalogSubclassMutation($codebase, $index, $class)) {
+            return null;
         }
         foreach ($codebase->getMultipleClasses([$class, ...$codebase->getClassAncestors($class)]) as $metadata) {
             if ($metadata === null) {
@@ -126,14 +133,38 @@ final class MacroProvider implements MethodReturnTypeProvider, CallableSignature
                 }
             }
         }
+        if (! $this->usesMacroable($codebase, $class)) {
+            return null;
+        }
+
+        return $contract;
+    }
+
+    private function usesMacroable(Codebase $codebase, string $class): bool
+    {
         // Both dispatch paths and the registry must be the actual Macroable methods.
         foreach (['macro', 'hasMacro', '__call', '__callStatic'] as $name) {
             $method = $codebase->getDeclaringMethod($class, $name);
             if ($method === null || strcasecmp($method->identifier->class ?? '', self::TRAIT) !== 0) {
-                return null;
+                return false;
             }
         }
 
-        return $contract;
+        return true;
+    }
+
+    private function hasCatalogSubclassMutation(Codebase $codebase, MacroIndex $index, string $class): bool
+    {
+        foreach (array_keys($index->contracts + $index->blocked) as $registeredClass) {
+            if (in_array(
+                strtolower($class),
+                array_map(strtolower(...), $codebase->getClassAncestors($registeredClass)),
+                true,
+            )) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

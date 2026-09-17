@@ -1,0 +1,125 @@
+<?php
+
+namespace Illuminate\Support\Traits {
+    trait Macroable
+    {
+        public static function macro(string $name, mixed $macro): void
+        {
+            throw new \RuntimeException('Registration executed.');
+        }
+
+        public static function hasMacro(string $name): bool
+        {
+            return false;
+        }
+
+        public function __call(string $name, array $args): mixed
+        {
+            throw new \RuntimeException('Macro executed.');
+        }
+
+        public static function __callStatic(string $name, array $args): mixed
+        {
+            throw new \RuntimeException('Macro executed.');
+        }
+    }
+}
+
+namespace MacroFixtures {
+    final class Handler
+    {
+        public static function label(int $number, string $suffix = '!'): string
+        {
+            return $number.$suffix;
+        }
+
+        public static function numbers(int ...$values): int
+        {
+            return count($values);
+        }
+
+        public static function mutate(int &$value): int
+        {
+            return ++$value;
+        }
+
+        public function instanceOnly(int $number): string
+        {
+            return (string) $number;
+        }
+
+        protected static function hidden(int $number): string
+        {
+            return (string) $number;
+        }
+
+        public static function untyped($value)
+        {
+            return $value;
+        }
+
+        /**
+         * @template T
+         * @param T $value
+         * @return T
+         */
+        public static function generic(mixed $value): mixed
+        {
+            return $value;
+        }
+    }
+
+    final class InvokableHandler
+    {
+        public function __construct(
+            private string $prefix,
+        ) {}
+
+        public function __invoke(float $value, bool $strict = false): string
+        {
+            return $this->prefix.$value.($strict ? '!' : '');
+        }
+    }
+
+    final class NotInvokable {}
+}
+
+namespace {
+    class CallableMacroBox
+    {
+        use \Illuminate\Support\Traits\Macroable;
+
+        public static function native(): string
+        {
+            return '';
+        }
+    }
+
+    /**
+     * @method static string documented(int $value)
+     */
+    class DocumentedCallableBox
+    {
+        use \Illuminate\Support\Traits\Macroable;
+    }
+
+    class CustomCallableBox
+    {
+        use \Illuminate\Support\Traits\Macroable;
+
+        public function __call(string $name, array $args): mixed
+        {
+            return null;
+        }
+    }
+
+    class DuplicateCallableBox
+    {
+        use \Illuminate\Support\Traits\Macroable;
+    }
+
+    class FlushedCallableBox
+    {
+        use \Illuminate\Support\Traits\Macroable;
+    }
+}

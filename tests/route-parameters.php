@@ -9,7 +9,12 @@ $package = str_replace('\\', '/', dirname(__DIR__));
 $workspace = str_replace('\\', '/', sys_get_temp_dir()).'/laramago route parameters '.bin2hex(random_bytes(8));
 mkdir($workspace);
 copy(__DIR__.'/fixtures/analysis/framework.php.stub', $workspace.'/framework.php');
-copy(__DIR__.'/fixtures/analysis/route-parameters.php.stub', $workspace.'/routes.php');
+$framework = $workspace.'/vendor/laravel/framework/src/Illuminate';
+mkdir($framework.'/Routing', 0777, true);
+mkdir($framework.'/Support/Facades', 0777, true);
+copy(__DIR__.'/fixtures/analysis/route-parameters.php.stub', $framework.'/Routing/Router.php');
+copy(__DIR__.'/fixtures/analysis/route-facade-base.php.stub', $framework.'/Support/Facades/Facade.php');
+copy(__DIR__.'/fixtures/analysis/route-facade.php.stub', $framework.'/Support/Facades/Route.php');
 $cases = [
     'distinct parameters' => ['$router->get("/items/{item}/parts/{part}");', 'void', []],
     'repeated parameter' => [
@@ -59,7 +64,21 @@ $cases = [
     ],
     'parameter names case sensitive' => ['$router->get("/{item}/{Item}");', 'void', []],
     'route name existence not guessed' => ['$router->get("/provider-defined");', 'void', []],
-    'facade declaration deferred' => ['\Illuminate\Support\Facades\Route::get("/{item}/{item}");', 'void', []],
+    'native facade declaration' => [
+        '\Illuminate\Support\Facades\Route::get("/{item}/{item}");',
+        'void',
+        ['ichinya/laramago/laramago-duplicate-route-parameter'],
+    ],
+    'native facade distinct parameters' => [
+        '\Illuminate\Support\Facades\Route::get("/{item}/{part}");',
+        'void',
+        [],
+    ],
+    'facade subclass deferred' => [
+        '\Illuminate\Support\Facades\CustomRouteFacade::get("/{item}/{item}");',
+        'void',
+        [],
+    ],
 ];
 $source = <<<'PHP'
     <?php
@@ -75,7 +94,14 @@ file_put_contents($workspace.'/cases.php', $source);
 file_put_contents($workspace.'/mago.json', json_encode([
     'extends' => $package.'/presets/laravel.toml',
     'php-version' => '8.2',
-    'source' => ['paths' => ['cases.php'], 'includes' => ['routes.php']],
+    'source' => [
+        'paths' => ['cases.php'],
+        'includes' => [
+            'vendor/laravel/framework/src/Illuminate/Routing/Router.php',
+            'vendor/laravel/framework/src/Illuminate/Support/Facades/Facade.php',
+            'vendor/laravel/framework/src/Illuminate/Support/Facades/Route.php',
+        ],
+    ],
     'extension-hosts' => [
         'laramago' => [
             'command' => [
@@ -131,9 +157,35 @@ foreach ($lines as $line => [$name, $expected]) {
 if ($actual !== []) {
     throw new RuntimeException('Unexpected diagnostics outside route-parameter scenarios; inspect '.$workspace);
 }
+$configuration = json_decode(file_get_contents($workspace.'/mago.json'), true, flags: JSON_THROW_ON_ERROR);
+unset($configuration['extension-hosts']);
+file_put_contents($workspace.'/mago.json', json_encode($configuration, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+$process = proc_open(
+    [...$command, '--workspace', $workspace, 'analyze', '--reporting-format=json'],
+    [
+        0 => ['pipe', 'r'],
+        1 => ['file', $workspace.'/disabled.json', 'w'],
+        2 => ['file', $workspace.'/disabled.log', 'w'],
+    ],
+    $pipes,
+);
+if (! is_resource($process)) {
+    throw new RuntimeException('Cannot start Mago.');
+}
+fclose($pipes[0]);
+$exit = proc_close($process);
+$report = json_decode(file_get_contents($workspace.'/disabled.json'), true, flags: JSON_THROW_ON_ERROR);
+if ($exit !== 0 || ($report['issues'] ?? []) !== []) {
+    throw new RuntimeException('Disabled analyzer must leave route declarations native; inspect '.$workspace);
+}
+echo "PASS: disabled analyzer leaves route declarations native\n";
+$iterator = new RecursiveIteratorIterator(
+    new RecursiveDirectoryIterator($workspace, FilesystemIterator::SKIP_DOTS),
+    RecursiveIteratorIterator::CHILD_FIRST,
+);
 $resolvedWorkspace = realpath($workspace);
-foreach (glob($workspace.'/*') ?: [] as $file) {
-    $resolvedFile = realpath($file);
+foreach ($iterator as $file) {
+    $resolvedFile = realpath($file->getPathname());
     if (
         $resolvedWorkspace === false
         || $resolvedFile === false
@@ -141,6 +193,6 @@ foreach (glob($workspace.'/*') ?: [] as $file) {
     ) {
         throw new RuntimeException('Refusing cleanup outside the test workspace.');
     }
-    unlink($resolvedFile);
+    $file->isDir() ? rmdir($resolvedFile) : unlink($resolvedFile);
 }
 rmdir($workspace);

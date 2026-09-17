@@ -1,0 +1,130 @@
+<?php
+
+namespace Illuminate\Support;
+
+/**
+ * @template TKey of array-key
+ * @template TValue
+ * @property-read HigherOrderCollectionProxy<'map', TValue, static> $map
+ * @property-read HigherOrderCollectionProxy<'each', TValue, static> $each
+ */
+class Collection {
+    /** @return array<TKey, TValue> */
+    public function all() { throw new \RuntimeException('Never execute collections.'); }
+    /** @return TValue|null */
+    public function first() { throw new \RuntimeException('Never execute collections.'); }
+    /**
+     * @template TMapValue
+     * @param callable(TValue, TKey): TMapValue $callback
+     * @return static<TKey, TMapValue>
+     */
+    public function map(callable $callback) { throw new \RuntimeException('Never execute callbacks.'); }
+    public function __get(string $name): mixed { throw new \RuntimeException('Never execute collection properties.'); }
+}
+
+/**
+ * @template TMethod of string
+ * @template TValue
+ * @template TCollection
+ * @mixin TValue
+ * @property-read bool $documentedProxy
+ * @method string documented()
+ */
+class HigherOrderCollectionProxy {
+    public function __call(string $method, array $arguments): mixed { throw new \RuntimeException('Never execute proxy methods.'); }
+    public function __get(string $property): mixed { throw new \RuntimeException('Never execute proxy properties.'); }
+}
+
+namespace Illuminate\Database\Eloquent\Concerns;
+
+trait HasAttributes {
+    /**
+     * @param string|null $key
+     * @param mixed $default
+     * @return ($key is null ? array<string, mixed> : mixed)
+     */
+    public function getRawOriginal($key = null, $default = null) { throw new \RuntimeException('Never execute model methods.'); }
+}
+
+namespace Illuminate\Database\Eloquent;
+
+class Model {
+    use Concerns\HasAttributes;
+    public function __call(string $name, array $arguments): mixed { throw new \RuntimeException('Never dispatch models.'); }
+}
+/**
+ * @template TKey of array-key
+ * @template TModel of Model
+ * @extends \Illuminate\Support\Collection<TKey, TModel>
+ */
+class Collection extends \Illuminate\Support\Collection {
+    /**
+     * @template TMapValue
+     * @param callable(TModel, TKey): TMapValue $callback
+     * @return \Illuminate\Support\Collection<TKey, TMapValue>|static<TKey, TMapValue>
+     */
+    public function map(callable $callback) { throw new \RuntimeException('Never execute model collections.'); }
+    public function modelCollectionOnly(): bool { throw new \RuntimeException('Never execute collection methods.'); }
+}
+
+namespace ProxyFixtures;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\HigherOrderCollectionProxy;
+
+/** @property-read string $documentedTitle */
+class Record extends Model {
+    public ?string $subtitle;
+    public Record $owner;
+    public ?Record $maybeOwner;
+    protected string $secretProperty;
+    protected $casts = ['rating' => 'integer', 'documentedTitle' => 'integer'];
+    public function getCaptionAttribute(): string { throw new \RuntimeException('Never execute accessor.'); }
+    public string $name;
+    public function __construct() { throw new \RuntimeException('Never construct models.'); }
+    /** @return array{id: int, label?: string} */
+    public function row(): array { throw new \RuntimeException('Never execute methods.'); }
+    public function label(string $prefix = ''): string { throw new \RuntimeException('Never execute methods.'); }
+    public function total(int $factor): int { throw new \RuntimeException('Never execute methods.'); }
+    public function documented(): int { throw new \RuntimeException('Never execute methods.'); }
+    public function maybe(): ?string { throw new \RuntimeException('Never execute methods.'); }
+    public function copy(): static { throw new \RuntimeException('Never execute methods.'); }
+    public function fresh(): ?static { throw new \RuntimeException('Never execute methods.'); }
+    public function touch(): void { throw new \RuntimeException('Never execute methods.'); }
+    public function fail(): never { throw new \RuntimeException('Never execute methods.'); }
+    public function unknown() { throw new \RuntimeException('Never execute methods.'); }
+    protected function secret(): string { throw new \RuntimeException('Never execute methods.'); }
+    public static function staticLabel(): string { throw new \RuntimeException('Never execute methods.'); }
+    /**
+     * @template T
+     * @param T $value
+     * @return T
+     */
+    public function identity($value) { throw new \RuntimeException('Never execute generic methods.'); }
+    /** @return array{owner: static} */
+    public function nestedContext(): array { throw new \RuntimeException('Never execute methods.'); }
+    /** @return ($asText is true ? string : int) */
+    public function conditional(bool $asText = false) { throw new \RuntimeException('Never execute methods.'); }
+    /** @return ($key is not null ? string : int) */
+    public function negated(?string $key = null) { throw new \RuntimeException('Never execute methods.'); }
+    /** @return ($flag is true ? ($key is null ? int : bool) : string) */
+    public function nested(bool $flag, ?string $key = null) { throw new \RuntimeException('Never execute methods.'); }
+}
+class ChildRecord extends Record {}
+class OtherRecord extends Model {}
+class OverrideRecord extends Record {
+    /** @return array{custom: bool} */
+    public function row(): array { throw new \RuntimeException('Never execute overrides.'); }
+}
+/** @extends Collection<int, Record> */
+class CustomCollection extends Collection {}
+/** @extends HigherOrderCollectionProxy<'map', Record, Collection<int, Record>> */
+class CustomProxy extends HigherOrderCollectionProxy {
+    public function __call(string $method, array $arguments): mixed { throw new \RuntimeException('Never execute custom proxies.'); }
+}
+class PlainObject { public function label(): string { throw new \RuntimeException('Never execute objects.'); } }
+trait CustomRows { public function fromTrait(): int { throw new \RuntimeException('Never execute traits.'); } }
+class TraitRecord extends Record { use CustomRows; }
+
+throw new \RuntimeException('Never load the fixture.');

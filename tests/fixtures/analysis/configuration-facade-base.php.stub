@@ -1,0 +1,12 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Illuminate\Support\Facades;
+
+abstract class Facade
+{
+    public static function getFacadeRoot(): mixed { return null; }
+    protected static function resolveFacadeInstance(string $name): mixed { return null; }
+    public static function __callStatic(string $method, array $arguments): mixed { return null; }
+}

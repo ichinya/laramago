@@ -1,0 +1,159 @@
+<?php
+
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+
+throw new RuntimeException('Generic builder metadata must never execute.');
+/**
+ * @template Label of string
+ * @template Entity of Model
+ * @extends Builder<Entity>
+ */
+class ForwardedGenericBuilder extends Builder
+{
+    public function __construct()
+    {
+        throw new RuntimeException('Builder must never be constructed.');
+    }
+
+    /** @return Entity */
+    public function record()
+    {
+        throw new RuntimeException;
+    }
+
+    /** @return Label */
+    public function label()
+    {
+        throw new RuntimeException;
+    }
+
+    /** @param Entity $record */
+    public function accept(Model $record, bool $enabled = true): void {}
+
+    /** @return static */
+    public function active(): static
+    {
+        return $this;
+    }
+
+    /** @return list<Entity> */
+    public function records(): array
+    {
+        return [];
+    }
+
+    /** @param list<Entity> $records */
+    public function acceptMany(array $records): void {}
+
+    /** @return array{record: Entity, label: Label} */
+    public function payload(): array
+    {
+        throw new RuntimeException;
+    }
+
+    /** @return ?Entity */
+    public function optional()
+    {
+        return null;
+    }
+
+    /** @param Entity ...$records */
+    public function acceptVariadic(Model ...$records): void {}
+
+    /** @param Entity $record */
+    public function reference(Model &$record): void {}
+
+    public function &referenceResult(): string
+    {
+        throw new RuntimeException;
+    }
+
+    /** @template Value @param Value $value @return Value */
+    public function identity($value)
+    {
+        return $value;
+    }
+
+    /** @return ForwardedGenericBuilder<Label, Entity> */
+    public function copy(): ForwardedGenericBuilder
+    {
+        throw new RuntimeException;
+    }
+
+    public function create(array $attributes = []): string
+    {
+        return 'native override';
+    }
+
+    /** @param callable(Entity): bool $callback */
+    public function unsupportedCallback(callable $callback): string
+    {
+        return '';
+    }
+}
+
+class GenericForwardRecord extends Model
+{
+    /** @return ForwardedGenericBuilder<string, GenericForwardRecord> */
+    public function newEloquentBuilder($query): ForwardedGenericBuilder
+    {
+        throw new RuntimeException('Factory must never execute.');
+    }
+}
+
+class OtherForwardRecord extends Model {}
+
+class InvalidGenericForwardRecord extends Model
+{
+    /** @return ForwardedGenericBuilder<int, InvalidGenericForwardRecord> */
+    public function newEloquentBuilder($query): ForwardedGenericBuilder
+    {
+        throw new RuntimeException;
+    }
+}
+
+class ChildForwardRecord extends GenericForwardRecord {}
+
+class LateForwardRecord extends Model
+{
+    /** @return ForwardedGenericBuilder<string, static> */
+    public function newEloquentBuilder($query): ForwardedGenericBuilder
+    {
+        throw new RuntimeException;
+    }
+}
+
+class ChildLateForwardRecord extends LateForwardRecord {}
+
+class NativeGenericForwardRecord extends GenericForwardRecord
+{
+    public static function record(): int
+    {
+        return 1;
+    }
+}
+
+/** @method static int record() */
+class DocumentedGenericForwardRecord extends GenericForwardRecord {}
+
+class DynamicGenericForwardRecord extends GenericForwardRecord
+{
+    public static function __callStatic(string $name, array $arguments): mixed
+    {
+        throw new RuntimeException;
+    }
+}
+
+class UnboundGenericForwardRecord extends Model
+{
+    protected static string $builder = ForwardedGenericBuilder::class;
+}
+
+/** @extends ForwardedGenericBuilder<string, GenericForwardRecord> */
+class InheritedGenericForwardBuilder extends ForwardedGenericBuilder {}
+
+class InheritedGenericForwardRecord extends Model
+{
+    protected static string $builder = InheritedGenericForwardBuilder::class;
+}

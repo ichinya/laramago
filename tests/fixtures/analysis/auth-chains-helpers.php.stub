@@ -1,0 +1,5 @@
+<?php
+use Illuminate\Contracts\Auth\Factory;
+use Illuminate\Contracts\Auth\Guard;
+/** @return ($guard is null ? Factory : Guard) */
+function auth(?string $guard = null): Factory|Guard { throw new LogicException; }

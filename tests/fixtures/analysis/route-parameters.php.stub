@@ -41,16 +41,3 @@ class CustomRoute extends Route
 {
     public function setUri(string $uri): self { return $this; }
 }
-
-namespace Illuminate\Support\Facades;
-
-/**
- * @method static \Illuminate\Routing\Route get(string $uri, mixed $action = null)
- */
-class Route
-{
-    /**
-     * @param list<mixed> $arguments
-     */
-    public static function __callStatic(string $method, array $arguments): mixed { return null; }
-}

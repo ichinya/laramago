@@ -1,0 +1,79 @@
+<?php
+
+namespace Illuminate\Validation {
+    class Rule {
+        public static function in($values): object {
+            throw new \RuntimeException('Never execute rule factories.');
+        }
+    }
+}
+
+namespace {
+    use Illuminate\Validation\Rule as Constraint;
+
+    class NestedInputRequest extends LiteralFieldsRequest {
+        public function rules(): array {
+            return [
+                'profile' => 'required|array',
+                'profile.name' => 'required|string',
+                'profile.alias' => 'sometimes|string',
+                'profile.note' => 'present|nullable|string',
+                'profile.options' => 'required|array',
+                'profile.options.mode' => ['required', Constraint::in(['brief', 'full']), 'string'],
+                'preferences' => 'sometimes|filled|array',
+                'preferences.theme' => 'sometimes|string',
+                'emptyable' => 'required|array',
+                'emptyable.label' => 'sometimes|string',
+                'nullable' => 'nullable|array',
+                'nullable.label' => 'sometimes|string',
+                'rows' => 'filled|array',
+                'rows.*' => 'required|array',
+                'rows.*.name' => 'required|string',
+                'rows.*.label' => 'sometimes|nullable|string',
+                'flags' => 'required|array',
+                'flags.*' => 'required|boolean',
+                'codes' => 'filled|array',
+                'codes.*' => 'required|integer',
+                'start_on' => 'required|date_format:Y-m-d',
+                'year' => 'required|date_format:Y',
+                'interval' => ['required', Constraint::in(['short', 'long'])],
+                'choice' => ['required', 'string', Constraint::in(['short', 'long'])],
+                'numeric_choice' => ['required', Constraint::in([0, 1])],
+                'optional_choice' => ['sometimes', Constraint::in(['short', 'long']), 'string'],
+                'identifier' => 'required|uuid',
+                'sortable_id' => 'required|ulid',
+                'letters' => 'required|alpha:ascii',
+                'alphanumeric' => 'required|alpha_num',
+                'destination' => 'required|url',
+                'email' => 'required|email',
+                'json' => 'required|json',
+                'address' => 'required|ip',
+            ];
+        }
+    }
+    class UnknownNestedInputRequest extends NestedInputRequest {
+        public function rules(): array { return ['profile' => 'required|array', 'profile.name' => 'required|string|custom']; }
+    }
+    class ConditionalNestedInputRequest extends NestedInputRequest {
+        public function rules(): array { return ['profile' => 'required|array', 'profile.name' => 'required_if:active,1|string']; }
+    }
+    class MissingWildcardParentRequest extends NestedInputRequest {
+        public function rules(): array { return ['rows.*.name' => 'required|string']; }
+    }
+    class OverlappingWildcardRequest extends NestedInputRequest {
+        public function rules(): array { return ['rows' => 'required|array', 'rows.*' => 'required|string', 'rows.name' => 'required|boolean']; }
+    }
+    class DynamicInRequest extends NestedInputRequest {
+        public function rules(): array { return ['choice' => ['required', 'string', Constraint::in($this->choices())]]; }
+        public function choices(): array { throw new \RuntimeException('Never evaluate application methods.'); }
+    }
+    class CustomNestedInputRequest extends NestedInputRequest {
+        protected function passedValidation(): void { throw new \RuntimeException('Never invoke application hooks.'); }
+    }
+    class OverrideNestedInputRequest extends NestedInputRequest {
+        public function validated($key = null, $default = null): int { return 7; }
+    }
+    /** @method int validated(array|int|string|null $key = null, mixed $default = null) */
+    class DocumentedNestedInputRequest extends NestedInputRequest {}
+    throw new \RuntimeException('Never execute request fixtures.');
+}

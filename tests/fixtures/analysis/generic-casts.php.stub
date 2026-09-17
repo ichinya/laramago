@@ -1,0 +1,97 @@
+<?php
+namespace Illuminate\Contracts\Database\Eloquent;
+/**
+ * @template TGet
+ * @template TSet
+ */
+interface CastsAttributes {
+    /** @return TGet|null */
+    public function get($model, string $key, mixed $value, array $attributes);
+    /** @param TSet|null $value */
+    public function set($model, string $key, mixed $value, array $attributes);
+}
+interface CastsInboundAttributes { public function set($model, string $key, mixed $value, array $attributes); }
+interface Castable { public static function castUsing(array $arguments); }
+
+namespace GenericCastExample;
+use Illuminate\Contracts\Database\Eloquent\CastsAttributes as CastContract;
+use Illuminate\Contracts\Database\Eloquent\CastsInboundAttributes;
+use Illuminate\Contracts\Database\Eloquent\Castable;
+use Illuminate\Database\Eloquent\Model;
+throw new \RuntimeException('Generic caster declarations must never execute.');
+class Money { public function amount(): int { return 1; } }
+/** @implements CastContract<Money, int> */
+class InterfaceCast implements CastContract {
+    public function get($model, string $key, mixed $value, array $attributes) { throw new \RuntimeException('Getter executed.'); }
+    public function set($model, string $key, mixed $value, array $attributes) { throw new \RuntimeException('Setter executed.'); }
+}
+/** @implements CastContract<Money, int> */
+class ExplicitCast implements CastContract {
+    public function get($model, string $key, mixed $value, array $attributes): Money { throw new \RuntimeException; }
+    /** @param mixed $value */
+    public function set($model, string $key, mixed $value, array $attributes): array { throw new \RuntimeException; }
+}
+/**
+ * @template TRead
+ * @template TWrite
+ * @implements CastContract<TRead, TWrite>
+ */
+class BaseCast implements CastContract {
+    /** @return TRead */
+    public function get($model, string $key, mixed $value, array $attributes) { throw new \RuntimeException; }
+    /** @param TWrite $value */
+    public function set($model, string $key, mixed $value, array $attributes): array { throw new \RuntimeException; }
+}
+/** @extends BaseCast<Money, int> */
+class ConcreteCast extends BaseCast {}
+/**
+ * @template T
+ * @extends BaseCast<T, int|null>
+ */
+class MiddleCast extends BaseCast {}
+/** @extends MiddleCast<Money> */
+class MultiLevelCast extends MiddleCast {}
+/** @extends BaseCast<Money|null, int|null> */
+class NullableCast extends BaseCast {}
+/** @template TValue */
+class InboundBase implements CastsInboundAttributes {
+    /** @param TValue $value */
+    public function set($model, string $key, mixed $value, array $attributes): array { throw new \RuntimeException; }
+}
+/** @extends InboundBase<Money> */
+class InboundCast extends InboundBase {}
+/**
+ * @template T
+ * @implements CastContract<T, T>
+ */
+class ShapeBase implements CastContract {
+    /** @return array{value: T} */
+    public function get($model, string $key, mixed $value, array $attributes): array { throw new \RuntimeException; }
+    /** @param list<T> $value */
+    public function set($model, string $key, mixed $value, array $attributes): array { throw new \RuntimeException; }
+}
+/** @extends ShapeBase<Money> */
+class ShapeCast extends ShapeBase {}
+class CastValue implements Castable {
+    public static function castUsing(array $arguments) { return ConcreteCast::class; }
+}
+class FactoryChain implements Castable {
+    public static function castUsing(array $arguments) { return CastValue::class; }
+}
+/** @extends BaseCast<MissingTemplate, int> */
+class UnresolvedCast extends BaseCast {}
+class UnboundCast extends BaseCast {}
+/** @implements CastContract<Money, int> */
+class WrongAnnotationCast extends BaseCast {}
+class Record extends Model {
+    protected $table = 'cast_records';
+    protected $casts = [
+        'interface' => InterfaceCast::class, 'explicit' => ExplicitCast::class,
+        'concrete' => ConcreteCast::class, 'multi' => MultiLevelCast::class,
+        'nullable' => NullableCast::class, 'inbound' => InboundCast::class,
+        'shape' => ShapeCast::class, 'castable' => CastValue::class,
+        'chain' => FactoryChain::class, 'unresolved' => UnresolvedCast::class,
+        'unbound' => UnboundCast::class, 'wrong' => WrongAnnotationCast::class,
+        'inbound_unknown' => InboundCast::class,
+    ];
+}

@@ -1,0 +1,52 @@
+<?php
+namespace Illuminate\Contracts\Auth {
+    interface Guard {
+        public function user(): ?Authenticatable;
+        public function id(): int|string|null;
+        public function check(): bool;
+    }
+    interface StatefulGuard extends Guard {}
+    interface Factory {
+        public function guard(?string $name = null): Guard;
+    }
+}
+namespace Illuminate\Auth {
+    /** @mixin \Illuminate\Contracts\Auth\Guard */
+    class AuthManager implements \Illuminate\Contracts\Auth\Factory {
+        public function guard(?string $name = null): \Illuminate\Contracts\Auth\Guard { throw new \LogicException; }
+        public function __call(string $method, array $parameters): mixed { throw new \LogicException; }
+    }
+    class SessionGuard implements \Illuminate\Contracts\Auth\StatefulGuard {
+        public function user(): ?\Illuminate\Contracts\Auth\Authenticatable { return null; }
+        public function id(): int|string|null { return null; }
+        public function check(): bool { return false; }
+    }
+    class TokenGuard implements \Illuminate\Contracts\Auth\Guard {
+        public function user(): ?\Illuminate\Contracts\Auth\Authenticatable { return null; }
+        public function id(): int|string|null { return null; }
+        public function check(): bool { return false; }
+    }
+}
+namespace Illuminate\Support\Facades {
+    /**
+     * @method static \Illuminate\Contracts\Auth\Authenticatable|null user()
+     * @method static int|string|null id()
+     * @method static bool check()
+     * @method static \Illuminate\Contracts\Auth\Guard guard(?string $name = null)
+     */
+    class Auth {
+        public static function __callStatic(string $method, array $parameters): mixed { throw new \LogicException; }
+    }
+}
+namespace {
+    class CustomAuthManager extends \Illuminate\Auth\AuthManager {
+        public function user(): ?AuthAdmin { return null; }
+        public function guard(?string $name = null): \Illuminate\Auth\TokenGuard { return new \Illuminate\Auth\TokenGuard; }
+    }
+    class CustomAuthFacade extends \Illuminate\Support\Facades\Auth {
+        public static function user(): ?AuthAdmin { return null; }
+    }
+    class ResolverAuthRequest extends \Illuminate\Http\Request {
+        public function getUserResolver(): \Closure { return static fn (): ?AuthAdmin => null; }
+    }
+}

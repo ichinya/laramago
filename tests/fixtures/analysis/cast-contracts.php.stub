@@ -1,0 +1,130 @@
+<?php
+namespace CastContractExample;
+
+use GenericCastExample\BaseCast as ParentCast;
+use GenericCastExample\Money as Amount;
+use GenericCastExample\InboundBase;
+use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
+use Illuminate\Database\Eloquent\Model;
+
+throw new \RuntimeException('Caster source must not execute.');
+
+/** @template TValue */
+class Box {
+    /** @return TValue */
+    public function value() { throw new \RuntimeException('Generic object executed.'); }
+}
+/** @return Box<list<int>> */
+function integerBox() { throw new \RuntimeException('Factory executed.'); }
+/** @return Box<list<Amount>> */
+function amountBox() { throw new \RuntimeException('Factory executed.'); }
+/** @implements CastsAttributes<list<Amount>, array{value: int}> */
+class InterfaceCast implements CastsAttributes {
+    public function get($model, string $key, mixed $value, array $attributes) { throw new \RuntimeException; }
+    public function set($model, string $key, mixed $value, array $attributes) { throw new \RuntimeException; }
+}
+
+/** @extends ParentCast<list<Amount>, list<int>> */
+class ListCast extends ParentCast {
+    public function __construct() { throw new \RuntimeException('Caster constructed.'); }
+}
+/** @extends ParentCast<array<string, list<Amount>>, array<string, list<int|null>>> */
+class MapCast extends ParentCast {}
+/**
+ * @extends ParentCast<
+ *     array{value: Amount, tags?: list<string>, nested: array{count: int}},
+ *     array{value: int, tags?: list<string>, nested: array{count: int}}
+ * >
+ */
+class ShapeCast extends ParentCast {}
+/** @extends ParentCast<Box<list<Amount>>, Box<list<int>>> */
+class BoxCast extends ParentCast {}
+/**
+ * @template T
+ * @extends ParentCast<array{payload: list<T>}, array<string, T|null>>
+ */
+class MiddleCast extends ParentCast {}
+/** @extends MiddleCast<Box<Amount>> */
+class DeepCast extends MiddleCast {}
+/** @extends ParentCast<non-empty-list<Amount>, non-empty-list<int>> */
+class NonEmptyCast extends ParentCast {}
+/** @extends ParentCast<non-empty-array<string, Amount>, non-empty-array<string, int>> */
+class NonEmptyMapCast extends ParentCast {}
+/** @extends ParentCast<array{}, array{}> */
+class EmptyShapeCast extends ParentCast {}
+/** @extends ParentCast<array{value?: Amount}, array{value?: int}> */
+class OptionalCast extends ParentCast {}
+/** @extends ParentCast<array<Amount>, array<int>> */
+class ArrayCast extends ParentCast {}
+/** @extends ParentCast<array{0: Amount}, array{0: int}> */
+class NumericShapeCast extends ParentCast {}
+/** @extends ParentCast<list<Amount>|null, list<int>|null> */
+class NullableCast extends ParentCast {}
+/** @extends ParentCast<list<Amount>, mixed> */
+class MixedCast extends ParentCast {}
+/** @extends InboundBase<array{value: int}> */
+class InboundCast extends InboundBase {}
+/** @extends ParentCast<list<Amount>, list<int>> */
+class OverrideCast extends ParentCast {
+    public function get($model, string $key, mixed $value, array $attributes): int { throw new \RuntimeException; }
+    /** @param mixed $value */
+    public function set($model, string $key, mixed $value, array $attributes): array { throw new \RuntimeException; }
+}
+/** @extends ParentCast<list<Amount>, list<int>> */
+class DocOverrideCast extends ParentCast {
+    /** @return string */
+    public function get($model, string $key, mixed $value, array $attributes) { throw new \RuntimeException; }
+    /** @param bool $value */
+    public function set($model, string $key, mixed $value, array $attributes): array { throw new \RuntimeException; }
+}
+/** @extends ParentCast<list<Missing>, list<int>> */
+class UnknownCast extends ParentCast {}
+/** @template T
+ * @extends ParentCast<list<T>, list<int>>
+ */
+class UnboundCast extends ParentCast {}
+/** @extends ParentCast<Box<Amount, int>, list<int>> */
+class WrongArityCast extends ParentCast {}
+/** @extends ParentCast<Box, list<int>> */
+class BareGenericCast extends ParentCast {}
+/** @extends ParentCast<array{value: Amount, ...}, list<int>> */
+class OpenShapeCast extends ParentCast {}
+/** @extends ParentCast<array{value: Amount, value: int}, list<int>> */
+class DuplicateShapeCast extends ParentCast {}
+/** @extends ParentCast<array<Amount, int>, list<int>> */
+class InvalidKeyCast extends ParentCast {}
+/** @extends ParentCast<array{999999999999999999999999999999999999: Amount}, list<int>> */
+class OverflowKeyCast extends ParentCast {}
+/** @extends ParentCast<array{value Amount}, list<int>> */
+class MalformedShapeCast extends ParentCast {}
+/** @extends ParentCast<list<Amount>, list<int>> */
+class MethodTemplateCast extends ParentCast {
+    /** @template TMethod
+     * @return TMethod
+     */
+    public function get($model, string $key, mixed $value, array $attributes) { throw new \RuntimeException; }
+}
+/** @extends ParentCast<list<Amount>, list<int>>
+ * @extends ParentCast<list<int>, list<int>>
+ */
+class ConflictingCast extends ParentCast {}
+
+class Record extends Model {
+    protected $table = 'cast_contract_records';
+    public string $native;
+    protected $casts = [
+        'list' => ListCast::class, 'map' => MapCast::class, 'shape' => ShapeCast::class,
+        'box' => BoxCast::class, 'deep' => DeepCast::class, 'nonempty' => NonEmptyCast::class,
+        'nonempty_map' => NonEmptyMapCast::class, 'empty_shape' => EmptyShapeCast::class,
+        'interface_nested' => InterfaceCast::class,
+        'optional' => OptionalCast::class, 'array' => ArrayCast::class, 'numeric' => NumericShapeCast::class,
+        'nullable' => NullableCast::class, 'mixed' => MixedCast::class, 'inbound' => InboundCast::class,
+        'override' => OverrideCast::class, 'doc' => DocOverrideCast::class, 'native' => ListCast::class,
+        'unknown' => UnknownCast::class, 'unbound' => UnboundCast::class,
+        'wrong_arity' => WrongArityCast::class, 'bare_generic' => BareGenericCast::class,
+        'open_shape' => OpenShapeCast::class, 'duplicate' => DuplicateShapeCast::class,
+        'invalid_key' => InvalidKeyCast::class, 'method_template' => MethodTemplateCast::class,
+        'overflow_key' => OverflowKeyCast::class, 'malformed_shape' => MalformedShapeCast::class,
+        'conflicting' => ConflictingCast::class,
+    ];
+}

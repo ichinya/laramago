@@ -1,0 +1,10 @@
+<?php
+// Extra installed Builder contracts for testing conservative query-state boundaries.
+/** @return $this */
+public function select($columns = ['*']) {}
+/** @return $this */
+public function addSelect($column) {}
+/** @return $this */
+public function withCount($relations) {}
+/** @return $this */
+public function withSum($relation, $column) {}

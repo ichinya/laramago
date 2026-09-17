@@ -23,6 +23,6 @@ if (! is_string($projectRoot) || ! is_dir($projectRoot)) {
 (new Worker(new Extension(
     identifier: 'ichinya/laramago',
     name: 'Laramago',
-    version: '0.0.11',
+    version: '0.0.12',
     analyzerPlugins: [new LaravelPlugin($projectRoot)],
 )))->run();
