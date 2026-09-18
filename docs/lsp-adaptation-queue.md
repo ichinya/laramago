@@ -23,7 +23,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 15 | Appended accessor name validation | implemented; Literal appends entries checked against an independent explicit complete appendable-key catalog; native serialization guards and real-Mago enabled/disabled regressions pass. |
 | 16 | Model attribute declarations for field lists | implemented; Native Fillable/Guarded/Hidden/Visible/Appends attributes use exact catalogs and installed lifecycle guards; effective Guarded precedence, custom overrides and older-framework regressions pass. |
 | 17 | Physical columns versus computed accessors | already-covered; Verified physical-column selection versus accessors, raw pluck keys and SQL alias boundaries; three suites passed. |
-| 18 | Literal mass-assignment keys | queued |
+| 18 | Literal mass-assignment keys | implemented; Native forceFill literal keys use complete exact-model catalogs with native/PHPDoc priority; 190 key and 135 write-contract checks pass. Ordinary fill/create remain semantically deferred. |
 | 19 | Mass-assignment value types | implemented; Native forceFill checks disjoint structured values against independent explicit write contracts. 135 real-Mago case/mode checks pass; fill/create, scalar coercions and schema-derived input types remain deferred. |
 | 20 | Model update versus builder update contracts | queued |
 | 21 | Literal query column references | queued |

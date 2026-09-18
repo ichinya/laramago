@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ModelReflection;
-use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Mago\Sdk\Analyzer\FileAnalysisRequirement;
 use Mago\Sdk\Analyzer\Metadata\MetadataFlags;
 use Mago\Sdk\Analyzer\MethodCallAnalysisHook;
@@ -15,15 +14,11 @@ use Mago\Sdk\Analyzer\Type;
 use Mago\Sdk\Analyzer\Type\KeyedArrayType;
 use Mago\Sdk\Analyzer\Type\ListType;
 use Mago\Sdk\Analyzer\Type\NamedObjectType;
-use Mago\Sdk\Analyzer\Type\Visibility;
 use Mago\Sdk\Reporting\Issue;
 use Mago\Sdk\Reporting\Level;
 use Mago\Sdk\SourceLocation;
 use Mago\Sdk\Span;
 use PhpParser\Node;
-use PhpParser\NodeFinder;
-use PhpParser\ParserFactory;
-use PhpParser\PrettyPrinter\Standard;
 
 /** Check explicit write contracts, never schema-derived input assumptions. */
 final class ForceFillWriteContractHook implements MethodCallAnalysisHook
@@ -44,100 +39,18 @@ final class ForceFillWriteContractHook implements MethodCallAnalysisHook
 
     public function analyze(NodeAnalysisContext $context): void
     {
-        $receiver = $context->receiverType;
-        $model = $receiver !== null && count($receiver->atomicTypes) === 1 ? $receiver->atomicTypes[0] : null;
-        if (
-            ! $model instanceof NamedObjectType
-            || ($model->parameters ?? []) !== []
-            || ($model->intersections ?? []) !== []
-        ) {
+        $call = NativeForceFill::literalCall($context);
+        if ($call === null) {
             return;
         }
-        if (! $context->types->isContainedBy(Type::fromAtomic($model), Type::namedObject(ModelReflection::MODEL))) {
-            return;
-        }
-        $reflection = new ModelReflection($context->codebase, new PhpSource('.'));
-        $forceFill = $reflection->method($model->name, 'forceFill');
-        $parameter = $forceFill?->parameters[0] ?? null;
-        $parameterType = $parameter?->type?->type;
-        $expression = $forceFill === null ? null : $reflection->returnExpression($forceFill);
-        if (
-            $forceFill === null
-            || $forceFill->static
-            || $forceFill->visibility !== Visibility::Public
-            || count($forceFill->parameters) !== 1
-            || $parameter === null
-            || $parameter->name !== '$attributes'
-            || $parameter->flags->contains(MetadataFlags::VARIADIC)
-            || $parameter->flags->contains(MetadataFlags::BY_REFERENCE)
-            || $parameterType === null
-            || ! $context->types->equals($parameterType, Type::array(Type::string(), Type::mixed()))
-            || $expression === null
-            || (new Standard)->prettyPrintExpr($expression) !== 'static::unguarded(fn() => $this->fill($attributes))'
-        ) {
-            return;
-        }
-        foreach ([
-            'forceFill',
-            'fill',
-            'setAttribute',
-            'unguarded',
-            'unguard',
-            'reguard',
-            'isUnguarded',
-            'fillableFromArray',
-            'isFillable',
-        ] as $name) {
-            $method = $reflection->method($model->name, $name);
-            if ($method === null || $reflection->customMethod($model->name, $name) !== null) {
-                return;
-            }
-            $file = str_replace('\\', '/', $method->location->file ?? '');
-            if (! str_contains($file, '/laravel/framework/src/Illuminate/Database/Eloquent/')) {
-                return;
-            }
-        }
-        foreach ([$model->name, ...$context->codebase->getClassAncestors($model->name)] as $ancestor) {
-            foreach ($context->codebase->getClassLike($ancestor)?->pseudoMethods ?? [] as $name) {
-                if (in_array(strtolower($name), ['forcefill', 'fill', 'setattribute'], true)) {
-                    return;
-                }
-            }
-        }
-        try {
-            $nodes = (new ParserFactory)
-                ->createForNewestSupportedVersion()
-                ->parse($context->source->contents) ?? [];
-        } catch (\PhpParser\Error) {
-            return;
-        }
-        $call = (new NodeFinder)->findFirst(
-            $nodes,
-            static fn (Node $node): bool => (
-                $node instanceof Node\Expr\MethodCall
-                && $node->getStartFilePos() === $context->node->span->start
-                && ($node->getEndFilePos() + 1) === $context->node->span->end
-            ),
-        );
-        if (! $call instanceof Node\Expr\MethodCall || $call->isFirstClassCallable() || count($call->getArgs()) !== 1) {
-            return;
-        }
-        $argument = $call->getArgs()[0];
-        if (
-            $argument->unpack
-            || $argument->name !== null
-            && $argument->name->name !== 'attributes'
-            || ! $argument->value instanceof Node\Expr\Array_
-        ) {
-            return;
-        }
+        $model = $call['model'];
         $types = $context->argumentTypes[0] ?? null;
         $shape = $types !== null && count($types->atomicTypes) === 1 ? $types->atomicTypes[0] : null;
         if (! $shape instanceof KeyedArrayType) {
             return;
         }
         $values = [];
-        foreach ($argument->value->items as $item) {
+        foreach ($call['attributes']->items as $item) {
             if (
                 $item->unpack
                 || $item->byRef
