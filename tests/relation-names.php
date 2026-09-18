@@ -13,6 +13,7 @@ copy(__DIR__.'/fixtures/analysis/relation-names.php.stub', $workspace.'/models.p
 $cases = [
     'interface could be relation' => ['RelationNameRecord::query()->with("contract");', 'void', []],
     'known relation' => ['RelationNameRecord::query()->with("children");', 'void', []],
+    'additional known relation' => ['RelationNameRecord::query()->withWhereHas("children");', 'void', []],
     'wrong declared method' => [
         'RelationNameRecord::query()->with("label");',
         'void',
@@ -33,8 +34,58 @@ $cases = [
         'void',
         ['ichinya/laramago/laramago-invalid-relation'],
     ],
+    'has wrong method' => [
+        'RelationNameRecord::query()->has("label");',
+        'void',
+        ['ichinya/laramago/laramago-invalid-relation'],
+    ],
+    'orHas wrong method' => [
+        'RelationNameRecord::query()->orHas("label");',
+        'void',
+        ['ichinya/laramago/laramago-invalid-relation'],
+    ],
+    'doesntHave wrong method' => [
+        'RelationNameRecord::query()->doesntHave("label");',
+        'void',
+        ['ichinya/laramago/laramago-invalid-relation'],
+    ],
+    'orDoesntHave wrong method' => [
+        'RelationNameRecord::query()->orDoesntHave("label");',
+        'void',
+        ['ichinya/laramago/laramago-invalid-relation'],
+    ],
+    'orWhereHas wrong method' => [
+        'RelationNameRecord::query()->orWhereHas("label");',
+        'void',
+        ['ichinya/laramago/laramago-invalid-relation'],
+    ],
+    'whereDoesntHave wrong method' => [
+        'RelationNameRecord::query()->whereDoesntHave("label");',
+        'void',
+        ['ichinya/laramago/laramago-invalid-relation'],
+    ],
+    'orWhereDoesntHave wrong method' => [
+        'RelationNameRecord::query()->orWhereDoesntHave("label");',
+        'void',
+        ['ichinya/laramago/laramago-invalid-relation'],
+    ],
+    'withWhereHas wrong method' => [
+        'RelationNameRecord::query()->withWhereHas("label");',
+        'void',
+        ['ichinya/laramago/laramago-invalid-relation'],
+    ],
+    'loadMissing wrong method' => [
+        '(new RelationNameRecord)->loadMissing("label");',
+        'void',
+        ['ichinya/laramago/laramago-invalid-relation'],
+    ],
     'named relation argument' => [
-        'RelationNameRecord::query()->whereHas(callback: null, relation: "label");',
+        'RelationNameRecord::query()->withWhereHas(callback: null, relation: "label");',
+        'void',
+        ['ichinya/laramago/laramago-invalid-relation'],
+    ],
+    'named relations argument' => [
+        '(new RelationNameRecord)->loadMissing(relations: "label");',
         'void',
         ['ichinya/laramago/laramago-invalid-relation'],
     ],

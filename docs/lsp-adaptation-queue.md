@@ -30,7 +30,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 22 | Both operands of whereColumn | queued |
 | 23 | Search versus creation attribute arrays | queued |
 | 24 | Suggestions for proven field typos | queued |
-| 25 | Additional relation-name call sites | running |
+| 25 | Additional relation-name call sites | implemented; Additional non-morph existence methods and loadMissing reuse native relation-name checks; three focused suites passed. |
 | 26 | Nested relation paths | already-covered; Verified nested relation traversal, callback typing and complete-name checks with focused suites. |
 | 27 | Mixed eager-load declaration arrays | queued |
 | 28 | Eager-load colon projection syntax | queued |

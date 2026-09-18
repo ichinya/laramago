@@ -26,6 +26,17 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
     private const MODEL = 'Illuminate\\Database\\Eloquent\\Model';
     private const BUILDER = 'Illuminate\\Database\\Eloquent\\Builder';
     private const RELATION = 'Illuminate\\Database\\Eloquent\\Relations\\Relation';
+    private const RELATION_METHODS = [
+        'has',
+        'orhas',
+        'doesnthave',
+        'ordoesnthave',
+        'wherehas',
+        'orwherehas',
+        'wheredoesnthave',
+        'orwheredoesnthave',
+        'withwherehas',
+    ];
 
     private readonly RelationNameContracts $contracts;
 
@@ -42,11 +53,14 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
     public function getTargets(): array
     {
         return [
-            MethodTarget::exact(self::BUILDER, 'with'),
-            MethodTarget::exact(self::BUILDER, 'whereHas'),
-            MethodTarget::exact(self::MODEL, 'load'),
-            MethodTarget::exact(self::MODEL, 'with'),
-            MethodTarget::exact(self::MODEL, 'whereHas'),
+            ...array_map(
+                static fn (string $method): MethodTarget => MethodTarget::exact(self::BUILDER, $method),
+                ['with', ...self::RELATION_METHODS],
+            ),
+            ...array_map(
+                static fn (string $method): MethodTarget => MethodTarget::exact(self::MODEL, $method),
+                ['load', 'loadmissing', 'with', ...self::RELATION_METHODS],
+            ),
         ];
     }
 
@@ -95,7 +109,10 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
         }
         $methodName = strtolower($call->name->name);
         if ($call instanceof Node\Expr\StaticCall) {
-            if (! $call->class instanceof Node\Name\FullyQualified || $methodName === 'load') {
+            if (
+                ! $call->class instanceof Node\Name\FullyQualified
+                || in_array($methodName, ['load', 'loadmissing'], true)
+            ) {
                 return;
             }
             $model = $call->class->toString();
@@ -108,7 +125,7 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
             $owner = $context->codebase->getDeclaringMethod($model, $methodName)?->identifier->class;
             if (
                 $owner === null
-                && $methodName === 'wherehas'
+                && in_array($methodName, self::RELATION_METHODS, true)
                 && $context->codebase->getDeclaringMethod($model, '__callStatic')?->identifier->class === self::MODEL
             ) {
                 $owner = $context->codebase->getDeclaringMethod(self::BUILDER, $methodName)?->identifier->class;
@@ -139,6 +156,7 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
             return;
         }
         $argument = null;
+        $parameter = in_array($methodName, self::RELATION_METHODS, true) ? 'relation' : 'relations';
         foreach ($call->getArgs() as $offset => $arg) {
             if ($arg->unpack) {
                 return;
@@ -147,7 +165,7 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
                 $arg->name === null
                 && $offset === 0
                 || $arg->name !== null
-                && $arg->name->name === ($methodName === 'wherehas' ? 'relation' : 'relations')
+                && $arg->name->name === $parameter
             ) {
                 $argument = $arg->value;
             }

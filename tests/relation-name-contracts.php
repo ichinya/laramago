@@ -44,6 +44,21 @@ $cases = [
         'void',
         ['ichinya/laramago/laramago-missing-relation'],
     ],
+    'static orWhereHas' => [
+        'RelationNameRecord::orWhereHas("missing");',
+        'void',
+        ['ichinya/laramago/laramago-missing-relation'],
+    ],
+    'static loadMissing stays native' => [
+        'RelationNameRecord::loadMissing("missing");',
+        'void',
+        ['invalid-static-method-access'],
+    ],
+    'additional custom static dispatch' => [
+        'StaticDispatcherRecord::orWhereHas("missing");',
+        'void',
+        ['non-documented-method'],
+    ],
     'declared relation' => ['RelationNameRecord::query()->with("children");', 'void', []],
     'missing relation' => [
         'RelationNameRecord::query()->with("childen");',
@@ -57,6 +72,51 @@ $cases = [
     ],
     'load missing relation' => [
         '(new RelationNameRecord)->load("childen");',
+        'void',
+        ['ichinya/laramago/laramago-missing-relation'],
+    ],
+    'loadMissing missing relation' => [
+        '(new RelationNameRecord)->loadMissing("childen");',
+        'void',
+        ['ichinya/laramago/laramago-missing-relation'],
+    ],
+    'has missing relation' => [
+        'RelationNameRecord::query()->has(relation: "childen");',
+        'void',
+        ['ichinya/laramago/laramago-missing-relation'],
+    ],
+    'orHas missing relation' => [
+        'RelationNameRecord::query()->orHas(relation: "childen");',
+        'void',
+        ['ichinya/laramago/laramago-missing-relation'],
+    ],
+    'doesntHave missing relation' => [
+        'RelationNameRecord::query()->doesntHave(relation: "childen");',
+        'void',
+        ['ichinya/laramago/laramago-missing-relation'],
+    ],
+    'orDoesntHave missing relation' => [
+        'RelationNameRecord::query()->orDoesntHave(relation: "childen");',
+        'void',
+        ['ichinya/laramago/laramago-missing-relation'],
+    ],
+    'orWhereHas missing relation' => [
+        'RelationNameRecord::query()->orWhereHas(relation: "childen");',
+        'void',
+        ['ichinya/laramago/laramago-missing-relation'],
+    ],
+    'whereDoesntHave missing relation' => [
+        'RelationNameRecord::query()->whereDoesntHave(relation: "childen");',
+        'void',
+        ['ichinya/laramago/laramago-missing-relation'],
+    ],
+    'orWhereDoesntHave missing relation' => [
+        'RelationNameRecord::query()->orWhereDoesntHave(relation: "childen");',
+        'void',
+        ['ichinya/laramago/laramago-missing-relation'],
+    ],
+    'withWhereHas missing relation' => [
+        'RelationNameRecord::query()->withWhereHas(relation: "childen");',
         'void',
         ['ichinya/laramago/laramago-missing-relation'],
     ],
@@ -136,8 +196,11 @@ if (! is_resource($process)) {
 fclose($pipes[0]);
 $exit = proc_close($process);
 $log = file_get_contents($workspace.'/stderr.log');
-if ($exit !== 0 || preg_match('/External analyzer provider failed|extension worker .*rejected request/i', $log)) {
-    throw new RuntimeException('Expected successful analysis with extension warnings and no fallback; inspect '
+if (
+    ! in_array($exit, [0, 1], true)
+    || preg_match('/External analyzer provider failed|extension worker .*rejected request/i', $log)
+) {
+    throw new RuntimeException('Expected completed analysis with extension diagnostics and no fallback; inspect '
     .$workspace);
 }
 $report = json_decode(file_get_contents($workspace.'/report.json'), true, flags: JSON_THROW_ON_ERROR);
@@ -176,7 +239,8 @@ if (! is_resource($native)) {
     throw new RuntimeException('Cannot start native comparison.');
 }
 fclose($pipes[0]);
-if (proc_close($native) !== 0) {
+$nativeExit = proc_close($native);
+if (! in_array($nativeExit, [0, 1], true)) {
     throw new RuntimeException('Native comparison failed: '.$workspace);
 }
 $nativeReport = json_decode(file_get_contents($workspace.'/native.json'), true, flags: JSON_THROW_ON_ERROR);
@@ -189,9 +253,16 @@ foreach ($nativeReport['issues'] ?? [] as $issue) {
     $nativeCodes[$primary['span']['start']['line'] + 1][] = $issue['code'];
 }
 foreach ($lines as $line => [$name]) {
-    $expected = in_array($name, ['static whereHas', 'static dynamic registration', 'custom static dispatch'], true)
-        ? ['non-documented-method']
-        : [];
+    $expected = match ($name) {
+        'static loadMissing stays native' => ['invalid-static-method-access'],
+        'static whereHas',
+        'static orWhereHas',
+        'static dynamic registration',
+        'custom static dispatch',
+        'additional custom static dispatch',
+            => ['non-documented-method'],
+        default => [],
+    };
     if (($nativeCodes[$line] ?? []) !== $expected) {
         throw new RuntimeException('Native '.$name.' mismatch: '.$workspace);
     }
