@@ -8,7 +8,10 @@ throw new \RuntimeException('Named route fixtures must never execute.');
 
 class Redirector
 {
-    public function route(string $route): string { return ''; }
+    public function route(string $route, mixed $parameters = [], int $status = 302, array $headers = []): string
+    {
+        return '';
+    }
 }
 
 class ExtendedRedirector extends Redirector {}

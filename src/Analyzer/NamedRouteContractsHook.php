@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ichinya\Laramago\Analyzer;
 
+use Ichinya\Laramago\Analyzer\StaticAnalysis\NamedRouteCatalog;
 use Mago\Sdk\Analyzer\FileAnalysisRequirement;
 use Mago\Sdk\Analyzer\MethodCallAnalysisHook;
 use Mago\Sdk\Analyzer\MethodTarget;
@@ -19,8 +20,7 @@ use PhpParser\ParserFactory;
 /** Missing named routes require an explicit complete application catalog. */
 final class NamedRouteContractsHook implements MethodCallAnalysisHook
 {
-    /** @var list<string>|null */
-    private ?array $names = null;
+    private readonly NamedRouteCatalog $catalog;
 
     private string $sourceHash = '';
 
@@ -31,55 +31,7 @@ final class NamedRouteContractsHook implements MethodCallAnalysisHook
 
     public function __construct(string $root = '.')
     {
-        $path = rtrim($root, '/\\').'/composer.json';
-        $text = is_file($path) ? @file_get_contents($path) : false;
-        if ($text === false) {
-            return;
-        }
-        /**
-         * @var mixed $data
-         */
-        $data = json_decode($text, true);
-        if (! is_array($data)) {
-            return;
-        }
-        /**
-         * @var mixed $extra
-         */
-        $extra = $data['extra'] ?? null;
-        /**
-         * @var mixed $options
-         */
-        $options = is_array($extra) ? $extra['laramago'] ?? null : null;
-        /**
-         * @var mixed $catalog
-         */
-        $catalog = is_array($options) ? $options['named-routes'] ?? null : null;
-        if (
-            ! is_array($catalog)
-            || ($catalog['complete'] ?? null) !== true
-            || ($catalog['missing-route-resolver'] ?? null) !== false
-        ) {
-            return;
-        }
-        /**
-         * @var mixed $names
-         */
-        $names = $catalog['names'] ?? null;
-        if (! is_array($names) || ! array_is_list($names)) {
-            return;
-        }
-        $valid = [];
-        /**
-         * @var mixed $name
-         */
-        foreach ($names as $name) {
-            if (! is_string($name) || $name === '') {
-                return;
-            }
-            $valid[] = $name;
-        }
-        $this->names = $valid;
+        $this->catalog = new NamedRouteCatalog($root);
     }
 
     public function getTargets(): array
@@ -97,7 +49,7 @@ final class NamedRouteContractsHook implements MethodCallAnalysisHook
 
     public function analyze(NodeAnalysisContext $context): void
     {
-        if ($this->names === null) {
+        if (! $this->catalog->enabled()) {
             return;
         }
         $atoms = $context->receiverType?->atomicTypes ?? [];
@@ -164,7 +116,7 @@ final class NamedRouteContractsHook implements MethodCallAnalysisHook
                 $name = $argument->value;
             }
         }
-        if (! $name instanceof Node\Scalar\String_ || in_array($name->value, $this->names, true)) {
+        if (! $name instanceof Node\Scalar\String_ || ! $this->catalog->missing($name->value)) {
             return;
         }
         $context->report(

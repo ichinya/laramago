@@ -1,0 +1,30 @@
+<?php
+
+declare(strict_types=1);
+
+throw new \RuntimeException('Named route helper fixtures must never execute.');
+
+function app(mixed $abstract = null, array $parameters = []): mixed
+{
+    throw new \RuntimeException('Never execute.');
+}
+
+function redirect(mixed $to = null, int $status = 302, array $headers = [], ?bool $secure = null): mixed
+{
+    if (is_null($to)) {
+        return app('redirect');
+    }
+
+    throw new \RuntimeException('Never execute.');
+}
+
+function route(string $name, mixed $parameters = [], bool $absolute = true): string
+{
+    return app('url')->route($name, $parameters, $absolute);
+}
+
+/** @return \Illuminate\Http\RedirectResponse */
+function to_route(string $route, mixed $parameters = [], int $status = 302, array $headers = [])
+{
+    return redirect()->route($route, $parameters, $status, $headers);
+}

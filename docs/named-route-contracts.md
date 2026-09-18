@@ -32,8 +32,16 @@ produce `laramago-missing-named-route`. Positional arguments and their native
 `name:` / `route:` named arguments are supported. Native declaration locations
 must belong to Laravel's framework tree. No return types or native errors change.
 
+The installed native `route()` and `to_route()` helpers receive the same check for
+global calls, namespace fallback and imported function aliases. Helper diagnostics
+also require Laravel's standard helper forwarding bodies, native `app()` and
+`redirect()` dispatchers, and native URL generator/redirector route methods.
+Explicit binding catalogs for `url`, `redirect` or their standard concrete and
+contract aliases disable affected helper checks. The diagnostic points to the
+literal route name and does not replace helper signatures, PHPDoc or native errors.
+
 Dynamic values, concatenations, argument unpacking, subclasses, union receivers,
-helpers, facades, middleware aliases/groups, route parameters and runtime registry
+facades, signed-route entry points, middleware aliases/groups, route parameters and runtime registry
 reconstruction are outside this subset. Keep the contract current when route
 providers change; omit it when a complete registry cannot be asserted. The
 extension reads JSON and PHP syntax only and does not bootstrap Laravel, execute
