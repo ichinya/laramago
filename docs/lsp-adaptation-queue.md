@@ -33,7 +33,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 25 | Additional relation-name call sites | implemented; Additional non-morph existence methods and loadMissing reuse native relation-name checks; three focused suites passed. |
 | 26 | Nested relation paths | already-covered; Verified nested relation traversal, callback typing and complete-name checks with focused suites. |
 | 27 | Mixed eager-load declaration arrays | implemented; Mixed eager-load arrays honor effective keys and Laravel numeric-string semantics; dynamic/negative uncertainty defers. |
-| 28 | Eager-load colon projection syntax | running |
+| 28 | Eager-load colon projection syntax | implemented; Only eager-load methods strip colon column suffixes; existence queries preserve relation names. Focused real-Mago regressions and source analysis pass; test workers disable CLI OPcache. |
 | 29 | Related model projection columns | deferred; Missing projection columns require complete effective-query metadata or an explicit query-source contract; schema alone cannot exclude scopes, joins, from changes, and aliases. No diagnostic added. |
 | 30 | Eager-loading callback parameter types | queued |
 | 31 | Morph callbacks with explicit model classes | queued |

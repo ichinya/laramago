@@ -60,6 +60,19 @@ $cases = [
         ['non-documented-method'],
     ],
     'declared relation' => ['RelationNameRecord::query()->with("children");', 'void', []],
+    'with selected columns' => ['RelationNameRecord::query()->with("children:id");', 'void', []],
+    'load selected columns' => ['(new RelationNameRecord)->load("children:id");', 'void', []],
+    'loadMissing selected columns' => ['(new RelationNameRecord)->loadMissing("children:id");', 'void', []],
+    'has does not accept selected columns' => [
+        'RelationNameRecord::query()->has("children:id");',
+        'void',
+        ['ichinya/laramago/laramago-missing-relation'],
+    ],
+    'whereHas does not accept selected columns' => [
+        'RelationNameRecord::query()->whereHas("children:id");',
+        'void',
+        ['ichinya/laramago/laramago-missing-relation'],
+    ],
     'missing relation' => [
         'RelationNameRecord::query()->with("childen");',
         'void',
@@ -173,6 +186,8 @@ file_put_contents($workspace.'/mago.json', json_encode([
         'laramago' => [
             'command' => [
                 PHP_BINARY,
+                '-d',
+                'opcache.enable_cli=0',
                 $package.'/bin/laramago-worker.php',
                 $package.'/vendor/autoload.php',
                 $workspace,

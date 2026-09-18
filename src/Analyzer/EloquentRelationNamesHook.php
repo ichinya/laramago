@@ -26,6 +26,7 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
     private const MODEL = 'Illuminate\\Database\\Eloquent\\Model';
     private const BUILDER = 'Illuminate\\Database\\Eloquent\\Builder';
     private const RELATION = 'Illuminate\\Database\\Eloquent\\Relations\\Relation';
+    private const EAGER_LOAD_METHODS = ['with', 'load', 'loadmissing'];
     private const RELATION_METHODS = [
         'has',
         'orhas',
@@ -175,7 +176,10 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
         }
         foreach ($this->paths($argument) as $path) {
             $current = $model;
-            foreach (explode('.', explode(':', $path, 2)[0]) as $segment) {
+            $relationPath = in_array($methodName, self::EAGER_LOAD_METHODS, true)
+                ? explode(':', $path, 2)[0]
+                : $path;
+            foreach (explode('.', $relationPath) as $segment) {
                 if ($segment === '' || $segment === '*') {
                     break;
                 }
