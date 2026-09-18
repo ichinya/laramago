@@ -22,7 +22,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 14 | Visible name validation | queued |
 | 15 | Appended accessor name validation | queued |
 | 16 | Model attribute declarations for field lists | queued |
-| 17 | Physical columns versus computed accessors | queued |
+| 17 | Physical columns versus computed accessors | already-covered; Verified physical-column selection versus accessors, raw pluck keys and SQL alias boundaries; three suites passed. |
 | 18 | Literal mass-assignment keys | queued |
 | 19 | Mass-assignment value types | queued |
 | 20 | Model update versus builder update contracts | queued |
