@@ -66,7 +66,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 58 | Required named-route parameters | queued |
 | 59 | Domain optional and default route parameters | queued |
 | 60 | Route declaration diagnostic locations | queued |
-| 61 | Controller class existence in string actions | running |
+| 61 | Controller class existence in string actions | implemented; tests/controller-action-classes.php; absolute literal actions only |
 | 62 | Controller method existence in string actions | queued |
 | 63 | Controller action visibility | queued |
 | 64 | Array controller action references | queued |

@@ -70,6 +70,7 @@ final class LaravelPlugin implements Plugin
         $registry->registerMethodReturnTypeProvider(new EloquentRelationCallbackProvider($this->projectRoot));
         $registry->registerMethodCallAnalysisHook(new EloquentRelationNamesHook($this->projectRoot));
         $registry->registerMethodCallAnalysisHook(new RouteParametersHook($this->projectRoot));
+        $registry->registerMethodCallAnalysisHook(new ControllerActionClassHook($this->projectRoot));
         $registry->registerMethodCallAnalysisHook(new NamedRouteContractsHook($this->projectRoot));
         $registry->registerMethodReturnTypeProvider(new EloquentBuilderProvider);
         $registry->registerMethodReturnTypeProvider(new EloquentBuilderForwardingProvider($this->projectRoot));
