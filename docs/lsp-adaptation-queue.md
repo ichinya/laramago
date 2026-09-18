@@ -21,7 +21,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 13 | Hidden name validation | implemented; Hidden names use complete field and pre-serialization key catalogs; focused native/custom/disabled cases passed. |
 | 14 | Visible name validation | implemented; Visible names reuse complete serialization catalogs with native empty-list and case semantics; focused tests passed. |
 | 15 | Appended accessor name validation | implemented; Literal appends entries checked against an independent explicit complete appendable-key catalog; native serialization guards and real-Mago enabled/disabled regressions pass. |
-| 16 | Model attribute declarations for field lists | queued |
+| 16 | Model attribute declarations for field lists | implemented; Native Fillable/Guarded/Hidden/Visible/Appends attributes use exact catalogs and installed lifecycle guards; effective Guarded precedence, custom overrides and older-framework regressions pass. |
 | 17 | Physical columns versus computed accessors | already-covered; Verified physical-column selection versus accessors, raw pluck keys and SQL alias boundaries; three suites passed. |
 | 18 | Literal mass-assignment keys | queued |
 | 19 | Mass-assignment value types | queued |
@@ -35,14 +35,14 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 27 | Mixed eager-load declaration arrays | implemented; Mixed eager-load arrays honor effective keys and Laravel numeric-string semantics; dynamic/negative uncertainty defers. |
 | 28 | Eager-load colon projection syntax | implemented; Eager-loading methods including withWhereHas accept colon projections; pure existence queries preserve full names. Real-Mago tests cover builder/static forwarding and native fallback. |
 | 29 | Related model projection columns | deferred; Missing projection columns require complete effective-query metadata or an explicit query-source contract; schema alone cannot exclude scopes, joins, from changes, and aliases. No diagnostic added. |
-| 30 | Eager-loading callback parameter types | queued |
+| 30 | Eager-loading callback parameter types | running; Isolated implementation and real-Mago verification in progress. |
 | 31 | Morph callbacks with explicit model classes | queued |
 | 32 | Relation aggregate references | queued |
 | 33 | Relation aggregate alias syntax | queued |
 | 34 | Query-local aggregate result properties | queued |
 | 35 | Literal configuration result types | already-covered; Verified literal config and native Config::get types with configuration and configuration-index suites. |
 | 36 | Additional configuration call sites | already-covered; Native config and Config::get literal results verified in configuration/framework-contract tests. Arbitrary Repository instances cannot inherit the application index without producer provenance. |
-| 37 | Complete configuration key diagnostics | queued |
+| 37 | Complete configuration key diagnostics | running; Isolated implementation and real-Mago verification in progress. |
 | 38 | Configuration getMany key validation | queued |
 | 39 | Typed configuration getters | queued |
 | 40 | Config injection attribute references | queued |

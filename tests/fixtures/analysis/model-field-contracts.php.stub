@@ -5,7 +5,12 @@ namespace Illuminate\Database\Eloquent\Casts {
 }
 
 namespace Example {
+    use Illuminate\Database\Eloquent\Attributes\Appends;
     use Illuminate\Database\Eloquent\Attributes\Fillable;
+    use Illuminate\Database\Eloquent\Attributes\Guarded;
+    use Illuminate\Database\Eloquent\Attributes\Hidden;
+    use Illuminate\Database\Eloquent\Attributes\Unguarded;
+    use Illuminate\Database\Eloquent\Attributes\Visible;
     use Illuminate\Database\Eloquent\Casts\Attribute;
     use Illuminate\Database\Eloquent\Model;
 
@@ -327,6 +332,117 @@ namespace Example {
         protected $fillable = ['missing'];
     }
 
+    #[Fillable(['known', 'missing'])] // attribute-fillable-missing
+    class AttributeFillableRecord extends Model {}
+
+    #[Fillable('known', 'missing')] // attribute-fillable-variadic-missing
+    class AttributeVariadicFillableRecord extends Model {}
+
+    #[Guarded('TITLE', 'missing')] // attribute-guarded-missing
+    class AttributeGuardedRecord extends Model {}
+
+    #[Guarded('*')]
+    class AttributeGuardedWildcardRecord extends Model {}
+
+    #[Hidden(['known', 'userProfile', 'missing'])] // attribute-hidden-missing
+    class AttributeHiddenRecord extends Model {}
+
+    #[Visible('known', 'display_name', 'missing')] // attribute-visible-missing
+    class AttributeVisibleRecord extends Model {}
+
+    #[Appends(['legacy_value', 'missing'])] // attribute-appends-missing
+    class AttributeAppendsRecord extends Model {}
+
+    #[Fillable(['attribute_missing'])] // attribute-combined-fillable-missing
+    class AttributeAndPropertyFillableRecord extends Model
+    {
+        protected $fillable = ['property_missing']; // attribute-combined-property-missing
+    }
+
+    #[Guarded(['ignored_attribute_missing'])]
+    class AttributeAndPropertyGuardedRecord extends Model
+    {
+        protected $guarded = ['property_missing']; // attribute-guarded-property-wins
+    }
+
+    #[Guarded('ignored_attribute_missing')]
+    class AttributeNonDefaultGuardedRecord extends Model
+    {
+        protected $guarded = [];
+    }
+
+    #[Unguarded]
+    #[Guarded('ignored_attribute_missing')]
+    class AttributeUnguardedRecord extends Model {}
+
+    class AttributeGuardedParentRecord extends Model
+    {
+        protected $guarded = [];
+    }
+
+    #[Guarded('ignored_inherited_property_missing')]
+    class AttributeGuardedChildRecord extends AttributeGuardedParentRecord {}
+
+    #[Unguarded]
+    class AttributeUnguardedParentRecord extends Model {}
+
+    #[Guarded('ignored_inherited_unguarded_missing')]
+    class AttributeUnguardedChildRecord extends AttributeUnguardedParentRecord {}
+
+    // Laravel's constructor uses only the first argument when it is an array.
+    #[Fillable(['known'], 'ignored_missing')]
+    class AttributeArrayFirstRecord extends Model {}
+
+    #[Fillable(LiteralFields::KNOWN, 'missing')]
+    class AttributeDynamicFirstRecord extends Model {}
+
+    #[Fillable(['field' => 'missing'])]
+    class AttributeKeyedArrayRecord extends Model {}
+
     #[Fillable(['missing'])]
-    class AttributeRecord extends Model {}
+    class AttributeCustomConstructorRecord extends Model
+    {
+        public function __construct() {}
+    }
+
+    #[Hidden(['missing'])]
+    class AttributeCustomInitializerRecord extends Model
+    {
+        public function initializeHidesAttributes(): void {}
+    }
+
+    #[Appends(['missing'])]
+    class AttributeCustomResolverRecord extends Model
+    {
+        protected static function resolveClassAttribute(
+            string $attributeClass,
+            ?string $property = null,
+            ?string $class = null,
+        ): mixed {
+            return null;
+        }
+    }
+
+    #[Appends(['missing'])]
+    class AttributeCustomSetAppendsRecord extends Model
+    {
+        public function setAppends(array $appends): static
+        {
+            return $this;
+        }
+    }
+
+    #[\Example\CustomFillable(['missing'])]
+    class CustomAttributeRecord extends Model {}
+
+    #[Hidden(['inherited_missing'])]
+    class AttributeParentRecord extends Model {}
+
+    class AttributeChildRecord extends AttributeParentRecord {}
+
+    #[\Attribute(\Attribute::TARGET_CLASS)]
+    class CustomFillable
+    {
+        public function __construct(array|string ...$columns) {}
+    }
 }

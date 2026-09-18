@@ -1,7 +1,8 @@
 # Model field catalogs
 
-Literal `$fillable`, `$guarded`, `$hidden`, `$visible` and `$appends` names can be checked
-against explicit complete catalogs for an exact model class:
+Literal `$fillable`, `$guarded`, `$hidden`, `$visible` and `$appends` names, including
+their native Laravel class-attribute equivalents, can be checked against explicit
+complete catalogs for an exact model class:
 
 ```json
 {
@@ -63,6 +64,16 @@ cataloged model. The exact guarded array `['*']` retains Laravel's total-guard
 meaning. In mixed guarded arrays, `*` does not suppress checks for the other
 literal names; the unusual `*` entry itself defers.
 
+The same catalogs cover directly declared native Laravel `#[Fillable]`,
+`#[Guarded]`, `#[Hidden]`, `#[Visible]` and `#[Appends]` class attributes. Both
+the single-array and variadic-string forms are supported. When the first
+argument is an array, Laravel ignores later arguments; the analyzer follows that
+constructor behavior. Named, unpacked, keyed and otherwise dynamic argument
+shapes defer. Laravel applies `#[Guarded]` only while the effective `$guarded`
+property still has its framework default; an explicit non-default list or an
+effective `#[Unguarded]` declaration takes precedence and disables that
+attribute check.
+
 With a complete nested serialization contract, the analyzer reports
 `laramago-missing-model-serialization-key` for a literal name in the exact
 model's directly declared `$hidden` or `$visible` array only when it is absent
@@ -79,9 +90,13 @@ therefore accepts an empty literal list and validates each name only when the
 list is non-empty. Serialization names remain case-sensitive and relationship
 names use their pre-snake-case keys.
 
-Dynamic expressions, keyed or unpacked arrays, inherited declarations, PHP
-attributes, incomplete class hierarchies, nonstandard framework provenance, and
-models overriding relevant mass-assignment dispatch defer. Guarded validation
+Dynamic expressions, keyed or unpacked arrays, inherited declarations,
+incomplete class hierarchies, nonstandard framework provenance, and models
+overriding relevant mass-assignment dispatch defer. Attribute validation also
+requires the installed native attribute class, model lifecycle, class-attribute
+resolver, matching Laravel initializer and native list mutators; older framework
+versions, custom lifecycle/mutator overrides and lookalike attributes defer.
+Guarded validation
 requires native `fill()`, `getFillable()`, `getGuarded()`, `isFillable()`,
 `isGuarded()` and `fillableFromArray()` provenance. Analysis does not call
 `isGuardableColumn()` or connect to a database.

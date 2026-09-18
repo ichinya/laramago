@@ -4,6 +4,21 @@ namespace Illuminate\Database\Eloquent\Concerns;
 
 trait HidesAttributes
 {
+    public function initializeHidesAttributes(): void
+    {
+        throw new \RuntimeException('Must not execute');
+    }
+
+    public function mergeHidden(array $hidden): static
+    {
+        throw new \RuntimeException('Must not execute');
+    }
+
+    public function mergeVisible(array $visible): static
+    {
+        throw new \RuntimeException('Must not execute');
+    }
+
     /** @return list<string> */
     public function getHidden(): array
     {

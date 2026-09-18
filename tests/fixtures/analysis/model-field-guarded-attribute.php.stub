@@ -3,7 +3,7 @@
 namespace Illuminate\Database\Eloquent\Attributes;
 
 #[\Attribute(\Attribute::TARGET_CLASS)]
-class Fillable
+class Guarded
 {
     public array $columns;
 

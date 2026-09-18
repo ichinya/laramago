@@ -4,6 +4,21 @@ namespace Illuminate\Database\Eloquent\Concerns;
 
 trait HasAttributes
 {
+    protected function initializeHasAttributes(): void
+    {
+        throw new \RuntimeException('Must not execute');
+    }
+
+    public function setAppends(array $appends): static
+    {
+        throw new \RuntimeException('Must not execute');
+    }
+
+    public function mergeAppends(array $appends): static
+    {
+        throw new \RuntimeException('Must not execute');
+    }
+
     public function attributesToArray(): array
     {
         throw new \RuntimeException('Must not execute');

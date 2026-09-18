@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-// Verify opt-in model property-name validation through the real SDK worker.
+// Verify opt-in model field-list validation through the real SDK worker.
 $binary = getenv('MAGO_BINARY') ?: __DIR__.'/../vendor/bin/mago';
 $command = str_ends_with($binary, '.exe') ? [$binary] : [PHP_BINARY, $binary];
 $package = str_replace('\\', '/', dirname(__DIR__));
@@ -23,6 +23,26 @@ copy(__DIR__.'/fixtures/analysis/model-field-serialization.php.stub', $framework
 copy(
     __DIR__.'/fixtures/analysis/model-field-fillable-attribute.php.stub',
     $framework.'/Attributes/Fillable.php',
+);
+copy(
+    __DIR__.'/fixtures/analysis/model-field-guarded-attribute.php.stub',
+    $framework.'/Attributes/Guarded.php',
+);
+copy(
+    __DIR__.'/fixtures/analysis/model-field-hidden-attribute.php.stub',
+    $framework.'/Attributes/Hidden.php',
+);
+copy(
+    __DIR__.'/fixtures/analysis/model-field-visible-attribute.php.stub',
+    $framework.'/Attributes/Visible.php',
+);
+copy(
+    __DIR__.'/fixtures/analysis/model-field-appends-attribute.php.stub',
+    $framework.'/Attributes/Appends.php',
+);
+copy(
+    __DIR__.'/fixtures/analysis/model-field-unguarded-attribute.php.stub',
+    $framework.'/Attributes/Unguarded.php',
 );
 $complete = static fn (array $fields): array => ['complete' => true, 'fields' => $fields];
 $serializable = static fn (array $fields, array $keys): array => [
@@ -99,7 +119,28 @@ file_put_contents($workspace.'/composer.json', json_encode([
                 'Example\\MalformedCatalogRecord' => ['complete' => true, 'fields' => [false]],
                 'Example\\DuplicateCatalogRecord' => $complete([]),
                 'example\\duplicatecatalogrecord' => $complete([]),
-                'Example\\AttributeRecord' => $complete([]),
+                'Example\\AttributeFillableRecord' => $complete(['known']),
+                'Example\\AttributeVariadicFillableRecord' => $complete(['known']),
+                'Example\\AttributeGuardedRecord' => $complete(['title']),
+                'Example\\AttributeGuardedWildcardRecord' => $complete([]),
+                'Example\\AttributeHiddenRecord' => $serializable(['known'], ['userProfile']),
+                'Example\\AttributeVisibleRecord' => $serializable(['known'], ['display_name']),
+                'Example\\AttributeAppendsRecord' => $appendable(['legacy_value']),
+                'Example\\AttributeAndPropertyFillableRecord' => $complete([]),
+                'Example\\AttributeAndPropertyGuardedRecord' => $complete([]),
+                'Example\\AttributeNonDefaultGuardedRecord' => $complete([]),
+                'Example\\AttributeUnguardedRecord' => $complete([]),
+                'Example\\AttributeGuardedChildRecord' => $complete([]),
+                'Example\\AttributeUnguardedChildRecord' => $complete([]),
+                'Example\\AttributeArrayFirstRecord' => $complete(['known']),
+                'Example\\AttributeDynamicFirstRecord' => $complete(['known']),
+                'Example\\AttributeKeyedArrayRecord' => $complete([]),
+                'Example\\AttributeCustomConstructorRecord' => $complete([]),
+                'Example\\AttributeCustomInitializerRecord' => $serializable([], []),
+                'Example\\AttributeCustomResolverRecord' => $appendable([]),
+                'Example\\AttributeCustomSetAppendsRecord' => $appendable([]),
+                'Example\\CustomAttributeRecord' => $complete([]),
+                'Example\\AttributeChildRecord' => $serializable([], []),
             ],
         ],
     ],
@@ -115,6 +156,11 @@ file_put_contents($workspace.'/mago.json', json_encode([
             'vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HidesAttributes.php',
             'vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasAttributes.php',
             'vendor/laravel/framework/src/Illuminate/Database/Eloquent/Attributes/Fillable.php',
+            'vendor/laravel/framework/src/Illuminate/Database/Eloquent/Attributes/Guarded.php',
+            'vendor/laravel/framework/src/Illuminate/Database/Eloquent/Attributes/Hidden.php',
+            'vendor/laravel/framework/src/Illuminate/Database/Eloquent/Attributes/Visible.php',
+            'vendor/laravel/framework/src/Illuminate/Database/Eloquent/Attributes/Appends.php',
+            'vendor/laravel/framework/src/Illuminate/Database/Eloquent/Attributes/Unguarded.php',
         ],
     ],
     'extension-hosts' => [
@@ -174,21 +220,28 @@ foreach (explode("\n", $fixture) as $offset => $line) {
         || str_contains($line, '// visible-case-mismatch')
         || str_contains($line, '// visible-missing')
         || str_contains($line, '// appends-')
+        || str_contains($line, '// attribute-')
     ) {
         $expected[$offset + 1] = [
             match (true) {
-                str_contains($line, '// appends-') => 'ichinya/laramago/laramago-missing-model-appendable-key',
+                str_contains($line, '// appends-'),
+                str_contains($line, '// attribute-appends-'),
+                    => 'ichinya/laramago/laramago-missing-model-appendable-key',
                 str_contains($line, '// hidden-'),
                 str_contains($line, '// visible-'),
+                str_contains($line, '// attribute-hidden-'),
+                str_contains($line, '// attribute-visible-'),
                     => 'ichinya/laramago/laramago-missing-model-serialization-key',
                 default => 'ichinya/laramago/laramago-missing-model-field',
             },
         ];
     }
 }
+ksort($actual);
+ksort($expected);
 if ($actual !== $expected) {
     throw new RuntimeException(
-        'Expected only proven missing model property names: '
+        'Expected only proven missing model field-list names: '
         .json_encode($expected)
         .', got '
         .json_encode($actual)
@@ -196,7 +249,44 @@ if ($actual !== $expected) {
         .$workspace,
     );
 }
-echo "PASS: complete catalogs validate only safe literal fillable, guarded, hidden, visible and appended names\n";
+echo "PASS: complete catalogs validate safe literal property and attribute field-list names\n";
+
+copy(
+    __DIR__.'/fixtures/analysis/model-field-guards-legacy.php.stub',
+    $framework.'/Concerns/GuardsAttributes.php',
+);
+$legacyReport = $run($command, $workspace, $workspace.'/legacy.json', $workspace.'/legacy.log');
+$legacyActual = [];
+foreach ($legacyReport['issues'] ?? [] as $issue) {
+    $primary = array_values(array_filter(
+        $issue['annotations'],
+        static fn (array $annotation): bool => $annotation['kind'] === 'Primary',
+    ))[0];
+    $legacyActual[$primary['span']['start']['line'] + 1][] = $issue['code'];
+}
+$legacyExpected = $expected;
+foreach (explode("\n", $fixture) as $offset => $line) {
+    if (
+        str_contains($line, '// attribute-fillable-')
+        || str_contains($line, '// attribute-guarded-missing')
+        || str_contains($line, '// attribute-combined-fillable-')
+    ) {
+        unset($legacyExpected[$offset + 1]);
+    }
+}
+ksort($legacyActual);
+ksort($legacyExpected);
+if ($legacyActual !== $legacyExpected) {
+    throw new RuntimeException(
+        'Expected an older framework without the native guard initializer to retain property diagnostics only: '
+        .json_encode($legacyExpected)
+        .', got '
+        .json_encode($legacyActual)
+        .'; inspect '
+        .$workspace,
+    );
+}
+echo "PASS: unsupported framework attribute lifecycle defers while property diagnostics remain\n";
 
 $nativeConfig = json_decode(file_get_contents($workspace.'/mago.json'), true, flags: JSON_THROW_ON_ERROR);
 unset($nativeConfig['extension-hosts']);

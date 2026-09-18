@@ -4,11 +4,6 @@ namespace Illuminate\Database\Eloquent\Concerns;
 
 trait GuardsAttributes
 {
-    public function initializeGuardsAttributes(): void
-    {
-        throw new \RuntimeException('Must not execute');
-    }
-
     public function mergeFillable(array $fillable): static
     {
         throw new \RuntimeException('Must not execute');
