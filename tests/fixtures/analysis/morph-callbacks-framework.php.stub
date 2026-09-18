@@ -1,0 +1,185 @@
+<?php
+
+// Laravel QueriesRelationships declarations and forwarding bodies; syntax only.
+// Copyright (c) Taylor Otwell. MIT: see morph-callbacks-LICENSE.md.
+namespace Illuminate\Database\Eloquent\Concerns;
+use Closure;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Database\Query\Expression;
+trait QueriesRelationships
+{
+    /**
+     * Add a polymorphic relationship count / exists condition to the query.
+     *
+     * @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  \Illuminate\Database\Eloquent\Relations\MorphTo<TRelatedModel, *>|string  $relation
+     * @param  string|array<int, string>  $types
+     * @param  string  $operator
+     * @param  \Illuminate\Contracts\Database\Query\Expression|int  $count
+     * @param  string  $boolean
+     * @param  (\Closure(\Illuminate\Database\Eloquent\Builder<TRelatedModel>, string): mixed)|null  $callback
+     * @return $this
+     */
+    public function hasMorph($relation, $types, $operator = '>=', $count = 1, $boolean = 'and', ?Closure $callback = null)
+    {
+        if (is_string($relation)) {
+            $relation = $this->getRelationWithoutConstraints($relation);
+        }
+
+        $types = (array) $types;
+
+        $checkMorphNull = $types === ['*']
+            && (($operator === '<' && $count >= 1)
+                || ($operator === '<=' && $count >= 0)
+                || ($operator === '=' && $count === 0)
+                || ($operator === '!=' && $count >= 1));
+
+        if ($types === ['*']) {
+            $types = $this->model->newModelQuery()->distinct()->pluck($relation->getMorphType())
+                ->filter()
+                ->map(fn ($item) => enum_value($item))
+                ->all();
+        }
+
+        if (empty($types)) {
+            return $this->where(new Expression('0'), $operator, $count, $boolean);
+        }
+
+        foreach ($types as &$type) {
+            $type = Relation::getMorphedModel($type) ?? $type;
+        }
+
+        return $this->where(function ($query) use ($relation, $callback, $operator, $count, $types, $checkMorphNull) {
+            foreach ($types as $type) {
+                $query->orWhere(function ($query) use ($relation, $callback, $operator, $count, $type) {
+                    $belongsTo = $this->getBelongsToRelation($relation, $type);
+
+                    if ($callback) {
+                        $callback = function ($query) use ($callback, $type) {
+                            return $callback($query, $type);
+                        };
+                    }
+
+                    $query->where($this->qualifyColumn($relation->getMorphType()), '=', (new $type)->getMorphClass())
+                        ->whereHas($belongsTo, $callback, $operator, $count);
+                });
+            }
+
+            $query->when($checkMorphNull, fn (self $query) => $query->orWhereMorphedTo($relation, null));
+        }, null, null, $boolean);
+    }
+
+    /**
+     * Get the BelongsTo relationship for a single polymorphic type.
+     *
+     * @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+     * @template TDeclaringModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  \Illuminate\Database\Eloquent\Relations\MorphTo<*, TDeclaringModel>  $relation
+     * @param  class-string<TRelatedModel>  $type
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo<TRelatedModel, TDeclaringModel>
+     */
+    protected function getBelongsToRelation(MorphTo $relation, $type)
+    {
+        $belongsTo = Relation::noConstraints(function () use ($relation, $type) {
+            return $this->model->belongsTo(
+                $type,
+                $relation->getForeignKeyName(),
+                $relation->getOwnerKeyName()
+            );
+        });
+
+        $belongsTo->getQuery()->mergeConstraintsFrom($relation->getQuery());
+
+        return $belongsTo;
+    }
+
+    /**
+     * Add a polymorphic relationship count / exists condition to the query.
+     *
+     * @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  \Illuminate\Database\Eloquent\Relations\MorphTo<TRelatedModel, *>|string  $relation
+     * @param  string|array<int, string>  $types
+     * @param  string  $boolean
+     * @param  (\Closure(\Illuminate\Database\Eloquent\Builder<TRelatedModel>, string): mixed)|null  $callback
+     * @return $this
+     */
+    public function doesntHaveMorph($relation, $types, $boolean = 'and', ?Closure $callback = null)
+    {
+        return $this->hasMorph($relation, $types, '<', 1, $boolean, $callback);
+    }
+
+    /**
+     * Add a polymorphic relationship count / exists condition to the query with where clauses.
+     *
+     * @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  \Illuminate\Database\Eloquent\Relations\MorphTo<TRelatedModel, *>|string  $relation
+     * @param  string|array<int, string>  $types
+     * @param  (\Closure(\Illuminate\Database\Eloquent\Builder<TRelatedModel>, string): mixed)|null  $callback
+     * @param  string  $operator
+     * @param  \Illuminate\Contracts\Database\Query\Expression|int  $count
+     * @return $this
+     */
+    public function whereHasMorph($relation, $types, ?Closure $callback = null, $operator = '>=', $count = 1)
+    {
+        return $this->hasMorph($relation, $types, $operator, $count, 'and', $callback);
+    }
+
+    /**
+     * Add a polymorphic relationship count / exists condition to the query with where clauses and an "or".
+     *
+     * @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  \Illuminate\Database\Eloquent\Relations\MorphTo<TRelatedModel, *>|string  $relation
+     * @param  string|array<int, string>  $types
+     * @param  (\Closure(\Illuminate\Database\Eloquent\Builder<TRelatedModel>, string): mixed)|null  $callback
+     * @param  string  $operator
+     * @param  \Illuminate\Contracts\Database\Query\Expression|int  $count
+     * @return $this
+     */
+    public function orWhereHasMorph($relation, $types, ?Closure $callback = null, $operator = '>=', $count = 1)
+    {
+        return $this->hasMorph($relation, $types, $operator, $count, 'or', $callback);
+    }
+
+    /**
+     * Add a polymorphic relationship count / exists condition to the query with where clauses.
+     *
+     * @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  \Illuminate\Database\Eloquent\Relations\MorphTo<TRelatedModel, *>|string  $relation
+     * @param  string|array<int, string>  $types
+     * @param  (\Closure(\Illuminate\Database\Eloquent\Builder<TRelatedModel>, string): mixed)|null  $callback
+     * @return $this
+     */
+    public function whereDoesntHaveMorph($relation, $types, ?Closure $callback = null)
+    {
+        return $this->doesntHaveMorph($relation, $types, 'and', $callback);
+    }
+
+    /**
+     * Add a polymorphic relationship count / exists condition to the query with where clauses and an "or".
+     *
+     * @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  \Illuminate\Database\Eloquent\Relations\MorphTo<TRelatedModel, *>|string  $relation
+     * @param  string|array<int, string>  $types
+     * @param  (\Closure(\Illuminate\Database\Eloquent\Builder<TRelatedModel>, string): mixed)|null  $callback
+     * @return $this
+     */
+    public function orWhereDoesntHaveMorph($relation, $types, ?Closure $callback = null)
+    {
+        return $this->doesntHaveMorph($relation, $types, 'or', $callback);
+    }
+
+}
+namespace Illuminate\Database\Eloquent\Relations;
+/**
+ * @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+ * @template TDeclaringModel of \Illuminate\Database\Eloquent\Model
+ */
+class MorphTo {}

@@ -43,6 +43,10 @@ final class EloquentRelationCallbackProvider implements CallableSignatureOverrid
                 self::BUILDER,
                 $method,
             ), self::METHODS),
+            ...array_map(static fn (string $method): MethodTarget => MethodTarget::exact(
+                'Illuminate\\Database\\Eloquent\\Concerns\\QueriesRelationships',
+                $method,
+            ), self::METHODS),
             MethodTarget::exact(self::BUILDER, 'with'),
             ...array_map(static fn (string $method): MethodTarget => MethodTarget::exact(
                 self::MODEL,

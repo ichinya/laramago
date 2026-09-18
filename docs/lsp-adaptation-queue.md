@@ -36,7 +36,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 28 | Eager-load colon projection syntax | implemented; Eager-loading methods including withWhereHas accept colon projections; pure existence queries preserve full names. Real-Mago tests cover builder/static forwarding and native fallback. |
 | 29 | Related model projection columns | deferred; Missing projection columns require complete effective-query metadata or an explicit query-source contract; schema alone cannot exclude scopes, joins, from changes, and aliases. No diagnostic added. |
 | 30 | Eager-loading callback parameter types | implemented; Direct Builder::with literal-path callbacks receive concrete Relation types under native broad contracts. Real-Mago/native comparisons pass; nested callback arrays remain SDK-deferred. |
-| 31 | Morph callbacks with explicit model classes | running; Independent implementation or coverage audit in progress. |
+| 31 | Morph callbacks with explicit model classes | implemented; Four native Morph existence callbacks refine explicit fully qualified model targets under per-class runtime identity assertions; 45 morph and native trait callback regressions pass. Unknown morph maps/imports and custom dispatch defer. |
 | 32 | Relation aggregate references | queued |
 | 33 | Relation aggregate alias syntax | queued |
 | 34 | Query-local aggregate result properties | queued |

@@ -1,0 +1,86 @@
+<?php
+
+// Installed Laravel declarations and forwarding bodies; syntax only.
+// Copyright (c) Taylor Otwell. MIT: see morph-callbacks-LICENSE.md.
+namespace Illuminate\Database\Eloquent\Concerns;
+use Closure;
+trait QueriesRelationships
+{
+    /**
+     * Add a relationship count / exists condition to the query with where clauses.
+     *
+     * @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  \Illuminate\Database\Eloquent\Relations\Relation<TRelatedModel, *, *>|string  $relation
+     * @param  (\Closure(\Illuminate\Database\Eloquent\Builder<TRelatedModel>): mixed)|null  $callback
+     * @param  string  $operator
+     * @param  \Illuminate\Contracts\Database\Query\Expression|int  $count
+     * @return $this
+     */
+    public function whereHas($relation, ?Closure $callback = null, $operator = '>=', $count = 1)
+    {
+        return $this->has($relation, $operator, $count, 'and', $callback);
+    }
+
+    /**
+     * Add a relationship count / exists condition to the query with where clauses and an "or".
+     *
+     * @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  \Illuminate\Database\Eloquent\Relations\Relation<TRelatedModel, *, *>|string  $relation
+     * @param  (\Closure(\Illuminate\Database\Eloquent\Builder<TRelatedModel>): mixed)|null  $callback
+     * @param  string  $operator
+     * @param  \Illuminate\Contracts\Database\Query\Expression|int  $count
+     * @return $this
+     */
+    public function orWhereHas($relation, ?Closure $callback = null, $operator = '>=', $count = 1)
+    {
+        return $this->has($relation, $operator, $count, 'or', $callback);
+    }
+
+    /**
+     * Add a relationship count / exists condition to the query with where clauses.
+     *
+     * @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  \Illuminate\Database\Eloquent\Relations\Relation<TRelatedModel, *, *>|string  $relation
+     * @param  (\Closure(\Illuminate\Database\Eloquent\Builder<TRelatedModel>): mixed)|null  $callback
+     * @return $this
+     */
+    public function whereDoesntHave($relation, ?Closure $callback = null)
+    {
+        return $this->doesntHave($relation, 'and', $callback);
+    }
+
+    /**
+     * Add a relationship count / exists condition to the query with where clauses and an "or".
+     *
+     * @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  \Illuminate\Database\Eloquent\Relations\Relation<TRelatedModel, *, *>|string  $relation
+     * @param  (\Closure(\Illuminate\Database\Eloquent\Builder<TRelatedModel>): mixed)|null  $callback
+     * @return $this
+     */
+    public function orWhereDoesntHave($relation, ?Closure $callback = null)
+    {
+        return $this->doesntHave($relation, 'or', $callback);
+    }
+
+    /**
+     * Add a relationship count / exists condition to the query with where clauses.
+     *
+     * Also load the relationship with the same condition.
+     *
+     * @param  string  $relation
+     * @param  (\Closure(\Illuminate\Database\Eloquent\Builder<*>|\Illuminate\Database\Eloquent\Relations\Relation<*, *, *>): mixed)|null  $callback
+     * @param  string  $operator
+     * @param  \Illuminate\Contracts\Database\Query\Expression|int  $count
+     * @return $this
+     */
+    public function withWhereHas($relation, ?Closure $callback = null, $operator = '>=', $count = 1)
+    {
+        return $this->whereHas(Str::before($relation, ':'), $callback, $operator, $count)
+            ->with($callback ? [$relation => static fn ($query) => $callback($query)] : $relation);
+    }
+
+}

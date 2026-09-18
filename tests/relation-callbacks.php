@@ -74,6 +74,19 @@ $framework = str_replace(
     .'/** @param string $relation @param (\\Closure(self<\\Illuminate\\Database\\Eloquent\\Model>|\\Illuminate\\Database\\Eloquent\\Relations\\Relation<\\Illuminate\\Database\\Eloquent\\Model, \\Illuminate\\Database\\Eloquent\\Model>): mixed)|null $callback @param string $operator @param int|\\Illuminate\\Contracts\\Database\\Query\\Expression $count @return $this */ public function withWhereHas($relation, $callback = null, $operator = ">=", $count = 1) { return $this; }',
     $framework,
 );
+if (in_array('--native-trait', $argv, true)) {
+    $framework = preg_replace(
+        '~/\*\*(?:(?!/\*\*).)*?\*/\s*public function (?:whereHas|orWhereHas|whereDoesntHave|orWhereDoesntHave|withWhereHas)\([^{}]*\)\s*\{[^{}]*\}~s',
+        '',
+        $framework,
+    );
+    $framework = str_replace(
+        "class Builder\n{",
+        "class Builder\n{\n use \\Illuminate\\Database\\Eloquent\\Concerns\\QueriesRelationships;",
+        $framework,
+    );
+    $framework .= substr(file_get_contents(__DIR__.'/fixtures/analysis/relation-callbacks-trait.php.stub'), 5);
+}
 $framework = preg_replace_callback(
     '~/\*\*.*?\*/~s',
     static fn (array $match): string => str_contains($match[0], "\n")
@@ -451,6 +464,26 @@ $cases += [
         ['less-specific-argument'],
     ],
 ];
+if (in_array('--native-trait', $argv, true)) {
+    $cases = [];
+    foreach (['whereHas', 'orWhereHas', 'whereDoesntHave', 'orWhereDoesntHave'] as $method) {
+        $cases[$method.' native trait'] = [
+            'CallbackInferred::query()->'.$method.'("posts", fn ($q) => acceptPosts($q));',
+            'void',
+            [],
+        ];
+        $cases[$method.' trait wrong model'] = [
+            'CallbackInferred::query()->'.$method.'("posts", fn ($q) => acceptRecords($q));',
+            'void',
+            ['invalid-argument'],
+        ];
+    }
+    $cases['native trait dual contexts'] = [
+        'CallbackInferred::query()->withWhereHas("posts", fn ($q) => acceptBoth($q));',
+        'void',
+        [],
+    ];
+}
 $config = [
     'extends' => $package.'/presets/laravel.toml',
     'php-version' => '8.2',
@@ -459,6 +492,8 @@ $config = [
         'laramago' => [
             'command' => [
                 PHP_BINARY,
+                '-d',
+                'opcache.enable_cli=0',
                 $package.'/bin/laramago-worker.php',
                 $package.'/vendor/autoload.php',
                 $workspace,
@@ -469,53 +504,55 @@ $config = [
 ];
 file_put_contents($workspace.'/mago.json', json_encode($config, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
 check_relation_callbacks($cases, $command, $workspace);
-$config['analyzer'] = ['disable-default-plugins' => true];
-file_put_contents($workspace.'/mago.json', json_encode($config, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
-check_relation_callbacks(
-    [
-        'native syntax callback remains broad' => [
-            'CallbackInferred::query()->whereHas("posts", fn ($q) => acceptPosts($q));',
-            'void',
-            ['less-specific-argument'],
+if (! in_array('--native-trait', $argv, true)) {
+    $config['analyzer'] = ['disable-default-plugins' => true];
+    file_put_contents($workspace.'/mago.json', json_encode($config, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+    check_relation_callbacks(
+        [
+            'native syntax callback remains broad' => [
+                'CallbackInferred::query()->whereHas("posts", fn ($q) => acceptPosts($q));',
+                'void',
+                ['less-specific-argument'],
+            ],
+            'native dual callback remains broad' => [
+                'CallbackInferred::query()->withWhereHas("posts", fn ($q) => acceptBoth($q));',
+                'void',
+                ['less-specific-argument'],
+            ],
+            'native eager callback remains broad' => [
+                'CallbackInferred::query()->with("posts", fn ($q) => acceptRelation($q));',
+                'void',
+                ['less-specific-argument'],
+            ],
+            'native eager callback map remains broad' => [
+                'CallbackInferred::query()->with(["posts" => fn ($q) => acceptPosts($q)]);',
+                'void',
+                ['mixed-argument'],
+            ],
         ],
-        'native dual callback remains broad' => [
-            'CallbackInferred::query()->withWhereHas("posts", fn ($q) => acceptBoth($q));',
-            'void',
-            ['less-specific-argument'],
+        $command,
+        $workspace,
+    );
+    $needle = '(\Closure(\Illuminate\Database\Eloquent\Relations\Relation<\Illuminate\Database\Eloquent\Model, \Illuminate\Database\Eloquent\Model>): mixed)|string|null $callback';
+    $alteredFramework = str_replace($needle, '\Closure(int): mixed $callback', $framework, $replacements);
+    if ($replacements !== 2) {
+        throw new RuntimeException('Could not install the altered Builder::with callback contract.');
+    }
+    file_put_contents($workspace.'/framework.php', $alteredFramework);
+    unset($config['analyzer']);
+    file_put_contents($workspace.'/mago.json', json_encode($config, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+    check_relation_callbacks(
+        [
+            'altered eager callback contract preserved' => [
+                'CallbackInferred::query()->with("posts", fn ($q) => acceptRelation($q));',
+                'void',
+                ['invalid-argument'],
+            ],
         ],
-        'native eager callback remains broad' => [
-            'CallbackInferred::query()->with("posts", fn ($q) => acceptRelation($q));',
-            'void',
-            ['less-specific-argument'],
-        ],
-        'native eager callback map remains broad' => [
-            'CallbackInferred::query()->with(["posts" => fn ($q) => acceptPosts($q)]);',
-            'void',
-            ['mixed-argument'],
-        ],
-    ],
-    $command,
-    $workspace,
-);
-$needle = '(\Closure(\Illuminate\Database\Eloquent\Relations\Relation<\Illuminate\Database\Eloquent\Model, \Illuminate\Database\Eloquent\Model>): mixed)|string|null $callback';
-$alteredFramework = str_replace($needle, '\Closure(int): mixed $callback', $framework, $replacements);
-if ($replacements !== 2) {
-    throw new RuntimeException('Could not install the altered Builder::with callback contract.');
+        $command,
+        $workspace,
+    );
 }
-file_put_contents($workspace.'/framework.php', $alteredFramework);
-unset($config['analyzer']);
-file_put_contents($workspace.'/mago.json', json_encode($config, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
-check_relation_callbacks(
-    [
-        'altered eager callback contract preserved' => [
-            'CallbackInferred::query()->with("posts", fn ($q) => acceptRelation($q));',
-            'void',
-            ['invalid-argument'],
-        ],
-    ],
-    $command,
-    $workspace,
-);
 if (is_file($workspace.'/.env')) {
     throw new RuntimeException('The offline fixture must not have an environment file.');
 }
