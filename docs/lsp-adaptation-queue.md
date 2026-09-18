@@ -34,7 +34,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 26 | Nested relation paths | already-covered; Verified nested relation traversal, callback typing and complete-name checks with focused suites. |
 | 27 | Mixed eager-load declaration arrays | implemented; Mixed eager-load arrays honor effective keys and Laravel numeric-string semantics; dynamic/negative uncertainty defers. |
 | 28 | Eager-load colon projection syntax | running |
-| 29 | Related model projection columns | queued |
+| 29 | Related model projection columns | deferred; Missing projection columns require complete effective-query metadata or an explicit query-source contract; schema alone cannot exclude scopes, joins, from changes, and aliases. No diagnostic added. |
 | 30 | Eager-loading callback parameter types | queued |
 | 31 | Morph callbacks with explicit model classes | queued |
 | 32 | Relation aggregate references | queued |
