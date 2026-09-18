@@ -11,7 +11,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 3 | Native property and PHPDoc priority | already-covered; Verified EloquentPropertyProvider native and PHPDoc priority with properties tests. |
 | 4 | Built-in attribute casts | queued |
 | 5 | Typed accessors and mutators | already-covered; Verified typed legacy and Attribute accessors in EloquentPropertyProvider and properties tests. |
-| 6 | Separate attribute read and write types | queued |
+| 6 | Separate attribute read and write types | already-covered; Verified independent read/write contracts in AttributeTypes, CustomCastTypes and focused tests. |
 | 7 | Relation properties and typed collections | queued |
 | 8 | Legacy and attributed local scopes | queued |
 | 9 | Scope parameters and simple fluent bodies | queued |
