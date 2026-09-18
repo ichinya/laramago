@@ -6,8 +6,8 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 
 | Item | Scope | Status |
 | --- | --- | --- |
-| 1 | Model table mapping | queued |
-| 2 | Migration column types and nullability | queued |
+| 1 | Model table mapping | already-covered; Verified ModelReflection::table and tests/properties.php. |
+| 2 | Migration column types and nullability | running |
 | 3 | Native property and PHPDoc priority | queued |
 | 4 | Built-in attribute casts | queued |
 | 5 | Typed accessors and mutators | queued |
