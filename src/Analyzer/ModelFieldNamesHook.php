@@ -21,18 +21,22 @@ use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\ParserFactory;
 
-/** Validate literal $fillable and $guarded names only against explicit complete field catalogs. */
+/** Validate safe literal model-property names only against explicit complete catalogs. */
 final class ModelFieldNamesHook implements ClassLikeAnalysisHook
 {
+    private const MODEL = ModelReflection::MODEL;
+    private const HAS_ATTRIBUTES = 'Illuminate\\Database\\Eloquent\\Concerns\\HasAttributes';
+    private const HIDES_ATTRIBUTES = 'Illuminate\\Database\\Eloquent\\Concerns\\HidesAttributes';
+
     private const NATIVE_FILLABLE_OWNERS = [
-        ModelReflection::MODEL,
+        self::MODEL,
         'Illuminate\\Database\\Eloquent\\Concerns\\GuardsAttributes',
     ];
 
     /** @var array<string, array{owners: list<string>, file: string, visibility: Visibility}> */
     private const NATIVE_DISPATCH = [
         'fill' => [
-            'owners' => [ModelReflection::MODEL],
+            'owners' => [self::MODEL],
             'file' => 'Illuminate/Database/Eloquent/Model.php',
             'visibility' => Visibility::Public,
         ],
@@ -64,6 +68,60 @@ final class ModelFieldNamesHook implements ClassLikeAnalysisHook
         'isGuarded' => [
             'owners' => self::NATIVE_FILLABLE_OWNERS,
             'file' => 'Illuminate/Database/Eloquent/Concerns/GuardsAttributes.php',
+            'visibility' => Visibility::Public,
+        ],
+    ];
+
+    /** @var array<string, array{owners: list<string>, file: string, visibility: Visibility}> */
+    private const NATIVE_HIDDEN_DISPATCH = [
+        'toArray' => [
+            'owners' => [self::MODEL],
+            'file' => 'Illuminate/Database/Eloquent/Model.php',
+            'visibility' => Visibility::Public,
+        ],
+        'attributesToArray' => [
+            'owners' => [self::MODEL, self::HAS_ATTRIBUTES],
+            'file' => 'Illuminate/Database/Eloquent/Concerns/HasAttributes.php',
+            'visibility' => Visibility::Public,
+        ],
+        'relationsToArray' => [
+            'owners' => [self::MODEL, self::HAS_ATTRIBUTES],
+            'file' => 'Illuminate/Database/Eloquent/Concerns/HasAttributes.php',
+            'visibility' => Visibility::Public,
+        ],
+        'getArrayableAttributes' => [
+            'owners' => [self::MODEL, self::HAS_ATTRIBUTES],
+            'file' => 'Illuminate/Database/Eloquent/Concerns/HasAttributes.php',
+            'visibility' => Visibility::Protected,
+        ],
+        'getArrayableAppends' => [
+            'owners' => [self::MODEL, self::HAS_ATTRIBUTES],
+            'file' => 'Illuminate/Database/Eloquent/Concerns/HasAttributes.php',
+            'visibility' => Visibility::Protected,
+        ],
+        'getArrayableRelations' => [
+            'owners' => [self::MODEL, self::HAS_ATTRIBUTES],
+            'file' => 'Illuminate/Database/Eloquent/Concerns/HasAttributes.php',
+            'visibility' => Visibility::Protected,
+        ],
+        'getArrayableItems' => [
+            'owners' => [self::MODEL, self::HAS_ATTRIBUTES],
+            'file' => 'Illuminate/Database/Eloquent/Concerns/HasAttributes.php',
+            'visibility' => Visibility::Protected,
+        ],
+        'getAppends' => [
+            'owners' => [self::MODEL, self::HAS_ATTRIBUTES],
+            'file' => 'Illuminate/Database/Eloquent/Concerns/HasAttributes.php',
+            'visibility' => Visibility::Public,
+        ],
+        'getHidden' => [
+            'owners' => [self::MODEL, self::HIDES_ATTRIBUTES],
+            'file' => 'Illuminate/Database/Eloquent/Concerns/HidesAttributes.php',
+            'visibility' => Visibility::Public,
+        ],
+        'getVisible' => [
+            'owners' => [self::MODEL, self::HIDES_ATTRIBUTES],
+            'file' => 'Illuminate/Database/Eloquent/Concerns/HidesAttributes.php',
             'visibility' => Visibility::Public,
         ],
     ];
@@ -101,7 +159,8 @@ final class ModelFieldNamesHook implements ClassLikeAnalysisHook
         }
         $nativeFillable = self::hasNativeDispatch($context, $model, self::NATIVE_DISPATCH);
         $nativeGuarded = self::hasNativeDispatch($context, $model, self::NATIVE_GUARDED_DISPATCH);
-        if (! $nativeFillable && ! $nativeGuarded) {
+        $nativeHidden = self::hasNativeDispatch($context, $model, self::NATIVE_HIDDEN_DISPATCH);
+        if (! $nativeFillable && ! $nativeGuarded && ! $nativeHidden) {
             return;
         }
         foreach ($class->stmts as $statement) {
@@ -110,11 +169,14 @@ final class ModelFieldNamesHook implements ClassLikeAnalysisHook
             }
             foreach ($statement->props as $property) {
                 $propertyName = $property->name->toString();
+                $native = match ($propertyName) {
+                    'fillable' => $nativeFillable,
+                    'guarded' => $nativeGuarded,
+                    'hidden' => $nativeHidden,
+                    default => null,
+                };
                 if (
-                    ($propertyName !== 'fillable'
-                    || ! $nativeFillable)
-                    && ($propertyName !== 'guarded'
-                    || ! $nativeGuarded)
+                    $native !== true
                     || $statement->isPrivate()
                     || $statement->isStatic()
                     || ! $property->default instanceof Node\Expr\Array_
@@ -139,20 +201,26 @@ final class ModelFieldNamesHook implements ClassLikeAnalysisHook
                     if ($propertyName === 'guarded' && $name === '*') {
                         continue;
                     }
-                    $contains = $propertyName === 'guarded'
-                        ? $this->fields->containsCaseInsensitive($model, $name)
-                        : $this->fields->contains($model, $name);
+                    $contains = match ($propertyName) {
+                        'guarded' => $this->fields->containsCaseInsensitive($model, $name),
+                        'hidden' => $this->fields->containsSerializationKey($model, $name),
+                        default => $this->fields->contains($model, $name),
+                    };
                     if ($contains !== false) {
                         continue;
                     }
                     $context->report(
                         Level::Warning,
-                        'laramago-missing-model-field',
+                        $propertyName === 'hidden'
+                            ? 'laramago-missing-model-serialization-key'
+                            : 'laramago-missing-model-field',
                         Issue::at(
                             ucfirst($propertyName)
                             .' name '
                             .$name
-                            .' is absent from the complete field catalog for '
+                            .' is absent from the complete '
+                            .($propertyName === 'hidden' ? 'serialization key' : 'field')
+                            .' catalog for '
                             .$model
                             .'.',
                             new SourceLocation(

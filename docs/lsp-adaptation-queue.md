@@ -18,7 +18,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 10 | Custom builders and collections | already-covered; Verified custom builder and collection resolution with eight focused suites. |
 | 11 | Fillable name validation | implemented; Explicit exact-model field catalogs validate literal fillable names; native dispatch and disabled regressions passed. |
 | 12 | Guarded name validation | implemented; Guarded names reuse model catalogs with case-insensitive and wildcard semantics; focused and disabled checks passed. |
-| 13 | Hidden name validation | running |
+| 13 | Hidden name validation | implemented; Hidden names use complete field and pre-serialization key catalogs; focused native/custom/disabled cases passed. |
 | 14 | Visible name validation | queued |
 | 15 | Appended accessor name validation | queued |
 | 16 | Model attribute declarations for field lists | queued |
@@ -30,7 +30,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 22 | Both operands of whereColumn | queued |
 | 23 | Search versus creation attribute arrays | queued |
 | 24 | Suggestions for proven field typos | queued |
-| 25 | Additional relation-name call sites | queued |
+| 25 | Additional relation-name call sites | running |
 | 26 | Nested relation paths | queued |
 | 27 | Mixed eager-load declaration arrays | queued |
 | 28 | Eager-load colon projection syntax | queued |

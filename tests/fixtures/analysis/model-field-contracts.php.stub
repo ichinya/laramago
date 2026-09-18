@@ -46,6 +46,32 @@ namespace Example {
         protected $guarded = ['key' => 'missing', ...LiteralFields::DYNAMIC];
     }
 
+    class CompleteHiddenRecord extends Model
+    {
+        protected $hidden = [
+            'known',
+            'userProfile',
+            'display_name',
+            'user_profile', // hidden-output-key
+            'missing', // hidden-missing
+        ];
+    }
+
+    class OpenHiddenRecord extends Model
+    {
+        protected $hidden = ['missing'];
+    }
+
+    class DynamicHiddenRecord extends Model
+    {
+        protected $hidden = ['key' => 'missing', ...LiteralFields::DYNAMIC];
+    }
+
+    class MalformedSerializationRecord extends Model
+    {
+        protected $hidden = ['missing'];
+    }
+
     class ChildRecord extends CompleteRecord
     {
         protected $fillable = ['missing'];
@@ -112,6 +138,36 @@ namespace Example {
         protected $guarded = ['missing'];
 
         public function isFillable(string $key): bool
+        {
+            throw new \RuntimeException('Must not execute');
+        }
+    }
+
+    class CustomGetHiddenRecord extends Model
+    {
+        protected $hidden = ['missing'];
+
+        public function getHidden(): array
+        {
+            throw new \RuntimeException('Must not execute');
+        }
+    }
+
+    class CustomToArrayRecord extends Model
+    {
+        protected $hidden = ['missing'];
+
+        public function toArray(): array
+        {
+            throw new \RuntimeException('Must not execute');
+        }
+    }
+
+    class CustomArrayableItemsRecord extends Model
+    {
+        protected $hidden = ['missing'];
+
+        protected function getArrayableItems(array $values): array
         {
             throw new \RuntimeException('Must not execute');
         }

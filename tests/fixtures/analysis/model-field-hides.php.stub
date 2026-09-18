@@ -1,0 +1,18 @@
+<?php
+
+namespace Illuminate\Database\Eloquent\Concerns;
+
+trait HidesAttributes
+{
+    /** @return list<string> */
+    public function getHidden(): array
+    {
+        throw new \RuntimeException('Must not execute');
+    }
+
+    /** @return list<string> */
+    public function getVisible(): array
+    {
+        throw new \RuntimeException('Must not execute');
+    }
+}

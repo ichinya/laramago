@@ -9,6 +9,8 @@ final class ModelFieldCatalog
 {
     /** @var array<string, list<string>> */
     private array $models = [];
+    /** @var array<string, list<string>> */
+    private array $serializationKeys = [];
 
     public function __construct(string $projectRoot)
     {
@@ -40,6 +42,7 @@ final class ModelFieldCatalog
             $key = strtolower(ltrim($model, '\\'));
             if (isset($seen[$key])) {
                 unset($this->models[$key]);
+                unset($this->serializationKeys[$key]);
                 continue;
             }
             $seen[$key] = true;
@@ -62,6 +65,31 @@ final class ModelFieldCatalog
                 $valid[] = $field;
             }
             $this->models[$key] = array_values(array_unique($valid));
+            /** @var mixed $serialization */
+            $serialization = $catalog['serialization'] ?? null;
+            /** @var mixed $keys */
+            $keys = is_array($serialization) ? $serialization['keys'] ?? null : null;
+            if (
+                ! is_array($serialization)
+                || ($serialization['complete'] ?? null) !== true
+                || ! is_array($keys)
+                || ! array_is_list($keys)
+            ) {
+                continue;
+            }
+            $valid = [];
+            /** @var mixed $serializationKey */
+            foreach ($keys as $serializationKey) {
+                if (
+                    ! is_string($serializationKey)
+                    || $serializationKey === ''
+                    || str_contains($serializationKey, "\0")
+                ) {
+                    continue 2;
+                }
+                $valid[] = $serializationKey;
+            }
+            $this->serializationKeys[$key] = array_values(array_unique($valid));
         }
     }
 
@@ -98,6 +126,20 @@ final class ModelFieldCatalog
         }
 
         return false;
+    }
+
+    /**
+     * Hidden names may identify attributes or the pre-serialization names of
+     * relationships and appends. Absence is proven only when both sets are complete.
+     */
+    public function containsSerializationKey(string $model, string $name): ?bool
+    {
+        $key = strtolower(ltrim($model, '\\'));
+        if (! array_key_exists($key, $this->models) || ! array_key_exists($key, $this->serializationKeys)) {
+            return null;
+        }
+
+        return in_array($name, $this->models[$key], true) || in_array($name, $this->serializationKeys[$key], true);
     }
 
     /** @return list<string>|null */

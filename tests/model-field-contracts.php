@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-// Verify opt-in fillable validation through the real SDK worker.
+// Verify opt-in model property-name validation through the real SDK worker.
 $binary = getenv('MAGO_BINARY') ?: __DIR__.'/../vendor/bin/mago';
 $command = str_ends_with($binary, '.exe') ? [$binary] : [PHP_BINARY, $binary];
 $package = str_replace('\\', '/', dirname(__DIR__));
@@ -18,11 +18,17 @@ mkdir($framework.'/Concerns', recursive: true);
 mkdir($framework.'/Attributes', recursive: true);
 copy(__DIR__.'/fixtures/analysis/model-field-model.php.stub', $framework.'/Model.php');
 copy(__DIR__.'/fixtures/analysis/model-field-guards.php.stub', $framework.'/Concerns/GuardsAttributes.php');
+copy(__DIR__.'/fixtures/analysis/model-field-hides.php.stub', $framework.'/Concerns/HidesAttributes.php');
+copy(__DIR__.'/fixtures/analysis/model-field-serialization.php.stub', $framework.'/Concerns/HasAttributes.php');
 copy(
     __DIR__.'/fixtures/analysis/model-field-fillable-attribute.php.stub',
     $framework.'/Attributes/Fillable.php',
 );
 $complete = static fn (array $fields): array => ['complete' => true, 'fields' => $fields];
+$serializable = static fn (array $fields, array $keys): array => [
+    ...$complete($fields),
+    'serialization' => ['complete' => true, 'keys' => $keys],
+];
 file_put_contents($workspace.'/composer.json', json_encode([
     'extra' => [
         'laramago' => [
@@ -37,6 +43,16 @@ file_put_contents($workspace.'/composer.json', json_encode([
                 'Example\\GuardedWildcardRecord' => $complete([]),
                 'Example\\GuardedMixedWildcardRecord' => $complete([]),
                 'Example\\DynamicGuardedRecord' => $complete([]),
+                'Example\\CompleteHiddenRecord' => $serializable(
+                    ['known'],
+                    ['userProfile', 'display_name'],
+                ),
+                'Example\\OpenHiddenRecord' => $complete([]),
+                'Example\\DynamicHiddenRecord' => $serializable([], []),
+                'Example\\MalformedSerializationRecord' => [
+                    ...$complete([]),
+                    'serialization' => ['complete' => true, 'keys' => [false]],
+                ],
                 'Example\\DynamicRecord' => $complete(['known']),
                 'Example\\UnpackedRecord' => $complete([]),
                 'Example\\CustomConnectionRecord' => $complete(['remote_only']),
@@ -44,6 +60,9 @@ file_put_contents($workspace.'/composer.json', json_encode([
                 'Example\\CustomGetGuardedRecord' => $complete([]),
                 'Example\\CustomIsGuardedRecord' => $complete([]),
                 'Example\\CustomIsFillableRecord' => $complete([]),
+                'Example\\CustomGetHiddenRecord' => $serializable([], []),
+                'Example\\CustomToArrayRecord' => $serializable([], []),
+                'Example\\CustomArrayableItemsRecord' => $serializable([], []),
                 'Example\\CustomFillRecord' => $complete([]),
                 'Example\\CustomMassAssignmentRecord' => $complete([]),
                 'Example\\MalformedCatalogRecord' => ['complete' => true, 'fields' => [false]],
@@ -62,6 +81,8 @@ file_put_contents($workspace.'/mago.json', json_encode([
         'includes' => [
             'vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php',
             'vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/GuardsAttributes.php',
+            'vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HidesAttributes.php',
+            'vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasAttributes.php',
             'vendor/laravel/framework/src/Illuminate/Database/Eloquent/Attributes/Fillable.php',
         ],
     ],
@@ -116,13 +137,19 @@ foreach (explode("\n", $fixture) as $offset => $line) {
         || str_contains($line, '// literal-missing')
         || str_contains($line, '// guarded-missing')
         || str_contains($line, '// guarded-mixed-missing')
+        || str_contains($line, '// hidden-output-key')
+        || str_contains($line, '// hidden-missing')
     ) {
-        $expected[$offset + 1] = ['ichinya/laramago/laramago-missing-model-field'];
+        $expected[$offset + 1] = [
+            str_contains($line, '// hidden-')
+                ? 'ichinya/laramago/laramago-missing-model-serialization-key'
+                : 'ichinya/laramago/laramago-missing-model-field',
+        ];
     }
 }
 if ($actual !== $expected) {
     throw new RuntimeException(
-        'Expected only proven missing fillable names: '
+        'Expected only proven missing model property names: '
         .json_encode($expected)
         .', got '
         .json_encode($actual)
@@ -130,7 +157,7 @@ if ($actual !== $expected) {
         .$workspace,
     );
 }
-echo "PASS: complete catalogs validate only safe literal fillable and guarded names\n";
+echo "PASS: complete catalogs validate only safe literal fillable, guarded and hidden names\n";
 
 $nativeConfig = json_decode(file_get_contents($workspace.'/mago.json'), true, flags: JSON_THROW_ON_ERROR);
 unset($nativeConfig['extension-hosts']);

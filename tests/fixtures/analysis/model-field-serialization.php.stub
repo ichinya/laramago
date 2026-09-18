@@ -1,0 +1,46 @@
+<?php
+
+namespace Illuminate\Database\Eloquent\Concerns;
+
+trait HasAttributes
+{
+    public function attributesToArray(): array
+    {
+        throw new \RuntimeException('Must not execute');
+    }
+
+    public function relationsToArray(): array
+    {
+        throw new \RuntimeException('Must not execute');
+    }
+
+    /** @return array<string, mixed> */
+    protected function getArrayableAttributes(): array
+    {
+        throw new \RuntimeException('Must not execute');
+    }
+
+    /** @return list<string> */
+    protected function getArrayableAppends(): array
+    {
+        throw new \RuntimeException('Must not execute');
+    }
+
+    /** @return array<string, mixed> */
+    protected function getArrayableRelations(): array
+    {
+        throw new \RuntimeException('Must not execute');
+    }
+
+    /** @return array<string, mixed> */
+    protected function getArrayableItems(array $values): array
+    {
+        throw new \RuntimeException('Must not execute');
+    }
+
+    /** @return list<string> */
+    public function getAppends(): array
+    {
+        throw new \RuntimeException('Must not execute');
+    }
+}
