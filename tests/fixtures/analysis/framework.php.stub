@@ -257,6 +257,23 @@ namespace Illuminate\Database\Query;
 class Builder
 {
     /**
+     * @param \Illuminate\Contracts\Database\Query\Expression|string|array $first
+     * @param string|null $operator
+     * @param string|null $second
+     * @param string|null $boolean
+     * @return $this
+     */
+    public function whereColumn($first, $operator = null, $second = null, $boolean = 'and') {}
+
+    /**
+     * @param \Illuminate\Contracts\Database\Query\Expression|string|array $first
+     * @param string|null $operator
+     * @param string|null $second
+     * @return $this
+     */
+    public function orWhereColumn($first, $operator = null, $second = null) {}
+
+    /**
      * @param \Illuminate\Contracts\Database\Query\Expression|string $column
      * @param mixed $values
      * @param string $boolean

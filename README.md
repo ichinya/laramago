@@ -675,6 +675,7 @@ Eloquent builder retain its model type as well:
 
 ```php
 User::whereIn('id', [1, 2])->get();                   // Collection<int, User>
+User::whereColumn('created_at', '<', 'updated_at');   // Builder<User>
 User::whereDate('created_at', '2026-01-01')->first();  // User|null
 User::whereMonth('created_at', 1)->firstOrFail();      // User
 User::whereKey(1)->exists();                         // bool
@@ -683,15 +684,17 @@ User::whereKey(1)->exists();                         // bool
 | Family | Supported methods |
 | --- | --- |
 | Primary key | `whereKey`, `whereKeyNot` |
+| Column comparisons | `whereColumn`, `orWhereColumn` |
 | Membership | `whereIn`, `whereNotIn`, `orWhereIn`, `orWhereNotIn` |
 | Null checks | `whereNull`, `whereNotNull`, `orWhereNull`, `orWhereNotNull` |
 | Ranges | `whereBetween`, `whereNotBetween`, `orWhereBetween`, `orWhereNotBetween` |
 | Dates and times | `whereDate`, `whereTime`, `whereDay`, `whereMonth`, `whereYear`, and their `orWhere` variants |
 
 Parameter types, names, defaults and arity come from the installed framework.
-For example, `whereIn()` retains Laravel's `mixed` values contract; the extension
-does not invent stricter argument types. Existing Mago checks on generic subquery
-arguments remain visible. Direct Query Builder calls retain their native result.
+For example, `whereColumn()` retains its two-operand shortcut and array form, and
+`whereIn()` retains Laravel's `mixed` values contract; the extension does not invent
+stricter argument types. Existing Mago checks on generic subquery arguments remain
+visible. Direct Query Builder calls retain their native result.
 
 Declared model methods and PHPDoc keep priority. Public Eloquent methods such as
 `whereKey()` precede named scopes; scopes precede forwarding to Query Builder.

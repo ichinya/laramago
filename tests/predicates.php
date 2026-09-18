@@ -29,6 +29,8 @@ file_put_contents($workspace.'/mago.json', json_encode($config, JSON_PRETTY_PRIN
 $calls = [
     'whereKey' => '1',
     'whereKeyNot' => '[1, 2]',
+    'whereColumn' => '"created_at", "updated_at"',
+    'orWhereColumn' => '"created_at", "<", "updated_at"',
     'whereIn' => '"id", [1, 2]',
     'orWhereIn' => '"id", [1, 2]',
     'whereNotIn' => '"id", [1, 2]',
@@ -71,6 +73,16 @@ $cases += [
     'named null columns' => ['return Record::whereNull(columns: ["label"]);', 'Builder<Record>', []],
     'named null column' => ['return Record::orWhereNull(column: "label");', 'Builder<Record>', []],
     'named key' => ['return Record::whereKey(id: [1, 2]);', 'Builder<Record>', []],
+    'named column operands' => [
+        'return Record::whereColumn(second: "updated_at", first: "created_at");',
+        'Builder<Record>',
+        [],
+    ],
+    'column comparison array' => [
+        'return Record::whereColumn([["created_at", "updated_at"], ["id", ">", "parent_id"]]);',
+        'Builder<Record>',
+        [],
+    ],
     'mixed values contract preserved' => ['return Record::whereIn("id", new stdClass);', 'Builder<Record>', []],
     'subquery values' => ['return Record::whereIn("id", Record::query());', 'Builder<Record>', []],
     'callback values' => ['return Record::whereIn("id", fn (QueryBuilder $query) => $query);', 'Builder<Record>', []],
@@ -126,6 +138,7 @@ $cases += [
     'missing list values' => ['Record::whereIn("id");', 'void', ['too-few-arguments']],
     'missing key' => ['Record::whereKey();', 'void', ['too-few-arguments']],
     'missing date value' => ['Record::whereDate("created_at");', 'void', ['too-few-arguments']],
+    'installed optional column operands' => ['Record::whereColumn("created_at");', 'void', []],
     'extra key argument' => ['Record::whereKey(1, 2);', 'void', ['too-many-arguments']],
     'extra or predicate argument' => ['Record::orWhereIn("id", [1], "and");', 'void', ['too-many-arguments']],
     'invalid named predicate argument' => [
@@ -134,6 +147,16 @@ $cases += [
         ['invalid-named-argument'],
     ],
     'invalid column argument' => ['Record::whereIn(new stdClass, [1]);', 'void', ['possibly-invalid-argument']],
+    'invalid first column operand' => [
+        'Record::whereColumn(new stdClass, "updated_at");',
+        'void',
+        ['possibly-invalid-argument'],
+    ],
+    'invalid second column operand' => [
+        'Record::whereColumn("created_at", new stdClass);',
+        'void',
+        ['invalid-argument'],
+    ],
     'invalid date argument' => [
         'Record::whereDate("created_at", new stdClass);',
         'void',
@@ -361,8 +384,23 @@ file_put_contents($workspace.'/mago.json', json_encode($config, JSON_PRETTY_PRIN
 check_predicates(
     [
         'native model predicate is unknown' => ['Record::whereIn("id", [1]);', 'void', ['non-documented-method']],
+        'native model column comparison is unknown' => [
+            'Record::whereColumn("created_at", "updated_at");',
+            'void',
+            ['non-documented-method'],
+        ],
         'native model key is unknown' => ['Record::whereKey(1);', 'void', ['non-documented-method']],
         'native query remains typed' => ['return (new QueryBuilder)->whereIn("id", [1]);', 'QueryBuilder', []],
+        'native query column comparison remains typed' => [
+            'return (new QueryBuilder)->whereColumn("created_at", "updated_at");',
+            'QueryBuilder',
+            [],
+        ],
+        'native query checks second column operand' => [
+            '(new QueryBuilder)->whereColumn("created_at", new stdClass);',
+            'void',
+            ['invalid-argument'],
+        ],
         'native range subquery generic check' => [
             'return (new QueryBuilder)->whereBetween($builder, [1, 2]);',
             'QueryBuilder',

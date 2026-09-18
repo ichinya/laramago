@@ -25,6 +25,8 @@ final class EloquentQueryProvider implements MethodReturnTypeProvider, CallableS
     private const SORTS = ['latest', 'oldest', 'orderby', 'orderbydesc'];
     private const KEYS = ['wherekey', 'wherekeynot'];
     private const PREDICATES = [
+        'wherecolumn',
+        'orwherecolumn',
         'wherein',
         'orwherein',
         'wherenotin',
