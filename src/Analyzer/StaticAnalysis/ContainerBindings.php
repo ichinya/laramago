@@ -157,6 +157,7 @@ final class ContainerBindings
                         'resolving',
                         'beforeresolving',
                         'afterresolving',
+                        'whenhasattribute',
                     ],
                     true,
                 )

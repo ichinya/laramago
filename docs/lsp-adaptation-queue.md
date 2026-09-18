@@ -69,7 +69,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 61 | Controller class existence in string actions | implemented; tests/controller-action-classes.php; absolute literal actions only |
 | 62 | Controller method existence in string actions | implemented; tests/controller-action-classes.php; standard dispatch and binding guards |
 | 63 | Controller action visibility | implemented; Controller action visibility follows native dispatch scope; 36 real-Mago scenarios passed. |
-| 64 | Array controller action references | queued |
+| 64 | Array controller action references | running |
 | 65 | Invokable controller actions | queued |
 | 66 | Controller route group context | queued |
 | 67 | Additional route registration methods | queued |
@@ -132,7 +132,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 124 | Translation fallback provenance | queued |
 | 125 | Static filesystem disk catalog | implemented; tests/configuration-index.php; source-only completeness |
 | 126 | Storage disk references | implemented; Guarded native Storage::disk diagnostics; 27 real-Mago scenarios passed. |
-| 127 | Storage injection attribute references | running |
+| 127 | Storage injection attribute references | implemented; Native Storage injection attribute diagnostics with provenance and custom-handler guards; focused suites passed. |
 | 128 | Storage fake and forget semantics | queued |
 | 129 | Unknown default disk configuration | queued |
 | 130 | Concrete filesystem adapter types | queued |

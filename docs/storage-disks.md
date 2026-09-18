@@ -29,18 +29,21 @@ allowed, but unpacked entries, dynamic keys, numeric keys and dynamic ancestor
 replacement disable the diagnostic. Laramago checks an exact native
 `Illuminate\Support\Facades\Storage::disk()` call only when the installed facade
 still uses the `filesystem` accessor and the exact native
-`Illuminate\Filesystem\FilesystemManager::disk()` declaration. A cataloged
-`config` or `filesystem` container binding, including an uncertain binding
-catalog, disables the diagnostic.
+`Illuminate\Filesystem\FilesystemManager::disk()` declaration. The exact native
+`Illuminate\Container\Attributes\Storage` injection attribute is also checked
+when its installed promoted `disk` constructor property and static `resolve()`
+body still forward through the container's `filesystem` service to `disk()`.
+A cataloged `config` or `filesystem` container binding, custom contextual
+attribute handler, or uncertain binding catalog disables the diagnostic.
 
 An absent literal name produces `laramago-missing-storage-disk`. Names are case
-sensitive. Positional and `name:` arguments are supported. Dynamic values,
-concatenations, unpacking and first-class callables defer. Empty and `"0"` names
-also defer because the native manager treats them as requests for its default
-driver rather than named-disk lookups. Direct manager calls,
-custom facades, storage attributes, `fake()`, `persistentFake()`, `forgetDisk()`
-and adapter methods are outside this subset. Existing native method, PHPDoc and
-argument diagnostics remain unchanged.
+sensitive. Positional arguments, facade `name:` arguments and attribute `disk:`
+arguments are supported. Dynamic values, concatenations, unpacking and
+first-class callables defer. Empty and `"0"` names also defer because the native
+manager treats them as requests for its default driver rather than named-disk
+lookups. Direct manager calls, custom facades or attributes, `fake()`,
+`persistentFake()`, `forgetDisk()` and adapter methods are outside this subset.
+Existing native method, PHPDoc and argument diagnostics remain unchanged.
 
 The extension reads Composer JSON, configuration PHP syntax and installed
 framework source only. It does not bootstrap Laravel, execute configuration or

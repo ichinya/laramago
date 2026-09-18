@@ -11,6 +11,7 @@ $framework = $workspace.'/vendor/laravel/framework/src/Illuminate';
 mkdir($framework.'/Support/Facades', 0777, true);
 mkdir($framework.'/Filesystem', 0777, true);
 mkdir($framework.'/Contracts/Filesystem', 0777, true);
+mkdir($framework.'/Contracts/Container', 0777, true);
 mkdir($framework.'/Container/Attributes', 0777, true);
 mkdir($workspace.'/config', 0777, true);
 mkdir($workspace.'/bootstrap', 0777, true);
@@ -49,12 +50,30 @@ file_put_contents($framework.'/Contracts/Filesystem/Filesystem.php', <<<'PHP'
     namespace Illuminate\Contracts\Filesystem;
     interface Filesystem {}
     PHP);
-file_put_contents($framework.'/Container/Attributes/Storage.php', <<<'PHP'
+file_put_contents($framework.'/Contracts/Container/Container.php', <<<'PHP'
+    <?php
+    namespace Illuminate\Contracts\Container;
+    interface Container { public function make(string $abstract): mixed; }
+    PHP);
+file_put_contents($framework.'/Contracts/Container/ContextualAttribute.php', <<<'PHP'
+    <?php
+    namespace Illuminate\Contracts\Container;
+    interface ContextualAttribute {}
+    PHP);
+$storageAttribute = <<<'PHP'
     <?php
     namespace Illuminate\Container\Attributes;
+    use Illuminate\Contracts\Container\Container;
+    use Illuminate\Contracts\Container\ContextualAttribute;
     #[\Attribute(\Attribute::TARGET_PARAMETER)]
-    class Storage { public function __construct(public string $disk) {} }
-    PHP);
+    class Storage implements ContextualAttribute {
+        public function __construct(public \UnitEnum|string|null $disk = null) {}
+        public static function resolve(self $attribute, Container $container) {
+            return $container->make('filesystem')->disk($attribute->disk);
+        }
+    }
+    PHP;
+file_put_contents($framework.'/Container/Attributes/Storage.php', $storageAttribute);
 file_put_contents($workspace.'/config/filesystems.php', <<<'PHP'
     <?php
     return ['disks' => ['local' => ['driver' => 'local'], 'remote' => dynamicConfiguration()]];
@@ -79,6 +98,7 @@ $cases = [
     'dynamic name deferred' => ['Storage::disk($name);', []],
     'concatenation deferred' => ['Storage::disk("local".$name);', []],
     'unpacked argument deferred' => ['Storage::disk(...["missing"]);', []],
+    'literal followed by unpack deferred' => ['Storage::disk("missing", ...[]);', []],
     'fake excluded' => ['Storage::fake("missing");', []],
     'custom facade deferred' => ['CustomStorage::disk("missing");', []],
     'direct manager deferred' => ['$manager->disk("missing");', []],
@@ -92,11 +112,25 @@ $source = <<<'PHP'
     use Illuminate\Container\Attributes\Storage as StorageAttribute;
     use Illuminate\Contracts\Filesystem\Filesystem;
     class FilesystemImplementation implements Filesystem {}
-    function attributeScenario(#[StorageAttribute('local')] Filesystem $filesystem): void {}
-    function missingAttributeScenario(#[StorageAttribute('missing')] Filesystem $filesystem): void {}
+    #[\Attribute(\Attribute::TARGET_PARAMETER)]
+    class CustomStorageAttribute { public function __construct(public string $disk) {} }
+    final class DiskNames { public const MISSING = 'missing'; }
     function callableScenario(): Closure { return Storage::disk(...); }
     PHP;
 $lines = [];
+$attributeCases = [
+    'known attribute disk' => ['#[StorageAttribute("local")]', []],
+    'missing attribute disk' => ['#[StorageAttribute("missing")]', $missing],
+    'named attribute argument' => ['#[StorageAttribute(disk: "missing")]', $missing],
+    'empty attribute selects default' => ['#[StorageAttribute("")]', []],
+    'zero attribute selects default' => ['#[StorageAttribute("0")]', []],
+    'non-literal attribute deferred' => ['#[StorageAttribute(DiskNames::MISSING)]', []],
+    'custom attribute deferred' => ['#[CustomStorageAttribute("missing")]', []],
+];
+foreach ($attributeCases as $name => [$attribute, $codes]) {
+    $source .= 'function attributeScenario'.count($lines).'('.$attribute.' Filesystem $filesystem): void {}'."\n";
+    $lines[substr_count($source, "\n")] = [$name, $codes];
+}
 foreach ($cases as $name => [$body, $codes]) {
     $source .= 'function scenario'.count($lines).'(string $name, FilesystemManager $manager): void { '.$body.' }'."\n";
     $lines[substr_count($source, "\n")] = [$name, $codes];
@@ -112,6 +146,8 @@ $configuration = [
             'vendor/laravel/framework/src/Illuminate/Support/Facades/Storage.php',
             'vendor/laravel/framework/src/Illuminate/Filesystem/FilesystemManager.php',
             'vendor/laravel/framework/src/Illuminate/Contracts/Filesystem/Filesystem.php',
+            'vendor/laravel/framework/src/Illuminate/Contracts/Container/Container.php',
+            'vendor/laravel/framework/src/Illuminate/Contracts/Container/ContextualAttribute.php',
             'vendor/laravel/framework/src/Illuminate/Container/Attributes/Storage.php',
         ],
     ],
@@ -191,6 +227,8 @@ $writeComposer = static function (mixed $storage, ?array $bindingFiles = null) u
     ], JSON_THROW_ON_ERROR));
 };
 $nativeOnly = ['invalid-named-argument', 'non-documented-method'];
+$attributeOnly = [...$nativeOnly, ...array_fill(0, 2, $missing[0])];
+$facadeOnly = [...$nativeOnly, ...array_fill(0, 3, $missing[0])];
 $guards = [
     'no contract' => null,
     'incomplete contract' => ['complete' => false, 'runtime-disks-unchanged' => true],
@@ -237,17 +275,50 @@ foreach (['config', 'filesystem'] as $service) {
     echo 'PASS: custom '.$service." binding defers\n";
 }
 
+file_put_contents(
+    $workspace.'/bootstrap/bindings.php',
+    '<?php \\app()->whenHasAttribute(\\Illuminate\\Container\\Attributes\\Storage::class, fn () => null);',
+);
+$writeComposer($contract, ['bootstrap/bindings.php']);
+[$guardExit, $guardReport] = $analyze('custom-attribute-handler');
+if ($guardExit !== 1 || array_column($guardReport['issues'] ?? [], 'code') !== $nativeOnly) {
+    throw new RuntimeException('custom attribute handler: expected native diagnostics only; inspect '.$workspace);
+}
+echo "PASS: custom attribute handler defers\n";
+
 $writeComposer($contract);
+file_put_contents($framework.'/Container/Attributes/Storage.php', str_replace(
+    'public function __construct(public \\UnitEnum|string|null $disk = null) {}',
+    'public function __construct(public \\UnitEnum|string|null $disk = null) { $this->disk = $disk; }',
+    $storageAttribute,
+));
+[$guardExit, $guardReport] = $analyze('changed-attribute-constructor');
+if ($guardExit !== 1 || array_column($guardReport['issues'] ?? [], 'code') !== $facadeOnly) {
+    throw new RuntimeException('changed attribute constructor: expected native diagnostics only; inspect '.$workspace);
+}
+echo "PASS: changed attribute constructor defers\n";
+file_put_contents($framework.'/Container/Attributes/Storage.php', str_replace(
+    "return \$container->make('filesystem')->disk(\$attribute->disk);",
+    "return \$container->make('filesystem');",
+    $storageAttribute,
+));
+[$guardExit, $guardReport] = $analyze('changed-attribute-resolve');
+if ($guardExit !== 1 || array_column($guardReport['issues'] ?? [], 'code') !== $facadeOnly) {
+    throw new RuntimeException('changed attribute resolve: expected native diagnostics only; inspect '.$workspace);
+}
+echo "PASS: changed attribute resolve defers\n";
+file_put_contents($framework.'/Container/Attributes/Storage.php', $storageAttribute);
+
 file_put_contents($framework.'/Support/Facades/Storage.php', str_replace(
     "return 'filesystem';",
     "return 'custom.filesystem';",
     $storageFacade,
 ));
 [$guardExit, $guardReport] = $analyze('custom-accessor');
-if ($guardExit !== 1 || array_column($guardReport['issues'] ?? [], 'code') !== $nativeOnly) {
-    throw new RuntimeException('custom accessor: expected native diagnostics only; inspect '.$workspace);
+if ($guardExit !== 1 || array_column($guardReport['issues'] ?? [], 'code') !== $attributeOnly) {
+    throw new RuntimeException('custom accessor: expected attribute diagnostics only; inspect '.$workspace);
 }
-echo "PASS: custom facade accessor defers\n";
+echo "PASS: custom facade accessor defers facade references\n";
 file_put_contents($framework.'/Support/Facades/Storage.php', $storageFacade);
 file_put_contents($framework.'/Filesystem/FilesystemManager.php', <<<'PHP'
     <?php
@@ -261,7 +332,7 @@ file_put_contents($framework.'/Filesystem/FilesystemManager.php', <<<'PHP'
 if ($guardExit !== 1 || array_column($guardReport['issues'] ?? [], 'code') !== $nativeOnly) {
     throw new RuntimeException('inherited manager method: expected native diagnostics only; inspect '.$workspace);
 }
-echo "PASS: non-native FilesystemManager method provenance defers\n";
+echo "PASS: non-native FilesystemManager method provenance defers facade and attribute references\n";
 file_put_contents($framework.'/Filesystem/FilesystemManager.php', $manager);
 
 $configurationWithoutExtension = $configuration;

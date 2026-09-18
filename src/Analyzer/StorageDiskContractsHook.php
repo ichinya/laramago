@@ -25,28 +25,31 @@ use PhpParser\ParserFactory;
 /** Diagnose missing literal disks only under an explicit closed-runtime contract. */
 final class StorageDiskContractsHook implements NodeAnalysisHook
 {
+    private const ATTRIBUTE = 'Illuminate\\Container\\Attributes\\Storage';
     private const FACADE = 'Illuminate\\Support\\Facades\\Storage';
     private const MANAGER = 'Illuminate\\Filesystem\\FilesystemManager';
 
     private readonly bool $runtimeComplete;
     private readonly NativeFacade $facade;
     private readonly ContainerBindings $bindings;
+    private readonly PhpSource $source;
     private readonly ConfigurationIndex $configuration;
     private ?string $sourceHash = null;
-    /** @var array<string, Node\Expr\StaticCall> */
-    private array $calls = [];
+    /** @var array<string, Node\Attribute|Node\Expr\StaticCall> */
+    private array $references = [];
 
     public function __construct(string $root = '.')
     {
         $this->runtimeComplete = self::runtimeComplete($root);
         $this->facade = new NativeFacade($root);
         $this->bindings = new ContainerBindings($root);
-        $this->configuration = new ConfigurationIndex(new PhpSource($root));
+        $this->source = new PhpSource($root);
+        $this->configuration = new ConfigurationIndex($this->source);
     }
 
     public function getTargets(): array
     {
-        return [NodeKind::StaticMethodCall];
+        return [NodeKind::Attribute, NodeKind::StaticMethodCall];
     }
 
     public function getRequirements(): array
@@ -60,13 +63,6 @@ final class StorageDiskContractsHook implements NodeAnalysisHook
             ! $this->runtimeComplete
             || $this->bindings->configured('config')
             || $this->bindings->configured('filesystem')
-            || ! $this->facade->dispatchesClass(
-                $context->codebase,
-                self::FACADE,
-                'filesystem',
-                self::MANAGER,
-                'disk',
-            )
         ) {
             return;
         }
@@ -74,23 +70,30 @@ final class StorageDiskContractsHook implements NodeAnalysisHook
         if ($catalog === null || ! $catalog->sourceComplete) {
             return;
         }
-        $call = $this->call($context);
-        if ($call === null) {
-            return;
-        }
-        $name = null;
-        foreach ($call->getArgs() as $offset => $argument) {
-            if ($argument->unpack) {
+        $reference = $this->reference($context);
+        if ($reference instanceof Node\Expr\StaticCall) {
+            if (self::hasUnpackedArgument($reference->args)) {
                 return;
             }
             if (
-                $argument->name === null
-                && $offset === 0
-                || $argument->name !== null
-                && $argument->name->name === 'name'
+                ! $this->facade->dispatchesClass(
+                    $context->codebase,
+                    self::FACADE,
+                    'filesystem',
+                    self::MANAGER,
+                    'disk',
+                )
             ) {
-                $name = $argument->value;
+                return;
             }
+            $name = PhpSource::argument($reference->args, 0, 'name');
+        } elseif ($reference instanceof Node\Attribute) {
+            if (self::hasUnpackedArgument($reference->args) || ! $this->nativeAttribute($context)) {
+                return;
+            }
+            $name = PhpSource::argument($reference->args, 0, 'disk');
+        } else {
+            return;
         }
         if (
             ! $name instanceof Node\Scalar\String_
@@ -113,12 +116,12 @@ final class StorageDiskContractsHook implements NodeAnalysisHook
         );
     }
 
-    private function call(NodeAnalysisContext $context): ?Node\Expr\StaticCall
+    private function reference(NodeAnalysisContext $context): Node\Attribute|Node\Expr\StaticCall|null
     {
         $hash = hash('sha256', $context->source->path."\0".$context->source->contents);
         if ($hash !== $this->sourceHash) {
             $this->sourceHash = $hash;
-            $this->calls = [];
+            $this->references = [];
             try {
                 $nodes = (new ParserFactory)
                     ->createForNewestSupportedVersion()
@@ -127,23 +130,139 @@ final class StorageDiskContractsHook implements NodeAnalysisHook
             } catch (\PhpParser\Error) {
                 return null;
             }
-            foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Expr\StaticCall::class) as $call) {
-                $this->calls[$call->getStartFilePos().':'.($call->getEndFilePos() + 1)] = $call;
+            foreach ((new NodeFinder)->find(
+                $nodes,
+                static fn (Node $node): bool => (
+                    $node instanceof Node\Attribute
+                    || $node instanceof Node\Expr\StaticCall
+                ),
+            ) as $reference) {
+                if (! $reference instanceof Node\Attribute && ! $reference instanceof Node\Expr\StaticCall) {
+                    continue;
+                }
+                $this->references[$reference->getStartFilePos().':'.($reference->getEndFilePos() + 1)] = $reference;
             }
         }
-        $call = $this->calls[$context->node->span->start.':'.$context->node->span->end] ?? null;
-        if (
-            ! $call instanceof Node\Expr\StaticCall
-            || ! $call->class instanceof Node\Name
-            || strcasecmp($call->class->toString(), self::FACADE) !== 0
-            || ! $call->name instanceof Node\Identifier
-            || strtolower($call->name->name) !== 'disk'
-            || $call->isFirstClassCallable()
-        ) {
-            return null;
+        $reference = $this->references[$context->node->span->start.':'.$context->node->span->end] ?? null;
+        if ($reference instanceof Node\Attribute) {
+            return strcasecmp($reference->name->toString(), self::ATTRIBUTE) === 0 ? $reference : null;
         }
 
-        return $call;
+        return $reference instanceof Node\Expr\StaticCall
+        && $reference->class instanceof Node\Name
+        && strcasecmp($reference->class->toString(), self::FACADE) === 0
+        && $reference->name instanceof Node\Identifier
+        && strtolower($reference->name->name) === 'disk'
+        && ! $reference->isFirstClassCallable()
+            ? $reference
+            : null;
+    }
+
+    private function nativeAttribute(NodeAnalysisContext $context): bool
+    {
+        $class = $context->codebase->getClass(self::ATTRIBUTE);
+        $constructor = $context->codebase->getMethod(self::ATTRIBUTE, '__construct');
+        $resolve = $context->codebase->getMethod(self::ATTRIBUTE, 'resolve');
+        if (
+            $class === null
+            || $class->hasIncompleteHierarchy()
+            || $constructor === null
+            || $resolve === null
+            || strcasecmp($constructor->identifier->class ?? '', self::ATTRIBUTE) !== 0
+            || strcasecmp($resolve->identifier->class ?? '', self::ATTRIBUTE) !== 0
+            || ! $constructor->constructor
+            || $constructor->static
+            || ! $resolve->static
+            || ! self::frameworkFile($constructor->location->file, 'Illuminate/Container/Attributes/Storage.php')
+            || ! self::frameworkFile($resolve->location->file, 'Illuminate/Container/Attributes/Storage.php')
+            || ! self::nativeManager($context)
+        ) {
+            return false;
+        }
+        $reflection = new StaticAnalysis\ModelReflection($context->codebase, $this->source);
+        $constructorNode = $reflection->methodNode($constructor);
+        $resolveNode = $reflection->methodNode($resolve);
+        $parameter = $constructorNode?->params[0] ?? null;
+        if (
+            $constructorNode === null
+            || count($constructorNode->params) !== 1
+            || $constructorNode->stmts !== []
+            || ! $parameter instanceof Node\Param
+            || ! $parameter->isPromoted()
+            || ! $parameter->isPublic()
+            || ! $parameter->var instanceof Node\Expr\Variable
+            || $parameter->var->name !== 'disk'
+        ) {
+            return false;
+        }
+        $statements = $resolveNode?->stmts;
+        $expression =
+            is_array($statements) && count($statements) === 1 && $statements[0] instanceof Node\Stmt\Return_
+                ? $statements[0]->expr
+                : null;
+
+        return self::nativeResolveExpression($expression);
+    }
+
+    private static function nativeManager(NodeAnalysisContext $context): bool
+    {
+        $method = $context->codebase->getMethod(self::MANAGER, 'disk') ?? $context->codebase->getDeclaringMethod(
+            self::MANAGER,
+            'disk',
+        );
+
+        return (
+            $method !== null
+            && strcasecmp($method->identifier->class ?? '', self::MANAGER) === 0
+            && ! $method->static
+            && self::frameworkFile($method->location->file, 'Illuminate/Filesystem/FilesystemManager.php')
+        );
+    }
+
+    /** @param array<array-key, Node\Arg|Node\VariadicPlaceholder> $arguments */
+    private static function hasUnpackedArgument(array $arguments): bool
+    {
+        foreach ($arguments as $argument) {
+            if ($argument instanceof Node\Arg && $argument->unpack) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static function nativeResolveExpression(?Node\Expr $expression): bool
+    {
+        if (
+            ! $expression instanceof Node\Expr\MethodCall
+            || ! $expression->name instanceof Node\Identifier
+            || strtolower($expression->name->toString()) !== 'disk'
+            || count($expression->args) !== 1
+            || ! $expression->var instanceof Node\Expr\MethodCall
+            || ! $expression->var->name instanceof Node\Identifier
+            || strtolower($expression->var->name->toString()) !== 'make'
+            || ! $expression->var->var instanceof Node\Expr\Variable
+            || $expression->var->var->name !== 'container'
+        ) {
+            return false;
+        }
+        $filesystem = PhpSource::argument($expression->var->args, 0, 'abstract');
+        $disk = PhpSource::argument($expression->args, 0, 'name');
+
+        return (
+            $filesystem instanceof Node\Scalar\String_
+            && $filesystem->value === 'filesystem'
+            && $disk instanceof Node\Expr\PropertyFetch
+            && $disk->var instanceof Node\Expr\Variable
+            && $disk->var->name === 'attribute'
+            && $disk->name instanceof Node\Identifier
+            && $disk->name->toString() === 'disk'
+        );
+    }
+
+    private static function frameworkFile(?string $path, string $suffix): bool
+    {
+        return str_ends_with(str_replace('\\', '/', $path ?? ''), '/laravel/framework/src/'.$suffix);
     }
 
     private static function runtimeComplete(string $root): bool
