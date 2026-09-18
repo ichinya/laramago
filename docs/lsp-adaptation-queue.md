@@ -173,7 +173,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 165 | Volt route component references | queued |
 | 166 | Explicit Livewire mount contracts | queued |
 | 167 | Livewire event and listener contracts | queued |
-| 168 | Existing validated field shapes | queued |
+| 168 | Existing validated field shapes | already-covered; Verified validated field shapes, nested rules and dynamic/custom contract deferrals with focused suites. |
 | 169 | Additional validation declaration contexts | queued |
 | 170 | Versioned built-in validation rule catalog | queued |
 | 171 | Validation rule name diagnostics | queued |
