@@ -118,7 +118,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 110 | Conditional and iterative view rendering | queued |
 | 111 | Package view namespaces | queued |
 | 112 | View suggestions and declaration locations | queued |
-| 113 | Existing literal translation types | running |
+| 113 | Existing literal translation types | already-covered; Verified literal translation string refinement with translation-strings and reference-catalogs suites. |
 | 114 | Existing explicit-locale reference contracts | queued |
 | 115 | Translator and Lang call sites | queued |
 | 116 | trans_choice references | queued |
