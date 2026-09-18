@@ -18,7 +18,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 10 | Custom builders and collections | already-covered; Verified custom builder and collection resolution with eight focused suites. |
 | 11 | Fillable name validation | implemented; Explicit exact-model field catalogs validate literal fillable names; native dispatch and disabled regressions passed. |
 | 12 | Guarded name validation | implemented; Guarded names reuse model catalogs with case-insensitive and wildcard semantics; focused and disabled checks passed. |
-| 13 | Hidden name validation | queued |
+| 13 | Hidden name validation | running |
 | 14 | Visible name validation | queued |
 | 15 | Appended accessor name validation | queued |
 | 16 | Model attribute declarations for field lists | queued |
@@ -119,7 +119,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 111 | Package view namespaces | queued |
 | 112 | View suggestions and declaration locations | queued |
 | 113 | Existing literal translation types | already-covered; Verified literal translation string refinement with translation-strings and reference-catalogs suites. |
-| 114 | Existing explicit-locale reference contracts | queued |
+| 114 | Existing explicit-locale reference contracts | already-covered; Verified explicit locale/fallback reference catalogs; reference-catalogs and translation-strings suites passed. |
 | 115 | Translator and Lang call sites | queued |
 | 116 | trans_choice references | queued |
 | 117 | JSON phrase translation references | queued |
