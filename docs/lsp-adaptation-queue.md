@@ -193,7 +193,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 185 | Shared import and class identity resolution | queued |
 | 186 | Shared literal string argument handling | queued |
 | 187 | Precise literal element diagnostic spans | queued |
-| 188 | Cross-platform and custom vendor paths | queued |
+| 188 | Cross-platform and custom vendor paths | already-covered; Installer and real-worker path tests pass on Windows, including spaces and custom vendor configuration. Linux/macOS execution and combined generated custom-vendor installation remain unverified. |
 | 189 | Index dependency invalidation | queued |
 | 190 | Lazy integration index loading | queued |
 | 191 | Metadata provenance locations | queued |
