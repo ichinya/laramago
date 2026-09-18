@@ -61,7 +61,9 @@ final class LaravelPlugin implements Plugin
         $registry->registerBeforeAnalysisHook($configuration);
         $configurationFacade = new ConfigurationFacadeProvider($this->projectRoot, $configuration);
         $registry->registerMethodReturnTypeProvider($configurationFacade);
-        $registry->registerNodeAnalysisHook(new ConfigurationKeyContractsHook($this->projectRoot));
+        $configurationKeys = new ConfigurationKeyContractsHook($this->projectRoot);
+        $registry->registerNodeAnalysisHook($configurationKeys);
+        $registry->registerInitializationHook($configurationKeys);
         $registry->registerMethodReturnTypeProvider(new FacadeCallProvider($this->projectRoot));
         $registry->registerMethodReturnTypeProvider(new TransactionProvider($this->projectRoot));
         $translations = new TranslationStringProvider($this->projectRoot);
@@ -78,8 +80,12 @@ final class LaravelPlugin implements Plugin
         $registry->registerMethodCallAnalysisHook(new NamedRouteContractsHook($this->projectRoot));
         $registry->registerNodeAnalysisHook(new NamedRouteHelperContractsHook($this->projectRoot));
         $registry->registerNodeAnalysisHook(new NamedRouteFacadeContractsHook($this->projectRoot));
-        $registry->registerNodeAnalysisHook(new StorageDiskContractsHook($this->projectRoot));
-        $registry->registerMethodCallAnalysisHook(new InertiaPageReferencesHook($this->projectRoot));
+        $storageDisks = new StorageDiskContractsHook($this->projectRoot);
+        $registry->registerNodeAnalysisHook($storageDisks);
+        $registry->registerInitializationHook($storageDisks);
+        $inertiaPages = new InertiaPageReferencesHook($this->projectRoot);
+        $registry->registerMethodCallAnalysisHook($inertiaPages);
+        $registry->registerInitializationHook($inertiaPages);
         $registry->registerMethodReturnTypeProvider(new EloquentBuilderProvider);
         $registry->registerMethodReturnTypeProvider(new EloquentBuilderForwardingProvider($this->projectRoot));
         $scopes = new EloquentScopeProvider($this->projectRoot);

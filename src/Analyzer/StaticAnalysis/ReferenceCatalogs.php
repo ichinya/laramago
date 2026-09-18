@@ -17,6 +17,9 @@ final class ReferenceCatalogs
     private array $locales = [];
     /** @var list<array{name: string, path: string, root: string, extension: string}>|null */
     private ?array $inertiaPages = null;
+    /** @var array<array-key, mixed>|null */
+    private ?array $inertiaPageConfiguration = null;
+    private bool $inertiaPagesLoaded = false;
     private bool $inertiaPagesComplete = false;
 
     public function __construct(
@@ -45,7 +48,11 @@ final class ReferenceCatalogs
         if (! is_array($catalogs)) {
             return;
         }
-        $this->loadInertiaPages($catalogs);
+        /** @var mixed $inertiaPages */
+        $inertiaPages = $catalogs['inertia-pages'] ?? null;
+        if (is_array($inertiaPages)) {
+            $this->inertiaPageConfiguration = $inertiaPages;
+        }
         /** @var mixed $views */
         $views = $catalogs['views'] ?? null;
         if (is_array($views) && ($views['complete'] ?? null) === true) {
@@ -108,6 +115,8 @@ final class ReferenceCatalogs
     /** @return list<array{name: string, path: string, root: string, extension: string}>|null */
     public function inertiaPages(): ?array
     {
+        $this->loadInertiaPages();
+
         return $this->inertiaPages;
     }
 
@@ -117,6 +126,7 @@ final class ReferenceCatalogs
      */
     public function containsInertiaPage(string $name): ?bool
     {
+        $this->loadInertiaPages();
         if ($this->inertiaPages === null) {
             return null;
         }
@@ -224,12 +234,14 @@ final class ReferenceCatalogs
         return (bool) preg_match('/^[A-Za-z0-9_-]+$/D', $value);
     }
 
-    /** @param array<array-key, mixed> $catalogs */
-    private function loadInertiaPages(array $catalogs): void
+    private function loadInertiaPages(): void
     {
-        /** @var mixed $configuration */
-        $configuration = $catalogs['inertia-pages'] ?? null;
-        if (! is_array($configuration)) {
+        if ($this->inertiaPagesLoaded) {
+            return;
+        }
+        $this->inertiaPagesLoaded = true;
+        $configuration = $this->inertiaPageConfiguration;
+        if ($configuration === null) {
             return;
         }
         /** @var mixed $complete */

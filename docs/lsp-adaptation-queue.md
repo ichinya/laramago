@@ -195,7 +195,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 187 | Precise literal element diagnostic spans | queued |
 | 188 | Cross-platform and custom vendor paths | already-covered; Installer and real-worker path tests pass on Windows, including spaces and custom vendor configuration. Linux/macOS execution and combined generated custom-vendor installation remain unverified. |
 | 189 | Index dependency invalidation | already-covered; Fresh analyzer runs reread changed migrations, configuration and source; properties/configuration regressions pass. Same-worker incremental/watch invalidation is not claimed. |
-| 190 | Lazy integration index loading | queued |
+| 190 | Lazy integration index loading | implemented; Configuration/storage/Inertia diagnostic catalogs load on demand and reset per analysis generation; eager warning scans retained. Behavioral lazy lookup and four focused suites pass. |
 | 191 | Metadata provenance locations | queued |
 | 192 | Explicit metadata confidence states | queued |
 | 193 | Upstream scenario regression adaptation | queued |

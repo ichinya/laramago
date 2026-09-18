@@ -28,6 +28,17 @@ $catalog = static function (?array $configuration) use ($workspace): ReferenceCa
     return new ReferenceCatalogs($workspace);
 };
 
+$lazy = $catalog([
+    'complete' => true,
+    'paths' => ['resources/frontend pages'],
+    'extensions' => ['vue'],
+]);
+file_put_contents($workspace.'/resources/frontend pages/Late.vue', '<script>unknown()</script>');
+if ($lazy->containsInertiaPage('Late') !== true) {
+    throw new RuntimeException('Expected Inertia page roots to be enumerated on first use.');
+}
+unlink($workspace.'/resources/frontend pages/Late.vue');
+
 $incomplete = $catalog([
     'paths' => ['Frontend Pages', 'resources/frontend pages'],
     'extensions' => ['vue', '.tsx', 'Vue'],

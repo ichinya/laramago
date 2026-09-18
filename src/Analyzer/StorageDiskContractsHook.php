@@ -9,6 +9,8 @@ use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeFacade;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Mago\Sdk\Analyzer\FileAnalysisRequirement;
+use Mago\Sdk\Analyzer\InitializationContext;
+use Mago\Sdk\Analyzer\InitializationHook;
 use Mago\Sdk\Analyzer\NodeAnalysisContext;
 use Mago\Sdk\Analyzer\NodeAnalysisHook;
 use Mago\Sdk\Reporting\Issue;
@@ -23,28 +25,34 @@ use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\ParserFactory;
 
 /** Diagnose missing literal disks only under an explicit closed-runtime contract. */
-final class StorageDiskContractsHook implements NodeAnalysisHook
+final class StorageDiskContractsHook implements NodeAnalysisHook, InitializationHook
 {
     private const ATTRIBUTE = 'Illuminate\\Container\\Attributes\\Storage';
     private const FACADE = 'Illuminate\\Support\\Facades\\Storage';
     private const MANAGER = 'Illuminate\\Filesystem\\FilesystemManager';
 
-    private readonly bool $runtimeComplete;
-    private readonly NativeFacade $facade;
-    private readonly ContainerBindings $bindings;
-    private readonly PhpSource $source;
-    private readonly ConfigurationIndex $configuration;
+    private ?bool $runtimeComplete = null;
+    private ?NativeFacade $facade = null;
+    private ?ContainerBindings $bindings = null;
+    private ?PhpSource $source = null;
+    private ?ConfigurationIndex $configuration = null;
     private ?string $sourceHash = null;
     /** @var array<string, Node\Attribute|Node\Expr\StaticCall> */
     private array $references = [];
 
-    public function __construct(string $root = '.')
+    public function __construct(
+        private readonly string $root = '.',
+    ) {}
+
+    public function initialize(InitializationContext $context): void
     {
-        $this->runtimeComplete = self::runtimeComplete($root);
-        $this->facade = new NativeFacade($root);
-        $this->bindings = new ContainerBindings($root);
-        $this->source = new PhpSource($root);
-        $this->configuration = new ConfigurationIndex($this->source);
+        $this->runtimeComplete = null;
+        $this->facade = null;
+        $this->bindings = null;
+        $this->source = null;
+        $this->configuration = null;
+        $this->sourceHash = null;
+        $this->references = [];
     }
 
     public function getTargets(): array
@@ -59,15 +67,7 @@ final class StorageDiskContractsHook implements NodeAnalysisHook
 
     public function analyze(NodeAnalysisContext $context): void
     {
-        if (
-            ! $this->runtimeComplete
-            || $this->bindings->configured('config')
-            || $this->bindings->configured('filesystem')
-        ) {
-            return;
-        }
-        $catalog = $this->configuration->stringKeys('filesystems.disks');
-        if ($catalog === null || ! $catalog->sourceComplete) {
+        if (! $this->hasCompleteRuntime()) {
             return;
         }
         $reference = $this->reference($context);
@@ -76,7 +76,7 @@ final class StorageDiskContractsHook implements NodeAnalysisHook
                 return;
             }
             if (
-                ! $this->facade->dispatchesClass(
+                ! $this->facade()->dispatchesClass(
                     $context->codebase,
                     self::FACADE,
                     'filesystem',
@@ -99,8 +99,14 @@ final class StorageDiskContractsHook implements NodeAnalysisHook
             ! $name instanceof Node\Scalar\String_
             || $name->value === ''
             || $name->value === '0'
-            || in_array($name->value, $catalog->keys, true)
         ) {
+            return;
+        }
+        if ($this->bindings()->configured('config') || $this->bindings()->configured('filesystem')) {
+            return;
+        }
+        $catalog = $this->configuration()->stringKeys('filesystems.disks');
+        if ($catalog === null || ! $catalog->sourceComplete || in_array($name->value, $catalog->keys, true)) {
             return;
         }
         $context->report(
@@ -179,7 +185,7 @@ final class StorageDiskContractsHook implements NodeAnalysisHook
         ) {
             return false;
         }
-        $reflection = new StaticAnalysis\ModelReflection($context->codebase, $this->source);
+        $reflection = new StaticAnalysis\ModelReflection($context->codebase, $this->source());
         $constructorNode = $reflection->methodNode($constructor);
         $resolveNode = $reflection->methodNode($resolve);
         $parameter = $constructorNode?->params[0] ?? null;
@@ -263,6 +269,31 @@ final class StorageDiskContractsHook implements NodeAnalysisHook
     private static function frameworkFile(?string $path, string $suffix): bool
     {
         return str_ends_with(str_replace('\\', '/', $path ?? ''), '/laravel/framework/src/'.$suffix);
+    }
+
+    private function hasCompleteRuntime(): bool
+    {
+        return $this->runtimeComplete ??= self::runtimeComplete($this->root);
+    }
+
+    private function facade(): NativeFacade
+    {
+        return $this->facade ??= new NativeFacade($this->root);
+    }
+
+    private function bindings(): ContainerBindings
+    {
+        return $this->bindings ??= new ContainerBindings($this->root);
+    }
+
+    private function source(): PhpSource
+    {
+        return $this->source ??= new PhpSource($this->root);
+    }
+
+    private function configuration(): ConfigurationIndex
+    {
+        return $this->configuration ??= new ConfigurationIndex($this->source());
     }
 
     private static function runtimeComplete(string $root): bool

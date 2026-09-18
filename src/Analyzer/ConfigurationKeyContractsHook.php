@@ -9,6 +9,8 @@ use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeFacade;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Mago\Sdk\Analyzer\FileAnalysisRequirement;
+use Mago\Sdk\Analyzer\InitializationContext;
+use Mago\Sdk\Analyzer\InitializationHook;
 use Mago\Sdk\Analyzer\Metadata\MetadataFlags;
 use Mago\Sdk\Analyzer\NodeAnalysisContext;
 use Mago\Sdk\Analyzer\NodeAnalysisHook;
@@ -25,28 +27,35 @@ use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\ParserFactory;
 
 /** Diagnose absent literal configuration keys only under a closed-runtime contract. */
-final class ConfigurationKeyContractsHook implements NodeAnalysisHook
+final class ConfigurationKeyContractsHook implements NodeAnalysisHook, InitializationHook
 {
     private const FACADE = 'Illuminate\\Support\\Facades\\Config';
     private const REPOSITORY = 'Illuminate\\Config\\Repository';
 
-    private readonly bool $runtimeComplete;
-    private readonly NativeFacade $facade;
-    private readonly ContainerBindings $bindings;
-    private readonly PhpSource $source;
-    private readonly ConfigurationIndex $configuration;
+    private ?bool $runtimeComplete = null;
+    private ?NativeFacade $facade = null;
+    private ?ContainerBindings $bindings = null;
+    private ?PhpSource $source = null;
+    private ?ConfigurationIndex $configuration = null;
     private ?bool $nativeHelper = null;
     private ?string $sourceHash = null;
     /** @var array<string, Node\Expr\FuncCall|Node\Expr\StaticCall> */
     private array $references = [];
 
-    public function __construct(string $root = '.')
+    public function __construct(
+        private readonly string $root = '.',
+    ) {}
+
+    public function initialize(InitializationContext $context): void
     {
-        $this->runtimeComplete = self::runtimeComplete($root);
-        $this->facade = new NativeFacade($root);
-        $this->bindings = new ContainerBindings($root);
-        $this->source = new PhpSource($root);
-        $this->configuration = new ConfigurationIndex($this->source);
+        $this->runtimeComplete = null;
+        $this->facade = null;
+        $this->bindings = null;
+        $this->source = null;
+        $this->configuration = null;
+        $this->nativeHelper = null;
+        $this->sourceHash = null;
+        $this->references = [];
     }
 
     public function getTargets(): array
@@ -61,7 +70,7 @@ final class ConfigurationKeyContractsHook implements NodeAnalysisHook
 
     public function analyze(NodeAnalysisContext $context): void
     {
-        if (! $this->runtimeComplete || $this->bindings->configured('config')) {
+        if (! $this->hasCompleteRuntime()) {
             return;
         }
         $reference = $this->reference($context);
@@ -72,7 +81,7 @@ final class ConfigurationKeyContractsHook implements NodeAnalysisHook
         } elseif ($reference instanceof Node\Expr\StaticCall) {
             if (
                 ! self::validArguments($reference->args)
-                || ! $this->facade->dispatchesClass(
+                || ! $this->facade()->dispatchesClass(
                     $context->codebase,
                     self::FACADE,
                     'config',
@@ -85,6 +94,9 @@ final class ConfigurationKeyContractsHook implements NodeAnalysisHook
         } else {
             return;
         }
+        if ($this->bindings()->configured('config')) {
+            return;
+        }
         $key = PhpSource::argument($reference->args, 0, 'key');
         if (! $key instanceof Node\Scalar\String_) {
             return;
@@ -95,7 +107,7 @@ final class ConfigurationKeyContractsHook implements NodeAnalysisHook
             return;
         }
         $name = array_pop($parts);
-        $catalog = $this->configuration->stringKeys(implode('.', $parts));
+        $catalog = $this->configuration()->stringKeys(implode('.', $parts));
         if (
             $catalog === null
             || ! $catalog->sourceComplete
@@ -217,7 +229,7 @@ final class ConfigurationKeyContractsHook implements NodeAnalysisHook
             return $this->nativeHelper = false;
         }
         $node = (new NodeFinder)->findFirst(
-            $this->source->read(str_starts_with($file, '//?/') ? substr($file, 4) : $file) ?? [],
+            $this->source()->read(str_starts_with($file, '//?/') ? substr($file, 4) : $file) ?? [],
             static fn (Node $node): bool => (
                 $node instanceof Node\Stmt\Function_
                 && strtolower($node->name->toString()) === 'config'
@@ -366,6 +378,31 @@ final class ConfigurationKeyContractsHook implements NodeAnalysisHook
         }
 
         return true;
+    }
+
+    private function hasCompleteRuntime(): bool
+    {
+        return $this->runtimeComplete ??= self::runtimeComplete($this->root);
+    }
+
+    private function facade(): NativeFacade
+    {
+        return $this->facade ??= new NativeFacade($this->root);
+    }
+
+    private function bindings(): ContainerBindings
+    {
+        return $this->bindings ??= new ContainerBindings($this->root);
+    }
+
+    private function source(): PhpSource
+    {
+        return $this->source ??= new PhpSource($this->root);
+    }
+
+    private function configuration(): ConfigurationIndex
+    {
+        return $this->configuration ??= new ConfigurationIndex($this->source());
     }
 
     private static function runtimeComplete(string $root): bool

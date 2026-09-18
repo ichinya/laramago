@@ -9,6 +9,8 @@ use Ichinya\Laramago\Analyzer\StaticAnalysis\ModelReflection;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ReferenceCatalogs;
 use Mago\Sdk\Analyzer\FileAnalysisRequirement;
+use Mago\Sdk\Analyzer\InitializationContext;
+use Mago\Sdk\Analyzer\InitializationHook;
 use Mago\Sdk\Analyzer\MethodCallAnalysisHook;
 use Mago\Sdk\Analyzer\MethodTarget;
 use Mago\Sdk\Analyzer\NodeAnalysisContext;
@@ -23,25 +25,30 @@ use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\ParserFactory;
 
 /** Diagnose missing literal pages on the installed native Inertia render entry points. */
-final class InertiaPageReferencesHook implements MethodCallAnalysisHook
+final class InertiaPageReferencesHook implements MethodCallAnalysisHook, InitializationHook
 {
     private const FACADE = 'Inertia\\Inertia';
     private const FACTORY = 'Inertia\\ResponseFactory';
     private const FACADE_BASE = 'Illuminate\\Support\\Facades\\Facade';
 
-    private readonly ReferenceCatalogs $catalogs;
-    private readonly PhpSource $source;
-    private readonly ContainerBindings $bindings;
+    private ?ReferenceCatalogs $catalogs = null;
+    private ?PhpSource $source = null;
+    private ?ContainerBindings $bindings = null;
     private string $sourceHash = '';
     /** @var array<string, Node\Expr\MethodCall|Node\Expr\StaticCall> */
     private array $calls = [];
 
     public function __construct(
         private readonly string $root = '.',
-    ) {
-        $this->catalogs = new ReferenceCatalogs($root);
-        $this->source = new PhpSource($root);
-        $this->bindings = new ContainerBindings($root);
+    ) {}
+
+    public function initialize(InitializationContext $context): void
+    {
+        $this->catalogs = null;
+        $this->source = null;
+        $this->bindings = null;
+        $this->sourceHash = '';
+        $this->calls = [];
     }
 
     public function getTargets(): array
@@ -94,7 +101,7 @@ final class InertiaPageReferencesHook implements MethodCallAnalysisHook
         }
         if (
             ! $component instanceof Node\Scalar\String_
-            || $this->catalogs->containsInertiaPage($component->value) !== false
+            || $this->catalogs()->containsInertiaPage($component->value) !== false
         ) {
             return;
         }
@@ -127,11 +134,11 @@ final class InertiaPageReferencesHook implements MethodCallAnalysisHook
             $facade === null
             || $facade->hasIncompleteHierarchy()
             || ! self::inertiaFile($facade->location->file, 'Inertia.php')
-            || $this->bindings->configured(self::FACTORY)
+            || $this->bindings()->configured(self::FACTORY)
         ) {
             return false;
         }
-        $reflection = new ModelReflection($context->codebase, $this->source);
+        $reflection = new ModelReflection($context->codebase, $this->source());
         $declared = $context->codebase->getMethod(self::FACADE, 'render') ?? $context->codebase->getDeclaringMethod(
             self::FACADE,
             'render',
@@ -206,6 +213,21 @@ final class InertiaPageReferencesHook implements MethodCallAnalysisHook
         }
 
         return $call;
+    }
+
+    private function catalogs(): ReferenceCatalogs
+    {
+        return $this->catalogs ??= new ReferenceCatalogs($this->root);
+    }
+
+    private function source(): PhpSource
+    {
+        return $this->source ??= new PhpSource($this->root);
+    }
+
+    private function bindings(): ContainerBindings
+    {
+        return $this->bindings ??= new ContainerBindings($this->root);
     }
 
     private static function inertiaFile(?string $path, string $file): bool
