@@ -10,7 +10,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 2 | Migration column types and nullability | already-covered; Verified SchemaIndex and migration locals, literals and contracts tests. |
 | 3 | Native property and PHPDoc priority | already-covered; Verified EloquentPropertyProvider native and PHPDoc priority with properties tests. |
 | 4 | Built-in attribute casts | queued |
-| 5 | Typed accessors and mutators | queued |
+| 5 | Typed accessors and mutators | already-covered; Verified typed legacy and Attribute accessors in EloquentPropertyProvider and properties tests. |
 | 6 | Separate attribute read and write types | queued |
 | 7 | Relation properties and typed collections | queued |
 | 8 | Legacy and attributed local scopes | queued |
