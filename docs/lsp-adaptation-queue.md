@@ -17,7 +17,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 9 | Scope parameters and simple fluent bodies | already-covered; Verified scope signatures and bounded fluent body inference; native and disabled regressions passed. |
 | 10 | Custom builders and collections | already-covered; Verified custom builder and collection resolution with eight focused suites. |
 | 11 | Fillable name validation | implemented; Explicit exact-model field catalogs validate literal fillable names; native dispatch and disabled regressions passed. |
-| 12 | Guarded name validation | queued |
+| 12 | Guarded name validation | running |
 | 13 | Hidden name validation | queued |
 | 14 | Visible name validation | queued |
 | 15 | Appended accessor name validation | queued |
@@ -54,7 +54,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 46 | Environment template interpolation references | queued |
 | 47 | Duplicate environment template declarations | queued |
 | 48 | Vite environment name references | queued |
-| 49 | Existing complete named-route contracts | queued |
+| 49 | Existing complete named-route contracts | already-covered; Verified complete named-route catalogs; 19 real-Mago scenarios and source analysis passed. |
 | 50 | Route and to_route helpers | queued |
 | 51 | Named-route facade calls | queued |
 | 52 | Signed and temporary signed routes | queued |
