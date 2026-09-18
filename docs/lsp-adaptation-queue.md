@@ -28,7 +28,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 20 | Model update versus builder update contracts | already-covered; Native Model instance update returns bool; Builder update returns int; static Model update retains invalid-static-method-access. Enabled/disabled real-Mago audit preserves custom overrides and arity errors; input validation remains deferred. |
 | 21 | Literal query column references | deferred; Query signatures and bounded positive projections pass focused tests. Missing SQL columns require effective query-state proof or an independent query-context completeness contract; migration/model fields cannot account for scopes, joins and aliases. |
 | 22 | Both operands of whereColumn | queued |
-| 23 | Search versus creation attribute arrays | queued |
+| 23 | Search versus creation attribute arrays | deferred; Native search attributes versus creation/update values remain distinct; 77 create scenarios pass. Semantic key diagnostics require effective SQL context plus safe ordinary mass-assignment contracts, deferred in items 21 and 18-19. |
 | 24 | Suggestions for proven field typos | queued |
 | 25 | Additional relation-name call sites | implemented; Additional non-morph existence methods and loadMissing reuse native relation-name checks; three focused suites passed. |
 | 26 | Nested relation paths | already-covered; Verified nested relation traversal, callback typing and complete-name checks with focused suites. |
