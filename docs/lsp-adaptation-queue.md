@@ -130,7 +130,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 122 | Cross-locale placeholder consistency | queued |
 | 123 | Pluralization syntax contracts | queued |
 | 124 | Translation fallback provenance | queued |
-| 125 | Static filesystem disk catalog | running |
+| 125 | Static filesystem disk catalog | implemented; tests/configuration-index.php; source-only completeness |
 | 126 | Storage disk references | queued |
 | 127 | Storage injection attribute references | queued |
 | 128 | Storage fake and forget semantics | queued |

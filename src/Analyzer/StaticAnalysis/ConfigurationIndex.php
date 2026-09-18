@@ -76,6 +76,92 @@ final class ConfigurationIndex
         }
     }
 
+    /**
+     * Catalog literal keys without resolving their values.
+     *
+     * Source completeness covers only the selected array expression. Runtime configuration
+     * replacement or mutation needs a separate explicit contract before absence is proven.
+     */
+    public function stringKeys(string $key): ?ConfigurationKeyCatalog
+    {
+        $parts = explode('.', $key);
+        $node = $this->files[array_shift($parts)] ?? null;
+        foreach ($parts as $part) {
+            if (! $node instanceof Node\Expr\Array_) {
+                return null;
+            }
+            $node = $this->arrayValue($node, $part);
+        }
+        if (! $node instanceof Node\Expr\Array_) {
+            return null;
+        }
+
+        $keys = [];
+        $complete = true;
+        foreach ($node->items as $item) {
+            if ($item->unpack || $item->key === null) {
+                $complete = false;
+                continue;
+            }
+            $literal = PhpSource::value($item->key);
+            if (! is_string($literal)) {
+                $complete = false;
+                continue;
+            }
+            if (! self::remainsStringKey($literal)) {
+                $complete = false;
+                continue;
+            }
+            if (! in_array($literal, $keys, true)) {
+                $keys[] = $literal;
+            }
+        }
+
+        return new ConfigurationKeyCatalog($keys, $complete);
+    }
+
+    /** Match PHP's decimal string-to-integer array key conversion on the current platform. */
+    private static function remainsStringKey(string $key): bool
+    {
+        if ($key === '0') {
+            return false;
+        }
+        if (! preg_match('/^-?[1-9][0-9]*$/D', $key)) {
+            return true;
+        }
+
+        $negative = str_starts_with($key, '-');
+        $digits = $negative ? substr($key, 1) : $key;
+        $limit = $negative ? substr((string) PHP_INT_MIN, 1) : (string) PHP_INT_MAX;
+
+        return strlen($digits) > strlen($limit) || strlen($digits) === strlen($limit) && strcmp($digits, $limit) > 0;
+    }
+
+    /** Return a nested value only when later dynamic entries cannot replace that key. */
+    private function arrayValue(Node\Expr\Array_ $array, string $key): ?Node\Expr
+    {
+        $value = null;
+        foreach ($array->items as $item) {
+            if ($item->unpack) {
+                $value = null;
+                continue;
+            }
+            if ($item->key === null) {
+                continue;
+            }
+            $literal = PhpSource::value($item->key);
+            if (! is_string($literal) && ! is_int($literal)) {
+                $value = null;
+                continue;
+            }
+            if ((string) $literal === $key) {
+                $value = $item->value;
+            }
+        }
+
+        return $value;
+    }
+
     /** @return array<array-key, Node\Expr>|null */
     private function items(Node\Expr\Array_ $array): ?array
     {

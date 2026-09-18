@@ -26,7 +26,7 @@ implementation; it does not imply support for every dynamic Laravel behavior.
 | Transactions | Standard DB facade Closure results with installed connection template validation and retry-aware nullability | Custom roots/contracts, unresolved callback types, runtime driver replacements; direct connection generics stay native |
 | Untyped local scopes | Single-return native where/orWhere chains preserve Builder model types | Complex bodies, custom dispatch and explicit return contracts remain authoritative |
 | Raw original attributes | Native Mago whole-array contracts covered by regression tests | Keyed values cannot be inferred from schema alone because original state is mutable |
-| Configuration | Literal helper/native Config facade keys, nested values/shapes, provable defaults and parse warnings | Arbitrary repositories, environment evaluation and runtime mutation tracking; cataloged core-service replacement disables the static index |
+| Configuration | Literal helper/native Config facade keys, nested values/shapes, provable defaults, parse warnings and reusable literal string-key catalogs with source-only completeness | Arbitrary repositories, environment evaluation and runtime mutation tracking; cataloged core-service replacement disables the static index |
 | Translations and views | Known PHP/JSON strings with explicit or literal configured initial locale and JSON precedence; native view overload inference; opt-in complete view/translation reference catalogs | Dynamic locales, implicit-locale reference checks, namespaces and custom loaders/paths; cataloged config replacement disables initial-locale inference |
 | Routes and middleware | Duplicate URI parameters on native Router/Route calls and lexically resolved native Route facade imports/aliases; complete named-route catalogs on native URL/redirect generators | Runtime aliases, custom dispatch, route helper/facade name checks, middleware resolution and dynamic routing |
 | Macros | Opt-in files and explicit active provider boot sources with typed closures, static callable arrays, invokable objects and bounded boolean/ordered hasMacro guards | Runtime discovery, activation/order proof, arbitrary provider bodies, mixed-case instance lookup, unknown conditions, dynamic registry mutations and reference contracts |
@@ -38,6 +38,13 @@ disables the corresponding standard-service assumptions.
 Some conservative refinements intentionally retain additional possible values.
 The [inference boundaries](inference-boundaries.md) explain SDK constraints,
 mutable query state and application contracts that remain outside these subsets.
+
+Configuration string-key catalogs retain literal names even when their values use
+`env()` or other dynamic expressions. Dynamic, non-string, unkeyed and unpacked
+entries mark the string-key catalog incomplete. Source completeness describes only
+the conventional configuration file expression: it does not prove that runtime
+code cannot replace or mutate Laravel's configuration repository, and it is not
+sufficient by itself for missing-name diagnostics.
 
 `composer check` runs the real analyzer and worker against isolated synthetic
 fixtures. Tests cover both accepted code and diagnostics that must remain, with
