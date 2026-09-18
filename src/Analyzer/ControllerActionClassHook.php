@@ -24,7 +24,7 @@ use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\NodeVisitor\ParentConnectingVisitor;
 use PhpParser\ParserFactory;
 
-/** Diagnose missing classes and provably missing or inaccessible methods in literal Controller@method route actions. */
+/** Diagnose missing classes and provably missing or inaccessible methods in literal controller route actions. */
 final class ControllerActionClassHook implements MethodCallAnalysisHook
 {
     private const ROUTER = 'Illuminate\\Routing\\Router';
@@ -86,30 +86,33 @@ final class ControllerActionClassHook implements MethodCallAnalysisHook
                 $action = $argument->value;
             }
         }
-        if (! $action instanceof Node\Scalar\String_) {
+        if (! $action instanceof Node\Expr) {
             return;
         }
-        $controller = $this->controller($action->value);
-        if ($controller === null || ! $controller['absolute']) {
+        $controller = $this->controller($action);
+        if ($controller === null) {
             return;
         }
+        $location = $controller['location'];
         if ($this->bindings->configured($controller['name']) || $this->bindings->configured(self::DISPATCHER)) {
             return;
         }
         // Relative string actions may receive Laravel's legacy route namespace.
         // Only a leading slash proves that the literal names this exact class.
         if (! $context->codebase->classExists($controller['name'])) {
-            $context->report(
-                Level::Warning,
-                'laramago-missing-controller-class',
-                Issue::at(
-                    'Controller class '.$controller['name'].' referenced by route action does not exist.',
-                    new SourceLocation(
-                        $context->source->path,
-                        new Span($action->getStartFilePos(), $action->getEndFilePos() + 1),
+            if ($controller['reportMissingClass']) {
+                $context->report(
+                    Level::Warning,
+                    'laramago-missing-controller-class',
+                    Issue::at(
+                        'Controller class '.$controller['name'].' referenced by route action does not exist.',
+                        new SourceLocation(
+                            $context->source->path,
+                            new Span($location->getStartFilePos(), $location->getEndFilePos() + 1),
+                        ),
                     ),
-                ),
-            );
+                );
+            }
 
             return;
         }
@@ -133,7 +136,7 @@ final class ControllerActionClassHook implements MethodCallAnalysisHook
                         .' referenced by route action does not exist.',
                         new SourceLocation(
                             $context->source->path,
-                            new Span($action->getStartFilePos(), $action->getEndFilePos() + 1),
+                            new Span($location->getStartFilePos(), $location->getEndFilePos() + 1),
                         ),
                     ),
                 );
@@ -158,7 +161,7 @@ final class ControllerActionClassHook implements MethodCallAnalysisHook
                 .' referenced by route action is not accessible to Laravel controller dispatch.',
                 new SourceLocation(
                     $context->source->path,
-                    new Span($action->getStartFilePos(), $action->getEndFilePos() + 1),
+                    new Span($location->getStartFilePos(), $location->getEndFilePos() + 1),
                 ),
             ),
         );
@@ -266,13 +269,69 @@ final class ControllerActionClassHook implements MethodCallAnalysisHook
         return false;
     }
 
-    /** @return array{name: non-empty-string, method: non-empty-string, absolute: bool}|null */
-    private function controller(string $action): ?array
+    /**
+     * @return array{
+     *     name: non-empty-string,
+     *     method: non-empty-string,
+     *     reportMissingClass: bool,
+     *     location: Node\Expr
+     * }|null
+     */
+    private function controller(Node\Expr $action): ?array
     {
-        if (substr_count($action, '@') !== 1) {
+        if ($action instanceof Node\Scalar\String_) {
+            return $this->stringController($action);
+        }
+        if (! $action instanceof Node\Expr\Array_ || count($action->items) !== 2) {
             return null;
         }
-        [$class, $method] = explode('@', $action, 2);
+        [$classItem, $methodItem] = $action->items;
+        if (
+            $classItem->key !== null
+            || $methodItem->key !== null
+            || $classItem->unpack
+            || $methodItem->unpack
+            || ! $classItem->value instanceof Node\Expr\ClassConstFetch
+            || ! $classItem->value->class instanceof Node\Name
+            || ! $classItem->value->name instanceof Node\Identifier
+            || strcasecmp($classItem->value->name->name, 'class') !== 0
+            || ! $methodItem->value instanceof Node\Scalar\String_
+        ) {
+            return null;
+        }
+        $class = $classItem->value->class;
+        if ($class->isSpecialClassName()) {
+            return null;
+        }
+        $name = $class->toString();
+        $method = $methodItem->value->value;
+        if ($method === '' || preg_match('/\s/', $name.$method)) {
+            return null;
+        }
+
+        // Native Mago diagnoses missing classes at `Controller::class`; avoid a duplicate extension issue.
+        return [
+            'name' => $name,
+            'method' => $method,
+            'reportMissingClass' => false,
+            'location' => $methodItem->value,
+        ];
+    }
+
+    /**
+     * @return array{
+     *     name: non-empty-string,
+     *     method: non-empty-string,
+     *     reportMissingClass: bool,
+     *     location: Node\Expr
+     * }|null
+     */
+    private function stringController(Node\Scalar\String_ $action): ?array
+    {
+        if (substr_count($action->value, '@') !== 1) {
+            return null;
+        }
+        [$class, $method] = explode('@', $action->value, 2);
         if ($class === '' || $method === '' || preg_match('/\s/', $class.$method)) {
             return null;
         }
@@ -282,7 +341,16 @@ final class ControllerActionClassHook implements MethodCallAnalysisHook
             return null;
         }
 
-        return ['name' => $class, 'method' => $method, 'absolute' => $absolute];
+        return (
+            $absolute
+                ? [
+                    'name' => $class,
+                    'method' => $method,
+                    'reportMissingClass' => true,
+                    'location' => $action,
+                ]
+                : null
+        );
     }
 
     private function hasStandardControllerDispatch(NodeAnalysisContext $context, string $controller): bool

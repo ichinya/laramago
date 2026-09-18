@@ -26,6 +26,9 @@ class ExistingController extends AppController
 
 class MethodlessController extends AppController {}
 
+/** @method void documentedAction() */
+class DocumentedController extends AppController {}
+
 class PlainMethodlessController {}
 
 class PlainVisibilityController

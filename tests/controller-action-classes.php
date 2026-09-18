@@ -123,11 +123,80 @@ $cases = [
         [],
     ],
     'dynamic action deferred' => ['$router->get("/dynamic", $action);', []],
+    'missing action deferred' => ['$router->get("/missing-action");', []],
+    'explicit null action deferred' => ['$router->get("/null-action", null);', []],
     'concatenated action deferred' => [
         '$router->get("/concatenated", ExistingController::class."@index");',
         [],
     ],
-    'array action deferred' => ['$router->get("/array", [ExistingController::class, "index"]);', []],
+    'array action existing controller' => ['$router->get("/array", [ExistingController::class, "index"]);', []],
+    'array action missing method' => [
+        '$router->get("/array-method", [ExistingController::class, "missing"]);',
+        $methodWarning,
+    ],
+    'array action imported alias resolution' => [
+        '$router->get("/array-imported", [ImportedController::class, "missing"]);',
+        $methodWarning,
+    ],
+    'array action namespace resolution' => [
+        '$router->get("/array-relative", [NamespacedController::class, "missing"]);',
+        $methodWarning,
+    ],
+    'array action protected through standard callAction' => [
+        '$router->get("/array-protected", [ExistingController::class, "protectedAction"]);',
+        [],
+    ],
+    'array action private through standard callAction' => [
+        '$router->get("/array-private", [ExistingController::class, "privateAction"]);',
+        $visibilityWarning,
+    ],
+    'array action PHPDoc method wins' => [
+        '$router->get("/array-documented", [DocumentedController::class, "documentedAction"]);',
+        [],
+    ],
+    'array action custom dispatch deferred' => [
+        '$router->get("/array-dispatch", [DispatchController::class, "missing"]);',
+        [],
+    ],
+    'array action dynamic method deferred' => [
+        '$router->get("/array-dynamic", [ExistingController::class, $action]);',
+        [],
+    ],
+    'array action dynamic class deferred' => [
+        '$router->get("/array-dynamic-class", [$action, "missing"]);',
+        [],
+    ],
+    'array action explicit keys deferred' => [
+        '$router->get("/array-keys", [0 => ExistingController::class, 1 => "missing"]);',
+        [],
+    ],
+    'array action configuration deferred' => [
+        '$router->get("/array-config", ["uses" => [ExistingController::class, "missing"], '.'"middleware" => "auth"]);',
+        [],
+    ],
+    'array action in route group deferred' => [
+        '$router->group(["namespace" => "Admin"], function () use ($router): void { '
+            .'$router->get("/array-group", [ExistingController::class, "missing"]); });',
+        [],
+    ],
+    'native facade array action' => [
+        'LaravelRoute::get("/array-facade", [ExistingController::class, "missing"]);',
+        $methodWarning,
+    ],
+    'inherited router array action deferred' => [
+        '(new \\Illuminate\\Routing\\ExtendedRouter)->get('
+            .'"/extended-array", [ExistingController::class, "missing"]);',
+        [],
+    ],
+    'custom router array action deferred' => [
+        '(new \\Illuminate\\Routing\\CustomRouter)->get('.'"/custom-array", [ExistingController::class, "missing"]);',
+        [],
+    ],
+    'facade subclass array action deferred' => [
+        '\\Illuminate\\Support\\Facades\\CustomRouteFacade::get('
+            .'"/custom-facade-array", [ExistingController::class, "missing"]);',
+        [],
+    ],
     'unpacked arguments deferred' => [
         '$router->get(...["/unpacked", "App\\\\Http\\\\Controllers\\\\MissingController@index"]);',
         [],
@@ -159,9 +228,13 @@ $source = <<<'PHP'
     namespace Routes;
 
     use App\Http\Controllers\ExistingController;
+    use App\Http\Controllers\DispatchController;
+    use App\Http\Controllers\DocumentedController;
     use App\Http\Controllers\ExistingController as ImportedController;
     use Illuminate\Routing\Router as NativeRouter;
     use Illuminate\Support\Facades\Route as LaravelRoute;
+
+    class NamespacedController extends \Illuminate\Routing\Controller {}
     PHP;
 $lines = [];
 foreach ($cases as $name => [$body, $codes]) {
@@ -174,6 +247,21 @@ foreach ($cases as $name => [$body, $codes]) {
         ."\n";
     $lines[substr_count($source, "\n")] = [$name, $codes];
 }
+$source .=
+    'class SelfActionRegistrar { public function register(NativeRouter $router): void { '
+    .'$router->get("/self-array", [self::class, "missing"]); } }'
+    ."\n";
+$lines[substr_count($source, "\n")] = ['self array class deferred', []];
+$source .=
+    'class StaticActionRegistrar { public function register(NativeRouter $router): void { '
+    .'$router->get("/static-array", [static::class, "missing"]); } }'
+    ."\n";
+$lines[substr_count($source, "\n")] = ['static array class deferred', []];
+$source .=
+    'class ParentActionRegistrar extends NamespacedController { public function register(NativeRouter $router): void { '
+    .'$router->get("/parent-array", [parent::class, "missing"]); } }'
+    ."\n";
+$lines[substr_count($source, "\n")] = ['parent array class deferred', []];
 file_put_contents($workspace.'/cases.php', $source);
 $configuration = [
     'extends' => $package.'/presets/laravel.toml',
@@ -229,12 +317,19 @@ $analyze = static function (string $report, string $log) use ($command, $workspa
 $analyze('report.json', 'stderr.log');
 $report = json_decode(file_get_contents($workspace.'/report.json'), true, flags: JSON_THROW_ON_ERROR);
 $actual = [];
+$actualSpans = [];
 foreach ($report['issues'] ?? [] as $issue) {
     $primary = array_values(array_filter(
         $issue['annotations'],
         static fn (array $a): bool => $a['kind'] === 'Primary',
     ))[0];
-    $actual[$primary['span']['start']['line'] + 1][] = $issue['code'];
+    $line = $primary['span']['start']['line'] + 1;
+    $actual[$line][] = $issue['code'];
+    $actualSpans[$line][] = substr(
+        $source,
+        $primary['span']['start']['offset'],
+        $primary['span']['end']['offset'] - $primary['span']['start']['offset'],
+    );
 }
 foreach ($lines as $line => [$name, $expected]) {
     $codes = $actual[$line] ?? [];
@@ -243,6 +338,22 @@ foreach ($lines as $line => [$name, $expected]) {
     if ($codes !== $expected) {
         throw new RuntimeException(
             $name.': expected '.json_encode($expected).', got '.json_encode($codes).'; see '.$workspace,
+        );
+    }
+    $expectedSpan = match ($name) {
+        'array action missing method' => '"missing"',
+        'array action private through standard callAction' => '"privateAction"',
+        default => null,
+    };
+    if ($expectedSpan !== null && ! in_array($expectedSpan, $actualSpans[$line] ?? [], true)) {
+        throw new RuntimeException(
+            $name
+            .': expected diagnostic span '
+            .$expectedSpan
+            .', got '
+            .json_encode($actualSpans[$line] ?? [])
+            .'; see '
+            .$workspace,
         );
     }
     unset($actual[$line]);
@@ -274,7 +385,11 @@ $catalogCases = [
         '$router->get("/dispatcher-method", "\\\\App\\\\Http\\\\Controllers\\\\MethodlessController@missing");'
             .'$router->get("/dispatcher-class", "\\\\Missing\\\\UnboundController@index");'
             .'$router->get("/dispatcher-visibility", '
-            .'"\\\\App\\\\Http\\\\Controllers\\\\ExistingController@privateAction");',
+            .'"\\\\App\\\\Http\\\\Controllers\\\\ExistingController@privateAction");'
+            .'$router->get("/dispatcher-array-method", '
+            .'[\\App\\Http\\Controllers\\MethodlessController::class, "missing"]);'
+            .'$router->get("/dispatcher-array-visibility", '
+            .'[\\App\\Http\\Controllers\\ExistingController::class, "privateAction"]);',
     ],
     'explicit controller binding defers visibility diagnostic' => [
         <<<'PHP'
@@ -285,7 +400,10 @@ $catalogCases = [
                 \App\Http\Controllers\ExistingController::class,
             );
             PHP,
-        '$router->get("/bound-visibility", '.'"\\\\App\\\\Http\\\\Controllers\\\\ExistingController@privateAction");',
+        '$router->get("/bound-visibility", '
+            .'"\\\\App\\\\Http\\\\Controllers\\\\ExistingController@privateAction");'
+            .'$router->get("/bound-array-visibility", '
+            .'[\\App\\Http\\Controllers\\ExistingController::class, "privateAction"]);',
     ],
 ];
 foreach ($catalogCases as $name => [$bindings, $body]) {
@@ -309,6 +427,45 @@ foreach ($catalogCases as $name => [$bindings, $body]) {
 }
 
 file_put_contents($workspace.'/composer.json', '{}');
+$configuration['source']['paths'] = ['native-array-class.php', 'app'];
+file_put_contents($workspace.'/native-array-class.php', <<<'PHP'
+    <?php
+    use Illuminate\Routing\Router;
+    function nativeArrayClass(Router $router): void {
+        $router->get('/missing-array-class', [\Missing\ArrayController::class, 'index']);
+    }
+    PHP);
+file_put_contents($workspace.'/mago.json', json_encode($configuration, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+$process = proc_open(
+    [...$command, '--workspace', $workspace, 'analyze', '--reporting-format=json'],
+    [
+        0 => ['pipe', 'r'],
+        1 => ['file', $workspace.'/native-array-class.json', 'w'],
+        2 => ['file', $workspace.'/native-array-class.log', 'w'],
+    ],
+    $pipes,
+);
+if (! is_resource($process)) {
+    throw new RuntimeException('Cannot start Mago.');
+}
+fclose($pipes[0]);
+$exit = proc_close($process);
+$stderr = file_get_contents($workspace.'/native-array-class.log');
+if ($exit !== 1 || preg_match('/External analyzer provider failed|extension worker .*rejected request/i', $stderr)) {
+    throw new RuntimeException('Expected the native missing class diagnostic; inspect '.$workspace);
+}
+$report = json_decode(file_get_contents($workspace.'/native-array-class.json'), true, flags: JSON_THROW_ON_ERROR);
+$codes = array_column($report['issues'] ?? [], 'code');
+if ($codes !== ['non-existent-class-like']) {
+    throw new RuntimeException(
+        'Native array class priority: expected only non-existent-class-like, got '
+        .json_encode($codes)
+        .'; see '
+        .$workspace,
+    );
+}
+echo "PASS: native missing class diagnostic retains priority for array action\n";
+
 $configuration['source']['paths'] = ['cases.php', 'app'];
 unset($configuration['extension-hosts']);
 file_put_contents($workspace.'/mago.json', json_encode($configuration, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));

@@ -69,7 +69,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 61 | Controller class existence in string actions | implemented; tests/controller-action-classes.php; absolute literal actions only |
 | 62 | Controller method existence in string actions | implemented; tests/controller-action-classes.php; standard dispatch and binding guards |
 | 63 | Controller action visibility | implemented; Controller action visibility follows native dispatch scope; 36 real-Mago scenarios passed. |
-| 64 | Array controller action references | running |
+| 64 | Array controller action references | implemented; Literal controller action arrays resolve PHP names and preserve native diagnostics; 58 real-Mago scenarios passed. |
 | 65 | Invokable controller actions | queued |
 | 66 | Controller route group context | queued |
 | 67 | Additional route registration methods | queued |
