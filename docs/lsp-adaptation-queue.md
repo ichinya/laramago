@@ -40,7 +40,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 32 | Relation aggregate references | queued |
 | 33 | Relation aggregate alias syntax | queued |
 | 34 | Query-local aggregate result properties | queued |
-| 35 | Literal configuration result types | queued |
+| 35 | Literal configuration result types | already-covered; Verified literal config and native Config::get types with configuration and configuration-index suites. |
 | 36 | Additional configuration call sites | queued |
 | 37 | Complete configuration key diagnostics | queued |
 | 38 | Configuration getMany key validation | queued |
