@@ -15,7 +15,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 7 | Relation properties and typed collections | already-covered; Verified relation properties, nullable models and typed collections with five focused suites. |
 | 8 | Legacy and attributed local scopes | already-covered; Verified legacy and attributed scope resolution; 43 focused scenarios passed. |
 | 9 | Scope parameters and simple fluent bodies | already-covered; Verified scope signatures and bounded fluent body inference; native and disabled regressions passed. |
-| 10 | Custom builders and collections | running |
+| 10 | Custom builders and collections | already-covered; Verified custom builder and collection resolution with eight focused suites. |
 | 11 | Fillable name validation | running |
 | 12 | Guarded name validation | queued |
 | 13 | Hidden name validation | queued |
