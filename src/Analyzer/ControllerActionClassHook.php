@@ -8,6 +8,7 @@ use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeFacade;
 use Mago\Sdk\Analyzer\FileAnalysisRequirement;
 use Mago\Sdk\Analyzer\Metadata\FunctionLikeMetadata;
+use Mago\Sdk\Analyzer\Metadata\MetadataFlags;
 use Mago\Sdk\Analyzer\MethodCallAnalysisHook;
 use Mago\Sdk\Analyzer\MethodTarget;
 use Mago\Sdk\Analyzer\NodeAnalysisContext;
@@ -94,7 +95,9 @@ final class ControllerActionClassHook implements MethodCallAnalysisHook
             return;
         }
         $location = $controller['location'];
-        if ($this->bindings->configured($controller['name']) || $this->bindings->configured(self::DISPATCHER)) {
+        $customBinding =
+            $this->bindings->configured($controller['name']) || $this->bindings->configured(self::DISPATCHER);
+        if (! $controller['invokable'] && $customBinding) {
             return;
         }
         // Relative string actions may receive Laravel's legacy route namespace.
@@ -116,15 +119,27 @@ final class ControllerActionClassHook implements MethodCallAnalysisHook
 
             return;
         }
-        if (! $this->hasStandardControllerDispatch($context, $controller['name'])) {
-            return;
+        $method = null;
+        if ($controller['invokable']) {
+            $resolution = $this->nativeInvokableMethod($context, $controller['name']);
+            if (! $resolution['complete']) {
+                return;
+            }
+            $method = $resolution['method'];
+        } else {
+            if (! $this->hasStandardControllerDispatch($context, $controller['name'])) {
+                return;
+            }
+            $method = $context->codebase->getMethod(
+                $controller['name'],
+                $controller['method'],
+            ) ?? $context->codebase->getDeclaringMethod($controller['name'], $controller['method']);
         }
-        $method = $context->codebase->getMethod(
-            $controller['name'],
-            $controller['method'],
-        ) ?? $context->codebase->getDeclaringMethod($controller['name'], $controller['method']);
         if ($method === null) {
-            if (! $context->codebase->methodExists($controller['name'], $controller['method'])) {
+            if (
+                $controller['invokable']
+                || ! $context->codebase->methodExists($controller['name'], $controller['method'])
+            ) {
                 $context->report(
                     Level::Warning,
                     'laramago-missing-controller-method',
@@ -144,10 +159,15 @@ final class ControllerActionClassHook implements MethodCallAnalysisHook
 
             return;
         }
-        if (
-            $method->visibility === null
-            || $this->isActionAccessible($context, $controller['name'], $method)
-        ) {
+        // PHP itself requires __invoke to be public. Native Mago reports an invalid declaration
+        // at its source, so a route-level visibility warning would only duplicate that diagnostic.
+        if ($controller['invokable']) {
+            return;
+        }
+        if ($method->visibility === null || $method->visibility === Visibility::Public) {
+            return;
+        }
+        if ($this->isActionAccessible($context, $controller['name'], $method)) {
             return;
         }
         $context->report(
@@ -273,6 +293,7 @@ final class ControllerActionClassHook implements MethodCallAnalysisHook
      * @return array{
      *     name: non-empty-string,
      *     method: non-empty-string,
+     *     invokable: bool,
      *     reportMissingClass: bool,
      *     location: Node\Expr
      * }|null
@@ -282,6 +303,8 @@ final class ControllerActionClassHook implements MethodCallAnalysisHook
         if ($action instanceof Node\Scalar\String_) {
             return $this->stringController($action);
         }
+        // `Controller::class` evaluates without a leading slash. Router may prepend a namespace
+        // from an externally established route group, which lexical source context cannot prove absent.
         if (! $action instanceof Node\Expr\Array_ || count($action->items) !== 2) {
             return null;
         }
@@ -313,6 +336,7 @@ final class ControllerActionClassHook implements MethodCallAnalysisHook
         return [
             'name' => $name,
             'method' => $method,
+            'invokable' => false,
             'reportMissingClass' => false,
             'location' => $methodItem->value,
         ];
@@ -322,13 +346,30 @@ final class ControllerActionClassHook implements MethodCallAnalysisHook
      * @return array{
      *     name: non-empty-string,
      *     method: non-empty-string,
+     *     invokable: bool,
      *     reportMissingClass: bool,
      *     location: Node\Expr
      * }|null
      */
     private function stringController(Node\Scalar\String_ $action): ?array
     {
-        if (substr_count($action->value, '@') !== 1) {
+        $separatorCount = substr_count($action->value, '@');
+        if ($separatorCount === 0) {
+            $class = $this->absoluteStringClass($action->value);
+
+            return (
+                $class === null
+                    ? null
+                    : [
+                        'name' => $class,
+                        'method' => '__invoke',
+                        'invokable' => true,
+                        'reportMissingClass' => true,
+                        'location' => $action,
+                    ]
+            );
+        }
+        if ($separatorCount !== 1) {
             return null;
         }
         [$class, $method] = explode('@', $action->value, 2);
@@ -346,11 +387,25 @@ final class ControllerActionClassHook implements MethodCallAnalysisHook
                 ? [
                     'name' => $class,
                     'method' => $method,
+                    'invokable' => false,
                     'reportMissingClass' => true,
                     'location' => $action,
                 ]
                 : null
         );
+    }
+
+    /** @return non-empty-string|null */
+    private function absoluteStringClass(string $value): ?string
+    {
+        if (! str_starts_with($value, '\\')) {
+            return null;
+        }
+        $class = ltrim($value, '\\');
+
+        return $class !== '' && preg_match('/^(?:[A-Za-z_][A-Za-z0-9_]*\\\\)*[A-Za-z_][A-Za-z0-9_]*$/D', $class) === 1
+            ? $class
+            : null;
     }
 
     private function hasStandardControllerDispatch(NodeAnalysisContext $context, string $controller): bool
@@ -366,6 +421,121 @@ final class ControllerActionClassHook implements MethodCallAnalysisHook
         $magicCall = $context->codebase->getDeclaringMethod($controller, '__call');
 
         return $magicCall === null || self::isStandardControllerMethod($magicCall, '__call');
+    }
+
+    /** @return array{complete: bool, method: FunctionLikeMetadata|null} */
+    private function nativeInvokableMethod(NodeAnalysisContext $context, string $controller): array
+    {
+        $class = $context->codebase->getClass($controller);
+        if ($class === null || $class->hasIncompleteHierarchy()) {
+            return ['complete' => false, 'method' => null];
+        }
+        $inherited = false;
+        $traitAliasUncertainty = false;
+        while (true) {
+            foreach ($class->methods as $name) {
+                if (strcasecmp($name, '__invoke') !== 0) {
+                    continue;
+                }
+                $method = $context->codebase->getMethod(
+                    $class->name,
+                    '__invoke',
+                ) ?? $context->codebase->getDeclaringMethod($class->name, '__invoke');
+                if ($method === null) {
+                    return ['complete' => false, 'method' => null];
+                }
+                if (
+                    (self::containsMethod($class->pseudoMethods, '__invoke')
+                    || self::containsMethod($class->staticPseudoMethods, '__invoke'))
+                    && $method->flags->contains(MetadataFlags::MAGIC_METHOD)
+                ) {
+                    continue;
+                }
+
+                // PHP's method_exists() does not expose a parent's private method on the child class.
+                return [
+                    'complete' => ! $inherited || $method->visibility !== Visibility::Private,
+                    'method' => ! $inherited || $method->visibility !== Visibility::Private ? $method : null,
+                ];
+            }
+            foreach ($class->usedTraits as $trait) {
+                $resolution = $this->traitInvokableMethod($context, $trait, []);
+                if (! $resolution['complete']) {
+                    return $resolution;
+                }
+                if ($resolution['method'] !== null) {
+                    return $resolution;
+                }
+            }
+            // Mago's stable metadata does not expose trait alias adaptations. A trait without
+            // a declared __invoke may still add one via `handle as __invoke`, so absence is unknown.
+            if ($class->usedTraits !== []) {
+                $traitAliasUncertainty = true;
+            }
+            if ($class->directParentClass === null) {
+                return ['complete' => ! $traitAliasUncertainty, 'method' => null];
+            }
+            $class = $context->codebase->getClass($class->directParentClass);
+            if ($class === null || $class->hasIncompleteHierarchy()) {
+                return ['complete' => false, 'method' => null];
+            }
+            $inherited = true;
+        }
+    }
+
+    /**
+     * @param list<string> $visited
+     * @return array{complete: bool, method: FunctionLikeMetadata|null}
+     */
+    private function traitInvokableMethod(NodeAnalysisContext $context, string $name, array $visited): array
+    {
+        $key = strtolower($name);
+        if (in_array($key, $visited, true)) {
+            return ['complete' => false, 'method' => null];
+        }
+        $visited[] = $key;
+        $trait = $context->codebase->getClassLike($name);
+        if ($trait === null || $trait->hasIncompleteHierarchy()) {
+            return ['complete' => false, 'method' => null];
+        }
+        if (self::containsMethod($trait->methods, '__invoke')) {
+            $method = $context->codebase->getMethod(
+                $trait->name,
+                '__invoke',
+            ) ?? $context->codebase->getDeclaringMethod($trait->name, '__invoke');
+            if (
+                $method !== null
+                && (self::containsMethod($trait->pseudoMethods, '__invoke')
+                || self::containsMethod($trait->staticPseudoMethods, '__invoke'))
+                && $method->flags->contains(MetadataFlags::MAGIC_METHOD)
+            ) {
+                $method = null;
+            }
+
+            if ($method !== null) {
+                return ['complete' => true, 'method' => $method];
+            }
+        }
+        foreach ($trait->usedTraits as $used) {
+            $resolution = $this->traitInvokableMethod($context, $used, $visited);
+            if (! $resolution['complete'] || $resolution['method'] !== null) {
+                return $resolution;
+            }
+        }
+
+        return ['complete' => true, 'method' => null];
+    }
+
+    /** @param list<string> $methods */
+    private static function containsMethod(array $methods, string $name): bool
+    {
+        foreach ($methods as $method) {
+            if (strcasecmp($method, $name) === 0) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function isActionAccessible(

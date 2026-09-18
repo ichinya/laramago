@@ -29,6 +29,78 @@ class MethodlessController extends AppController {}
 /** @method void documentedAction() */
 class DocumentedController extends AppController {}
 
+class InvokableController extends AppController
+{
+    public function __invoke(): void {}
+}
+
+/** @method void __invoke() */
+class DocumentedRealInvokableController extends AppController
+{
+    public function __invoke(): void {}
+}
+
+trait InvokableControllerTrait
+{
+    public function __invoke(): void {}
+}
+
+/** @method void __invoke() */
+trait DocumentedRealInvokableControllerTrait
+{
+    public function __invoke(): void {}
+}
+
+class TraitInvokableController extends AppController
+{
+    use InvokableControllerTrait;
+}
+
+class DocumentedRealTraitInvokableController extends AppController
+{
+    use DocumentedRealInvokableControllerTrait;
+}
+
+trait InvokableHandlerTrait
+{
+    public function handle(): void {}
+}
+
+class AliasedTraitInvokableController extends AppController
+{
+    use InvokableHandlerTrait {
+        handle as __invoke;
+    }
+}
+
+class InheritedInvokableBase extends AppController
+{
+    public function __invoke(): void {}
+}
+
+class InheritedInvokableController extends InheritedInvokableBase {}
+
+/** @method void __invoke() */
+class DocumentedInvokableController extends AppController {}
+
+class MagicMethodlessInvokableController extends AppController
+{
+    /** @param list<mixed> $parameters */
+    public function __call(string $method, array $parameters): mixed
+    {
+        return null;
+    }
+}
+
+class DispatchMethodlessInvokableController extends AppController
+{
+    /** @param array<string, mixed> $parameters */
+    public function callAction(string $method, array $parameters): mixed
+    {
+        return null;
+    }
+}
+
 class PlainMethodlessController {}
 
 class PlainVisibilityController

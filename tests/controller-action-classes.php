@@ -129,6 +129,67 @@ $cases = [
         '$router->get("/concatenated", ExistingController::class."@index");',
         [],
     ],
+    'invokable class constant external namespace uncertainty deferred' => [
+        '$router->get("/invokable-class", MethodlessController::class);',
+        [],
+    ],
+    'absolute invokable string' => [
+        '$router->get("/invokable-string", "\\\\App\\\\Http\\\\Controllers\\\\InvokableController");',
+        [],
+    ],
+    'real invokable method wins over same-name PHPDoc method' => [
+        '$router->get("/invokable-real-documented", '
+            .'"\\\\App\\\\Http\\\\Controllers\\\\DocumentedRealInvokableController");',
+        [],
+    ],
+    'invokable missing method' => [
+        '$router->get("/invokable-missing", "\\\\App\\\\Http\\\\Controllers\\\\MethodlessController");',
+        $methodWarning,
+    ],
+    'invokable PHPDoc method does not satisfy native registration' => [
+        '$router->get("/invokable-documented", '.'"\\\\App\\\\Http\\\\Controllers\\\\DocumentedInvokableController");',
+        $methodWarning,
+    ],
+    'invokable custom magic does not satisfy native registration' => [
+        '$router->get("/invokable-magic", '.'"\\\\App\\\\Http\\\\Controllers\\\\MagicMethodlessInvokableController");',
+        $methodWarning,
+    ],
+    'invokable custom callAction does not satisfy native registration' => [
+        '$router->get("/invokable-dispatch", '
+            .'"\\\\App\\\\Http\\\\Controllers\\\\DispatchMethodlessInvokableController");',
+        $methodWarning,
+    ],
+    'inherited invokable method' => [
+        '$router->get("/invokable-inherited", '.'"\\\\App\\\\Http\\\\Controllers\\\\InheritedInvokableController");',
+        [],
+    ],
+    'trait invokable method' => [
+        '$router->get("/invokable-trait", "\\\\App\\\\Http\\\\Controllers\\\\TraitInvokableController");',
+        [],
+    ],
+    'real trait invokable method wins over same-name PHPDoc method' => [
+        '$router->get("/invokable-trait-real-documented", '
+            .'"\\\\App\\\\Http\\\\Controllers\\\\DocumentedRealTraitInvokableController");',
+        [],
+    ],
+    'aliased trait invokable deferred without adaptation metadata' => [
+        '$router->get("/invokable-trait-alias", '
+            .'"\\\\App\\\\Http\\\\Controllers\\\\AliasedTraitInvokableController");',
+        [],
+    ],
+    'relative invokable string deferred' => [
+        '$router->get("/invokable-relative", "App\\\\Http\\\\Controllers\\\\MethodlessController");',
+        [],
+    ],
+    'bare invokable string deferred' => ['$router->get("/invokable-bare", "MethodlessController");', []],
+    'absolute missing invokable class' => [
+        '$router->get("/invokable-missing-class", "\\\\Missing\\\\InvokableController");',
+        $classWarning,
+    ],
+    'native facade invokable action' => [
+        'LaravelRoute::get("/invokable-facade", '.'"\\\\App\\\\Http\\\\Controllers\\\\InvokableController");',
+        [],
+    ],
     'array action existing controller' => ['$router->get("/array", [ExistingController::class, "index"]);', []],
     'array action missing method' => [
         '$router->get("/array-method", [ExistingController::class, "missing"]);',
@@ -231,6 +292,7 @@ $source = <<<'PHP'
     use App\Http\Controllers\DispatchController;
     use App\Http\Controllers\DocumentedController;
     use App\Http\Controllers\ExistingController as ImportedController;
+    use App\Http\Controllers\MethodlessController;
     use Illuminate\Routing\Router as NativeRouter;
     use Illuminate\Support\Facades\Route as LaravelRoute;
 
@@ -343,6 +405,14 @@ foreach ($lines as $line => [$name, $expected]) {
     $expectedSpan = match ($name) {
         'array action missing method' => '"missing"',
         'array action private through standard callAction' => '"privateAction"',
+        'invokable missing method' => '"\\\\App\\\\Http\\\\Controllers\\\\MethodlessController"',
+        'invokable PHPDoc method does not satisfy native registration'
+            => '"\\\\App\\\\Http\\\\Controllers\\\\DocumentedInvokableController"',
+        'invokable custom magic does not satisfy native registration'
+            => '"\\\\App\\\\Http\\\\Controllers\\\\MagicMethodlessInvokableController"',
+        'invokable custom callAction does not satisfy native registration'
+            => '"\\\\App\\\\Http\\\\Controllers\\\\DispatchMethodlessInvokableController"',
+        'absolute missing invokable class' => '"\\\\Missing\\\\InvokableController"',
         default => null,
     };
     if ($expectedSpan !== null && ! in_array($expectedSpan, $actualSpans[$line] ?? [], true)) {
@@ -367,11 +437,13 @@ mkdir($workspace.'/bootstrap');
 $catalogCases = [
     'explicit controller class binding defers class diagnostic' => [
         <<<'PHP'
-            <?php
-            throw new \RuntimeException('Binding catalog must never execute.');
-            \app()->bind(\Missing\BoundController::class, \App\Http\Controllers\ExistingController::class);
+                <?php
+                throw new \RuntimeException('Binding catalog must never execute.');
+                \app()->bind(\Missing\BoundController::class, \App\Http\Controllers\ExistingController::class);
             PHP,
         '$router->get("/bound", "\\\\Missing\\\\BoundController@index");',
+        [],
+        [],
     ],
     'explicit controller dispatcher binding defers route diagnostics' => [
         <<<'PHP'
@@ -390,6 +462,8 @@ $catalogCases = [
             .'[\\App\\Http\\Controllers\\MethodlessController::class, "missing"]);'
             .'$router->get("/dispatcher-array-visibility", '
             .'[\\App\\Http\\Controllers\\ExistingController::class, "privateAction"]);',
+        [],
+        [],
     ],
     'explicit controller binding defers visibility diagnostic' => [
         <<<'PHP'
@@ -404,15 +478,58 @@ $catalogCases = [
             .'"\\\\App\\\\Http\\\\Controllers\\\\ExistingController@privateAction");'
             .'$router->get("/bound-array-visibility", '
             .'[\\App\\Http\\Controllers\\ExistingController::class, "privateAction"]);',
+        [],
+        [],
+    ],
+    'controller binding cannot satisfy native invokable registration' => [
+        <<<'PHP'
+            <?php
+            throw new \RuntimeException('Binding catalog must never execute.');
+            \app()->bind(
+                \App\Http\Controllers\MethodlessController::class,
+                \App\Http\Controllers\InvokableController::class,
+            );
+            PHP,
+        '$router->get("/bound-invokable", "\\\\App\\\\Http\\\\Controllers\\\\MethodlessController");',
+        $methodWarning,
+        ['"\\\\App\\\\Http\\\\Controllers\\\\MethodlessController"'],
+    ],
+    'dispatcher binding cannot satisfy native invokable registration' => [
+        <<<'PHP'
+                <?php
+                throw new \RuntimeException('Binding catalog must never execute.');
+                \app()->bind(
+                    \Illuminate\Routing\Contracts\ControllerDispatcher::class,
+                    \App\Http\Controllers\CustomControllerDispatcher::class,
+                );
+            PHP,
+        '$router->get("/dispatcher-invokable", '
+            .'"\\\\App\\\\Http\\\\Controllers\\\\DispatchMethodlessInvokableController");',
+        $methodWarning,
+        ['"\\\\App\\\\Http\\\\Controllers\\\\DispatchMethodlessInvokableController"'],
+    ],
+    'controller binding cannot satisfy missing invokable class registration' => [
+        <<<'PHP'
+            <?php
+            throw new \RuntimeException('Binding catalog must never execute.');
+            \app()->bind(
+                \Missing\BoundInvokableController::class,
+                \App\Http\Controllers\InvokableController::class,
+            );
+            PHP,
+        '$router->get("/bound-missing-invokable", "\\\\Missing\\\\BoundInvokableController");',
+        $classWarning,
+        ['"\\\\Missing\\\\BoundInvokableController"'],
     ],
 ];
-foreach ($catalogCases as $name => [$bindings, $body]) {
+foreach ($catalogCases as $name => [$bindings, $body, $expectedCodes, $expectedSpans]) {
     file_put_contents($workspace.'/bootstrap/bindings.php', $bindings);
-    file_put_contents($workspace.'/catalog-cases.php', <<<'PHP'
+    $catalogSource = <<<'PHP'
         <?php
         use Illuminate\Routing\Router as NativeRouter;
         function catalogScenario(NativeRouter $router): void {
-        PHP.$body.'}');
+        PHP.$body.'}';
+    file_put_contents($workspace.'/catalog-cases.php', $catalogSource);
     file_put_contents($workspace.'/composer.json', json_encode([
         'extra' => ['laramago' => ['binding-files' => ['bootstrap/bindings.php']]],
     ], JSON_THROW_ON_ERROR));
@@ -420,21 +537,45 @@ foreach ($catalogCases as $name => [$bindings, $body]) {
     file_put_contents($workspace.'/mago.json', json_encode($configuration, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
     $analyze('catalog.json', 'catalog.log');
     $report = json_decode(file_get_contents($workspace.'/catalog.json'), true, flags: JSON_THROW_ON_ERROR);
-    if (($report['issues'] ?? []) !== []) {
-        throw new RuntimeException($name.': expected no diagnostics; inspect '.$workspace);
+    $issues = $report['issues'] ?? [];
+    $codes = array_column($issues, 'code');
+    $spans = [];
+    foreach ($issues as $issue) {
+        $primary = array_values(array_filter(
+            $issue['annotations'],
+            static fn (array $annotation): bool => $annotation['kind'] === 'Primary',
+        ))[0];
+        $spans[] = substr(
+            $catalogSource,
+            $primary['span']['start']['offset'],
+            $primary['span']['end']['offset'] - $primary['span']['start']['offset'],
+        );
+    }
+    if ($codes !== $expectedCodes || $spans !== $expectedSpans) {
+        throw new RuntimeException(
+            $name
+            .': expected '
+            .json_encode([$expectedCodes, $expectedSpans])
+            .', got '
+            .json_encode([$codes, $spans])
+            .'; inspect '
+            .$workspace,
+        );
     }
     echo 'PASS: '.$name."\n";
 }
 
 file_put_contents($workspace.'/composer.json', '{}');
-$configuration['source']['paths'] = ['native-array-class.php', 'app'];
-file_put_contents($workspace.'/native-array-class.php', <<<'PHP'
+$configuration['source']['paths'] = ['native-class-actions.php', 'app'];
+$nativeClassSource = <<<'PHP'
     <?php
     use Illuminate\Routing\Router;
-    function nativeArrayClass(Router $router): void {
+    function nativeClassActions(Router $router): void {
         $router->get('/missing-array-class', [\Missing\ArrayController::class, 'index']);
+        $router->get('/missing-invokable-class', \Missing\InvokableController::class);
     }
-    PHP);
+    PHP;
+file_put_contents($workspace.'/native-class-actions.php', $nativeClassSource);
 file_put_contents($workspace.'/mago.json', json_encode($configuration, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
 $process = proc_open(
     [...$command, '--workspace', $workspace, 'analyze', '--reporting-format=json'],
@@ -456,15 +597,88 @@ if ($exit !== 1 || preg_match('/External analyzer provider failed|extension work
 }
 $report = json_decode(file_get_contents($workspace.'/native-array-class.json'), true, flags: JSON_THROW_ON_ERROR);
 $codes = array_column($report['issues'] ?? [], 'code');
-if ($codes !== ['non-existent-class-like']) {
+$nativeSpans = [];
+foreach ($report['issues'] ?? [] as $issue) {
+    $primary = array_values(array_filter(
+        $issue['annotations'],
+        static fn (array $annotation): bool => $annotation['kind'] === 'Primary',
+    ))[0];
+    $nativeSpans[] = substr(
+        $nativeClassSource,
+        $primary['span']['start']['offset'],
+        $primary['span']['end']['offset'] - $primary['span']['start']['offset'],
+    );
+}
+if (
+    $codes !== ['non-existent-class-like', 'non-existent-class-like']
+    || $nativeSpans !== ['\\Missing\\ArrayController', '\\Missing\\InvokableController']
+) {
     throw new RuntimeException(
-        'Native array class priority: expected only non-existent-class-like, got '
+        'Native class-action priority: expected precise native missing-class diagnostics, got '
         .json_encode($codes)
+        .' at '
+        .json_encode($nativeSpans)
         .'; see '
         .$workspace,
     );
 }
-echo "PASS: native missing class diagnostic retains priority for array action\n";
+echo "PASS: native missing class diagnostics retain precise priority for class actions\n";
+
+$visibilitySource = <<<'PHP'
+    <?php
+    use Illuminate\Routing\Router;
+    class NativeProtectedInvokableController {
+        protected function __invoke(): void {}
+    }
+    function nativeInvokableVisibility(Router $router): void {
+        $router->get('/protected-invokable', NativeProtectedInvokableController::class);
+    }
+    PHP;
+file_put_contents($workspace.'/native-invokable-visibility.php', $visibilitySource);
+$configuration['source']['paths'] = ['native-invokable-visibility.php', 'app'];
+file_put_contents($workspace.'/mago.json', json_encode($configuration, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+$process = proc_open(
+    [...$command, '--workspace', $workspace, 'analyze', '--reporting-format=json'],
+    [
+        0 => ['pipe', 'r'],
+        1 => ['file', $workspace.'/native-invokable-visibility.json', 'w'],
+        2 => ['file', $workspace.'/native-invokable-visibility.log', 'w'],
+    ],
+    $pipes,
+);
+if (! is_resource($process)) {
+    throw new RuntimeException('Cannot start Mago.');
+}
+fclose($pipes[0]);
+$exit = proc_close($process);
+$stderr = file_get_contents($workspace.'/native-invokable-visibility.log');
+if ($exit !== 1 || preg_match('/External analyzer provider failed|extension worker .*rejected request/i', $stderr)) {
+    throw new RuntimeException('Expected native invokable visibility diagnostic; inspect '.$workspace);
+}
+$report = json_decode(
+    file_get_contents($workspace.'/native-invokable-visibility.json'),
+    true,
+    flags: JSON_THROW_ON_ERROR,
+);
+$issues = $report['issues'] ?? [];
+$primary =
+    array_values(array_filter(
+        $issues[0]['annotations'] ?? [],
+        static fn (array $annotation): bool => $annotation['kind'] === 'Primary',
+    ))[0] ?? null;
+$span = $primary === null
+    ? null
+    : substr(
+        $visibilitySource,
+        $primary['span']['start']['offset'],
+        $primary['span']['end']['offset'] - $primary['span']['start']['offset'],
+    );
+if (array_column($issues, 'code') !== ['semantics'] || $span !== 'protected') {
+    throw new RuntimeException(
+        'Invokable visibility priority: expected only the precise native semantics diagnostic; see '.$workspace,
+    );
+}
+echo "PASS: native invokable visibility diagnostic retains precise priority\n";
 
 $configuration['source']['paths'] = ['cases.php', 'app'];
 unset($configuration['extension-hosts']);
