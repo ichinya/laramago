@@ -31,7 +31,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 23 | Search versus creation attribute arrays | queued |
 | 24 | Suggestions for proven field typos | queued |
 | 25 | Additional relation-name call sites | running |
-| 26 | Nested relation paths | queued |
+| 26 | Nested relation paths | already-covered; Verified nested relation traversal, callback typing and complete-name checks with focused suites. |
 | 27 | Mixed eager-load declaration arrays | queued |
 | 28 | Eager-load colon projection syntax | queued |
 | 29 | Related model projection columns | queued |
