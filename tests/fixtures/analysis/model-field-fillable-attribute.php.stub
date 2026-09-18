@@ -1,0 +1,9 @@
+<?php
+
+namespace Illuminate\Database\Eloquent\Attributes;
+
+#[\Attribute(\Attribute::TARGET_CLASS)]
+final class Fillable
+{
+    public function __construct(array|string ...$columns) {}
+}

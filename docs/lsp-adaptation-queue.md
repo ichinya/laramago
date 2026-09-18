@@ -16,7 +16,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 8 | Legacy and attributed local scopes | already-covered; Verified legacy and attributed scope resolution; 43 focused scenarios passed. |
 | 9 | Scope parameters and simple fluent bodies | already-covered; Verified scope signatures and bounded fluent body inference; native and disabled regressions passed. |
 | 10 | Custom builders and collections | already-covered; Verified custom builder and collection resolution with eight focused suites. |
-| 11 | Fillable name validation | running |
+| 11 | Fillable name validation | implemented; Explicit exact-model field catalogs validate literal fillable names; native dispatch and disabled regressions passed. |
 | 12 | Guarded name validation | queued |
 | 13 | Hidden name validation | queued |
 | 14 | Visible name validation | queued |

@@ -1,0 +1,13 @@
+<?php
+
+namespace Illuminate\Database\Eloquent;
+
+class Model
+{
+    use \Illuminate\Database\Eloquent\Concerns\GuardsAttributes;
+
+    public function fill(array $attributes): static
+    {
+        throw new \RuntimeException('Must not execute');
+    }
+}

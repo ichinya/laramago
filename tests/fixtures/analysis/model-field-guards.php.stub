@@ -1,0 +1,23 @@
+<?php
+
+namespace Illuminate\Database\Eloquent\Concerns;
+
+trait GuardsAttributes
+{
+    /** @return list<string> */
+    public function getFillable(): array
+    {
+        throw new \RuntimeException('Must not execute');
+    }
+
+    public function isFillable(string $key): bool
+    {
+        throw new \RuntimeException('Must not execute');
+    }
+
+    /** @return array<string, mixed> */
+    protected function fillableFromArray(array $attributes): array
+    {
+        throw new \RuntimeException('Must not execute');
+    }
+}

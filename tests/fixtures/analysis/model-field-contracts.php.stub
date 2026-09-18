@@ -1,0 +1,111 @@
+<?php
+
+namespace Example {
+    use Illuminate\Database\Eloquent\Attributes\Fillable;
+    use Illuminate\Database\Eloquent\Model;
+
+    final class LiteralFields
+    {
+        public const KNOWN = 'known';
+        public const DYNAMIC = ['known'];
+    }
+
+    class CompleteRecord extends Model
+    {
+        protected $casts = ['virtual' => 'array'];
+        protected $fillable = ['known', 'profile->enabled', 'nullable_value', 'virtual', 'missing']; // complete-missing
+
+        public function setVirtualAttribute(array $value): void
+        {
+            throw new \RuntimeException('Must not execute');
+        }
+    }
+
+    class OpenRecord extends Model
+    {
+        protected $fillable = ['missing'];
+    }
+
+    class ChildRecord extends CompleteRecord
+    {
+        protected $fillable = ['missing'];
+    }
+
+    class DynamicRecord extends Model
+    {
+        protected $fillable = [LiteralFields::KNOWN, 'missing']; // literal-missing
+    }
+
+    class UnpackedRecord extends Model
+    {
+        protected $fillable = ['key' => 'missing', ...LiteralFields::DYNAMIC];
+    }
+
+    class CustomConnectionRecord extends Model
+    {
+        protected $fillable = ['remote_only'];
+
+        public function getConnectionName(): string
+        {
+            throw new \RuntimeException('Must not execute');
+        }
+
+        public function getTable(): string
+        {
+            throw new \RuntimeException('Must not execute');
+        }
+    }
+
+    class CustomGetFillableRecord extends Model
+    {
+        protected $fillable = ['missing'];
+
+        public function getFillable(): array
+        {
+            throw new \RuntimeException('Must not execute');
+        }
+    }
+
+    class CustomIsFillableRecord extends Model
+    {
+        protected $fillable = ['missing'];
+
+        public function isFillable(string $key): bool
+        {
+            throw new \RuntimeException('Must not execute');
+        }
+    }
+
+    class CustomFillRecord extends Model
+    {
+        protected $fillable = ['missing'];
+
+        public function fill(array $attributes): static
+        {
+            throw new \RuntimeException('Must not execute');
+        }
+    }
+
+    class CustomMassAssignmentRecord extends Model
+    {
+        protected $fillable = ['missing'];
+
+        protected function fillableFromArray(array $attributes): array
+        {
+            throw new \RuntimeException('Must not execute');
+        }
+    }
+
+    class MalformedCatalogRecord extends Model
+    {
+        protected $fillable = ['missing'];
+    }
+
+    class DuplicateCatalogRecord extends Model
+    {
+        protected $fillable = ['missing'];
+    }
+
+    #[Fillable(['missing'])]
+    class AttributeRecord extends Model {}
+}
