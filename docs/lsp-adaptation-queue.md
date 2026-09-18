@@ -9,7 +9,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 1 | Model table mapping | already-covered; Verified ModelReflection::table and tests/properties.php. |
 | 2 | Migration column types and nullability | already-covered; Verified SchemaIndex and migration locals, literals and contracts tests. |
 | 3 | Native property and PHPDoc priority | already-covered; Verified EloquentPropertyProvider native and PHPDoc priority with properties tests. |
-| 4 | Built-in attribute casts | queued |
+| 4 | Built-in attribute casts | already-covered; Verified AttributeTypes built-in casts and casts, advanced-casts, cast-contracts, carbon-properties tests. |
 | 5 | Typed accessors and mutators | already-covered; Verified typed legacy and Attribute accessors in EloquentPropertyProvider and properties tests. |
 | 6 | Separate attribute read and write types | already-covered; Verified independent read/write contracts in AttributeTypes, CustomCastTypes and focused tests. |
 | 7 | Relation properties and typed collections | queued |
