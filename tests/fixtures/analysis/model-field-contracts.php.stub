@@ -72,6 +72,33 @@ namespace Example {
         protected $hidden = ['missing'];
     }
 
+    class CompleteVisibleRecord extends Model
+    {
+        protected $visible = [
+            'known',
+            'userProfile',
+            'display_name',
+            'user_profile', // visible-output-key
+            'Known', // visible-case-mismatch
+            'missing', // visible-missing
+        ];
+    }
+
+    class EmptyVisibleRecord extends Model
+    {
+        protected $visible = [];
+    }
+
+    class OpenVisibleRecord extends Model
+    {
+        protected $visible = ['missing'];
+    }
+
+    class DynamicVisibleRecord extends Model
+    {
+        protected $visible = ['key' => 'missing', ...LiteralFields::DYNAMIC];
+    }
+
     class ChildRecord extends CompleteRecord
     {
         protected $fillable = ['missing'];
@@ -148,6 +175,16 @@ namespace Example {
         protected $hidden = ['missing'];
 
         public function getHidden(): array
+        {
+            throw new \RuntimeException('Must not execute');
+        }
+    }
+
+    class CustomGetVisibleRecord extends Model
+    {
+        protected $visible = ['missing'];
+
+        public function getVisible(): array
         {
             throw new \RuntimeException('Must not execute');
         }

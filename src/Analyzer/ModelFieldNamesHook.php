@@ -169,10 +169,11 @@ final class ModelFieldNamesHook implements ClassLikeAnalysisHook
             }
             foreach ($statement->props as $property) {
                 $propertyName = $property->name->toString();
+                $serializationFilter = $propertyName === 'hidden' || $propertyName === 'visible';
                 $native = match ($propertyName) {
                     'fillable' => $nativeFillable,
                     'guarded' => $nativeGuarded,
-                    'hidden' => $nativeHidden,
+                    'hidden', 'visible' => $nativeHidden,
                     default => null,
                 };
                 if (
@@ -203,7 +204,7 @@ final class ModelFieldNamesHook implements ClassLikeAnalysisHook
                     }
                     $contains = match ($propertyName) {
                         'guarded' => $this->fields->containsCaseInsensitive($model, $name),
-                        'hidden' => $this->fields->containsSerializationKey($model, $name),
+                        'hidden', 'visible' => $this->fields->containsSerializationKey($model, $name),
                         default => $this->fields->contains($model, $name),
                     };
                     if ($contains !== false) {
@@ -211,7 +212,7 @@ final class ModelFieldNamesHook implements ClassLikeAnalysisHook
                     }
                     $context->report(
                         Level::Warning,
-                        $propertyName === 'hidden'
+                        $serializationFilter
                             ? 'laramago-missing-model-serialization-key'
                             : 'laramago-missing-model-field',
                         Issue::at(
@@ -219,7 +220,7 @@ final class ModelFieldNamesHook implements ClassLikeAnalysisHook
                             .' name '
                             .$name
                             .' is absent from the complete '
-                            .($propertyName === 'hidden' ? 'serialization key' : 'field')
+                            .($serializationFilter ? 'serialization key' : 'field')
                             .' catalog for '
                             .$model
                             .'.',

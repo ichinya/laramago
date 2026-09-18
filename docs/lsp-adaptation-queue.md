@@ -19,7 +19,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 11 | Fillable name validation | implemented; Explicit exact-model field catalogs validate literal fillable names; native dispatch and disabled regressions passed. |
 | 12 | Guarded name validation | implemented; Guarded names reuse model catalogs with case-insensitive and wildcard semantics; focused and disabled checks passed. |
 | 13 | Hidden name validation | implemented; Hidden names use complete field and pre-serialization key catalogs; focused native/custom/disabled cases passed. |
-| 14 | Visible name validation | queued |
+| 14 | Visible name validation | implemented; Visible names reuse complete serialization catalogs with native empty-list and case semantics; focused tests passed. |
 | 15 | Appended accessor name validation | queued |
 | 16 | Model attribute declarations for field lists | queued |
 | 17 | Physical columns versus computed accessors | already-covered; Verified physical-column selection versus accessors, raw pluck keys and SQL alias boundaries; three suites passed. |

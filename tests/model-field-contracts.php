@@ -53,6 +53,13 @@ file_put_contents($workspace.'/composer.json', json_encode([
                     ...$complete([]),
                     'serialization' => ['complete' => true, 'keys' => [false]],
                 ],
+                'Example\\CompleteVisibleRecord' => $serializable(
+                    ['known'],
+                    ['userProfile', 'display_name'],
+                ),
+                'Example\\EmptyVisibleRecord' => $serializable([], []),
+                'Example\\OpenVisibleRecord' => $complete([]),
+                'Example\\DynamicVisibleRecord' => $serializable([], []),
                 'Example\\DynamicRecord' => $complete(['known']),
                 'Example\\UnpackedRecord' => $complete([]),
                 'Example\\CustomConnectionRecord' => $complete(['remote_only']),
@@ -61,6 +68,7 @@ file_put_contents($workspace.'/composer.json', json_encode([
                 'Example\\CustomIsGuardedRecord' => $complete([]),
                 'Example\\CustomIsFillableRecord' => $complete([]),
                 'Example\\CustomGetHiddenRecord' => $serializable([], []),
+                'Example\\CustomGetVisibleRecord' => $serializable([], []),
                 'Example\\CustomToArrayRecord' => $serializable([], []),
                 'Example\\CustomArrayableItemsRecord' => $serializable([], []),
                 'Example\\CustomFillRecord' => $complete([]),
@@ -139,9 +147,12 @@ foreach (explode("\n", $fixture) as $offset => $line) {
         || str_contains($line, '// guarded-mixed-missing')
         || str_contains($line, '// hidden-output-key')
         || str_contains($line, '// hidden-missing')
+        || str_contains($line, '// visible-output-key')
+        || str_contains($line, '// visible-case-mismatch')
+        || str_contains($line, '// visible-missing')
     ) {
         $expected[$offset + 1] = [
-            str_contains($line, '// hidden-')
+            str_contains($line, '// hidden-') || str_contains($line, '// visible-')
                 ? 'ichinya/laramago/laramago-missing-model-serialization-key'
                 : 'ichinya/laramago/laramago-missing-model-field',
         ];
@@ -157,7 +168,7 @@ if ($actual !== $expected) {
         .$workspace,
     );
 }
-echo "PASS: complete catalogs validate only safe literal fillable, guarded and hidden names\n";
+echo "PASS: complete catalogs validate only safe literal fillable, guarded, hidden and visible names\n";
 
 $nativeConfig = json_decode(file_get_contents($workspace.'/mago.json'), true, flags: JSON_THROW_ON_ERROR);
 unset($nativeConfig['extension-hosts']);

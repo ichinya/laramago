@@ -1,7 +1,7 @@
 # Model field catalogs
 
-Literal `$fillable` and `$guarded` names can be checked against an explicit
-complete field catalog for an exact model class:
+Literal `$fillable`, `$guarded`, `$hidden` and `$visible` names can be checked
+against explicit complete catalogs for an exact model class:
 
 ```json
 {
@@ -33,12 +33,13 @@ normalized keys disable that model's contract. Fillable names use the catalog's
 exact case. Guarded names follow Laravel's case-insensitive matching. Malformed
 contracts defer without diagnostics.
 
-The nested `serialization` contract enables `$hidden` validation without
-pretending that every hideable name is a field. Its `keys` list supplements
-`fields` with every relationship and appended name that may be filtered during
-serialization. `serialization.complete: true` asserts that the supplemental
-list is complete. Omit this nested contract when runtime relationships, appends,
-or other non-field serialization keys cannot be enumerated.
+The nested `serialization` contract enables `$hidden` and `$visible`
+validation without pretending that every filterable name is a field. Its
+`keys` list supplements `fields` with every relationship and appended name that
+may be filtered during serialization. `serialization.complete: true` asserts
+that the supplemental list is complete. Omit this nested contract when runtime
+relationships, appends, or other non-field serialization keys cannot be
+enumerated.
 
 Relationship keys use the name stored on the model before serialization. For
 example, list `userProfile`, not the `user_profile` key that Laravel may emit
@@ -52,8 +53,14 @@ literal names; the unusual `*` entry itself defers.
 
 With a complete nested serialization contract, the analyzer reports
 `laramago-missing-model-serialization-key` for a literal name in the exact
-model's directly declared `$hidden` array only when it is absent from both
-`fields` and `serialization.keys`.
+model's directly declared `$hidden` or `$visible` array only when it is absent
+from both `fields` and `serialization.keys`.
+
+Laravel applies a non-empty `$visible` array as an allowlist before applying
+`$hidden`; an empty `$visible` array leaves the values unfiltered. The analyzer
+therefore accepts an empty literal list and validates each name only when the
+list is non-empty. Serialization names remain case-sensitive and relationship
+names use their pre-snake-case keys.
 
 Dynamic expressions, keyed or unpacked arrays, inherited declarations, PHP
 attributes, incomplete class hierarchies, nonstandard framework provenance, and
@@ -62,7 +69,7 @@ requires native `fill()`, `getFillable()`, `getGuarded()`, `isFillable()`,
 `isGuarded()` and `fillableFromArray()` provenance. Analysis does not call
 `isGuardableColumn()` or connect to a database.
 
-Hidden validation also defers for non-literal effective arrays, custom
+Hidden and visible validation also defer for non-literal effective arrays, custom
 `getHidden()` or `getVisible()` implementations, and custom Eloquent
 serialization dispatch such as `toArray()`, arrayable attribute, append, or
 relationship collection. The analyzer never resolves runtime relationships or
