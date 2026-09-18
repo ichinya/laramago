@@ -144,7 +144,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 136 | Static path helper resolution | queued |
 | 137 | Path existence in required-file contexts | queued |
 | 138 | Vite manifest adaptation | queued |
-| 139 | Explicit Inertia page catalog | running |
+| 139 | Explicit Inertia page catalog | implemented; tests/inertia-page-catalog.php; symlink creation test skipped on host |
 | 140 | Inertia render page references | queued |
 | 141 | Inertia helper and route references | queued |
 | 142 | Optional Inertia integration calls | queued |

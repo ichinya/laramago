@@ -15,6 +15,9 @@ final class ReferenceCatalogs
     private readonly PhpSource $source;
     /** @var array<string, list<string>> */
     private array $locales = [];
+    /** @var list<array{name: string, path: string, root: string, extension: string}>|null */
+    private ?array $inertiaPages = null;
+    private bool $inertiaPagesComplete = false;
 
     public function __construct(
         private readonly string $root,
@@ -42,6 +45,7 @@ final class ReferenceCatalogs
         if (! is_array($catalogs)) {
             return;
         }
+        $this->loadInertiaPages($catalogs);
         /** @var mixed $views */
         $views = $catalogs['views'] ?? null;
         if (is_array($views) && ($views['complete'] ?? null) === true) {
@@ -99,6 +103,30 @@ final class ReferenceCatalogs
     public function enabled(): bool
     {
         return $this->views !== [] || $this->translations !== null;
+    }
+
+    /** @return list<array{name: string, path: string, root: string, extension: string}>|null */
+    public function inertiaPages(): ?array
+    {
+        return $this->inertiaPages;
+    }
+
+    /**
+     * Return true for a known exact-case name, false for an absent name in an
+     * explicitly complete catalog, and null when absence is not proven.
+     */
+    public function containsInertiaPage(string $name): ?bool
+    {
+        if ($this->inertiaPages === null) {
+            return null;
+        }
+        foreach ($this->inertiaPages as $page) {
+            if ($page['name'] === $name) {
+                return true;
+            }
+        }
+
+        return $this->inertiaPagesComplete ? false : null;
     }
 
     public function missingView(string $name): bool
@@ -194,6 +222,108 @@ final class ReferenceCatalogs
     private static function segment(string $value): bool
     {
         return (bool) preg_match('/^[A-Za-z0-9_-]+$/D', $value);
+    }
+
+    /** @param array<array-key, mixed> $catalogs */
+    private function loadInertiaPages(array $catalogs): void
+    {
+        /** @var mixed $configuration */
+        $configuration = $catalogs['inertia-pages'] ?? null;
+        if (! is_array($configuration)) {
+            return;
+        }
+        /** @var mixed $complete */
+        $complete = $configuration['complete'] ?? false;
+        /** @var mixed $paths */
+        $paths = $configuration['paths'] ?? null;
+        /** @var mixed $extensions */
+        $extensions = $configuration['extensions'] ?? null;
+        if (
+            ! is_bool($complete)
+            || ! is_array($paths)
+            || ! array_is_list($paths)
+            || $paths === []
+            || ! is_array($extensions)
+            || ! array_is_list($extensions)
+            || $extensions === []
+        ) {
+            return;
+        }
+        $validPaths = [];
+        /** @var mixed $path */
+        foreach ($paths as $path) {
+            if (! is_string($path) || ! self::inertiaPath($path) || ! is_dir($this->root.'/'.$path)) {
+                return;
+            }
+            $validPaths[] = $path;
+        }
+        $validExtensions = [];
+        /** @var mixed $extension */
+        foreach ($extensions as $extension) {
+            if (! is_string($extension) || preg_match('/^\.?[A-Za-z0-9][A-Za-z0-9_-]*$/D', $extension) !== 1) {
+                return;
+            }
+            $validExtensions[] = ltrim($extension, '.');
+        }
+        $pages = [];
+        foreach ($validPaths as $path) {
+            $root = $this->root.'/'.$path;
+            try {
+                $iterator = new \RecursiveIteratorIterator(
+                    new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS),
+                    \RecursiveIteratorIterator::SELF_FIRST,
+                );
+                $files = [];
+                foreach ($iterator as $file) {
+                    if (! $file instanceof \SplFileInfo || $file->isLink()) {
+                        return;
+                    }
+                    if (! $file->isFile()) {
+                        continue;
+                    }
+                    $extension = $file->getExtension();
+                    if (! in_array($extension, $validExtensions, true)) {
+                        continue;
+                    }
+                    $relative = substr(
+                        str_replace('\\', '/', $file->getPathname()),
+                        strlen(str_replace('\\', '/', $root)) + 1,
+                    );
+                    $files[] = [
+                        'name' => substr($relative, 0, -strlen($extension) - 1),
+                        'path' => $path.'/'.$relative,
+                        'root' => $path,
+                        'extension' => $extension,
+                    ];
+                }
+            } catch (\RuntimeException) {
+                return;
+            }
+            usort($files, static fn (array $left, array $right): int => strcmp($left['path'], $right['path']));
+            array_push($pages, ...$files);
+        }
+        $this->inertiaPages = $pages;
+        $this->inertiaPagesComplete = $complete;
+    }
+
+    private static function inertiaPath(string $value): bool
+    {
+        if ($value === '') {
+            return false;
+        }
+        foreach (explode('/', $value) as $segment) {
+            if (
+                $segment === ''
+                || $segment === '.'
+                || $segment === '..'
+                || trim($segment) === ''
+                || preg_match('/^[A-Za-z0-9_. -]+$/D', $segment) !== 1
+            ) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static function path(string $value): bool
