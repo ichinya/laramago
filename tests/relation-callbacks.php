@@ -13,7 +13,9 @@ copy(__DIR__.'/fixtures/analysis/relation-callbacks.php.stub', $workspace.'/mode
 $framework = str_replace("\r\n", "\n", file_get_contents($workspace.'/framework.php'));
 $framework = str_replace(
     "class Model\n{",
-    "class Model\n{\n    use \\Illuminate\\Database\\Eloquent\\Concerns\\HasRelationships;",
+    "class Model\n{\n    use \\Illuminate\\Database\\Eloquent\\Concerns\\HasRelationships;"
+    ."\n"
+    .'/** @param array|string $relations @return Builder<static> */ public static function with($relations) {}',
     $framework,
 );
 foreach (['HasMany', 'HasOne', 'BelongsTo'] as $kind) {
@@ -39,6 +41,15 @@ $framework = str_replace(
     .'{'
     ."\n"
     .'/** @param string $relation @param (\\Closure(self<\\Illuminate\\Database\\Eloquent\\Model>): mixed)|null $callback @return $this */ public function whereHas($relation, $callback = null) { return $this; }',
+    $framework,
+);
+$framework = str_replace(
+    'class Builder'."\n".'{',
+    'class Builder'
+    ."\n"
+    .'{'
+    ."\n"
+    .'/** @param array|string $relations @param (\\Closure(\\Illuminate\\Database\\Eloquent\\Relations\\Relation<\\Illuminate\\Database\\Eloquent\\Model, \\Illuminate\\Database\\Eloquent\\Model>): mixed)|string|null $callback @return $this */ public function with($relations, $callback = null) { return $this; }',
     $framework,
 );
 foreach (['orWhereHas', 'whereDoesntHave', 'orWhereDoesntHave'] as $method) {
@@ -244,6 +255,106 @@ foreach (['one', 'parent', 'members', 'through', 'throughOne', 'image', 'images'
     ];
 }
 $cases += [
+    'with direct callback' => [
+        'CallbackInferred::query()->with("posts", fn ($q) => acceptRelation($q));',
+        'void',
+        [],
+    ],
+    'with direct callback rejects builder only' => [
+        'CallbackInferred::query()->with("posts", fn ($q) => acceptPosts($q));',
+        'void',
+        ['invalid-argument'],
+    ],
+    'with direct callback rejects wrong relation' => [
+        'CallbackInferred::query()->with("posts", fn ($q) => acceptRecordRelation($q));',
+        'void',
+        ['invalid-argument'],
+    ],
+    'with direct callback rejects declared wrong parameter' => [
+        'CallbackInferred::query()->with("posts", fn (CallbackRecord $q) => null);',
+        'void',
+        ['possibly-invalid-argument'],
+    ],
+    'with direct callback preserves builder result' => [
+        'return CallbackInferred::query()->with("posts", fn ($q) => acceptRelation($q));',
+        'Builder<CallbackInferred>',
+        [],
+    ],
+    'with direct null callback' => [
+        'return CallbackInferred::query()->with("posts", null);',
+        'Builder<CallbackInferred>',
+        [],
+    ],
+    'with direct native string callback preserved' => [
+        'return CallbackInferred::query()->with("posts", "constraint");',
+        'Builder<CallbackInferred>',
+        [],
+    ],
+    'with direct invalid callback' => [
+        'CallbackInferred::query()->with("posts", 123);',
+        'void',
+        ['invalid-argument'],
+    ],
+    'with direct extra argument' => [
+        'CallbackInferred::query()->with("posts", null, 123);',
+        'void',
+        ['too-many-arguments'],
+    ],
+    'with nested direct callback' => [
+        'CallbackInferred::query()->with("records.posts", fn ($q) => acceptNestedRelation($q));',
+        'void',
+        [],
+    ],
+    'with concrete relation kind' => [
+        'CallbackInferred::query()->with("one", fn ($q) => acceptOneRelation($q));',
+        'void',
+        [],
+    ],
+    'with direct named arguments' => [
+        'CallbackInferred::query()->with(callback: fn ($q) => acceptRelation($q), relations: "posts");',
+        'void',
+        [],
+    ],
+    'static model with callback preserves native arity' => [
+        'CallbackInferred::with("posts", fn ($q) => acceptRelation($q));',
+        'void',
+        ['mixed-argument', 'too-many-arguments'],
+    ],
+    'with direct callback property type' => [
+        'CallbackInferred::query()->with("posts", fn ($q) => acceptString($q->firstOrFail()->title));',
+        'void',
+        [],
+    ],
+    'with unknown direct relation deferred' => [
+        'CallbackInferred::query()->with("missing", fn ($q) => acceptRelation($q));',
+        'void',
+        ['less-specific-argument'],
+    ],
+    'with dynamic direct relation deferred' => [
+        '$path = "posts"; CallbackInferred::query()->with($path, fn ($q) => acceptRelation($q));',
+        'void',
+        ['less-specific-argument'],
+    ],
+    'with colon direct relation deferred' => [
+        'CallbackInferred::query()->with("posts:id", fn ($q) => acceptRelation($q));',
+        'void',
+        ['less-specific-argument'],
+    ],
+    'with callback map remains native' => [
+        'CallbackInferred::query()->with(["posts" => fn ($q) => acceptPosts($q)]);',
+        'void',
+        ['mixed-argument'],
+    ],
+    'with custom builder method preserved' => [
+        'return (new CallbackCustomBuilder)->with("posts");',
+        'string',
+        [],
+    ],
+    'with custom related builder deferred' => [
+        'CallbackInferred::query()->with("customPosts", fn ($q) => acceptRelation($q));',
+        'void',
+        ['less-specific-argument'],
+    ],
     'withWhereHas native trailing arguments' => [
         'return CallbackInferred::withWhereHas("posts", null, ">=", 2);',
         'Builder<CallbackInferred>',
@@ -372,6 +483,35 @@ check_relation_callbacks(
             'void',
             ['less-specific-argument'],
         ],
+        'native eager callback remains broad' => [
+            'CallbackInferred::query()->with("posts", fn ($q) => acceptRelation($q));',
+            'void',
+            ['less-specific-argument'],
+        ],
+        'native eager callback map remains broad' => [
+            'CallbackInferred::query()->with(["posts" => fn ($q) => acceptPosts($q)]);',
+            'void',
+            ['mixed-argument'],
+        ],
+    ],
+    $command,
+    $workspace,
+);
+$needle = '(\Closure(\Illuminate\Database\Eloquent\Relations\Relation<\Illuminate\Database\Eloquent\Model, \Illuminate\Database\Eloquent\Model>): mixed)|string|null $callback';
+$alteredFramework = str_replace($needle, '\Closure(int): mixed $callback', $framework, $replacements);
+if ($replacements !== 2) {
+    throw new RuntimeException('Could not install the altered Builder::with callback contract.');
+}
+file_put_contents($workspace.'/framework.php', $alteredFramework);
+unset($config['analyzer']);
+file_put_contents($workspace.'/mago.json', json_encode($config, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+check_relation_callbacks(
+    [
+        'altered eager callback contract preserved' => [
+            'CallbackInferred::query()->with("posts", fn ($q) => acceptRelation($q));',
+            'void',
+            ['invalid-argument'],
+        ],
     ],
     $command,
     $workspace,
@@ -406,6 +546,9 @@ function check_relation_callbacks(array $cases, array $command, string $workspac
         function acceptInt(int $value): void {}
         /** @param Builder<CallbackPost>|\Illuminate\Database\Eloquent\Relations\HasMany<CallbackPost, CallbackInferred> $q */ function acceptBoth($q): void {}
         /** @param \Illuminate\Database\Eloquent\Relations\HasMany<CallbackPost, CallbackInferred> $q */ function acceptRelation($q): void {}
+        /** @param \Illuminate\Database\Eloquent\Relations\HasMany<CallbackRecord, CallbackInferred> $q */ function acceptRecordRelation($q): void {}
+        /** @param \Illuminate\Database\Eloquent\Relations\HasOne<CallbackPost, CallbackInferred> $q */ function acceptOneRelation($q): void {}
+        /** @param \Illuminate\Database\Eloquent\Relations\HasMany<CallbackPost> $q */ function acceptNestedRelation($q): void {}
         /** @param Builder<CallbackPost>|\Illuminate\Database\Eloquent\Relations\HasMany<CallbackPost> $q */ function acceptNestedBoth($q): void {}
         PHP;
     $lines = [];

@@ -65,6 +65,12 @@ class CallbackCustomBuilder extends \Illuminate\Database\Eloquent\Builder
     {
         return 'custom';
     }
+
+    /** @return string */
+    public function with($relations, $callback = null): string
+    {
+        return 'custom';
+    }
 }
 
 class CallbackInferred extends Model

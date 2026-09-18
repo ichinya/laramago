@@ -35,7 +35,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 27 | Mixed eager-load declaration arrays | implemented; Mixed eager-load arrays honor effective keys and Laravel numeric-string semantics; dynamic/negative uncertainty defers. |
 | 28 | Eager-load colon projection syntax | implemented; Eager-loading methods including withWhereHas accept colon projections; pure existence queries preserve full names. Real-Mago tests cover builder/static forwarding and native fallback. |
 | 29 | Related model projection columns | deferred; Missing projection columns require complete effective-query metadata or an explicit query-source contract; schema alone cannot exclude scopes, joins, from changes, and aliases. No diagnostic added. |
-| 30 | Eager-loading callback parameter types | running; Isolated implementation and real-Mago verification in progress. |
+| 30 | Eager-loading callback parameter types | implemented; Direct Builder::with literal-path callbacks receive concrete Relation types under native broad contracts. Real-Mago/native comparisons pass; nested callback arrays remain SDK-deferred. |
 | 31 | Morph callbacks with explicit model classes | queued |
 | 32 | Relation aggregate references | queued |
 | 33 | Relation aggregate alias syntax | queued |

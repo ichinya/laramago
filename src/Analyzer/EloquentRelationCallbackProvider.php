@@ -15,6 +15,7 @@ use Mago\Sdk\Analyzer\Type;
 use Mago\Sdk\Analyzer\Type\CallableParameter;
 use Mago\Sdk\Analyzer\Type\CallableSignature;
 use Mago\Sdk\Analyzer\Type\CallableType;
+use Mago\Sdk\Analyzer\Type\MixedType;
 use Mago\Sdk\Analyzer\Type\NamedObjectType;
 
 /** Contextual callback typing for literal, statically resolved relationship paths. */
@@ -22,7 +23,14 @@ final class EloquentRelationCallbackProvider implements CallableSignatureOverrid
 {
     private const BUILDER = 'Illuminate\\Database\\Eloquent\\Builder';
     private const MODEL = 'Illuminate\\Database\\Eloquent\\Model';
-    private const METHODS = ['wherehas', 'orwherehas', 'wheredoesnthave', 'orwheredoesnthave', 'withwherehas'];
+    private const RELATION = 'Illuminate\\Database\\Eloquent\\Relations\\Relation';
+    private const METHODS = [
+        'wherehas',
+        'orwherehas',
+        'wheredoesnthave',
+        'orwheredoesnthave',
+        'withwherehas',
+    ];
 
     public function __construct(
         private readonly string $root,
@@ -35,6 +43,7 @@ final class EloquentRelationCallbackProvider implements CallableSignatureOverrid
                 self::BUILDER,
                 $method,
             ), self::METHODS),
+            MethodTarget::exact(self::BUILDER, 'with'),
             ...array_map(static fn (string $method): MethodTarget => MethodTarget::exact(
                 self::MODEL,
                 $method,
@@ -62,8 +71,11 @@ final class EloquentRelationCallbackProvider implements CallableSignatureOverrid
             return null;
         }
         $native = $dispatch->signature($context->codebase, $call->name);
+        if ($native === null) {
+            return null;
+        }
+        $argument = $call->getArgument(0, 'relation', 'relations');
         $match = [];
-        $argument = $call->getArgument(0, 'relation');
         // Before argument analysis only source expressions are available. Accept
         // plain quoted identifiers, without evaluating expressions or escapes.
         if (
@@ -88,10 +100,9 @@ final class EloquentRelationCallbackProvider implements CallableSignatureOverrid
         if ($relation === null || $related === null) {
             return $native;
         }
-        if ($native === null) {
-            return null;
-        }
-        $query = Type::namedObject(self::BUILDER, $related);
+        $query = strcasecmp($call->name, 'with') === 0
+            ? $relation
+            : Type::namedObject(self::BUILDER, $related);
         // Existence constraints receive a Builder; eager-load constraints receive
         // the actual Relation. The callback must accept both invocations.
         if (strcasecmp($call->name, 'withWhereHas') === 0) {
@@ -103,11 +114,20 @@ final class EloquentRelationCallbackProvider implements CallableSignatureOverrid
                 null,
             ),
         );
+        if (strcasecmp($call->name, 'with') === 0) {
+            $callback = $this->eagerLoadCallback($native, $callback);
+            if ($callback === null) {
+                return $native;
+            }
+        } else {
+            $callback = Type::union($callback, Type::null());
+        }
+
         $parameters = [];
         foreach ($native->parameters as $parameter) {
             $parameters[] = new CallableParameter(
                 $parameter->name,
-                $parameter->name === '$callback' ? Type::union($callback, Type::null()) : $parameter->type,
+                $parameter->name === '$callback' ? $callback : $parameter->type,
                 $parameter->closureThisType,
                 $parameter->byReference,
                 $parameter->variadic,
@@ -125,5 +145,64 @@ final class EloquentRelationCallbackProvider implements CallableSignatureOverrid
         $model = (new EloquentModelDispatch)->modelType($context->codebase, $context->invocation);
 
         return $model === null ? null : Type::namedObject(self::BUILDER, $model);
+    }
+
+    private function eagerLoadCallback(EffectiveCallableSignature $native, Type $callback): ?Type
+    {
+        $parameter =
+            array_values(array_filter(
+                $native->parameters,
+                static fn (CallableParameter $parameter): bool => $parameter->name === '$callback',
+            ))[0] ?? null;
+        if ($parameter?->type === null) {
+            return null;
+        }
+        $callables = 0;
+        foreach ($parameter->type->atomicTypes as $atom) {
+            if (! $atom instanceof CallableType) {
+                $callback = Type::union($callback, Type::fromAtomic($atom));
+                continue;
+            }
+            $callables++;
+            $signature = $atom->signature;
+            $argument =
+                $signature !== null && count($signature->parameters) === 1
+                    ? $signature->parameters[0]
+                    : null;
+            $relation =
+                $argument?->type !== null && count($argument->type->atomicTypes) === 1
+                    ? $argument->type->atomicTypes[0]
+                    : null;
+            if (
+                ! $signature?->closure
+                || $signature->pure
+                || $signature->constraints !== []
+                || $argument === null
+                || $argument->byReference
+                || $argument->variadic
+                || $argument->hasDefault
+                || $argument->closureThisType !== null
+                || ! $relation instanceof NamedObjectType
+                || strcasecmp($relation->name, self::RELATION) !== 0
+                || $relation->parameters === null
+                || $relation->parameters === []
+                || count($signature->returnType?->atomicTypes ?? []) !== 1
+                || ! ($signature->returnType?->atomicTypes[0] ?? null) instanceof MixedType
+            ) {
+                return null;
+            }
+            foreach ($relation->parameters as $type) {
+                $part = count($type->atomicTypes) === 1 ? $type->atomicTypes[0] : null;
+                if (
+                    ! $part instanceof MixedType
+                    && (! $part instanceof NamedObjectType
+                    || strcasecmp($part->name, self::MODEL) !== 0)
+                ) {
+                    return null;
+                }
+            }
+        }
+
+        return $callables === 1 ? $callback : null;
     }
 }
