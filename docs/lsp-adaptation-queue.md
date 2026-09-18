@@ -42,7 +42,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 34 | Query-local aggregate result properties | queued |
 | 35 | Literal configuration result types | already-covered; Verified literal config and native Config::get types with configuration and configuration-index suites. |
 | 36 | Additional configuration call sites | already-covered; Native config and Config::get literal results verified in configuration/framework-contract tests. Arbitrary Repository instances cannot inherit the application index without producer provenance. |
-| 37 | Complete configuration key diagnostics | running; Isolated implementation and real-Mago verification in progress. |
+| 37 | Complete configuration key diagnostics | implemented; Complete runtime assertions plus source-complete parents enable native helper/facade key diagnostics. Custom app/repository dispatch, bindings, dynamic branches and native errors retain priority. |
 | 38 | Configuration getMany key validation | queued |
 | 39 | Typed configuration getters | queued |
 | 40 | Config injection attribute references | queued |
