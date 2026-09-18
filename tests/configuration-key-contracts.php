@@ -16,6 +16,8 @@ mkdir($framework.'/Support/Facades', 0777, true);
 mkdir($framework.'/Config', 0777, true);
 copy(__DIR__.'/fixtures/analysis/configuration-facade-base.php.stub', $framework.'/Support/Facades/Facade.php');
 copy(__DIR__.'/fixtures/analysis/configuration-facade.php.stub', $framework.'/Support/Facades/Config.php');
+copy(__DIR__.'/fixtures/analysis/configuration-arr.php.stub', $framework.'/Support/Arr.php');
+copy(__DIR__.'/fixtures/analysis/configuration-collection.php.stub', $framework.'/Support/Collection.php');
 copy(__DIR__.'/fixtures/analysis/configuration-repository.php.stub', $framework.'/Config/Repository.php');
 $nativeHelpers = <<<'PHP'
     <?php
@@ -133,13 +135,44 @@ $cases = [
         'Config::getMany(Keys: ["example.missing"]);',
         ['invalid-named-argument'],
     ],
-    'repository instance excluded' => ['(new Repository)->get("example.missing");', []],
     'repository getMany instance excluded' => ['(new Repository)->getMany(["example.missing"]);', []],
+    'known string getter key' => ['needsString(Config::string("example.name"));', []],
+    'missing string getter key' => ['needsString(Config::string("example.missing"));', $missing],
+    'known integer getter key' => ['needsInt(Config::integer("example.nested.count"));', []],
+    'missing integer getter key' => ['needsInt(Config::integer("example.nested.missing"));', $missing],
+    'known float getter key' => ['needsFloat(Config::float("example.dynamic"));', []],
+    'missing float getter key' => ['needsFloat(Config::float("example.missing"));', $missing],
+    'known boolean getter key' => ['needsBool(Config::boolean("example.dynamic"));', []],
+    'missing boolean getter key' => ['needsBool(Config::boolean("example.missing"));', $missing],
+    'known array getter key' => ['needsArray(Config::array("example.nested"));', []],
+    'missing array getter key' => ['needsArray(Config::array("example.missing"));', $missing],
+    'known collection getter key' => ['needsCollection(Config::collection("example.nested"));', []],
+    'missing collection getter key' => ['needsCollection(Config::collection("example.missing"));', $missing],
+    'named typed getter key' => ['Config::string(default: "fallback", key: "example.missing");', $missing],
+    'dynamic typed getter key deferred' => ['$key = (string) random_int(1, 2); Config::string($key);', []],
+    'unpacked typed getter call deferred' => ['Config::string(...["example.missing"]);', []],
+    'invalid typed getter name remains native' => [
+        'Config::string(Key: "example.missing");',
+        ['invalid-named-argument'],
+    ],
+    'native typed getter result remains authoritative' => [
+        'needsInt(Config::string("example.name"));',
+        ['invalid-argument'],
+    ],
+    'repository instance excluded' => ['(new Repository)->get("example.missing");', []],
+    'repository typed getter excluded' => ['(new Repository)->string("example.missing");', []],
 ];
 $source = <<<'PHP'
     <?php
     use Illuminate\Config\Repository;
+    use Illuminate\Support\Collection;
     use Illuminate\Support\Facades\Config;
+    function needsString(string $value): void {}
+    function needsInt(int $value): void {}
+    function needsFloat(float $value): void {}
+    function needsBool(bool $value): void {}
+    function needsArray(array $value): void {}
+    function needsCollection(Collection $value): void {}
     PHP;
 $lines = [];
 foreach ($cases as $name => [$body, $expected]) {
@@ -156,6 +189,8 @@ $configuration = [
             $helpers,
             'dependencies with spaces/laravel/framework/src/Illuminate/Support/Facades/Facade.php',
             'dependencies with spaces/laravel/framework/src/Illuminate/Support/Facades/Config.php',
+            'dependencies with spaces/laravel/framework/src/Illuminate/Support/Arr.php',
+            'dependencies with spaces/laravel/framework/src/Illuminate/Support/Collection.php',
             'dependencies with spaces/laravel/framework/src/Illuminate/Config/Repository.php',
         ],
     ],
@@ -231,6 +266,8 @@ if ($actual !== []) {
 
 $nativeOnly = [
     'invalid-argument',
+    'invalid-argument',
+    'invalid-named-argument',
     'invalid-named-argument',
     'invalid-named-argument',
     'invalid-named-argument',
@@ -323,7 +360,11 @@ echo "PASS: custom helper defers\n";
 
 copy(__DIR__.'/fixtures/analysis/configuration-repository.php.stub', $workspace.'/custom-repository.php');
 $configuration = $originalConfiguration;
-$configuration['source']['includes'][3] = 'custom-repository.php';
+$configuration['source']['includes'][5] = 'custom-repository.php';
+file_put_contents(
+    $workspace.'/cases.php',
+    '<?php config("example.missing"); \\Illuminate\\Support\\Facades\\Config::string("example.missing");',
+);
 file_put_contents($workspace.'/mago.json', json_encode($configuration, JSON_THROW_ON_ERROR));
 [$guardExit, $guardReport] = $analyze('custom-repository-helper-dispatch');
 if ($guardExit !== 0 || ($guardReport['issues'] ?? []) !== []) {
@@ -365,7 +406,8 @@ file_put_contents($workspace.'/'.$helpers, $nativeHelpers);
 file_put_contents(
     $workspace.'/cases.php',
     '<?php \\Illuminate\\Support\\Facades\\Config::get("example.missing");'
-    .' \\Illuminate\\Support\\Facades\\Config::getMany(["example.missing"]);',
+    .' \\Illuminate\\Support\\Facades\\Config::getMany(["example.missing"]);'
+    .' \\Illuminate\\Support\\Facades\\Config::string("example.missing");',
 );
 $configuration = $originalConfiguration;
 file_put_contents($workspace.'/mago.json', json_encode($configuration, JSON_THROW_ON_ERROR));
@@ -386,6 +428,10 @@ $concreteMethods = [
     'getMany' => [
         '<?php \\Illuminate\\Support\\Facades\\Config::getMany(["example.missing"]);',
         'public static function getMany(array $keys): array { return []; }',
+    ],
+    'string' => [
+        '<?php \\Illuminate\\Support\\Facades\\Config::string("example.missing");',
+        'public static function string(string $key, mixed $default = null): string { return "custom"; }',
     ],
 ];
 foreach ($concreteMethods as $method => [$call, $nativeMethod]) {
@@ -418,6 +464,128 @@ foreach ($concreteMethods as $method => [$call, $nativeMethod]) {
     }
 }
 file_put_contents($facadePath, $facadeSource);
+file_put_contents($workspace.'/cases.php', $originalSource);
+
+$repositoryPath = $framework.'/Config/Repository.php';
+$repositorySource = file_get_contents($repositoryPath);
+file_put_contents(
+    $repositoryPath,
+    str_replace(
+        'return Arr::get($this->items, $key, $default);',
+        'return $default;',
+        $repositorySource,
+    ),
+);
+file_put_contents($workspace.'/cases.php', '<?php \\Illuminate\\Support\\Facades\\Config::string("example.missing");');
+[$guardExit, $guardReport] = $analyze('altered-repository-get-chain');
+if ($guardExit !== 0 || ($guardReport['issues'] ?? []) !== []) {
+    throw new RuntimeException('Altered Repository::get chain must defer typed getter diagnostics; inspect '
+    .$workspace);
+}
+echo "PASS: altered Repository::get chain defers typed getters\n";
+file_put_contents(
+    $repositoryPath,
+    str_replace(
+        '$value = $this->get($key, $default);',
+        '$value = $default;',
+        $repositorySource,
+    ),
+);
+file_put_contents(
+    $workspace.'/cases.php',
+    '<?php \\Illuminate\\Support\\Facades\\Config::collection("example.missing");',
+);
+[$guardExit, $guardReport] = $analyze('altered-repository-array-chain');
+if ($guardExit !== 0 || ($guardReport['issues'] ?? []) !== []) {
+    throw new RuntimeException('Altered Repository::array chain must defer collection diagnostics; inspect '
+    .$workspace);
+}
+echo "PASS: altered Repository::array chain defers collection getter\n";
+file_put_contents($repositoryPath, $repositorySource);
+file_put_contents($workspace.'/cases.php', $originalSource);
+
+file_put_contents($workspace.'/custom-configuration-types.php', <<<'PHP'
+    <?php
+    namespace CustomConfiguration;
+    class Arr
+    {
+        public static function get(array $array, string $key, mixed $default = null): mixed
+        {
+            return $default;
+        }
+    }
+    class Collection
+    {
+        public function __construct(array $items = []) {}
+    }
+    class InvalidArgumentException extends \InvalidArgumentException {}
+    PHP);
+$changedImports = str_replace(
+    [
+        'use Illuminate\\Support\\Arr;',
+        'use Illuminate\\Support\\Collection;',
+        'use InvalidArgumentException;',
+    ],
+    [
+        'use CustomConfiguration\\Arr;',
+        'use CustomConfiguration\\Collection;',
+        'use CustomConfiguration\\InvalidArgumentException;',
+    ],
+    $repositorySource,
+);
+file_put_contents($repositoryPath, $changedImports);
+file_put_contents(
+    $workspace.'/cases.php',
+    '<?php \\Illuminate\\Support\\Facades\\Config::string("example.missing");'
+    .' \\Illuminate\\Support\\Facades\\Config::collection("example.missing");',
+);
+$configuration = $originalConfiguration;
+$configuration['source']['includes'][] = 'custom-configuration-types.php';
+file_put_contents($workspace.'/mago.json', json_encode($configuration, JSON_THROW_ON_ERROR));
+[$guardExit, $guardReport] = $analyze('changed-repository-imports');
+if ($guardExit !== 0 || ($guardReport['issues'] ?? []) !== []) {
+    throw new RuntimeException('Changed Repository imports must defer typed getter diagnostics; inspect '.$workspace);
+}
+echo "PASS: changed Repository imports defer typed getters\n";
+
+file_put_contents($workspace.'/custom-repository-get.php', <<<'PHP'
+    <?php
+    namespace Illuminate\Config;
+    use Illuminate\Support\Arr;
+    trait CustomRepositoryGet
+    {
+        public function get($key, $default = null)
+        {
+            if (is_array($key)) {
+                return $this->getMany($key);
+            }
+            return Arr::get($this->items, $key, $default);
+        }
+    }
+    PHP);
+$traitRepository = str_replace(
+    "class Repository\n{",
+    "class Repository\n{\n    use CustomRepositoryGet;",
+    $repositorySource,
+);
+$traitRepository = preg_replace(
+    '/public function get\(\$key, \$default = null\)/',
+    'public function originalGet($key, $default = null)',
+    $traitRepository,
+    1,
+);
+file_put_contents($repositoryPath, $traitRepository);
+file_put_contents($workspace.'/cases.php', '<?php \\Illuminate\\Support\\Facades\\Config::string("example.missing");');
+$configuration = $originalConfiguration;
+$configuration['source']['includes'][] = 'custom-repository-get.php';
+file_put_contents($workspace.'/mago.json', json_encode($configuration, JSON_THROW_ON_ERROR));
+[$guardExit, $guardReport] = $analyze('trait-repository-get');
+if ($guardExit !== 0 || ($guardReport['issues'] ?? []) !== []) {
+    throw new RuntimeException('Trait-provided Repository::get must defer typed getter diagnostics; inspect '
+    .$workspace);
+}
+echo "PASS: trait-provided Repository::get defers typed getters\n";
+file_put_contents($repositoryPath, $repositorySource);
 file_put_contents($workspace.'/cases.php', $originalSource);
 
 echo "PASS: complete configuration key diagnostics preserve native and dynamic boundaries\n";

@@ -1,0 +1,13 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Illuminate\Support;
+
+class Arr
+{
+    public static function get(array $array, string $key, mixed $default = null): mixed
+    {
+        return $default;
+    }
+}

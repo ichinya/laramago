@@ -6,6 +6,7 @@ namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ConfigurationIndex;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\ModelReflection;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeFacade;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Mago\Sdk\Analyzer\FileAnalysisRequirement;
@@ -29,8 +30,12 @@ use PhpParser\ParserFactory;
 /** Diagnose absent literal configuration keys only under a closed-runtime contract. */
 final class ConfigurationKeyContractsHook implements NodeAnalysisHook, InitializationHook
 {
+    private const ARR = 'Illuminate\\Support\\Arr';
+    private const COLLECTION = 'Illuminate\\Support\\Collection';
     private const FACADE = 'Illuminate\\Support\\Facades\\Config';
+    private const INVALID_ARGUMENT = 'InvalidArgumentException';
     private const REPOSITORY = 'Illuminate\\Config\\Repository';
+    private const METHODS = ['get', 'getmany', 'string', 'integer', 'float', 'boolean', 'array', 'collection'];
 
     private ?bool $runtimeComplete = null;
     private ?NativeFacade $facade = null;
@@ -86,11 +91,18 @@ final class ConfigurationKeyContractsHook implements NodeAnalysisHook, Initializ
             }
             $method = strtolower($reference->name->toString());
             if (
-                ! (
-                    $method === 'get'
-                        ? self::validGetArguments($reference->args)
-                        : self::validGetManyArguments($reference->args)
-                )
+                ! match ($method) {
+                    'get',
+                    'string',
+                    'integer',
+                    'float',
+                    'boolean',
+                    'array',
+                    'collection',
+                        => self::validGetArguments($reference->args),
+                    'getmany' => self::validGetManyArguments($reference->args),
+                    default => false,
+                }
                 || ! $this->facade()->dispatchesClass(
                     $context->codebase,
                     self::FACADE,
@@ -98,10 +110,12 @@ final class ConfigurationKeyContractsHook implements NodeAnalysisHook, Initializ
                     self::REPOSITORY,
                     $method,
                 )
+                || ! in_array($method, ['get', 'getmany'], true)
+                && ! $this->nativeTypedGetter($context, $method)
             ) {
                 return;
             }
-            if ($method === 'get') {
+            if ($method !== 'getmany') {
                 $key = PhpSource::argument($reference->args, 0, 'key');
                 $keys = $key instanceof Node\Scalar\String_ ? [$key] : [];
             } else {
@@ -191,7 +205,7 @@ final class ConfigurationKeyContractsHook implements NodeAnalysisHook, Initializ
         && $reference->class instanceof Node\Name
         && strcasecmp($reference->class->toString(), self::FACADE) === 0
         && $reference->name instanceof Node\Identifier
-        && in_array(strtolower($reference->name->toString()), ['get', 'getmany'], true)
+        && in_array(strtolower($reference->name->toString()), self::METHODS, true)
         && ! $reference->isFirstClassCallable()
             ? $reference
             : null;
@@ -486,6 +500,253 @@ final class ConfigurationKeyContractsHook implements NodeAnalysisHook, Initializ
         $integer = (int) $key;
 
         return (string) $integer === $key ? $integer : $key;
+    }
+
+    private function nativeTypedGetter(NodeAnalysisContext $context, string $method): bool
+    {
+        $reflection = new ModelReflection($context->codebase, $this->source());
+        $get = $context->codebase->getDeclaringMethod(self::REPOSITORY, 'get');
+        if (
+            $get === null
+            || ! self::nativeRepositoryMethod($get)
+            || ! self::nativeGetBody($reflection->methodNode($get))
+        ) {
+            return false;
+        }
+        $target = $context->codebase->getDeclaringMethod(self::REPOSITORY, $method);
+        if ($target === null || ! self::nativeRepositoryMethod($target)) {
+            return false;
+        }
+        $node = $reflection->methodNode($target);
+        if ($method === 'collection') {
+            $array = $context->codebase->getDeclaringMethod(self::REPOSITORY, 'array');
+
+            return (
+                $array !== null
+                && self::nativeRepositoryMethod($array)
+                && self::nativeScalarGetterBody($reflection->methodNode($array), 'array')
+                && self::nativeCollectionGetterBody($node)
+            );
+        }
+
+        return self::nativeScalarGetterBody($node, $method);
+    }
+
+    private static function nativeGetBody(?Node\Stmt\ClassMethod $method): bool
+    {
+        if (! $method instanceof Node\Stmt\ClassMethod) {
+            return false;
+        }
+        $statements = $method->stmts;
+        if (! is_array($statements)) {
+            return false;
+        }
+        if (
+            ! self::nativeGetDeclaration($method)
+            || count($statements) !== 2
+            || ! $statements[0] instanceof Node\Stmt\If_
+            || $statements[0]->elseifs !== []
+            || $statements[0]->else !== null
+            || count($statements[0]->stmts) !== 1
+            || ! self::functionCall($statements[0]->cond, 'is_array', ['key'])
+            || ! $statements[0]->stmts[0] instanceof Node\Stmt\Return_
+            || ! self::instanceCall($statements[0]->stmts[0]->expr, 'getMany', ['key'])
+            || ! $statements[1] instanceof Node\Stmt\Return_
+        ) {
+            return false;
+        }
+        $expression = $statements[1]->expr;
+
+        return (
+            $expression instanceof Node\Expr\StaticCall
+            && $expression->class instanceof Node\Name
+            && strcasecmp($expression->class->toString(), self::ARR) === 0
+            && $expression->name instanceof Node\Identifier
+            && strtolower($expression->name->toString()) === 'get'
+            && count($expression->args) === 3
+            && self::itemsProperty($expression->args[0] ?? null)
+            && self::variables(array_slice($expression->args, 1), ['key', 'default'])
+        );
+    }
+
+    private static function nativeScalarGetterBody(?Node\Stmt\ClassMethod $method, string $name): bool
+    {
+        if (! $method instanceof Node\Stmt\ClassMethod) {
+            return false;
+        }
+        $statements = $method->stmts;
+        if (! is_array($statements)) {
+            return false;
+        }
+        $guard = match ($name) {
+            'string' => 'is_string',
+            'integer' => 'is_int',
+            'float' => 'is_float',
+            'boolean' => 'is_bool',
+            'array' => 'is_array',
+            default => null,
+        };
+        if (
+            $guard === null
+            || ! self::nativeMethod($method, $name === 'integer' ? 'int' : ($name === 'boolean' ? 'bool' : $name))
+            || count($statements) !== 3
+            || ! $statements[0] instanceof Node\Stmt\Expression
+            || ! $statements[0]->expr instanceof Node\Expr\Assign
+            || ! self::variable($statements[0]->expr->var, 'value')
+            || ! self::instanceCall($statements[0]->expr->expr, 'get', ['key', 'default'])
+            || ! $statements[1] instanceof Node\Stmt\If_
+            || $statements[1]->elseifs !== []
+            || $statements[1]->else !== null
+            || count($statements[1]->stmts) !== 1
+            || ! $statements[1]->cond instanceof Node\Expr\BooleanNot
+            || ! self::functionCall($statements[1]->cond->expr, $guard, ['value'])
+            || ! $statements[1]->stmts[0] instanceof Node\Stmt\Expression
+            || ! $statements[1]->stmts[0]->expr instanceof Node\Expr\Throw_
+            || ! self::invalidArgument($statements[1]->stmts[0]->expr->expr)
+            || ! $statements[2] instanceof Node\Stmt\Return_
+        ) {
+            return false;
+        }
+
+        return self::variable($statements[2]->expr, 'value');
+    }
+
+    private static function nativeCollectionGetterBody(?Node\Stmt\ClassMethod $method): bool
+    {
+        if (! $method instanceof Node\Stmt\ClassMethod) {
+            return false;
+        }
+        $statements = $method->stmts;
+        if (! is_array($statements)) {
+            return false;
+        }
+        if (
+            ! self::nativeMethod($method, self::COLLECTION)
+            || count($statements) !== 1
+            || ! $statements[0] instanceof Node\Stmt\Return_
+            || ! $statements[0]->expr instanceof Node\Expr\New_
+            || ! $statements[0]->expr->class instanceof Node\Name
+            || strcasecmp($statements[0]->expr->class->toString(), self::COLLECTION) !== 0
+            || count($statements[0]->expr->args) !== 1
+            || ! $statements[0]->expr->args[0] instanceof Node\Arg
+        ) {
+            return false;
+        }
+
+        return self::instanceCall($statements[0]->expr->args[0]->value, 'array', ['key', 'default']);
+    }
+
+    private static function nativeMethod(?Node\Stmt\ClassMethod $method, ?string $return): bool
+    {
+        if (
+            ! $method instanceof Node\Stmt\ClassMethod
+            || ! $method->isPublic()
+            || $method->isStatic()
+            || $method->byRef
+            || count($method->params) !== 2
+            || ! self::parameters(array_values($method->params), ['key', 'default'])
+            || ! $method->params[0]->type instanceof Node\Identifier
+            || strtolower($method->params[0]->type->toString()) !== 'string'
+            || $method->params[0]->default !== null
+            || $method->params[1]->type !== null
+            || ! $method->params[1]->default instanceof Node\Expr\ConstFetch
+            || strtolower($method->params[1]->default->name->toString()) !== 'null'
+        ) {
+            return false;
+        }
+        if ($return === null) {
+            return $method->returnType === null;
+        }
+
+        return str_contains($return, '\\')
+            ? $method->returnType instanceof Node\Name && strcasecmp($method->returnType->toString(), $return) === 0
+            : $method->returnType instanceof Node\Identifier
+            && strcasecmp($method->returnType->toString(), $return) === 0;
+    }
+
+    private static function nativeGetDeclaration(?Node\Stmt\ClassMethod $method): bool
+    {
+        return (
+            $method instanceof Node\Stmt\ClassMethod
+            && $method->isPublic()
+            && ! $method->isStatic()
+            && ! $method->byRef
+            && count($method->params) === 2
+            && self::parameters(array_values($method->params), ['key', 'default'])
+            && $method->params[0]->type === null
+            && $method->params[0]->default === null
+            && $method->params[1]->type === null
+            && $method->params[1]->default instanceof Node\Expr\ConstFetch
+            && strtolower($method->params[1]->default->name->toString()) === 'null'
+            && $method->returnType === null
+        );
+    }
+
+    /** @param list<string> $arguments */
+    private static function functionCall(Node\Expr $expression, string $function, array $arguments): bool
+    {
+        return (
+            $expression instanceof Node\Expr\FuncCall
+            && $expression->name instanceof Node\Name
+            && strtolower($expression->name->toString()) === $function
+            && self::variables($expression->args, $arguments)
+        );
+    }
+
+    /** @param list<string> $arguments */
+    private static function instanceCall(?Node\Expr $expression, string $method, array $arguments): bool
+    {
+        return (
+            $expression instanceof Node\Expr\MethodCall
+            && self::variable($expression->var, 'this')
+            && $expression->name instanceof Node\Identifier
+            && strtolower($expression->name->toString()) === strtolower($method)
+            && self::variables($expression->args, $arguments)
+        );
+    }
+
+    private static function itemsProperty(Node\Arg|Node\VariadicPlaceholder|null $argument): bool
+    {
+        return (
+            $argument instanceof Node\Arg
+            && ! $argument->unpack
+            && $argument->name === null
+            && $argument->value instanceof Node\Expr\PropertyFetch
+            && self::variable($argument->value->var, 'this')
+            && $argument->value->name instanceof Node\Identifier
+            && $argument->value->name->toString() === 'items'
+        );
+    }
+
+    private static function invalidArgument(Node\Expr $expression): bool
+    {
+        return (
+            $expression instanceof Node\Expr\New_
+            && $expression->class instanceof Node\Name
+            && strcasecmp($expression->class->toString(), self::INVALID_ARGUMENT) === 0
+        );
+    }
+
+    private static function nativeRepositoryMethod(?\Mago\Sdk\Analyzer\Metadata\FunctionLikeMetadata $method): bool
+    {
+        return (
+            $method !== null
+            && strcasecmp($method->identifier->class ?? '', self::REPOSITORY) === 0
+            && self::frameworkFile($method->location->file, 'Illuminate/Config/Repository.php')
+        );
+    }
+
+    private static function frameworkFile(?string $path, string $suffix): bool
+    {
+        return str_ends_with(
+            str_replace('\\', '/', $path ?? ''),
+            '/laravel/framework/src/'.$suffix,
+        );
+    }
+
+    private static function variable(?Node\Expr $expression, string $name): bool
+    {
+        return $expression instanceof Node\Expr\Variable && $expression->name === $name;
     }
 
     private function hasCompleteRuntime(): bool

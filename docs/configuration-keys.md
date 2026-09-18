@@ -36,7 +36,11 @@ installed global `config()` helper and native
 `Illuminate\Support\Facades\Config::get()`. Native facade `getMany()` calls also
 check literal names in a closed array literal: unkeyed and supported numeric-keyed
 entries use their string values as names, while non-numeric string keys are names
-with their values serving as defaults. Helper checks require Laravel's
+with their values serving as defaults. Native `Config::string()`, `integer()`,
+`float()`, `boolean()`, `array()` and `collection()` calls check literal keys while
+retaining Laravel's declared result types and exceptions. Typed checks require the
+installed repository's standard typed method, `get()` forwarding body, and, for
+`collection()`, the standard `array()` chain. Helper checks require Laravel's
 standard parameter names and forwarding body through the native global `app()`
 helper to the `config` service. Facade checks require the unmodified `config`
 accessor and the corresponding native `Illuminate\Config\Repository` dispatch. A cataloged
@@ -47,7 +51,7 @@ referenced entries, computed or duplicate array keys and negative integer-coerci
 keys because array overwrite and append behavior can change the effective entries.
 Positional arguments and named `key:` or `keys:` arguments are supported where Laravel declares them.
 
-Repository instances, `Config::get()` array forwarding, typed getters, injection attributes, `push()`,
+Repository instances, `Config::get()` array forwarding, injection attributes, `push()`,
 `prepend()` and other configuration operations remain outside this contract.
 Existing native signatures, PHPDoc, argument diagnostics and return types retain
 priority. Laramago reads Composer JSON, PHP syntax and installed framework metadata
