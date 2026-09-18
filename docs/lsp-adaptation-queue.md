@@ -12,7 +12,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 4 | Built-in attribute casts | already-covered; Verified AttributeTypes built-in casts and casts, advanced-casts, cast-contracts, carbon-properties tests. |
 | 5 | Typed accessors and mutators | already-covered; Verified typed legacy and Attribute accessors in EloquentPropertyProvider and properties tests. |
 | 6 | Separate attribute read and write types | already-covered; Verified independent read/write contracts in AttributeTypes, CustomCastTypes and focused tests. |
-| 7 | Relation properties and typed collections | queued |
+| 7 | Relation properties and typed collections | already-covered; Verified relation properties, nullable models and typed collections with five focused suites. |
 | 8 | Legacy and attributed local scopes | queued |
 | 9 | Scope parameters and simple fluent bodies | queued |
 | 10 | Custom builders and collections | queued |
