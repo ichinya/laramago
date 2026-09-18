@@ -139,7 +139,7 @@ final class ContainerBindings
     {
         if ($node instanceof Node\Expr\MethodCall && $this->containerReceiver($node->var)) {
             $name = $node->name instanceof Node\Identifier ? strtolower($node->name->toString()) : null;
-            if (in_array($name, ['bind', 'singleton', 'alias'], true)) {
+            if (in_array($name, ['bind', 'singleton', 'scoped', 'alias'], true)) {
                 $this->registration($node, $name, $direct);
             } elseif (
                 $name === null
@@ -148,7 +148,6 @@ final class ContainerBindings
                     [
                         'bindif',
                         'singletonif',
-                        'scoped',
                         'scopedif',
                         'instance',
                         'extend',
@@ -305,7 +304,7 @@ final class ContainerBindings
     {
         $names = match ($method) {
             'alias' => ['abstract', 'alias'],
-            'singleton' => ['abstract', 'concrete'],
+            'singleton', 'scoped' => ['abstract', 'concrete'],
             default => ['abstract', 'concrete', 'shared'],
         };
         $maximum = $method === 'bind' ? 3 : 2;

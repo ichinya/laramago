@@ -23,13 +23,16 @@ Catalogs contain unconditional top-level native container calls, for example:
 <?php
 
 use App\Contracts\Clock;
+use App\Contracts\RequestClock;
 use App\Services\SystemClock;
+use App\Services\SystemRequestClock;
 
 app()->singleton(Clock::class, SystemClock::class);
+app()->scoped(RequestClock::class, SystemRequestClock::class);
 app()->alias(Clock::class, 'clock');
 ```
 
-`bind`, `singleton` and `alias` are supported on proven native `app()` or
+`bind`, `singleton`, `scoped` and `alias` are supported on proven native `app()` or
 `Illuminate\Container\Container::getInstance()` receivers. Implementation classes
 use `Implementation::class`. Paths must be relative files below `app/` or
 `bootstrap/`, without parent-directory traversal. Ordinary service providers are
@@ -46,7 +49,8 @@ authentication for `auth` or its factory contract, validated fields for `validat
 or its factory contract, and configuration/default-locale reads for `config`.
 An uncertain opted-in catalog triggers the same conservative behavior.
 
-Alias cycles, conflicting registrations, conditional registration, closures,
+Alias cycles, conflicting registrations, conditional registration methods such as
+`bindIf`, `singletonIf` and `scopedIf`, closures,
 generic or abstract implementations and unknown mutations remain unresolved.
 Contextual bindings, instances, extenders and registration-order inference are
 outside this subset. Invalid or mutation-bearing catalogs disable inference

@@ -243,6 +243,20 @@ if ($guardExit !== 1 || $codes !== $expected) {
 }
 echo "PASS: custom config binding defers\n";
 
+file_put_contents(
+    $workspace.'/bootstrap/bindings.php',
+    '<?php \\app()->scoped("config", CustomConfiguration::class);',
+);
+[$guardExit, $guardReport] = $analyze('custom-scoped-config-binding');
+$codes = array_column($guardReport['issues'] ?? [], 'code');
+sort($codes);
+$expected = $nativeOnly;
+sort($expected);
+if ($guardExit !== 1 || $codes !== $expected) {
+    throw new RuntimeException('Custom scoped config binding must defer; inspect '.$workspace);
+}
+echo "PASS: custom scoped config binding defers\n";
+
 $writeComposer($contract);
 $originalSource = file_get_contents($workspace.'/cases.php');
 $originalConfiguration = $configuration;

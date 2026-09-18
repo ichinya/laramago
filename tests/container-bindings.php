@@ -49,6 +49,8 @@ function runContainerCases(
             public function make($abstract, array $parameters = []) { throw new \RuntimeException('Do not make services.'); }
             public function bind($abstract, $concrete = null, $shared = false): void { throw new \RuntimeException('Do not bind.'); }
             public function singleton($abstract, $concrete = null): void { throw new \RuntimeException('Do not bind.'); }
+            public function scoped($abstract, $concrete = null): void { throw new \RuntimeException('Do not bind.'); }
+            public function scopedIf($abstract, $concrete = null): void { throw new \RuntimeException('Do not bind.'); }
             public function alias($abstract, $alias): void { throw new \RuntimeException('Do not alias.'); }
             public function when($concrete): mixed { throw new \RuntimeException('Do not configure context.'); }
         }
@@ -148,6 +150,8 @@ function runContainerCases(
             'laramago' => [
                 'command' => [
                     PHP_BINARY,
+                    '-d',
+                    'opcache.enable_cli=0',
                     $package.'/bin/laramago-worker.php',
                     $package.'/vendor/autoload.php',
                     $workspace,
@@ -237,6 +241,16 @@ $enabled = [
         '\\ContainerFixtures\\AbstractImplementation',
         [],
     ],
+    'scoped binding' => [
+        'return app(\\ContainerFixtures\\ScopedContract::class);',
+        '\\ContainerFixtures\\ScopedImplementation',
+        [],
+    ],
+    'named scoped binding' => [
+        "return resolve('service.scoped');",
+        '\\ContainerFixtures\\ScopedImplementation',
+        [],
+    ],
     'literal alias binding' => ["return app('service.alias');", '\\ContainerFixtures\\Service', []],
     'chained alias binding' => ["return resolve('service.deep');", '\\ContainerFixtures\\Service', []],
     'static container catalog' => ["return app('static.service');", '\\ContainerFixtures\\Service', []],
@@ -323,6 +337,21 @@ $enabled = [
         '\\ContainerFixtures\\RuntimeImplementation',
         ['less-specific-return-statement'],
     ],
+    'conditional scoped binding rejected' => [
+        'return app(\\ContainerFixtures\\ConditionalScopedContract::class);',
+        '\\ContainerFixtures\\ConditionalScopedImplementation',
+        ['less-specific-return-statement'],
+    ],
+    'runtime scoped binding rejected' => [
+        'return app(\\ContainerFixtures\\RuntimeScopedContract::class);',
+        '\\ContainerFixtures\\RuntimeScopedImplementation',
+        ['less-specific-return-statement'],
+    ],
+    'duplicate scoped binding rejected' => [
+        'return app(\\ContainerFixtures\\ConflictScopedContract::class);',
+        '\\ContainerFixtures\\ConflictScopedImplementation',
+        ['less-specific-return-statement'],
+    ],
     'literal typed closure binding' => [
         'return app(\\ContainerFixtures\\ClosureContract::class);',
         '\\ContainerFixtures\\ClosureImplementation',
@@ -367,6 +396,23 @@ $enabled = [
     ],
 ];
 runContainerCases('enabled', $enabled, true);
+
+$conditionalRegistration = <<<'PHP'
+    <?php
+    app()->scopedIf(\ContainerFixtures\ServiceContract::class, \ContainerFixtures\AlternateService::class);
+    PHP;
+runContainerCases(
+    'conditional-registration-method',
+    [
+        'conditional registration method disables catalog' => [
+            'return app(\\ContainerFixtures\\ServiceContract::class);',
+            '\\ContainerFixtures\\Service',
+            ['less-specific-return-statement'],
+        ],
+    ],
+    true,
+    $conditionalRegistration,
+);
 
 $disabled = [
     'binding catalog disabled' => [

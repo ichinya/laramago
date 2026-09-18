@@ -51,6 +51,14 @@ namespace ContainerFixtures {
 
     interface RuntimeContract {}
 
+    interface ScopedContract {}
+
+    interface ConditionalScopedContract {}
+
+    interface RuntimeScopedContract {}
+
+    interface ConflictScopedContract {}
+
     interface ClosureContract {}
 
     interface ConflictContract {}
@@ -60,6 +68,16 @@ namespace ContainerFixtures {
     final class ConditionalImplementation implements ConditionalContract {}
 
     final class RuntimeImplementation implements RuntimeContract {}
+
+    final class ScopedImplementation implements ScopedContract {}
+
+    final class ConditionalScopedImplementation implements ConditionalScopedContract {}
+
+    final class RuntimeScopedImplementation implements RuntimeScopedContract {}
+
+    final class ConflictScopedImplementation implements ConflictScopedContract {}
+
+    final class AlternateConflictScopedImplementation implements ConflictScopedContract {}
 
     final class ClosureImplementation implements ClosureContract {}
 
@@ -148,6 +166,8 @@ namespace {
 
     app()->bind(\ContainerFixtures\ServiceContract::class, \ContainerFixtures\Service::class);
     app()->singleton(\ContainerFixtures\AbstractService::class, \ContainerFixtures\AbstractImplementation::class);
+    app()->scoped(\ContainerFixtures\ScopedContract::class, \ContainerFixtures\ScopedImplementation::class);
+    app()->scoped(concrete: \ContainerFixtures\ScopedImplementation::class, abstract: 'service.scoped');
     app()->bind('service.primary', \ContainerFixtures\Service::class);
     app()->alias('service.primary', 'service.alias');
     app()->alias('service.alias', 'service.deep');
@@ -160,6 +180,14 @@ namespace {
     app()->alias('cycle.first', 'cycle.second');
     app()->bind(\ContainerFixtures\ConflictContract::class, \ContainerFixtures\ConflictImplementation::class);
     app()->bind(\ContainerFixtures\ConflictContract::class, \ContainerFixtures\AlternateConflictImplementation::class);
+    app()->scoped(
+        \ContainerFixtures\ConflictScopedContract::class,
+        \ContainerFixtures\ConflictScopedImplementation::class,
+    );
+    app()->scoped(
+        \ContainerFixtures\ConflictScopedContract::class,
+        \ContainerFixtures\AlternateConflictScopedImplementation::class,
+    );
     app()->bind(
         \ContainerFixtures\ClosureContract::class,
         fn (): \ContainerFixtures\ClosureImplementation => new \ContainerFixtures\ClosureImplementation,
@@ -168,11 +196,19 @@ namespace {
 
     if (PHP_VERSION_ID > 0) {
         app()->bind(\ContainerFixtures\ConditionalContract::class, \ContainerFixtures\ConditionalImplementation::class);
+        app()->scoped(
+            \ContainerFixtures\ConditionalScopedContract::class,
+            \ContainerFixtures\ConditionalScopedImplementation::class,
+        );
         app()->alias('static.service', 'portal');
     }
 
     function registerRuntimeBinding(): void
     {
         app()->bind(\ContainerFixtures\RuntimeContract::class, \ContainerFixtures\RuntimeImplementation::class);
+        app()->scoped(
+            \ContainerFixtures\RuntimeScopedContract::class,
+            \ContainerFixtures\RuntimeScopedImplementation::class,
+        );
     }
 }
