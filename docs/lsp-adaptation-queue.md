@@ -46,7 +46,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 38 | Configuration getMany key validation | implemented; Native Config getMany validates literal list/default keys under existing complete catalogs; numeric semantics, custom dispatch, duplicate/reference/negative/overflow deferrals and native errors pass real-Mago checks. |
 | 39 | Typed configuration getters | queued |
 | 40 | Config injection attribute references | queued |
-| 41 | Configuration push and prepend targets | queued |
+| 41 | Configuration push and prepend targets | deferred; Native writer inputs already checked: twelve real-Mago scenarios preserve native diagnostics. Missing push/prepend targets are valid initialization; value diagnostics need independently proven pre-call repository contents. |
 | 42 | Configuration declaration locations | queued |
 | 43 | Explicit environment name catalogs | queued |
 | 44 | Environment helper key references | queued |
