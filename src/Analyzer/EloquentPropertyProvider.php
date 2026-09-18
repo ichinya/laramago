@@ -229,6 +229,9 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
             return null;
         }
         $kind = substr($atom->name, strlen('Illuminate\\Database\\Eloquent\\Relations\\'));
+        if ($kind === 'MorphTo') {
+            return $this->morphTo($codebase, $reflection, $class, $method, $atom);
+        }
         $many = in_array(
             $kind,
             ['HasMany', 'HasManyThrough', 'BelongsToMany', 'MorphMany', 'MorphToMany', 'MorphedByMany'],
@@ -299,5 +302,82 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
                 ? Type::namedObject('Illuminate\\Database\\Eloquent\\Collection', Type::int(), $related)
                 : ($withDefault ? $related : Type::union($related, Type::null())),
         );
+    }
+
+    private function morphTo(
+        Codebase $codebase,
+        ModelReflection $reflection,
+        string $class,
+        FunctionLikeMetadata $method,
+        NamedObjectType $atom,
+    ): ?PropertyType {
+        foreach ([
+            'getRelationValue',
+            'getRelationshipFromMethod',
+            'morphTo',
+            'morphEagerTo',
+            'morphInstanceTo',
+            'newMorphTo',
+        ] as $name) {
+            if ($reflection->customMethod($class, $name) !== null) {
+                return null;
+            }
+        }
+        $expression = $reflection->returnExpression($method);
+        if ($expression === null) {
+            return null;
+        }
+        [$receiver, $chain] = PhpSource::chain($expression);
+        $factory = array_shift($chain);
+        if (
+            ! $receiver instanceof Node\Expr\Variable
+            || $receiver->name !== 'this'
+            || ! $factory?->name instanceof Node\Identifier
+            || strtolower($factory->name->toString()) !== 'morphto'
+            || $reflection->method($class, 'morphTo') === null
+        ) {
+            return null;
+        }
+        $withDefault = false;
+        foreach ($chain as $modifier) {
+            if (
+                ! $modifier->name instanceof Node\Identifier
+                || strtolower($modifier->name->toString()) !== 'withdefault'
+            ) {
+                return null;
+            }
+            $argument = PhpSource::argument($modifier->args, 0, 'callback');
+            $value = $argument === null ? true : PhpSource::value($argument, $class);
+            // A callback may replace the default with an arbitrary value. Empty
+            // arrays disable defaults in Laravel's truthiness check.
+            if (! is_bool($value) && ! is_array($value)) {
+                return null;
+            }
+            $withDefault = $value === true || is_array($value) && $value !== [];
+        }
+        $related = $atom->parameters[0] ?? null;
+        $doc = $reflection->methodNode($method)?->getDocComment()?->getText() ?? '';
+        foreach ($related?->atomicTypes ?? [] as $candidate) {
+            if (
+                ! $candidate instanceof NamedObjectType
+                || strcasecmp($candidate->name, ModelReflection::MODEL) !== 0
+                && ! in_array(
+                    strtolower(ModelReflection::MODEL),
+                    array_map(strtolower(...), $codebase->getClassAncestors($candidate->name)),
+                    true,
+                )
+            ) {
+                if (preg_match('/@(?:phpstan-|psalm-)?return\s/', $doc) === 1) {
+                    return null;
+                }
+                $related = null;
+                break;
+            }
+        }
+        // Native MorphTo has no closed set of targets: only its Model bound is
+        // known without an explicit generic contract. Preserve model unions.
+        $related ??= Type::namedObject(ModelReflection::MODEL);
+
+        return new PropertyType($withDefault ? $related : Type::union($related, Type::null()));
     }
 }

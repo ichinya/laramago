@@ -361,9 +361,9 @@ native argument checks and builder-aware fluent results. Explicit class template
 arguments are substituted through parameters, results, lists and array shapes;
 the defining class and template constraints are verified. Fluent `static`/`$this`
 returns keep the bound builder, and explicit factory `CustomBuilder<static>`
-contracts follow inherited model receivers. Method templates, generic ancestor
-remapping, unresolved callable containers and reference signatures defer.
-`php tests/builder-generics.php` checks this specialization and its negative cases.
+contracts follow inherited model receivers. Verified parent-class `@extends` arguments also propagate through reordered and multi-level ancestry, with each template constraint checked. Method templates, generic traits, unresolved callable containers and reference signatures defer.
+`php tests/builder-generics.php` and `php tests/builder-ancestry.php` check these
+specializations and their negative cases.
 Existing query overrides remain native; dynamic builder resolvers and
 custom construction chains defer to native analysis. Constructors and factory
 bodies are never executed. Tests run with `php tests/builders.php`.
@@ -400,19 +400,19 @@ deferred portions of these integrations.
 
 | Area | Supported subset | Boundaries |
 | --- | --- | --- |
-| Relationship methods | Standard factories, trait declarations and explicit native pivot modifiers retain related/declaring/intermediate model types | Explicit PHPDoc wins; unresolved model/trait generics, dynamic MorphTo and custom factories defer |
-| Relation results | Standard relation forwarding for `first`, `firstOrFail`, `sole`, `get`, sorting and selected aggregates | Native declarations win; custom relations, `MorphTo` and custom related builders defer |
+| Relationship methods | Standard factories, trait declarations and explicit native pivot modifiers retain related/declaring/intermediate model types | Explicit PHPDoc wins; unresolved model/trait generics and custom factories defer; [MorphTo properties](docs/morph-properties.md) retain nullable Model bounds or explicit model unions |
+| Relation results | Standard relation forwarding for results, sorting, aggregates and 24 key/membership/null/range/date predicates | Native declarations win; custom relations, `MorphTo` and custom related builders defer |
 | Selected query fields | Direct model `value`/`pluck`, including literal keys and exact-table qualification; terminal queries preserve literal aliases on their own result | Stateful builder projections, expressions, `withCount`/`withSum` and unknown schema defer; `sum` keeps its installed contract |
 | Relationship callbacks | Literal dotted paths for the four `whereHas`/`whereDoesntHave` variants receive `Builder<Related>`; `withWhereHas` receives a Builder/Relation union | Uses authoritative PHPDoc or supported relation bodies; dynamic paths and custom dispatch defer |
-| Relation validation | Warns when a referenced existing method explicitly returns a known non-relation class, including nested paths | Missing methods may be dynamically registered and are not reported |
+| Relation validation | Warns when a referenced existing method explicitly returns a known non-relation class, including nested paths | Missing names are checked only with explicit [complete model contracts](docs/relation-names.md) |
 | Authentication | Nullable default models from literal config or explicit Composer auth contracts; standard guards and explicitly declared custom guard classes | Environment values are never evaluated; standard selected guard users retain native `Authenticatable|null`; custom guards retain their own user contracts |
-| Collection operations | Standard collection null filtering, model/required-shape higher-order maps, known union branches and literal-property aggregates | Custom subclasses, unsafe branches, callback/key filtering and union method calls with arguments defer; see the mapping contract below |
+| Collection operations | Standard collection null filtering, higher-order map/filter/reject, known model/shape/union items and literal-property aggregates | Custom subclasses, unsafe branches, callback/key filtering and union method calls with arguments defer; see the mapping contract below |
 | HTTP test assertions | Typed Laravel and optional Laratesto callbacks, nested fluent scopes, standard Inertia page envelopes and flash assertions | Known installed declarations required; custom contracts/macros win; selected prop and JSON values remain unknown |
-| Facades | Concrete roots and public service signatures from class-string accessors or explicit static binding catalogs | Uncataloged aliases, runtime binding discovery, generic/reference contracts and custom dispatch defer; declared methods and PHPDoc win |
+| Facades and container helpers | Concrete roots and public service signatures from class-string accessors, installed framework core service aliases or explicit static binding catalogs, including [literal typed factories](docs/container-bindings.md#literal-factory-closures) | Uncataloged aliases, runtime binding discovery, generic/reference contracts and custom dispatch defer; declared methods and PHPDoc win |
 | Configuration | Literal helper and native `Config::get` reads from static configuration arrays, including shapes and known defaults | Arbitrary repository instances, environment evaluation, runtime mutations, package-merged defaults and missing-key warnings defer |
-| Translation strings | Known PHP/JSON strings with explicit locales or literal `app.locale`, respecting JSON precedence | Dynamic locales, custom paths/loaders and missing-reference diagnostics defer; native `view()` typing is retained |
-| Route parameters | Duplicate placeholders in literal native Router, lexically resolved native Route facade and Route `setUri()` calls | Runtime aliases, dynamic URIs, custom dispatch, middleware and named-route registries defer; see [route validation](docs/route-parameters.md) |
-| Macros | Typed closures, static callable arrays and invokable objects in explicit catalogs, including known boolean/ordered hasMacro guards | Catalog activation/order/completeness are user guarantees; unknown conditions, dynamic, generic and reference contracts defer; see [macro catalogs](docs/macros.md) |
+| Translation strings | Known PHP/JSON strings with explicit locales or literal `app.locale`, respecting JSON precedence | Missing literal views/translations can be checked with [complete catalogs](docs/reference-catalogs.md); dynamic locales/loaders defer; native `view()` typing is retained |
+| Route parameters | Duplicate placeholders in literal native Router, lexically resolved native Route facade and Route `setUri()` calls | [Complete named-route catalogs](docs/named-route-contracts.md) check native URL/redirect generators; runtime aliases, middleware and dynamic routing defer |
+| Macros | Typed closures, static callable arrays and invokable objects in explicit files or [active provider boot sources](docs/macro-service-providers.md), including known boolean/ordered hasMacro guards | Catalog activation/order/completeness are user guarantees; unknown conditions, dynamic, generic and reference contracts defer; see [macro catalogs](docs/macros.md) |
 
 Static configuration types describe the source defaults; applications that replace
 configuration, authentication resolvers or facade bindings at runtime need explicit
@@ -758,6 +758,13 @@ the empty zero seed; arbitrary strings are not assumed numeric. This applies to
 in-memory collection operations, independently of database aggregate semantics.
 `php tests/collection-contracts.php` verifies these contracts and negative cases.
 
+Higher-order `filter` and `reject` support known item properties and concrete model
+methods on standard collections. They preserve input items, keys and the
+Support/Eloquent collection class. Results may be empty; predicates do not narrow
+individual item properties. Native argument diagnostics remain active, while
+custom dispatch and unresolved contracts defer. `tests/higher-order-predicates.php`
+compares these contracts against native Mago.
+
 ### Validated form input
 
 Laramago resolves the complete result of
@@ -999,3 +1006,7 @@ Windows project: automatic configuration creation, native `vendor/bin/mago.bat l
 Laravel integration, an application rule override, configuration preservation on
 repeated `composer install`, and a nonzero exit status for invalid PHP.
 That check used Mago 1.48.1; a full Laravel CI run was not performed.
+
+Standard service helpers such as `app('cache')` and `resolve('session')` use installed framework aliases. See [framework helper contracts](docs/framework-helpers.md) for supported calls and override boundaries.
+
+`str()` preserves the installed anonymous proxy and known `Str` method contracts; explicit `str(null)` returns `Stringable`. Standard `DB::transaction()` calls retain analyzed Closure results, including retry-aware nullability. Both are covered by [framework helper contracts](docs/framework-helpers.md).

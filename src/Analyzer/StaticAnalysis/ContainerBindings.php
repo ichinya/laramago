@@ -16,6 +16,8 @@ final class ContainerBindings
     /** @var array<string, string> */
     private array $aliases = [];
     /** @var array<string, true> */
+    private array $factories = [];
+    /** @var array<string, true> */
     private array $blocked = [];
     private bool $unknown = false;
 
@@ -94,6 +96,11 @@ final class ContainerBindings
             }
             if (isset($this->bindings[$abstract])) {
                 $concrete = $this->bindings[$abstract];
+                if (isset($this->factories[$abstract])) {
+                    // A literal new expression bypasses further container bindings.
+                    $abstract = $concrete;
+                    break;
+                }
                 if ($concrete === $abstract) {
                     break;
                 }
@@ -210,13 +217,18 @@ final class ContainerBindings
             return;
         }
         $concreteNode = PhpSource::argument($call->args, 1, 'concrete');
-        $concrete = $concreteNode === null ? self::className($abstractNode) : self::className($concreteNode);
+        $factory = ContainerFactory::concrete($concreteNode);
+        $concrete =
+            $factory ?? ($concreteNode === null ? self::className($abstractNode) : self::className($concreteNode));
         if ($concrete === null) {
             $this->blocked[$abstract] = true;
 
             return;
         }
         $this->put($this->bindings, $abstract, $concrete);
+        if ($factory !== null && ! isset($this->blocked[$abstract])) {
+            $this->factories[$abstract] = true;
+        }
     }
 
     /** @param array<string, string> $values */

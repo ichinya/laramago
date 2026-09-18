@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace Ichinya\Laramago\Analyzer;
 
+use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\ScopeBodyInference;
 use Mago\Sdk\Analyzer\CallableSignatureProvider;
 use Mago\Sdk\Analyzer\CallableSignatureProviderContext;
 use Mago\Sdk\Analyzer\EffectiveCallableSignature;
+use Mago\Sdk\Analyzer\InitializationContext;
+use Mago\Sdk\Analyzer\InitializationHook;
 use Mago\Sdk\Analyzer\Metadata\MetadataFlags;
 use Mago\Sdk\Analyzer\MethodReturnTypeProvider;
 use Mago\Sdk\Analyzer\MethodTarget;
@@ -15,10 +19,21 @@ use Mago\Sdk\Analyzer\Type;
 use Mago\Sdk\Analyzer\Type\CallableParameter;
 
 /** Reads local scope contracts without invoking models or scope bodies. */
-final class EloquentScopeProvider implements MethodReturnTypeProvider, CallableSignatureProvider
+final class EloquentScopeProvider implements MethodReturnTypeProvider, CallableSignatureProvider, InitializationHook
 {
     private const MODEL = 'Illuminate\\Database\\Eloquent\\Model';
     private const BUILDER = 'Illuminate\\Database\\Eloquent\\Builder';
+
+    private ?PhpSource $source = null;
+
+    public function __construct(
+        private readonly string $root = '.',
+    ) {}
+
+    public function initialize(InitializationContext $context): void
+    {
+        $this->source = null;
+    }
 
     public function getTargets(): array
     {
@@ -69,7 +84,12 @@ final class EloquentScopeProvider implements MethodReturnTypeProvider, CallableS
         [$method, $model] = $resolved;
         $return = $method->returnType->type ?? $method->declaredReturnType?->type;
         if ($return === null) {
-            return null;
+            return (new ScopeBodyInference(
+                $context->codebase,
+                $this->source ??= new PhpSource($this->root),
+            ))->preservesQuery($method)
+                ? Type::namedObject(self::BUILDER, $model)
+                : null;
         }
         $builder = Type::namedObject(self::BUILDER, $model);
         $result = null;

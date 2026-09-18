@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Ichinya\Laramago\Analyzer;
 
+use Ichinya\Laramago\Analyzer\StaticAnalysis\CastGenericTypes;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Mago\Sdk\Analyzer\CallableSignatureProvider;
 use Mago\Sdk\Analyzer\CallableSignatureProviderContext;
 use Mago\Sdk\Analyzer\Codebase;
@@ -23,6 +25,13 @@ use Mago\Sdk\Analyzer\TypeComparator;
 /** Exposes explicitly declared custom builder methods through model dispatch. */
 final class EloquentBuilderForwardingProvider implements MethodReturnTypeProvider, CallableSignatureProvider
 {
+    private readonly PhpSource $source;
+
+    public function __construct(string $projectRoot = '.')
+    {
+        $this->source = new PhpSource($projectRoot);
+    }
+
     public function getTargets(): array
     {
         return [MethodTarget::allMethods(EloquentBuilderType::MODEL)];
@@ -128,13 +137,8 @@ final class EloquentBuilderForwardingProvider implements MethodReturnTypeProvide
         ) {
             return null;
         }
-        // The SDK exposes template declarations, but not ancestor argument mappings.
         $declaring = $method->identifier->class;
-        if (
-            $declaring === null
-            || strcasecmp($declaring, $builderAtom->name) !== 0
-            && ($codebase->getClassLike($declaring)?->templates ?? []) !== []
-        ) {
+        if ($declaring === null) {
             return null;
         }
         $bindings = [];
@@ -151,6 +155,29 @@ final class EloquentBuilderForwardingProvider implements MethodReturnTypeProvide
             $constraint = $generics->substitute($template->constraint);
             if ($constraint === null || ! $types->isContainedBy($bindings[$template->name], $constraint)) {
                 return null;
+            }
+        }
+        // The SDK omits ancestor argument mappings. Recover only explicit source
+        // annotations along the actual parent chain and validate every hop.
+        $owner = $builderAtom->name;
+        $ancestry = new CastGenericTypes($codebase, $this->source, $owner);
+        $genericOwner = ($codebase->getClassLike($declaring)?->templates ?? []) !== [];
+        for ($depth = 0; $genericOwner && strcasecmp($owner, $declaring) !== 0; ++$depth) {
+            $parent = $codebase->getClassLike($owner)?->directParentClass;
+            if ($depth >= 16 || $parent === null) {
+                return null;
+            }
+            $bindings = $ancestry->bindings($owner, $parent, $bindings);
+            if ($bindings === null) {
+                return null;
+            }
+            $owner = $parent;
+            $generics = new EloquentBuilderGenericTypes($builderAtom, $bindings, $owner);
+            foreach ($codebase->getClassLike($owner)?->templates ?? [] as $template) {
+                $constraint = $generics->substitute($template->constraint);
+                if ($constraint === null || ! $types->isContainedBy($bindings[$template->name], $constraint)) {
+                    return null;
+                }
             }
         }
         // Both provider phases must agree before recognizing a dynamic method.

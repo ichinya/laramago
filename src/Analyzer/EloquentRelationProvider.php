@@ -33,6 +33,7 @@ final class EloquentRelationProvider implements MethodReturnTypeProvider, Callab
         'MorphToMany',
         'MorphedByMany',
     ];
+    private const KEYS = ['wherekey', 'wherekeynot'];
     private const SORTS = ['latest', 'oldest', 'orderby', 'orderbydesc'];
     private const AGGREGATES = ['count', 'sum', 'exists', 'doesntexist'];
 
@@ -40,7 +41,16 @@ final class EloquentRelationProvider implements MethodReturnTypeProvider, Callab
     {
         $targets = [];
         foreach (self::RELATIONS as $relation) {
-            foreach (['first', 'firstorfail', 'sole', 'get', ...self::SORTS, ...self::AGGREGATES] as $method) {
+            foreach ([
+                'first',
+                'firstorfail',
+                'sole',
+                'get',
+                ...self::SORTS,
+                ...self::AGGREGATES,
+                ...self::KEYS,
+                ...EloquentQueryProvider::predicateMethods(),
+            ] as $method) {
                 $targets[] = MethodTarget::exact(self::PREFIX.$relation, $method);
             }
         }
@@ -66,7 +76,7 @@ final class EloquentRelationProvider implements MethodReturnTypeProvider, Callab
             return null;
         }
         $name = strtolower($context->invocation->name);
-        if (in_array($name, self::SORTS, true)) {
+        if (in_array($name, [...self::SORTS, ...self::KEYS, ...EloquentQueryProvider::predicateMethods()], true)) {
             // forwardDecoratedCallTo returns the relation when its builder returns itself.
             return $context->invocation->receiverType;
         }
@@ -141,6 +151,38 @@ final class EloquentRelationProvider implements MethodReturnTypeProvider, Callab
         ) {
             return null;
         }
+        if (in_array(strtolower($call->name), [...self::KEYS, ...EloquentQueryProvider::predicateMethods()], true)) {
+            $dispatch = new EloquentModelDispatch;
+            if ($dispatch->overrides($codebase, $modelAtom->name, 'newBaseQueryBuilder')) {
+                return null;
+            }
+            if (in_array(strtolower($call->name), EloquentQueryProvider::predicateMethods(), true)) {
+                // Eloquent declarations and scopes precede Query Builder forwarding.
+                if (
+                    $codebase->getMethod(self::BUILDER, $call->name) !== null
+                    || $codebase->getDeclaringMethod(self::BUILDER, $call->name) !== null
+                    || $codebase->getMethod($modelAtom->name, $call->name) !== null
+                    || $codebase->getDeclaringMethod($modelAtom->name, $call->name) !== null
+                    || $codebase->getMethod($modelAtom->name, 'scope'.ucfirst($call->name)) !== null
+                    || $codebase->getDeclaringMethod($modelAtom->name, 'scope'.ucfirst($call->name)) !== null
+                    || $dispatch->overrides($codebase, $modelAtom->name, 'hasNamedScope')
+                    || $dispatch->overrides($codebase, $modelAtom->name, 'callNamedScope')
+                    || $dispatch->overrides($codebase, $modelAtom->name, 'isScopeMethodWithAttribute')
+                ) {
+                    return null;
+                }
+                foreach ($codebase->getMultipleClasses([
+                    self::BUILDER,
+                    ...$codebase->getClassAncestors(self::BUILDER),
+                ]) as $class) {
+                    foreach ([...($class?->pseudoMethods ?? []), ...($class?->staticPseudoMethods ?? [])] as $method) {
+                        if (strcasecmp($method, $call->name) === 0) {
+                            return null;
+                        }
+                    }
+                }
+            }
+        }
         $methodClass = $this->methodClass($call->name);
         if (
             $codebase->getMethod($methodClass, $call->name) === null
@@ -154,7 +196,11 @@ final class EloquentRelationProvider implements MethodReturnTypeProvider, Callab
 
     private function methodClass(string $method): string
     {
-        return in_array(strtolower($method), [...self::AGGREGATES, 'orderby', 'orderbydesc'], true)
+        return in_array(
+            strtolower($method),
+            [...self::AGGREGATES, 'orderby', 'orderbydesc', ...EloquentQueryProvider::predicateMethods()],
+            true,
+        )
             ? self::QUERY
             : self::BUILDER;
     }

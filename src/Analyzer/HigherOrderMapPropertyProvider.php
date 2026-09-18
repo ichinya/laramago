@@ -12,7 +12,7 @@ use Mago\Sdk\Analyzer\PropertyTypeProviderContext;
 use Mago\Sdk\Analyzer\Type;
 use Mago\Sdk\Analyzer\Type\NamedObjectType;
 
-/** Map known model properties without losing the collection's keys or value contract. */
+/** Resolve known item properties used by higher-order maps and predicates. */
 final class HigherOrderMapPropertyProvider implements PropertyTypeProvider
 {
     private const PROXY = 'Illuminate\\Support\\HigherOrderCollectionProxy';
@@ -40,9 +40,13 @@ final class HigherOrderMapPropertyProvider implements PropertyTypeProvider
             || ! $proxy instanceof NamedObjectType
             || $proxy->name !== self::PROXY
             || count($proxy->parameters ?? []) !== 3
-            || ($proxy->parameters[0] ?? null)?->getLiteralString() !== 'map'
+            || ! in_array(($proxy->parameters[0] ?? null)?->getLiteralString(), ['map', 'filter', 'reject'], true)
             || ($proxy->intersections ?? []) !== []
         ) {
+            return null;
+        }
+        $operation = ($proxy->parameters[0] ?? null)?->getLiteralString();
+        if ($operation === null) {
             return null;
         }
         $value = $proxy->parameters[1] ?? null;
@@ -74,7 +78,13 @@ final class HigherOrderMapPropertyProvider implements PropertyTypeProvider
         if (
             $codebase->getDeclaringProperty(self::PROXY, $name) !== null
             || $codebase->getDeclaringMagicProperty(self::PROXY, $name) !== null
-            || $codebase->getMethod($container->name, 'map') === null
+            || (
+                $codebase->getMethod($container->name, $operation) ?? $codebase->getDeclaringMethod(
+                    $container->name,
+                    $operation,
+                )
+            )
+                === null
         ) {
             return null;
         }
@@ -86,6 +96,10 @@ final class HigherOrderMapPropertyProvider implements PropertyTypeProvider
         );
         if ($result === null) {
             return null;
+        }
+        // Predicates do not project values or prove property-level narrowing.
+        if ($operation !== 'map') {
+            return new PropertyType($collection);
         }
         $resultClass = $container->name === self::ELOQUENT
         && $context->types->isContainedBy($result, Type::namedObject(self::MODEL))

@@ -97,7 +97,7 @@ final class CastGenericTypes
      * @param array<string, Type> $arguments
      * @return array<string, Type>|null
      */
-    private function bindings(string $class, string $target, array $arguments = [], int $depth = 0): ?array
+    public function bindings(string $class, string $target, array $arguments = [], int $depth = 0): ?array
     {
         if ($depth > 16) {
             return null;

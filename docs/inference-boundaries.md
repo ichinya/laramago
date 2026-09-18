@@ -19,11 +19,12 @@ source syntax after file analysis, too late to change that invocation's inferred
 return type. These features need suitable engine support for expression identity
 and state propagation before a provider can safely refine them.
 
-Standard authentication guards present a related limitation: their declared
-`user()` result is `Authenticatable|null`, and they do not declare a model type
-parameter. A previously selected guard name is not available in a later user
-invocation. Explicit authentication metadata can describe known entry points;
-custom guards can expose a more specific native or PHPDoc user contract.
+Standard guards do not declare a user-model template. SDK 1.48.1 can carry extra
+named-object parameters through selection and unions, but these do not track
+direct or aliased guard mutation. The selected-user experiment demonstrates an
+incorrect narrow result after `setUser()`. Production providers therefore retain
+native selected-guard user contracts until mutation invalidation or an explicit
+stronger application contract is available. See [the SDK proof](auth-selected-state.md).
 
 ## Generic magic calls
 
@@ -61,3 +62,7 @@ The [coverage matrix](static-analysis-support.md) records concrete supported
 subsets. Passing synthetic cases establishes those contracts; differences between
 analyzers or lower diagnostic counts alone do not prove every remaining finding
 is a false positive.
+
+## Date properties after query projections
+
+Carbon interface property declarations already provide native types. A date property reached through an unresolved model-or-collection lookup is a separate query-contract problem. [The projection regression](date-projection-limitations.md) records why a mixed plucked ID must retain both lookup branches.

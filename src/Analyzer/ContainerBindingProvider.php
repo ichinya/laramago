@@ -6,6 +6,8 @@ namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerNativeContract;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\FrameworkContainerAliases;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Mago\Sdk\Analyzer\Argument;
 use Mago\Sdk\Analyzer\InitializationContext;
 use Mago\Sdk\Analyzer\InitializationHook;
@@ -17,12 +19,13 @@ use Mago\Sdk\Analyzer\ReturnTypeProviderContext;
 use Mago\Sdk\Analyzer\Type;
 use Mago\Sdk\Analyzer\Type\NamedObjectType;
 
-/** Refines native container make() calls through explicit static binding catalogs. */
+/** Refines native container make() calls through static binding catalogs and installed core aliases. */
 final class ContainerBindingProvider implements MethodReturnTypeProvider, InitializationHook
 {
     private const CONTRACT = 'Illuminate\\Contracts\\Container\\Container';
 
     private ?ContainerBindings $bindings = null;
+    private ?FrameworkContainerAliases $coreAliases = null;
 
     public function __construct(
         private readonly string $root,
@@ -31,6 +34,7 @@ final class ContainerBindingProvider implements MethodReturnTypeProvider, Initia
     public function initialize(InitializationContext $context): void
     {
         $this->bindings = null;
+        $this->coreAliases = null;
     }
 
     public function getTargets(): array
@@ -98,10 +102,40 @@ final class ContainerBindingProvider implements MethodReturnTypeProvider, Initia
             return null;
         }
         $bindings = $this->bindings ??= new ContainerBindings($this->root);
-        if (! $bindings->configured($abstract)) {
-            return null;
+        if ($bindings->configured($abstract)) {
+            $concrete = $bindings->concrete($abstract, $context->codebase);
+        } else {
+            $receiver = $context->invocation->receiverType?->atomicTypes[0] ?? null;
+            if (
+                ! $receiver instanceof NamedObjectType
+                || ! in_array(
+                    'Illuminate\Foundation\Application',
+                    [
+                        $receiver->name,
+                        ...$context->codebase->getClassAncestors($receiver->name),
+                    ],
+                    true,
+                )
+            ) {
+                return null;
+            }
+            foreach (['registerCoreContainerAliases', 'getAlias', 'resolve'] as $name) {
+                $method = $context->codebase->getDeclaringMethod($receiver->name, $name);
+                $owner = $method?->identifier->class;
+                if ($owner !== 'Illuminate\Foundation\Application' && $owner !== 'Illuminate\Container\Container') {
+                    return null;
+                }
+                if (! self::frameworkFile(
+                    str_replace('\\', '/', $method->location->file ?? ''),
+                    str_replace('\\', '/', $owner).'.php',
+                )) {
+                    return null;
+                }
+            }
+            $concrete = ($this->coreAliases ??= new FrameworkContainerAliases(
+                new PhpSource($this->root),
+            ))->concrete($context->codebase, $abstract);
         }
-        $concrete = $bindings->concrete($abstract, $context->codebase);
 
         return $concrete === null ? null : Type::namedObject($concrete);
     }

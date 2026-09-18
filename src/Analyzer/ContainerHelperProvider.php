@@ -6,6 +6,8 @@ namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerNativeContract;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\FrameworkContainerAliases;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Mago\Sdk\Analyzer\FunctionReturnTypeProvider;
 use Mago\Sdk\Analyzer\FunctionTarget;
 use Mago\Sdk\Analyzer\InitializationContext;
@@ -14,10 +16,11 @@ use Mago\Sdk\Analyzer\Metadata\MetadataFlags;
 use Mago\Sdk\Analyzer\ReturnTypeProviderContext;
 use Mago\Sdk\Analyzer\Type;
 
-/** Refines Laravel app() and resolve() through explicit static binding catalogs. */
+/** Refines Laravel app() and resolve() through static binding catalogs and installed core aliases. */
 final class ContainerHelperProvider implements FunctionReturnTypeProvider, InitializationHook
 {
     private ?ContainerBindings $bindings = null;
+    private ?FrameworkContainerAliases $coreAliases = null;
 
     public function __construct(
         private readonly string $root,
@@ -26,6 +29,7 @@ final class ContainerHelperProvider implements FunctionReturnTypeProvider, Initi
     public function initialize(InitializationContext $context): void
     {
         $this->bindings = null;
+        $this->coreAliases = null;
     }
 
     public function getTargets(): array
@@ -65,10 +69,11 @@ final class ContainerHelperProvider implements FunctionReturnTypeProvider, Initi
             return null;
         }
         $bindings = $this->bindings ??= new ContainerBindings($this->root);
-        if (! $bindings->configured($abstract)) {
-            return null;
-        }
-        $concrete = $bindings->concrete($abstract, $context->codebase);
+        $concrete = $bindings->configured($abstract)
+            ? $bindings->concrete($abstract, $context->codebase)
+            : ($this->coreAliases ??= new FrameworkContainerAliases(
+                new PhpSource($this->root),
+            ))->concrete($context->codebase, $abstract);
 
         return $concrete === null ? null : Type::namedObject($concrete);
     }

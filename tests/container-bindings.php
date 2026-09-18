@@ -323,10 +323,10 @@ $enabled = [
         '\\ContainerFixtures\\RuntimeImplementation',
         ['less-specific-return-statement'],
     ],
-    'closure binding rejected' => [
+    'literal typed closure binding' => [
         'return app(\\ContainerFixtures\\ClosureContract::class);',
         '\\ContainerFixtures\\ClosureImplementation',
-        ['less-specific-return-statement'],
+        [],
     ],
     'generic implementation rejected' => [
         'return app(\\ContainerFixtures\\GenericContract::class);',

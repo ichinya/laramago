@@ -72,3 +72,7 @@ class/method targets are registered; no global wildcard dispatch is added.
 `php tests/macro-contracts.php` check actual Mago diagnostics and include
 execution traps. Catalog caches live for one worker run; rerun analysis after
 changing declarations.
+
+## Explicit provider boot sources
+
+[Service-provider catalogs](macro-service-providers.md) extend discovery to a bounded subset of explicitly active provider boot methods. Activation, order and registry completeness remain application assertions.

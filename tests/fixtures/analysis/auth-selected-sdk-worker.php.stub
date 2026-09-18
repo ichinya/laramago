@@ -1,0 +1,69 @@
+<?php
+
+declare(strict_types=1);
+
+// Experimental carrier only. Never register this provider in the Laravel plugin.
+require $argv[1];
+
+use Mago\Sdk\Analyzer\FunctionReturnTypeProvider;
+use Mago\Sdk\Analyzer\FunctionTarget;
+use Mago\Sdk\Analyzer\MethodReturnTypeProvider;
+use Mago\Sdk\Analyzer\MethodTarget;
+use Mago\Sdk\Analyzer\Plugin;
+use Mago\Sdk\Analyzer\PluginDefinition;
+use Mago\Sdk\Analyzer\PluginRegistry;
+use Mago\Sdk\Analyzer\ReturnTypeProviderContext;
+use Mago\Sdk\Analyzer\Type;
+use Mago\Sdk\Analyzer\Type\NamedObjectType;
+
+final class SelectedGuardFactoryProbe implements FunctionReturnTypeProvider
+{
+    public function getTargets(): array
+    {
+        return [FunctionTarget::exact('selectedGuardProbe')];
+    }
+
+    public function getReturnType(ReturnTypeProviderContext $context): ?Type
+    {
+        $name = $context->invocation->getArgument(0)?->type?->getLiteralString();
+        return in_array($name, ['admin', 'member'], true)
+            ? Type::namedObject('SelectedGuardProbe', Type::namedObject($name === 'admin' ? 'SelectedAdmin' : 'SelectedMember'))
+            : null;
+    }
+}
+
+final class SelectedGuardUserProbe implements MethodReturnTypeProvider
+{
+    public function getTargets(): array
+    {
+        return [MethodTarget::exact('SelectedGuardProbe', 'user')];
+    }
+
+    public function getReturnType(ReturnTypeProviderContext $context): ?Type
+    {
+        $receiver = $context->invocation->receiverType?->atomicTypes[0] ?? null;
+        $parameter = $receiver instanceof NamedObjectType ? ($receiver->parameters[0] ?? null) : null;
+        return $parameter === null ? null : Type::union($parameter, Type::null());
+    }
+}
+
+final class SelectedGuardProbePlugin implements Plugin
+{
+    public function getDefinition(): PluginDefinition
+    {
+        return new PluginDefinition('selected-guard-probe', 'Selected guard probe', 'Test-only carrier boundary.');
+    }
+
+    public function register(PluginRegistry $registry): void
+    {
+        $registry->registerFunctionReturnTypeProvider(new SelectedGuardFactoryProbe);
+        $registry->registerMethodReturnTypeProvider(new SelectedGuardUserProbe);
+    }
+}
+
+(new Mago\Sdk\Worker(new Mago\Sdk\Extension(
+    identifier: 'selected-guard-probe',
+    name: 'Selected guard probe',
+    version: '1',
+    analyzerPlugins: [new SelectedGuardProbePlugin],
+)))->run();

@@ -1,0 +1,45 @@
+<?php
+
+namespace ContainerFactoryFixtures;
+
+use Illuminate\Support\Facades\Facade;
+
+class Service
+{
+    public function label(string $prefix = 'service'): string { return $prefix; }
+}
+class Rebound extends Service {}
+class Replacement extends Rebound {}
+/**
+ * @template TValue
+ */
+class GenericService extends Service {}
+abstract class AbstractService extends Service {}
+class FactoryFacade extends Facade
+{
+    protected static function getFacadeAccessor() { return 'factory.alias'; }
+}
+
+throw new \RuntimeException('Never execute binding catalogs or their factories.');
+\app()->bind('factory.arrow', static fn (): Service => new Service);
+\app()->singleton('factory.closure', function (): Service { return new Service; });
+\app()->alias('factory.closure', 'factory.alias');
+\app()->bind('factory.rebound', fn (): Rebound => new Rebound);
+\app()->bind(Rebound::class, Replacement::class);
+\app()->bind('factory.conditional', fn (): Service => PHP_VERSION_ID > 0 ? new Service : new Service);
+\app()->bind('factory.captured', function () use ($value): Service { return new Service; });
+\app()->bind('factory.argument', fn (): Service => new Service('argument'));
+\app()->bind('factory.dynamic', fn (): Service => new $class);
+\app()->bind('factory.anonymous', fn (): Service => new class extends Service {});
+\app()->bind('factory.untyped', fn () => new Service);
+\app()->bind('factory.mismatch', fn (): Rebound => new Service);
+\app()->bind('factory.parameter', fn ($app): Service => new Service);
+\app()->bind('factory.reference', function &(): Service { return new Service; });
+\app()->bind('factory.multiple', function (): Service { $value = 1; return new Service; });
+\app()->bind('factory.duplicate', fn (): Service => new Service);
+\app()->bind('factory.duplicate', fn (): Service => new Service);
+\app()->bind('factory.generic', fn (): GenericService => new GenericService);
+\app()->bind('factory.abstract', fn (): AbstractService => new AbstractService);
+if (PHP_VERSION_ID > 0) {
+    \app()->bind('factory.conditional-registration', fn (): Service => new Service);
+}

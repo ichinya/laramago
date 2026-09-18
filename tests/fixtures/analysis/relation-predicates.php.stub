@@ -1,0 +1,86 @@
+<?php
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class Record extends Model
+{
+    public int $id;
+    public ?string $label;
+}
+
+class ScopedRecord extends Record
+{
+    public function scopeWhereIn($query, $column, $values): string
+    {
+        return 'scope';
+    }
+}
+
+class CustomQueryRecord extends Record
+{
+    protected function newBaseQueryBuilder(): mixed
+    {
+        throw new LogicException('Do not execute.');
+    }
+}
+
+class CustomDispatchRecord extends Record
+{
+    public function hasNamedScope($scope): bool
+    {
+        return true;
+    }
+}
+
+class CustomBuilderRecord extends Record
+{
+    public function newEloquentBuilder($query): mixed
+    {
+        throw new LogicException('Do not execute.');
+    }
+}
+
+/**
+ * @extends HasMany<Record>
+ */
+class CustomRelation extends HasMany
+{
+    public function whereIn(string $column, mixed $values): string
+    {
+        return 'declared';
+    }
+}
+
+throw new RuntimeException('Fixtures must not execute.');
+
+class InheritedScopedRecord extends ScopedRecord {}
+
+class KeyScopedRecord extends Record
+{
+    public function scopeWhereKey($query, $id): string
+    {
+        return 'scope';
+    }
+}
+
+/**
+ * @return HasMany<InheritedScopedRecord>
+ */
+function inheritedScopeRelation(): HasMany
+{
+    throw new LogicException('Do not execute.');
+}
+
+/**
+ * @return HasMany<KeyScopedRecord>
+ */
+function keyScopeRelation(): HasMany
+{
+    throw new LogicException('Do not execute.');
+}
+
+function unknownRelation(): HasMany
+{
+    throw new LogicException('Do not execute.');
+}

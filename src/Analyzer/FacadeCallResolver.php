@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\FrameworkContainerAliases;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ModelReflection;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Mago\Sdk\Analyzer\Codebase;
@@ -60,13 +61,31 @@ final class FacadeCallResolver
             return $this->bindings->concrete($name, $codebase);
         }
         if ($expression instanceof Node\Scalar\String_) {
-            return null;
+            return $this->frameworkRoot($codebase, $object->name, $name);
         }
         if ($codebase->getClassLike($name) === null) {
             return null;
         }
 
         return $name;
+    }
+
+    /** Read Laravel's installed core aliases; never guess a service from a short name. */
+    private function frameworkRoot(Codebase $codebase, string $facade, string $accessor): ?string
+    {
+        $facadeClass = $codebase->getClassLike($facade);
+        $path = str_replace('\\', '/', $this->source->path($facadeClass?->location->file ?? ''));
+        if (
+            ! str_starts_with($facade, 'Illuminate\\Support\\Facades\\')
+            || ! str_ends_with($path, '/laravel/framework/src/'.str_replace('\\', '/', $facade).'.php')
+        ) {
+            return null;
+        }
+
+        return (new FrameworkContainerAliases($this->source))->concrete(
+            $codebase,
+            $accessor,
+        );
     }
 
     /** @return null|array{FunctionLikeMetadata, string} */

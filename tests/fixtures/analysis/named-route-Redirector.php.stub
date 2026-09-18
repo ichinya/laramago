@@ -1,0 +1,14 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Illuminate\Routing;
+
+throw new \RuntimeException('Named route fixtures must never execute.');
+
+class Redirector
+{
+    public function route(string $route): string { return ''; }
+}
+
+class ExtendedRedirector extends Redirector {}

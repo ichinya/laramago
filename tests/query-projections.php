@@ -55,6 +55,22 @@ $config = [
 ];
 file_put_contents($workspace.'/mago.json', json_encode($config, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
 $cases = [
+    'direct primary key pluck' => ['return ProjectionRecord::pluck("id")->all();', 'array<int, int>', []],
+    'builder primary key pluck remains mixed' => [
+        'return ProjectionRecord::query()->where("id", 1)->orderBy("id")->pluck("id")->all();',
+        'array<array-key, int>',
+        ['less-specific-nested-return-statement'],
+    ],
+    'mixed pluck ids retain lookup collection branch' => [
+        '$ids = ProjectionRecord::query()->where("id", 1)->orderBy("id")->pluck("id")->all(); return ProjectionRecord::query()->findOrFail($ids[0]);',
+        'ProjectionRecord',
+        ['invalid-return-statement'],
+    ],
+    'direct typed ids select scalar lookup' => [
+        '$ids = ProjectionRecord::pluck("id")->all(); return ProjectionRecord::query()->findOrFail($ids[0]);',
+        'ProjectionRecord',
+        [],
+    ],
     'required value still needs row' => ['return ProjectionRecord::value("name");', '?string', []],
     'nullable value' => ['return ProjectionRecord::value("nickname");', '?string', []],
     'cast value' => ['return ProjectionRecord::value("active");', '?bool', []],

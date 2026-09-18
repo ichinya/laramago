@@ -18,13 +18,14 @@ use Mago\Sdk\Analyzer\Type\ScalarType;
 use Mago\Sdk\Analyzer\Type\SimpleAtomicType;
 use Mago\Sdk\Analyzer\Type\StringType;
 
-/** Substitutes only explicit bindings owned by the selected builder class. */
+/** Substitutes explicit owner bindings while preserving the concrete fluent builder. */
 final class EloquentBuilderGenericTypes
 {
     /** @param array<string, Type> $bindings */
     public function __construct(
         private readonly NamedObjectType $builder,
         private readonly array $bindings,
+        private readonly ?string $owner = null,
     ) {}
 
     public function substitute(Type $type): ?Type
@@ -34,7 +35,7 @@ final class EloquentBuilderGenericTypes
             if ($atom instanceof GenericParameterType) {
                 if (
                     $atom->definingEntity->kind !== GenericParentKind::ClassLike
-                    || strcasecmp($atom->definingEntity->name, $this->builder->name) !== 0
+                    || strcasecmp($atom->definingEntity->name, $this->owner ?? $this->builder->name) !== 0
                     || ($atom->intersections ?? []) !== []
                     || ! isset($this->bindings[$atom->name])
                 ) {

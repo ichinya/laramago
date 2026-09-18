@@ -1,0 +1,131 @@
+<?php
+
+declare(strict_types=1);
+
+// Check local scope signatures and return types through the real SDK worker.
+$binary = getenv('MAGO_BINARY') ?: __DIR__.'/../vendor/bin/mago';
+$command = str_ends_with($binary, '.exe') ? [$binary] : [PHP_BINARY, $binary];
+$package = str_replace('\\', '/', dirname(__DIR__));
+$workspace = str_replace('\\', '/', sys_get_temp_dir()).'/laramago scope bodies '.bin2hex(random_bytes(8));
+mkdir($workspace);
+copy(__DIR__.'/fixtures/analysis/framework.php.stub', $workspace.'/framework.php');
+copy(__DIR__.'/fixtures/analysis/scope-bodies.php.stub', $workspace.'/models.php');
+$changedBuilder = in_array('--changed-builder', $argv, true);
+if ($changedBuilder) {
+    $framework = file_get_contents($workspace.'/framework.php');
+    $framework = str_replace('@return $this', '@return string', $framework);
+    file_put_contents($workspace.'/framework.php', $framework);
+}
+$disabled = in_array('--disabled', $argv, true);
+$unknown = ['mixed-return-statement'];
+$cases = [
+    'simple where' => ['return BodyScopeRecord::active();', 'Builder<BodyScopeRecord>', []],
+    'literal parameter chain' => ['return BodyScopeRecord::named("test");', 'Builder<BodyScopeRecord>', []],
+    'builder chain' => ['return BodyScopeRecord::query()->active()->findOrFail(1);', 'BodyScopeRecord', []],
+    'direct identity' => ['return BodyScopeRecord::identity();', 'Builder<BodyScopeRecord>', []],
+    'inherited scope' => ['return ChildBodyScopeRecord::active();', 'Builder<ChildBodyScopeRecord>', []],
+    'trait scope' => ['return BodyScopeRecord::visible();', 'Builder<BodyScopeRecord>', []],
+    'untyped scalar' => ['return BodyScopeRecord::scalar();', 'Builder<BodyScopeRecord>', $unknown],
+    'unknown method' => ['return BodyScopeRecord::unknown();', 'Builder<BodyScopeRecord>', $unknown],
+    'mutated query' => ['return BodyScopeRecord::mutated();', 'Builder<BodyScopeRecord>', $unknown],
+    'argument assignment' => ['return BodyScopeRecord::assignment();', 'Builder<BodyScopeRecord>', $unknown],
+    'escaped query' => ['return BodyScopeRecord::escaped();', 'Builder<BodyScopeRecord>', $unknown],
+    'closure reference' => ['return BodyScopeRecord::closure();', 'Builder<BodyScopeRecord>', $unknown],
+    'array mutation' => ['return BodyScopeRecord::arrayMutation();', 'Builder<BodyScopeRecord>', $unknown],
+    'explicit mixed' => ['return BodyScopeRecord::mixed();', 'Builder<BodyScopeRecord>', $unknown],
+    'explicit scalar' => ['return BodyScopeRecord::typed();', 'string', []],
+    'model PHPDoc' => ['return DocumentedBodyScopeRecord::active();', 'string', []],
+    'custom builder' => ['CustomBodyScopeRecord::active();', 'void', ['non-documented-method']],
+];
+if ($changedBuilder) {
+    $cases = ['changed native return' => ['return BodyScopeRecord::active();', 'Builder<BodyScopeRecord>', $unknown]];
+}
+if ($disabled) {
+    $cases = [
+        'disabled scope body' => [
+            'return BodyScopeRecord::active();',
+            'Builder<BodyScopeRecord>',
+            ['mixed-return-statement', 'non-documented-method'],
+        ],
+    ];
+}
+$source = <<<'PHP'
+    <?php
+    use Illuminate\Database\Eloquent\Builder;
+    PHP;
+$lines = [];
+foreach ($cases as $name => [$body, $return, $codes]) {
+    $source .= '/** @return '.$return.' */'."\n";
+    $source .= 'function scenario'.count($lines).'() { '.$body.' }'."\n";
+    $lines[substr_count($source, "\n")] = [$name, $codes];
+}
+file_put_contents($workspace.'/cases.php', $source);
+file_put_contents($workspace.'/mago.json', json_encode([
+    'extends' => $package.'/presets/laravel.toml',
+    'php-version' => '8.2',
+    'source' => ['paths' => ['cases.php'], 'includes' => ['framework.php', 'models.php']],
+    'extension-hosts' => $disabled
+        ? new stdClass
+        : [
+            'laramago' => [
+                'command' => [
+                    PHP_BINARY,
+                    $package.'/bin/laramago-worker.php',
+                    $package.'/vendor/autoload.php',
+                    $workspace,
+                ],
+                'workers' => 3,
+            ],
+        ],
+], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+$process = proc_open(
+    [...$command, '--workspace', $workspace, 'analyze', '--reporting-format=json'],
+    [0 => ['pipe', 'r'], 1 => ['file', $workspace.'/report.json', 'w'], 2 => ['file', $workspace.'/stderr.log', 'w']],
+    $pipes,
+);
+if (! is_resource($process)) {
+    throw new RuntimeException('Cannot start Mago.');
+}
+fclose($pipes[0]);
+$exit = proc_close($process);
+$log = file_get_contents($workspace.'/stderr.log');
+if ($exit !== 1 || preg_match('/External analyzer provider failed|extension worker .*rejected request/i', $log)) {
+    throw new RuntimeException('Expected native negative diagnostics without extension fallback; inspect '.$workspace);
+}
+$report = json_decode(file_get_contents($workspace.'/report.json'), true, flags: JSON_THROW_ON_ERROR);
+$actual = [];
+foreach ($report['issues'] ?? [] as $issue) {
+    $primary = array_values(array_filter(
+        $issue['annotations'],
+        static fn (array $a): bool => $a['kind'] === 'Primary',
+    ))[0];
+    $actual[$primary['span']['start']['line'] + 1][] = $issue['code'];
+}
+foreach ($lines as $line => [$name, $expected]) {
+    $codes = $actual[$line] ?? [];
+    sort($codes);
+    sort($expected);
+    if ($codes !== $expected) {
+        throw new RuntimeException(
+            $name.': expected '.json_encode($expected).', got '.json_encode($codes).'; see '.$workspace,
+        );
+    }
+    unset($actual[$line]);
+    echo 'PASS: '.$name."\n";
+}
+if ($actual !== []) {
+    throw new RuntimeException('Unexpected diagnostics outside scope scenarios; inspect '.$workspace);
+}
+$resolvedWorkspace = realpath($workspace);
+foreach (glob($workspace.'/*') ?: [] as $file) {
+    $resolvedFile = realpath($file);
+    if (
+        $resolvedWorkspace === false
+        || $resolvedFile === false
+        || ! str_starts_with($resolvedFile, $resolvedWorkspace.DIRECTORY_SEPARATOR)
+    ) {
+        throw new RuntimeException('Refusing cleanup outside the test workspace.');
+    }
+    unlink($resolvedFile);
+}
+rmdir($workspace);

@@ -1,0 +1,18 @@
+<?php
+
+interface SelectedUser {}
+class SelectedAdmin implements SelectedUser {}
+class SelectedMember implements SelectedUser {}
+
+// Like the standard Laravel guards, this class has no model template.
+class SelectedGuardProbe
+{
+    public function __construct(private ?SelectedUser $current = null) {}
+    public function user(): ?SelectedUser { return $this->current; }
+    public function setUser(SelectedUser $user): void { $this->current = $user; }
+}
+
+function selectedGuardProbe(string $name): SelectedGuardProbe
+{
+    return new SelectedGuardProbe($name === 'admin' ? new SelectedAdmin : new SelectedMember);
+}

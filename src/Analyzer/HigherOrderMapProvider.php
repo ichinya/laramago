@@ -12,7 +12,7 @@ use Mago\Sdk\Analyzer\Type;
 use Mago\Sdk\Analyzer\Type\NamedObjectType;
 use Mago\Sdk\Analyzer\Type\Visibility;
 
-/** Preserve the collection around a declared model method invoked through map. */
+/** Resolve declared model methods used by higher-order maps and predicates. */
 final class HigherOrderMapProvider implements MethodReturnTypeProvider
 {
     private const PROXY = 'Illuminate\\Support\\HigherOrderCollectionProxy';
@@ -42,9 +42,13 @@ final class HigherOrderMapProvider implements MethodReturnTypeProvider
             || ! $proxy instanceof NamedObjectType
             || $proxy->name !== self::PROXY
             || count($proxy->parameters ?? []) !== 3
-            || ($proxy->parameters[0] ?? null)?->getLiteralString() !== 'map'
+            || ! in_array(($proxy->parameters[0] ?? null)?->getLiteralString(), ['map', 'filter', 'reject'], true)
             || ($proxy->intersections ?? []) !== []
         ) {
+            return null;
+        }
+        $operation = ($proxy->parameters[0] ?? null)?->getLiteralString();
+        if ($operation === null) {
             return null;
         }
         $value = $proxy->parameters[1] ?? null;
@@ -101,7 +105,13 @@ final class HigherOrderMapProvider implements MethodReturnTypeProvider
             if (
                 $codebase->getMethod(self::PROXY, $call->name) !== null
                 || $codebase->getDeclaringMethod(self::PROXY, $call->name) !== null
-                || $codebase->getMethod($container->name, 'map') === null
+                || (
+                    $codebase->getMethod($container->name, $operation) ?? $codebase->getDeclaringMethod(
+                        $container->name,
+                        $operation,
+                    )
+                )
+                    === null
             ) {
                 return null;
             }
@@ -138,6 +148,11 @@ final class HigherOrderMapProvider implements MethodReturnTypeProvider
                 return null;
             }
             $returns = $returns === null ? $return : Type::union($returns, $return);
+        }
+        // Filtering keeps the input elements and keys, even when a predicate
+        // returns a scalar, nullable value or void. Empty results remain possible.
+        if ($operation !== 'map') {
+            return $collection;
         }
         $return = $returns;
         // Eloquent switches to a base collection if any mapped value is not a model.

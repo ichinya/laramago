@@ -109,10 +109,10 @@ $cases = [
     'documented model declaration wins' => ['return DocumentedGenericForwardRecord::record();', 'int', []],
     'custom dispatch remains unknown' => ['DynamicGenericForwardRecord::record();', 'void', ['non-documented-method']],
     'unbound selector remains unknown' => ['UnboundGenericForwardRecord::record();', 'void', ['non-documented-method']],
-    'ancestor template remapping stays unknown' => [
-        'InheritedGenericForwardRecord::record();',
-        'void',
-        ['non-documented-method'],
+    'explicit ancestor template remapping' => [
+        'return InheritedGenericForwardRecord::record();',
+        'GenericForwardRecord',
+        [],
     ],
     'method templates stay unknown' => ['GenericForwardRecord::identity(1);', 'void', ['non-documented-method']],
     'unknown named argument' => [

@@ -35,12 +35,28 @@ final class MacroIndex
             is_array($composer)
             && isset($composer['extra']['laramago'])
             && is_array($composer['extra']['laramago'])
-            && array_key_exists('macro-files', $composer['extra']['laramago']);
+            && (
+                array_key_exists('macro-files', $composer['extra']['laramago'])
+                || array_key_exists('macro-service-providers', $composer['extra']['laramago'])
+            );
         if (! $configured) {
             return;
         }
         /** @var mixed $files */
-        $files = $composer['extra']['laramago']['macro-files'];
+        $files = array_key_exists('macro-files', $composer['extra']['laramago'])
+            ? $composer['extra']['laramago']['macro-files']
+            : [];
+        $boot = MacroBootSources::statements(
+            $source,
+            array_key_exists('macro-service-providers', $composer['extra']['laramago'])
+                ? $composer['extra']['laramago']['macro-service-providers']
+                : [],
+        );
+        if ($boot === null) {
+            $this->unknown = true;
+
+            return;
+        }
         if (! is_array($files) || ! array_is_list($files)) {
             $this->unknown = true;
 
@@ -67,6 +83,9 @@ final class MacroIndex
             foreach ($nodes as $node) {
                 $this->scan($node, true);
             }
+        }
+        foreach ($boot as $statement) {
+            $this->scan($statement, true);
         }
     }
 

@@ -15,6 +15,9 @@ use Mago\Sdk\Reporting\Issue;
 use Mago\Sdk\Reporting\Level;
 use Mago\Sdk\SourceLocation;
 use PhpParser\Node;
+use PhpParser\NodeFinder;
+use PhpParser\NodeTraverser;
+use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\ParserFactory;
 
 /** Validate literal relation paths without evaluating application methods. */
@@ -24,12 +27,26 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
     private const BUILDER = 'Illuminate\\Database\\Eloquent\\Builder';
     private const RELATION = 'Illuminate\\Database\\Eloquent\\Relations\\Relation';
 
+    private readonly RelationNameContracts $contracts;
+
+    private ?string $sourceHash = null;
+
+    /** @var array<string, Node\Expr\MethodCall|Node\Expr\StaticCall> */
+    private array $calls = [];
+
+    public function __construct(string $projectRoot = '.')
+    {
+        $this->contracts = new RelationNameContracts($projectRoot);
+    }
+
     public function getTargets(): array
     {
         return [
             MethodTarget::exact(self::BUILDER, 'with'),
             MethodTarget::exact(self::BUILDER, 'whereHas'),
             MethodTarget::exact(self::MODEL, 'load'),
+            MethodTarget::exact(self::MODEL, 'with'),
+            MethodTarget::exact(self::MODEL, 'whereHas'),
         ];
     }
 
@@ -43,47 +60,77 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
         if ($context->codebase->getClass(self::RELATION) === null) {
             return;
         }
-        $receiver = $this->object($context->receiverType);
-        if ($receiver === null) {
-            return;
-        }
-        $model = $receiver->name === self::BUILDER
-            ? $this->object($receiver->parameters[0] ?? null)?->name
-            : $receiver->name;
-        if ($model === null || $model === self::MODEL || ! $this->isA($context->codebase, $model, self::MODEL)) {
-            return;
-        }
-        foreach (['__call', 'relationResolver'] as $name) {
-            $method = $context->codebase->getDeclaringMethod($model, $name);
-            if (
-                $method !== null
-                && ! in_array(
-                    $method->identifier->class,
-                    [self::MODEL, 'Illuminate\\Database\\Eloquent\\Concerns\\HasRelationships'],
-                    true,
-                )
-            ) {
+        $sourceHash = hash('sha256', $context->source->contents);
+        if ($sourceHash !== $this->sourceHash) {
+            $this->sourceHash = $sourceHash;
+            $this->calls = [];
+            try {
+                $nodes = (new ParserFactory)
+                    ->createForNewestSupportedVersion()
+                    ->parse($context->source->contents);
+                $nodes = (new NodeTraverser(new NameResolver))->traverse($nodes ?? []);
+            } catch (\PhpParser\Error) {
                 return;
             }
+            foreach ((new NodeFinder)->find(
+                $nodes,
+                static fn (Node $node): bool => (
+                    $node instanceof Node\Expr\MethodCall
+                    || $node instanceof Node\Expr\StaticCall
+                ),
+            ) as $node) {
+                if ($node instanceof Node\Expr\MethodCall || $node instanceof Node\Expr\StaticCall) {
+                    $this->calls[$node->getStartFilePos().':'.($node->getEndFilePos() + 1)] = $node;
+                }
+            }
         }
-        try {
-            $nodes = (new ParserFactory)
-                ->createForNewestSupportedVersion()
-                ->parse('<?php '.$context->source->getText($context->node).';');
-        } catch (\PhpParser\Error) {
-            return;
-        }
-        $statement = $nodes[0] ?? null;
-        $call = $statement instanceof Node\Stmt\Expression ? $statement->expr : null;
+        $call = $this->calls[$context->node->span->start.':'.$context->node->span->end] ?? null;
         if (
             ! $call instanceof Node\Expr\MethodCall
+            && ! $call instanceof Node\Expr\StaticCall
             || ! $call->name instanceof Node\Identifier
             || $call->isFirstClassCallable()
         ) {
             return;
         }
         $methodName = strtolower($call->name->name);
-        $owner = $context->codebase->getDeclaringMethod($receiver->name, $methodName)?->identifier->class;
+        if ($call instanceof Node\Expr\StaticCall) {
+            if (! $call->class instanceof Node\Name\FullyQualified || $methodName === 'load') {
+                return;
+            }
+            $model = $call->class->toString();
+            foreach (['newEloquentBuilder', 'newQuery', 'newModelQuery', 'newQueryWithoutScopes'] as $factory) {
+                $declaring = $context->codebase->getDeclaringMethod($model, $factory)?->identifier->class;
+                if ($declaring !== null && $declaring !== self::MODEL) {
+                    return;
+                }
+            }
+            $owner = $context->codebase->getDeclaringMethod($model, $methodName)?->identifier->class;
+            if (
+                $owner === null
+                && $methodName === 'wherehas'
+                && $context->codebase->getDeclaringMethod($model, '__callStatic')?->identifier->class === self::MODEL
+            ) {
+                $owner = $context->codebase->getDeclaringMethod(self::BUILDER, $methodName)?->identifier->class;
+            }
+        } else {
+            $receiver = $this->object($context->receiverType);
+            if ($receiver === null) {
+                return;
+            }
+            $model = $receiver->name === self::BUILDER
+                ? $this->object($receiver->parameters[0] ?? null)?->name
+                : $receiver->name;
+            $owner = $context->codebase->getDeclaringMethod($receiver->name, $methodName)?->identifier->class;
+        }
+        if (
+            $model === null
+            || $model === self::MODEL
+            || ! $this->isA($context->codebase, $model, self::MODEL)
+            || ! $this->hasStandardDispatch($context->codebase, $model)
+        ) {
+            return;
+        }
         if (! in_array(
             $owner,
             [self::MODEL, self::BUILDER, 'Illuminate\\Database\\Eloquent\\Concerns\\QueriesRelationships'],
@@ -114,10 +161,37 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
                 if ($segment === '' || $segment === '*') {
                     break;
                 }
+                if (
+                    ! $this->hasStandardDispatch($context->codebase, $current)
+                    || $this->contracts->isDynamic($current, $segment)
+                ) {
+                    break;
+                }
                 $method = $context->codebase->getDeclaringMethod($current, $segment);
                 // An absent declaration may be registered through resolveRelationUsing().
                 // Do not turn incomplete static information into an error.
                 if ($method === null) {
+                    $class = $context->codebase->getClass($current);
+                    if (
+                        $this->contracts->isComplete($current)
+                        && $class !== null
+                        && ! $class->hasIncompleteHierarchy()
+                    ) {
+                        $context->report(
+                            Level::Warning,
+                            'laramago-missing-relation',
+                            Issue::at(
+                                'Relation '
+                                .$current
+                                .'::'
+                                .$segment
+                                .' is absent from its complete relation contract (path '
+                                .$path
+                                .').',
+                                new SourceLocation($context->source->path, $context->node->span),
+                            ),
+                        );
+                    }
                     break;
                 }
                 $return = $this->object($method->returnType?->type ?? $method->declaredReturnType?->type);
@@ -159,6 +233,25 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
         return $type !== null && count($type->atomicTypes) === 1 && $type->atomicTypes[0] instanceof NamedObjectType
             ? $type->atomicTypes[0]
             : null;
+    }
+
+    private function hasStandardDispatch(Codebase $codebase, string $model): bool
+    {
+        foreach (['__call', 'relationResolver'] as $name) {
+            $method = $codebase->getDeclaringMethod($model, $name);
+            if (
+                $method !== null
+                && ! in_array(
+                    $method->identifier->class,
+                    [self::MODEL, 'Illuminate\\Database\\Eloquent\\Concerns\\HasRelationships'],
+                    true,
+                )
+            ) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function isA(Codebase $codebase, string $class, string $parent): bool
