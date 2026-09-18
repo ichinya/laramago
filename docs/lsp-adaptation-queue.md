@@ -25,7 +25,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 17 | Physical columns versus computed accessors | already-covered; Verified physical-column selection versus accessors, raw pluck keys and SQL alias boundaries; three suites passed. |
 | 18 | Literal mass-assignment keys | implemented; Native forceFill literal keys use complete exact-model catalogs with native/PHPDoc priority; 190 key and 135 write-contract checks pass. Ordinary fill/create remain semantically deferred. |
 | 19 | Mass-assignment value types | implemented; Native forceFill checks disjoint structured values against independent explicit write contracts. 135 real-Mago case/mode checks pass; fill/create, scalar coercions and schema-derived input types remain deferred. |
-| 20 | Model update versus builder update contracts | queued |
+| 20 | Model update versus builder update contracts | already-covered; Native Model instance update returns bool; Builder update returns int; static Model update retains invalid-static-method-access. Enabled/disabled real-Mago audit preserves custom overrides and arity errors; input validation remains deferred. |
 | 21 | Literal query column references | queued |
 | 22 | Both operands of whereColumn | queued |
 | 23 | Search versus creation attribute arrays | queued |
