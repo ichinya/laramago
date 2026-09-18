@@ -24,6 +24,7 @@ copy(
 );
 $classWarning = ['ichinya/laramago/laramago-missing-controller-class'];
 $methodWarning = ['ichinya/laramago/laramago-missing-controller-method'];
+$visibilityWarning = ['ichinya/laramago/laramago-inaccessible-controller-method'];
 $cases = [
     'existing controller class' => [
         '$router->get("/existing", "\\\\App\\\\Http\\\\Controllers\\\\ExistingController@index");',
@@ -37,16 +38,52 @@ $cases = [
         '$router->get("/inherited", "\\\\App\\\\Http\\\\Controllers\\\\ExistingController@inherited");',
         [],
     ],
+    'protected controller action through standard callAction' => [
+        '$router->get("/protected", "\\\\App\\\\Http\\\\Controllers\\\\ExistingController@protectedAction");',
+        [],
+    ],
+    'inherited protected controller action through standard callAction' => [
+        '$router->get("/inherited-protected", '
+            .'"\\\\App\\\\Http\\\\Controllers\\\\ExistingController@inheritedProtected");',
+        [],
+    ],
+    'private controller action through standard callAction' => [
+        '$router->get("/private", "\\\\App\\\\Http\\\\Controllers\\\\ExistingController@privateAction");',
+        $visibilityWarning,
+    ],
+    'inherited private controller metadata unavailable deferred' => [
+        '$router->get("/inherited-private", '
+            .'"\\\\App\\\\Http\\\\Controllers\\\\ExistingController@inheritedPrivate");',
+        [],
+    ],
     'plain controller missing method' => [
         '$router->get("/plain", "\\\\App\\\\Http\\\\Controllers\\\\PlainMethodlessController@missing");',
         $methodWarning,
+    ],
+    'plain protected controller action' => [
+        '$router->get("/plain-protected", '
+            .'"\\\\App\\\\Http\\\\Controllers\\\\PlainVisibilityController@protectedAction");',
+        $visibilityWarning,
+    ],
+    'plain private controller action' => [
+        '$router->get("/plain-private", '
+            .'"\\\\App\\\\Http\\\\Controllers\\\\PlainVisibilityController@privateAction");',
+        $visibilityWarning,
     ],
     'custom magic dispatch deferred' => [
         '$router->get("/magic", "\\\\App\\\\Http\\\\Controllers\\\\MagicController@missing");',
         [],
     ],
+    'custom magic visibility deferred' => [
+        '$router->get("/magic-private", "\\\\App\\\\Http\\\\Controllers\\\\MagicController@privateAction");',
+        [],
+    ],
     'custom callAction dispatch deferred' => [
         '$router->get("/dispatch", "\\\\App\\\\Http\\\\Controllers\\\\DispatchController@missing");',
+        [],
+    ],
+    'custom callAction visibility deferred' => [
+        '$router->get("/dispatch-private", '.'"\\\\App\\\\Http\\\\Controllers\\\\DispatchController@privateAction");',
         [],
     ],
     'relative namespaced controller deferred' => [
@@ -235,7 +272,20 @@ $catalogCases = [
             );
             PHP,
         '$router->get("/dispatcher-method", "\\\\App\\\\Http\\\\Controllers\\\\MethodlessController@missing");'
-            .'$router->get("/dispatcher-class", "\\\\Missing\\\\UnboundController@index");',
+            .'$router->get("/dispatcher-class", "\\\\Missing\\\\UnboundController@index");'
+            .'$router->get("/dispatcher-visibility", '
+            .'"\\\\App\\\\Http\\\\Controllers\\\\ExistingController@privateAction");',
+    ],
+    'explicit controller binding defers visibility diagnostic' => [
+        <<<'PHP'
+            <?php
+            throw new \RuntimeException('Binding catalog must never execute.');
+            \app()->bind(
+                \App\Http\Controllers\ExistingController::class,
+                \App\Http\Controllers\ExistingController::class,
+            );
+            PHP,
+        '$router->get("/bound-visibility", '.'"\\\\App\\\\Http\\\\Controllers\\\\ExistingController@privateAction");',
     ],
 ];
 foreach ($catalogCases as $name => [$bindings, $body]) {

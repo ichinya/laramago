@@ -9,19 +9,36 @@ throw new \RuntimeException('Controller fixture must never execute.');
 class AppController extends \Illuminate\Routing\Controller
 {
     public function inherited(): void {}
+
+    protected function inheritedProtected(): void {}
+
+    private function inheritedPrivate(): void {}
 }
 
 class ExistingController extends AppController
 {
     public function index(): void {}
+
+    protected function protectedAction(): void {}
+
+    private function privateAction(): void {}
 }
 
 class MethodlessController extends AppController {}
 
 class PlainMethodlessController {}
 
+class PlainVisibilityController
+{
+    protected function protectedAction(): void {}
+
+    private function privateAction(): void {}
+}
+
 class MagicController extends AppController
 {
+    private function privateAction(): void {}
+
     /** @param list<mixed> $parameters */
     public function __call(string $method, array $parameters): mixed
     {
@@ -31,6 +48,8 @@ class MagicController extends AppController
 
 class DispatchController extends AppController
 {
+    private function privateAction(): void {}
+
     /** @param array<string, mixed> $parameters */
     public function callAction(string $method, array $parameters): mixed
     {

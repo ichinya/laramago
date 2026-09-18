@@ -12,6 +12,7 @@ use Mago\Sdk\Analyzer\MethodCallAnalysisHook;
 use Mago\Sdk\Analyzer\MethodTarget;
 use Mago\Sdk\Analyzer\NodeAnalysisContext;
 use Mago\Sdk\Analyzer\Type\NamedObjectType;
+use Mago\Sdk\Analyzer\Type\Visibility;
 use Mago\Sdk\Reporting\Issue;
 use Mago\Sdk\Reporting\Level;
 use Mago\Sdk\SourceLocation;
@@ -23,7 +24,7 @@ use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\NodeVisitor\ParentConnectingVisitor;
 use PhpParser\ParserFactory;
 
-/** Diagnose missing classes and provably missing methods in literal Controller@method route actions. */
+/** Diagnose missing classes and provably missing or inaccessible methods in literal Controller@method route actions. */
 final class ControllerActionClassHook implements MethodCallAnalysisHook
 {
     private const ROUTER = 'Illuminate\\Routing\\Router';
@@ -112,21 +113,49 @@ final class ControllerActionClassHook implements MethodCallAnalysisHook
 
             return;
         }
+        if (! $this->hasStandardControllerDispatch($context, $controller['name'])) {
+            return;
+        }
+        $method = $context->codebase->getMethod(
+            $controller['name'],
+            $controller['method'],
+        ) ?? $context->codebase->getDeclaringMethod($controller['name'], $controller['method']);
+        if ($method === null) {
+            if (! $context->codebase->methodExists($controller['name'], $controller['method'])) {
+                $context->report(
+                    Level::Warning,
+                    'laramago-missing-controller-method',
+                    Issue::at(
+                        'Controller method '
+                        .$controller['name']
+                        .'::'
+                        .$controller['method']
+                        .' referenced by route action does not exist.',
+                        new SourceLocation(
+                            $context->source->path,
+                            new Span($action->getStartFilePos(), $action->getEndFilePos() + 1),
+                        ),
+                    ),
+                );
+            }
+
+            return;
+        }
         if (
-            $context->codebase->methodExists($controller['name'], $controller['method'])
-            || ! $this->hasStandardControllerDispatch($context, $controller['name'])
+            $method->visibility === null
+            || $this->isActionAccessible($context, $controller['name'], $method)
         ) {
             return;
         }
         $context->report(
             Level::Warning,
-            'laramago-missing-controller-method',
+            'laramago-inaccessible-controller-method',
             Issue::at(
                 'Controller method '
                 .$controller['name']
                 .'::'
                 .$controller['method']
-                .' referenced by route action does not exist.',
+                .' referenced by route action is not accessible to Laravel controller dispatch.',
                 new SourceLocation(
                     $context->source->path,
                     new Span($action->getStartFilePos(), $action->getEndFilePos() + 1),
@@ -269,6 +298,26 @@ final class ControllerActionClassHook implements MethodCallAnalysisHook
         $magicCall = $context->codebase->getDeclaringMethod($controller, '__call');
 
         return $magicCall === null || self::isStandardControllerMethod($magicCall, '__call');
+    }
+
+    private function isActionAccessible(
+        NodeAnalysisContext $context,
+        string $controller,
+        FunctionLikeMetadata $method,
+    ): bool {
+        if ($method->visibility === Visibility::Public) {
+            return true;
+        }
+        $callAction = $context->codebase->getDeclaringMethod($controller, 'callAction');
+        if (! self::isStandardControllerMethod($callAction, 'callAction')) {
+            return false;
+        }
+
+        return (
+            $method->visibility === Visibility::Protected
+            || $method->visibility === Visibility::Private
+            && strcasecmp($method->identifier->class ?? '', $callAction->identifier->class ?? '') === 0
+        );
     }
 
     private static function isStandardControllerMethod(?FunctionLikeMetadata $method, string $name): bool
