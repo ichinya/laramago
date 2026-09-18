@@ -15,7 +15,7 @@ final class ContainerFactory
             ! ($node instanceof Node\Expr\Closure
             || $node instanceof Node\Expr\ArrowFunction)
             || $node->byRef
-            || $node->params !== []
+            || ! self::acceptsContainerArguments($node->params)
             || ! $node->returnType instanceof Node\Name\FullyQualified
             || $node->attrGroups !== []
         ) {
@@ -39,5 +39,26 @@ final class ContainerFactory
         }
 
         return $expression->class->toString();
+    }
+
+    /** @param array<array-key, Node\Param> $parameters */
+    private static function acceptsContainerArguments(array $parameters): bool
+    {
+        if (count($parameters) > 2) {
+            return false;
+        }
+        foreach ($parameters as $parameter) {
+            if (
+                $parameter->type !== null
+                || $parameter->default !== null
+                || $parameter->byRef
+                || $parameter->variadic
+                || $parameter->attrGroups !== []
+            ) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

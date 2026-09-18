@@ -24,7 +24,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 16 | Model attribute declarations for field lists | implemented; Native Fillable/Guarded/Hidden/Visible/Appends attributes use exact catalogs and installed lifecycle guards; effective Guarded precedence, custom overrides and older-framework regressions pass. |
 | 17 | Physical columns versus computed accessors | already-covered; Verified physical-column selection versus accessors, raw pluck keys and SQL alias boundaries; three suites passed. |
 | 18 | Literal mass-assignment keys | queued |
-| 19 | Mass-assignment value types | queued |
+| 19 | Mass-assignment value types | running; Independent implementation or coverage audit in progress. |
 | 20 | Model update versus builder update contracts | queued |
 | 21 | Literal query column references | queued |
 | 22 | Both operands of whereColumn | queued |
@@ -36,7 +36,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 28 | Eager-load colon projection syntax | implemented; Eager-loading methods including withWhereHas accept colon projections; pure existence queries preserve full names. Real-Mago tests cover builder/static forwarding and native fallback. |
 | 29 | Related model projection columns | deferred; Missing projection columns require complete effective-query metadata or an explicit query-source contract; schema alone cannot exclude scopes, joins, from changes, and aliases. No diagnostic added. |
 | 30 | Eager-loading callback parameter types | implemented; Direct Builder::with literal-path callbacks receive concrete Relation types under native broad contracts. Real-Mago/native comparisons pass; nested callback arrays remain SDK-deferred. |
-| 31 | Morph callbacks with explicit model classes | queued |
+| 31 | Morph callbacks with explicit model classes | running; Independent implementation or coverage audit in progress. |
 | 32 | Relation aggregate references | queued |
 | 33 | Relation aggregate alias syntax | queued |
 | 34 | Query-local aggregate result properties | queued |
@@ -56,7 +56,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 48 | Vite environment name references | queued |
 | 49 | Existing complete named-route contracts | already-covered; Verified complete named-route catalogs; 19 real-Mago scenarios and source analysis passed. |
 | 50 | Route and to_route helpers | implemented; Native route/to_route literal names use shared complete catalogs, helper/method provenance and service-binding guards. Seven real-Mago modes verify native/custom contracts and literal spans. |
-| 51 | Named-route facade calls | queued |
+| 51 | Named-route facade calls | review; Facade implementation and focused tests ready; shared dispatch proof under review. |
 | 52 | Signed and temporary signed routes | queued |
 | 53 | Response route redirects | queued |
 | 54 | RedirectToRoute attribute references | queued |
@@ -103,7 +103,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 95 | Container injection attributes | queued |
 | 96 | Container alias cycles | queued |
 | 97 | Binding interface compatibility | queued |
-| 98 | Explicit factory required arguments | queued |
+| 98 | Explicit factory required arguments | implemented; Literal container factories accept zero to two untyped required by-value parameters supplied by Laravel. Real-Mago checks retain return/body and uncertain-signature boundaries. |
 | 99 | Complete service ID catalog references | queued |
 | 100 | Contextual binding resolution | queued |
 | 101 | Existing complete view helper contracts | already-covered; Verified complete view helper catalogs; seven reference-catalog modes and source analysis passed. |

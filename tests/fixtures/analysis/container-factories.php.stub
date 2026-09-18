@@ -34,6 +34,10 @@ throw new \RuntimeException('Never execute binding catalogs or their factories.'
 \app()->bind('factory.untyped', fn () => new Service);
 \app()->bind('factory.mismatch', fn (): Rebound => new Service);
 \app()->bind('factory.parameter', fn ($app): Service => new Service);
+\app()->bind('factory.parameters', fn ($app, $parameters): Service => new Service);
+\app()->bind('factory.optional-parameter', fn ($app = null): Service => new Service);
+\app()->bind('factory.typed-parameter', fn (object $app): Service => new Service);
+\app()->bind('factory.too-many-parameters', fn ($app, $parameters, $extra): Service => new Service);
 \app()->bind('factory.reference', function &(): Service { return new Service; });
 \app()->bind('factory.multiple', function (): Service { $value = 1; return new Service; });
 \app()->bind('factory.duplicate', fn (): Service => new Service);

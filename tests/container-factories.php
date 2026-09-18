@@ -151,6 +151,8 @@ function runContainerFactoryCases(
                 'laramago' => [
                     'command' => [
                         PHP_BINARY,
+                        '-d',
+                        'opcache.enable_cli=0',
                         $package.'/bin/laramago-worker.php',
                         $package.'/vendor/autoload.php',
                         $workspace,
@@ -257,6 +259,8 @@ $cases = [
         ['invalid-argument'],
     ],
     'wrong expected factory result' => ["return app('factory.arrow');", 'int', ['invalid-return-statement']],
+    'factory with required container argument' => ["return app('factory.parameter');", $service, []],
+    'factory with both required container arguments' => ["return app('factory.parameters');", $service, []],
 ];
 foreach ([
     'conditional',
@@ -266,7 +270,9 @@ foreach ([
     'anonymous',
     'untyped',
     'mismatch',
-    'parameter',
+    'optional-parameter',
+    'typed-parameter',
+    'too-many-parameters',
     'reference',
     'multiple',
     'duplicate',

@@ -58,17 +58,19 @@ constructors and application bootstrap are never executed by this integration.
 
 ## Literal factory closures
 
-Opt-in `binding-files` catalogs also accept parameterless arrow functions and
-closures whose sole return expression is `new Concrete`, with an explicit native
-return type naming exactly that concrete class. Imported names are resolved
-syntactically. The factory result supports `app`, `resolve`, native container
-`make`, alias chains, facade roots, and public facade forwarding. A direct `new`
-result bypasses any separate binding for its concrete class.
+Opt-in `binding-files` catalogs also accept arrow functions and closures whose
+sole return expression is `new Concrete`, with an explicit native return type
+naming exactly that concrete class. They may declare zero, one or both untyped
+required arguments supplied by Laravel's container factory contract. Imported
+names are resolved syntactically. The factory result supports `app`, `resolve`,
+native container `make`, alias chains, facade roots, and public facade forwarding.
+A direct `new` result bypasses any separate binding for its concrete class.
 
 Factory inference does not execute application PHP. It defers closures with
-parameters, captures, reference returns, attributes, multiple statements,
-conditional or dynamic expressions, constructor arguments, anonymous classes,
-missing or broader return declarations, unresolved/abstract/generic classes,
-conditional registrations, and duplicate registrations. Existing catalog mutation
-safeguards and native/PHPDoc priority remain in force. This is not support for
-arbitrary runtime factories or service-provider activation.
+optional, typed, variadic, reference, attributed or more than two parameters,
+captures, reference returns, attributes, multiple statements, conditional or
+dynamic expressions, constructor arguments, anonymous classes, missing or broader
+return declarations, unresolved/abstract/generic classes, conditional
+registrations, and duplicate registrations. Existing catalog mutation safeguards
+and native/PHPDoc priority remain in force. This is not support for arbitrary
+runtime factories or service-provider activation.
