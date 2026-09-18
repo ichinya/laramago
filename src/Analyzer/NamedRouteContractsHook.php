@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Ichinya\Laramago\Analyzer;
 
+use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NamedRouteCatalog;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\SignedRouteMethods;
 use Mago\Sdk\Analyzer\FileAnalysisRequirement;
 use Mago\Sdk\Analyzer\MethodCallAnalysisHook;
 use Mago\Sdk\Analyzer\MethodTarget;
@@ -13,6 +15,7 @@ use Mago\Sdk\Analyzer\Type\NamedObjectType;
 use Mago\Sdk\Reporting\Issue;
 use Mago\Sdk\Reporting\Level;
 use Mago\Sdk\SourceLocation;
+use Mago\Sdk\Span;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
 use PhpParser\ParserFactory;
@@ -21,6 +24,8 @@ use PhpParser\ParserFactory;
 final class NamedRouteContractsHook implements MethodCallAnalysisHook
 {
     private readonly NamedRouteCatalog $catalog;
+    private readonly ContainerBindings $bindings;
+    private readonly SignedRouteMethods $signed;
 
     private string $sourceHash = '';
 
@@ -32,6 +37,8 @@ final class NamedRouteContractsHook implements MethodCallAnalysisHook
     public function __construct(string $root = '.')
     {
         $this->catalog = new NamedRouteCatalog($root);
+        $this->bindings = new ContainerBindings($root);
+        $this->signed = new SignedRouteMethods($root);
     }
 
     public function getTargets(): array
@@ -39,6 +46,10 @@ final class NamedRouteContractsHook implements MethodCallAnalysisHook
         return [
             MethodTarget::exact('Illuminate\\Routing\\UrlGenerator', 'route'),
             MethodTarget::exact('Illuminate\\Routing\\Redirector', 'route'),
+            MethodTarget::exact('Illuminate\\Routing\\UrlGenerator', 'signedRoute'),
+            MethodTarget::exact('Illuminate\\Routing\\UrlGenerator', 'temporarySignedRoute'),
+            MethodTarget::exact('Illuminate\\Routing\\Redirector', 'signedRoute'),
+            MethodTarget::exact('Illuminate\\Routing\\Redirector', 'temporarySignedRoute'),
         ];
     }
 
@@ -96,15 +107,50 @@ final class NamedRouteContractsHook implements MethodCallAnalysisHook
             ! $call instanceof Node\Expr\MethodCall
             || ($call->getEndFilePos() + 1) !== $context->node->span->end
             || ! $call->name instanceof Node\Identifier
-            || strtolower($call->name->name) !== 'route'
+            || ! in_array(strtolower($call->name->name), ['route', 'signedroute', 'temporarysignedroute'], true)
             || $call->isFirstClassCallable()
         ) {
             return;
         }
+        $methodName = strtolower($call->name->name);
+        $redirect = $atoms[0]->name === 'Illuminate\\Routing\\Redirector';
+        if ($methodName !== 'route') {
+            if (! $this->signed->native($context->codebase, $methodName, $redirect)) {
+                return;
+            }
+            if ($redirect) {
+                foreach ([
+                    'url',
+                    'Illuminate\\Routing\\UrlGenerator',
+                    'Illuminate\\Contracts\\Routing\\UrlGenerator',
+                ] as $service) {
+                    if ($this->bindings->configured($service)) {
+                        return;
+                    }
+                }
+            }
+        }
         $name = null;
+        $parameters = $methodName === 'route' ? null : SignedRouteMethods::parameters($methodName, $redirect);
+        $arguments = [];
+        $named = false;
         foreach ($call->getArgs() as $offset => $argument) {
             if ($argument->unpack) {
                 return;
+            }
+            if ($parameters !== null) {
+                $parameter = $argument->name?->toString() ?? $parameters[$offset] ?? null;
+                if (
+                    $parameter === null
+                    || ! in_array($parameter, $parameters, true)
+                    || isset($arguments[$parameter])
+                    || $named
+                    && $argument->name === null
+                ) {
+                    return;
+                }
+                $arguments[$parameter] = true;
+                $named = $argument->name !== null;
             }
             if (
                 $argument->name === null
@@ -124,7 +170,12 @@ final class NamedRouteContractsHook implements MethodCallAnalysisHook
             'laramago-missing-named-route',
             Issue::at(
                 'Named route "'.$name->value.'" is absent from the explicitly complete named-routes catalog.',
-                new SourceLocation($context->source->path, $context->node->span),
+                new SourceLocation(
+                    $context->source->path,
+                    $methodName === 'route'
+                        ? $context->node->span
+                        : new Span($name->getStartFilePos(), $name->getEndFilePos() + 1),
+                ),
             ),
         );
     }

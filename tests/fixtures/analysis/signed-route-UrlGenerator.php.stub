@@ -1,0 +1,109 @@
+<?php
+
+namespace Illuminate\Routing;
+
+use BackedEnum;
+use InvalidArgumentException;
+use Illuminate\Support\Arr;
+use Symfony\Component\Routing\Exception\RouteNotFoundException;
+
+// Framework excerpts; see named-route-LICENSE.md. Never execute this fixture.
+class UrlGenerator {
+    /**
+     * Create a signed route URL for a named route.
+     *
+     * @param  \BackedEnum|string  $name
+     * @param  mixed  $parameters
+     * @param  \DateTimeInterface|\DateInterval|int|null  $expiration
+     * @param  bool  $absolute
+     * @return string
+     *
+     * @throws \InvalidArgumentException
+     */
+    public function signedRoute($name, $parameters = [], $expiration = null, $absolute = true)
+    {
+        $this->ensureSignedRouteParametersAreNotReserved(
+            $parameters = Arr::wrap($parameters)
+        );
+
+        if ($expiration) {
+            $parameters = $parameters + ['expires' => $this->availableAt($expiration)];
+        }
+
+        ksort($parameters);
+
+        $key = call_user_func($this->keyResolver);
+
+        return $this->route($name, $parameters + [
+            'signature' => hash_hmac(
+                'sha256',
+                $this->route($name, $parameters, $absolute),
+                is_array($key) ? $key[0] : $key
+            ),
+        ], $absolute);
+    }
+
+    /**
+     * Ensure the given signed route parameters are not reserved.
+     *
+     * @param  mixed  $parameters
+     * @return void
+     *
+     * @throws \InvalidArgumentException
+     */
+    protected function ensureSignedRouteParametersAreNotReserved($parameters)
+    {
+        if (array_key_exists('signature', $parameters)) {
+            throw new InvalidArgumentException(
+                '"Signature" is a reserved parameter when generating signed routes. Please rename your route parameter.'
+            );
+        }
+
+        if (array_key_exists('expires', $parameters)) {
+            throw new InvalidArgumentException(
+                '"Expires" is a reserved parameter when generating signed routes. Please rename your route parameter.'
+            );
+        }
+    }
+
+    /**
+     * Create a temporary signed route URL for a named route.
+     *
+     * @param  \BackedEnum|string  $name
+     * @param  \DateTimeInterface|\DateInterval|int  $expiration
+     * @param  array  $parameters
+     * @param  bool  $absolute
+     * @return string
+     */
+    public function temporarySignedRoute($name, $expiration, $parameters = [], $absolute = true)
+    {
+        return $this->signedRoute($name, $parameters, $expiration, $absolute);
+    }
+    /**
+     * Get the URL to a named route.
+     *
+     * @param  \BackedEnum|string  $name
+     * @param  mixed  $parameters
+     * @param  bool  $absolute
+     * @return string
+     *
+     * @throws \Symfony\Component\Routing\Exception\RouteNotFoundException|\InvalidArgumentException
+     */
+    public function route($name, $parameters = [], $absolute = true)
+    {
+        if ($name instanceof BackedEnum && ! is_string($name = $name->value)) {
+            throw new InvalidArgumentException('Attribute [name] expects a string backed enum.');
+        }
+
+        if (! is_null($route = $this->routes->getByName($name))) {
+            return $this->toRoute($route, $parameters, $absolute);
+        }
+
+        if (! is_null($this->missingNamedRouteResolver) &&
+            ! is_null($url = call_user_func($this->missingNamedRouteResolver, $name, $parameters, $absolute))) {
+            return $url;
+        }
+
+        throw new RouteNotFoundException("Route [{$name}] not defined.");
+    }
+}

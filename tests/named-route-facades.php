@@ -41,6 +41,17 @@ file_put_contents($framework.'/Support/Facades/Facade.php', <<<'PHP'
     }
     PHP);
 foreach (['URL' => 'url', 'Redirect' => 'redirect'] as $class => $accessor) {
+    $signedParameters = $class === 'URL'
+        ? '\\BackedEnum|string $name, mixed $parameters = [], \\DateTimeInterface|\\DateInterval|int|null $expiration = null, bool $absolute = true'
+        : '\\BackedEnum|string $route, mixed $parameters = [], \\DateTimeInterface|\\DateInterval|int|null $expiration = null, int $status = 302, array $headers = []';
+    $temporaryParameters = $class === 'URL'
+        ? '\\BackedEnum|string $name, \\DateTimeInterface|\\DateInterval|int $expiration, array $parameters = [], bool $absolute = true'
+        : '\\BackedEnum|string $route, \\DateTimeInterface|\\DateInterval|int|null $expiration, mixed $parameters = [], int $status = 302, array $headers = []';
+    $signedReturn = $class === 'URL'
+        ? ($mode === '--custom-doc' ? 'int' : 'string')
+        : '\\Illuminate\\Http\\RedirectResponse';
+    $signedSignatures = "\n * @method static $signedReturn signedRoute($signedParameters)\n * @method static $signedReturn temporarySignedRoute($temporaryParameters)\n";
+    $signedDeclarations = "public static function signedRoute($signedParameters): int { return 42; } public static function temporarySignedRoute($temporaryParameters): int { return 42; }";
     $signature = $class === 'URL'
         ? 'string route(\\BackedEnum|string $name, mixed $parameters = [], bool $absolute = true)'
         : '\\Illuminate\\Http\\RedirectResponse route(\\BackedEnum|string $route, mixed $parameters = [], int $status = 302, array $headers = [])';
@@ -57,6 +68,9 @@ foreach (['URL' => 'url', 'Redirect' => 'redirect'] as $class => $accessor) {
     if ($class === 'Redirect' && $mode === '--custom-method') {
         $extra = 'public static function route(\\BackedEnum|string $route, mixed $parameters = [], int $status = 302, array $headers = []): int { return 42; }';
     }
+    if ($mode === '--custom-method') {
+        $extra .= $signedDeclarations;
+    }
     $parent = 'Facade';
     $ancestors = '';
     if (in_array($mode, ['--inherited-method', '--inherited-trait'], true)) {
@@ -64,6 +78,7 @@ foreach (['URL' => 'url', 'Redirect' => 'redirect'] as $class => $accessor) {
         $declaration = $class === 'URL'
             ? 'public static function route(\\BackedEnum|string $name, mixed $parameters = [], bool $absolute = true): int { return 42; }'
             : 'public static function route(\\BackedEnum|string $route, mixed $parameters = [], int $status = 302, array $headers = []): int { return 42; }';
+        $declaration .= $signedDeclarations;
         if ($mode === '--inherited-trait') {
             $ancestors = "trait RouteMethods$class { $declaration }\n";
             $declaration = "use RouteMethods$class;";
@@ -72,45 +87,21 @@ foreach (['URL' => 'url', 'Redirect' => 'redirect'] as $class => $accessor) {
     }
     file_put_contents(
         $framework.'/Support/Facades/'.$class.'.php',
-        "<?php\nnamespace Illuminate\\Support\\Facades;\n/** @method static $signature */\n$ancestors class $class extends $parent { protected static function getFacadeAccessor() { $body } $extra }\n",
+        "<?php\nnamespace Illuminate\\Support\\Facades;\n/** @method static $signature $signedSignatures */\n$ancestors class $class extends $parent { protected static function getFacadeAccessor() { $body } $extra }\n",
     );
 }
-// Match the installed declarations and Redirector's forwarding argument semantics.
-file_put_contents($framework.'/Routing/UrlGenerator.php', <<<'PHP'
-    <?php
-    namespace Illuminate\Routing;
-    use BackedEnum;
-    use InvalidArgumentException;
-    use Symfony\Component\Routing\Exception\RouteNotFoundException;
-    class UrlGenerator {
-        /** @param \BackedEnum|string $name @param mixed $parameters @param bool $absolute @return string */
-        public function route($name, $parameters = [], $absolute = true) {
-            if ($name instanceof BackedEnum && ! is_string($name = $name->value)) {
-                throw new InvalidArgumentException('Attribute [name] expects a string backed enum.');
-            }
-            if (! is_null($route = $this->routes->getByName($name))) {
-                return $this->toRoute($route, $parameters, $absolute);
-            }
-            if (! is_null($this->missingNamedRouteResolver) &&
-                ! is_null($url = call_user_func($this->missingNamedRouteResolver, $name, $parameters, $absolute))) {
-                return $url;
-            }
-            throw new RouteNotFoundException("Route [{$name}] not defined.");
-        }
-    }
-    PHP);
-file_put_contents($framework.'/Routing/Redirector.php', <<<'PHP'
-    <?php
-    namespace Illuminate\Routing;
-    class Redirector {
-        protected $generator;
-        /** @param \BackedEnum|string $route @param mixed $parameters @param int $status @param array $headers @return \Illuminate\Http\RedirectResponse */
-        public function route($route, $parameters = [], $status = 302, $headers = []) {
-            return $this->to($this->generator->route($route, $parameters), $status, $headers);
-        }
-        public function to($path, $status = 302, $headers = [], $secure = null) { throw new \RuntimeException('Never execute'); }
-    }
-    PHP);
+// Keep the installed declarations and complete signed forwarding bodies.
+foreach (['UrlGenerator', 'Redirector'] as $class) {
+    copy(__DIR__.'/fixtures/analysis/signed-route-'.$class.'.php.stub', $framework.'/Routing/'.$class.'.php');
+}
+if ($mode === '--changed-signed-signature') {
+    $path = $framework.'/Routing/UrlGenerator.php';
+    file_put_contents($path, str_replace(
+        'public function signedRoute($name, $parameters = [], $expiration = null, $absolute = true)',
+        'public function signedRoute($name, $parameters = [], $expiration = 123, $absolute = true)',
+        file_get_contents($path),
+    ));
+}
 if ($mode === '--custom-url-method') {
     mkdir($workspace.'/custom');
     rename($framework.'/Routing/UrlGenerator.php', $workspace.'/custom/UrlGenerator.php');
@@ -120,6 +111,7 @@ file_put_contents($workspace.'/support.php', <<<'PHP'
     namespace Illuminate\Http { class RedirectResponse {} }
     namespace App {
         class CustomURL extends \Illuminate\Support\Facades\URL {}
+        class CustomGenerator extends \Illuminate\Routing\UrlGenerator {}
         class URL { public static function route(string $name): string { return $name; } }
         enum RouteName: string { case Home = 'home'; }
     }
@@ -146,8 +138,10 @@ file_put_contents($workspace.'/composer.json', json_encode([
     ],
 ], JSON_THROW_ON_ERROR));
 $missing = ['ichinya/laramago/laramago-missing-named-route'];
-$urlMissing = in_array($mode, ['', '--custom-doc', '--redirect-binding'], true) ? $missing : [];
-$redirectMissing = in_array($mode, ['', '--custom-doc'], true) ? $missing : [];
+$urlMissing = in_array($mode, ['', '--custom-doc', '--redirect-binding', '--changed-signed-signature'], true)
+    ? $missing
+    : [];
+$redirectMissing = in_array($mode, ['', '--custom-doc', '--changed-signed-signature'], true) ? $missing : [];
 $cases = [
     'known URL route' => ['NativeURL::route("home");', 'void', []],
     'known redirect route' => ['Redirect::route("home");', 'void', []],
@@ -174,16 +168,89 @@ if (in_array($mode, ['--custom-doc', '--custom-method', '--inherited-method', '-
         [],
     ];
 }
+foreach (['signedRoute', 'temporarySignedRoute'] as $method) {
+    if ($mode === '--changed-signed-signature') {
+        $urlMissing = $redirectMissing = [];
+    }
+    $expiration = $method === 'temporarySignedRoute' ? ', 123' : '';
+    $namedExpiration = $method === 'temporarySignedRoute' ? ', expiration: 123' : '';
+    $directUrlMissing = in_array($mode, ['--custom-url-method', '--changed-signed-signature'], true) ? [] : $missing;
+    $directRedirectMissing = in_array(
+        $mode,
+        ['--custom-url-method', '--url-binding', '--url-contract-binding', '--changed-signed-signature'],
+        true,
+    )
+        ? []
+        : $missing;
+    $cases[$method.' known URL'] = ['NativeURL::'.$method.'("home"'.$expiration.');', 'void', []];
+    $cases[$method.' URL literal'] = ['NativeURL::'.$method.'("typo"'.$expiration.');', 'void', $urlMissing];
+    $cases[$method.' redirect literal'] = ['Redirect::'.$method.'("typo"'.$expiration.');', 'void', $redirectMissing];
+    $cases[$method.' named URL'] = [
+        'NativeURL::'.$method.'(absolute: false, name: "typo"'.$namedExpiration.');',
+        'void',
+        $urlMissing,
+    ];
+    $cases[$method.' named redirect'] = [
+        'Redirect::'.$method.'(status: 301, route: "typo"'.$namedExpiration.');',
+        'void',
+        $redirectMissing,
+    ];
+    $cases[$method.' dynamic'] = ['NativeURL::'.$method.'($name'.$expiration.');', 'void', []];
+    $cases[$method.' enum'] = ['NativeURL::'.$method.'(RouteName::Home'.$expiration.');', 'void', []];
+    $cases[$method.' unpacked'] = ['NativeURL::'.$method.'(...["typo"'.$expiration.']);', 'void', []];
+    $cases[$method.' callable'] = ['$callback = NativeURL::'.$method.'(...);', 'void', []];
+    $cases[$method.' subclass'] = ['CustomURL::'.$method.'("typo"'.$expiration.');', 'void', []];
+    $cases[$method.' direct URL'] = ['$url->'.$method.'("typo"'.$expiration.');', 'void', $directUrlMissing];
+    $cases[$method.' direct redirect'] = [
+        '$redirect->'.$method.'(route: "typo"'.$namedExpiration.');',
+        'void',
+        $directRedirectMissing,
+    ];
+    $cases[$method.' direct subclass'] = ['$custom->'.$method.'("typo"'.$expiration.');', 'void', []];
+    $cases[$method.' invalid argument retained'] = [
+        'NativeURL::'.$method.'(3'.$expiration.');',
+        'void',
+        ['invalid-argument'],
+    ];
+    $cases[$method.' return contract retained'] = [
+        'return NativeURL::'.$method.'("home"'.$expiration.');',
+        'bool',
+        ['invalid-return-statement'],
+    ];
+    $cases[$method.' invalid expiration retained'] = [
+        '$url->'.$method.'("home", expiration: new \\stdClass);',
+        'void',
+        ['possibly-invalid-argument'],
+    ];
+    if ($mode === '--custom-doc') {
+        $cases[$method.' custom PHPDoc retained'] = [
+            'return NativeURL::'.$method.'("home"'.$expiration.');',
+            'int',
+            [],
+        ];
+    }
+}
 $source = <<<'PHP'
     <?php
     namespace App;
     use Illuminate\Support\Facades\{URL as NativeURL, Redirect};
     PHP;
 $lines = $spans = [];
-$nativeCodes = ['invalid-argument', 'invalid-return-statement', 'non-documented-method'];
+$nativeCodes = [];
 foreach ($cases as $name => [$body, $return, $codes]) {
+    foreach ($codes as $code) {
+        if ($code !== $missing[0]) {
+            $nativeCodes[] = $code;
+        }
+    }
     $source .= '/** @return '.$return.' */'."\n";
-    $source .= 'function scenario'.count($lines).'(string $name) { '.$body.' }'."\n";
+    $source .=
+        'function scenario'
+        .count($lines)
+        .'(string $name, \\Illuminate\\Routing\\UrlGenerator $url, \\Illuminate\\Routing\\Redirector $redirect, CustomGenerator $custom) { '
+        .$body
+        .' }'
+        ."\n";
     $lines[substr_count($source, "\n")] = [$name, $codes];
     $spans[substr_count($source, "\n")] = in_array($missing[0], $codes, true) ? ['"typo"'] : [];
 }

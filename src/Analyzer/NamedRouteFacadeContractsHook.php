@@ -7,6 +7,7 @@ namespace Ichinya\Laramago\Analyzer;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NamedRouteCatalog;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeFacade;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\SignedRouteMethods;
 use Mago\Sdk\Analyzer\FileAnalysisRequirement;
 use Mago\Sdk\Analyzer\NodeAnalysisContext;
 use Mago\Sdk\Analyzer\NodeAnalysisHook;
@@ -27,6 +28,7 @@ final class NamedRouteFacadeContractsHook implements NodeAnalysisHook
     private readonly NamedRouteCatalog $catalog;
     private readonly ContainerBindings $bindings;
     private readonly NativeFacade $facade;
+    private readonly SignedRouteMethods $signed;
     private ?string $sourceHash = null;
     /** @var array<string, Node\Expr\StaticCall> */
     private array $calls = [];
@@ -36,6 +38,7 @@ final class NamedRouteFacadeContractsHook implements NodeAnalysisHook
         $this->catalog = new NamedRouteCatalog($root);
         $this->bindings = new ContainerBindings($root);
         $this->facade = new NativeFacade($root);
+        $this->signed = new SignedRouteMethods($root);
     }
 
     public function getTargets(): array
@@ -58,12 +61,13 @@ final class NamedRouteFacadeContractsHook implements NodeAnalysisHook
             $call === null
             || ! $call->class instanceof Node\Name
             || ! $call->name instanceof Node\Identifier
-            || strtolower($call->name->toString()) !== 'route'
+            || ! in_array(strtolower($call->name->toString()), ['route', 'signedroute', 'temporarysignedroute'], true)
             || $call->isFirstClassCallable()
         ) {
             return;
         }
         $class = strtolower($call->class->toString());
+        $methodName = strtolower($call->name->toString());
         $redirect = $class === 'illuminate\\support\\facades\\redirect';
         if (! $redirect && $class !== 'illuminate\\support\\facades\\url') {
             return;
@@ -82,7 +86,7 @@ final class NamedRouteFacadeContractsHook implements NodeAnalysisHook
             $redirect ? 'Illuminate\\Support\\Facades\\Redirect' : 'Illuminate\\Support\\Facades\\URL',
             $redirect ? 'redirect' : 'url',
             $redirect ? 'Illuminate\\Routing\\Redirector' : 'Illuminate\\Routing\\UrlGenerator',
-            'route',
+            $methodName,
         )) {
             return;
         }
@@ -102,6 +106,12 @@ final class NamedRouteFacadeContractsHook implements NodeAnalysisHook
             }
         }
         $parameters = $redirect ? ['route', 'parameters', 'status', 'headers'] : ['name', 'parameters', 'absolute'];
+        if ($methodName !== 'route') {
+            if (! $this->signed->native($context->codebase, $methodName, $redirect)) {
+                return;
+            }
+            $parameters = SignedRouteMethods::parameters($methodName, $redirect);
+        }
         $arguments = [];
         $named = false;
         foreach ($call->getArgs() as $offset => $argument) {

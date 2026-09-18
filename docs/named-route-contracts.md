@@ -47,8 +47,22 @@ custom roots and relevant URL/redirect container bindings defer to native analys
 Redirect checks also require the native URL generator. PHPDoc signatures and
 native argument/return diagnostics remain unchanged.
 
+The same catalog checks literal names on native `signedRoute()` and
+`temporarySignedRoute()` calls through exact URL generator/redirector receivers
+and the native URL/Redirect facades. These checks require the installed native
+URL generator forwarding chain, public concrete declarations, parameter names,
+required/default argument shape and literal native defaults. Reference or variadic
+declarations defer to native analysis. Signed calls accept
+`parameters` before `expiration`; temporary signed calls require `expiration`
+before `parameters`. Reordered native named arguments are supported, including
+`name:` on URL calls and `route:` on redirects. Diagnostics point to the literal
+name; expiration types, PHPDoc return types and argument errors remain native.
+Configured URL bindings disable signed redirect checks because their internal
+generator is no longer proven. No signing key, expiration value or signature is
+evaluated, and signature validation methods do not reference route names.
+
 Dynamic values, concatenations, argument unpacking, subclasses, union receivers,
-custom facades, signed-route entry points, middleware aliases/groups, route parameters and runtime registry
+custom facades, middleware aliases/groups, route parameters and runtime registry
 reconstruction are outside this subset. Keep the contract current when route
 providers change; omit it when a complete registry cannot be asserted. The
 extension reads JSON and PHP syntax only and does not bootstrap Laravel, execute
