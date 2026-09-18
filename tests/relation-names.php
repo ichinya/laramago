@@ -99,6 +99,46 @@ $cases = [
         'void',
         ['ichinya/laramago/laramago-invalid-relation'],
     ],
+    'mixed list and callback relations' => [
+        'RelationNameRecord::query()->with(["children", "label" => fn () => null]);',
+        'void',
+        ['ichinya/laramago/laramago-invalid-relation'],
+    ],
+    'overwritten numeric relation' => [
+        'RelationNameRecord::query()->with([0 => "label", 0 => "children"]);',
+        'void',
+        ['duplicate-array-key'],
+    ],
+    'numeric string key is a list offset' => [
+        'RelationNameRecord::query()->with(["0" => "children"]);',
+        'void',
+        [],
+    ],
+    'leading-zero numeric key uses relation value' => [
+        'RelationNameRecord::query()->with(["01" => "label"]);',
+        'void',
+        ['ichinya/laramago/laramago-invalid-relation'],
+    ],
+    'exponent numeric key uses relation value' => [
+        'RelationNameRecord::query()->with(["1e2" => "label"]);',
+        'void',
+        ['ichinya/laramago/laramago-invalid-relation'],
+    ],
+    'negative numeric key deferred' => [
+        'RelationNameRecord::query()->with(["-5" => "label", "children"]);',
+        'void',
+        [],
+    ],
+    'dynamic key deferred' => [
+        '$key = rand() ? 0 : "relation"; RelationNameRecord::query()->with([$key => "label"]);',
+        'void',
+        [],
+    ],
+    'array unpack deferred' => [
+        'RelationNameRecord::query()->with(["label", ...["children"]]);',
+        'void',
+        [],
+    ],
     'selected columns' => [
         'RelationNameRecord::query()->with("label:id");',
         'void',
@@ -152,7 +192,10 @@ if (! is_resource($process)) {
 fclose($pipes[0]);
 $exit = proc_close($process);
 $log = file_get_contents($workspace.'/stderr.log');
-if ($exit !== 0 || preg_match('/External analyzer provider failed|extension worker .*rejected request/i', $log)) {
+if (
+    ! in_array($exit, [0, 1], true)
+    || preg_match('/External analyzer provider failed|extension worker .*rejected request/i', $log)
+) {
     throw new RuntimeException('Expected successful analysis with extension warnings and no fallback; inspect '
     .$workspace);
 }

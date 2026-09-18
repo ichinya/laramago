@@ -293,17 +293,48 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
         if (! $expression instanceof Node\Expr\Array_) {
             return [];
         }
-        $paths = [];
+        /** @var array<int|string, string|null> $effective */
+        $effective = [];
+        $next = 0;
         foreach ($expression->items as $item) {
             if ($item->unpack) {
-                continue;
+                return [];
             }
-            $value = $item->key instanceof Node\Scalar\String_ ? $item->key : $item->value;
-            if ($value instanceof Node\Scalar\String_) {
-                $paths[] = $value->value;
+            if ($item->key === null) {
+                if ($next === null) {
+                    return [];
+                }
+                $key = $next;
+                $next = $key === PHP_INT_MAX ? null : $key + 1;
+            } else {
+                $key = $this->literalArrayKey($item->key);
+                if ($key === null) {
+                    return [];
+                }
+                if (is_int($key) && $key < 0) {
+                    return [];
+                }
+                if ($next !== null && is_int($key) && $key >= $next) {
+                    $next = $key === PHP_INT_MAX ? null : $key + 1;
+                }
             }
+            $effective[$key] = is_string($key) && ! is_numeric($key)
+                ? $key
+                : ($item->value instanceof Node\Scalar\String_ ? $item->value->value : null);
         }
 
-        return array_values(array_unique($paths));
+        return array_values(array_unique(array_filter($effective, is_string(...))));
+    }
+
+    private function literalArrayKey(Node\Expr $expression): int|string|null
+    {
+        if ($expression instanceof Node\Scalar\Int_) {
+            return $expression->value;
+        }
+        if (! $expression instanceof Node\Scalar\String_) {
+            return null;
+        }
+
+        return array_key_first([$expression->value => null]);
     }
 }

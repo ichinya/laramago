@@ -20,7 +20,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 12 | Guarded name validation | implemented; Guarded names reuse model catalogs with case-insensitive and wildcard semantics; focused and disabled checks passed. |
 | 13 | Hidden name validation | implemented; Hidden names use complete field and pre-serialization key catalogs; focused native/custom/disabled cases passed. |
 | 14 | Visible name validation | implemented; Visible names reuse complete serialization catalogs with native empty-list and case semantics; focused tests passed. |
-| 15 | Appended accessor name validation | queued |
+| 15 | Appended accessor name validation | running |
 | 16 | Model attribute declarations for field lists | queued |
 | 17 | Physical columns versus computed accessors | already-covered; Verified physical-column selection versus accessors, raw pluck keys and SQL alias boundaries; three suites passed. |
 | 18 | Literal mass-assignment keys | queued |
@@ -32,8 +32,8 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 24 | Suggestions for proven field typos | queued |
 | 25 | Additional relation-name call sites | implemented; Additional non-morph existence methods and loadMissing reuse native relation-name checks; three focused suites passed. |
 | 26 | Nested relation paths | already-covered; Verified nested relation traversal, callback typing and complete-name checks with focused suites. |
-| 27 | Mixed eager-load declaration arrays | queued |
-| 28 | Eager-load colon projection syntax | queued |
+| 27 | Mixed eager-load declaration arrays | implemented; Mixed eager-load arrays honor effective keys and Laravel numeric-string semantics; dynamic/negative uncertainty defers. |
+| 28 | Eager-load colon projection syntax | running |
 | 29 | Related model projection columns | queued |
 | 30 | Eager-loading callback parameter types | queued |
 | 31 | Morph callbacks with explicit model classes | queued |
@@ -55,7 +55,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 47 | Duplicate environment template declarations | queued |
 | 48 | Vite environment name references | queued |
 | 49 | Existing complete named-route contracts | already-covered; Verified complete named-route catalogs; 19 real-Mago scenarios and source analysis passed. |
-| 50 | Route and to_route helpers | queued |
+| 50 | Route and to_route helpers | running |
 | 51 | Named-route facade calls | queued |
 | 52 | Signed and temporary signed routes | queued |
 | 53 | Response route redirects | queued |
