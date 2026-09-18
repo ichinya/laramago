@@ -97,7 +97,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 89 | Class-level policy abilities | queued |
 | 90 | Policy discovery resolver boundaries | queued |
 | 91 | Existing explicit container binding types | already-covered; Verified explicit container bindings, aliases and contract guards; focused tests and source analysis passed. |
-| 92 | Existing framework aliases and facade roots | queued |
+| 92 | Existing framework aliases and facade roots | already-covered; Verified literal framework aliases and facade roots; focused enabled/disabled suites passed. |
 | 93 | Additional literal binding registrations | queued |
 | 94 | Container alias chains and uncertainty | queued |
 | 95 | Container injection attributes | queued |
