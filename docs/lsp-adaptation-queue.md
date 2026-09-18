@@ -131,7 +131,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 123 | Pluralization syntax contracts | queued |
 | 124 | Translation fallback provenance | queued |
 | 125 | Static filesystem disk catalog | implemented; tests/configuration-index.php; source-only completeness |
-| 126 | Storage disk references | running |
+| 126 | Storage disk references | implemented; Guarded native Storage::disk diagnostics; 27 real-Mago scenarios passed. |
 | 127 | Storage injection attribute references | queued |
 | 128 | Storage fake and forget semantics | queued |
 | 129 | Unknown default disk configuration | queued |
