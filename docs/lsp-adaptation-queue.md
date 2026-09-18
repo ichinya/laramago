@@ -56,7 +56,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 48 | Vite environment name references | queued |
 | 49 | Existing complete named-route contracts | already-covered; Verified complete named-route catalogs; 19 real-Mago scenarios and source analysis passed. |
 | 50 | Route and to_route helpers | implemented; Native route/to_route literal names use shared complete catalogs, helper/method provenance and service-binding guards. Seven real-Mago modes verify native/custom contracts and literal spans. |
-| 51 | Named-route facade calls | review; Facade implementation and focused tests ready; shared dispatch proof under review. |
+| 51 | Named-route facade calls | implemented; Native URL/Redirect route references use complete catalogs. Shared facade proof preserves concrete methods across full ancestry; eleven facade modes and Config regressions pass. |
 | 52 | Signed and temporary signed routes | queued |
 | 53 | Response route redirects | queued |
 | 54 | RedirectToRoute attribute references | queued |

@@ -7,6 +7,8 @@ namespace Ichinya\Laramago\Analyzer\StaticAnalysis;
 use Mago\Sdk\Analyzer\Codebase;
 use Mago\Sdk\Analyzer\Type;
 use Mago\Sdk\Analyzer\Type\NamedObjectType;
+use PhpParser\Node;
+use PhpParser\NodeFinder;
 
 /** Proves a call uses an unmodified Laravel facade accessor and native root method. */
 final class NativeFacade
@@ -53,13 +55,7 @@ final class NativeFacade
             return false;
         }
         $reflection = new ModelReflection($codebase, $this->source);
-        $declared = $codebase->getMethod($facade, $method) ?? $codebase->getDeclaringMethod($facade, $method);
-        if (
-            $declared !== null
-            && strcasecmp($declared->identifier->class ?? '', $facade) === 0
-            && $reflection->methodNode($declared) !== null
-        ) {
-            // A real static method takes priority over magic facade forwarding.
+        if (! $this->usesMagicDispatch($codebase, $facade, $method)) {
             return false;
         }
         $facadeAccessor = $codebase->getDeclaringMethod($facade, 'getFacadeAccessor');
@@ -100,6 +96,47 @@ final class NativeFacade
             )
             && self::frameworkFile($target->location->file, str_replace('\\', '/', $root).'.php')
         );
+    }
+
+    private function usesMagicDispatch(Codebase $codebase, string $facade, string $method): bool
+    {
+        // Pseudo-method metadata can hide real declarations on any ancestor.
+        $visited = [];
+        $foundBase = false;
+        $class = $facade;
+        while ($class !== null) {
+            $key = strtolower($class);
+            if (isset($visited[$key])) {
+                return false;
+            }
+            $visited[$key] = true;
+            $metadata = $codebase->getClassLike($class);
+            $file = $metadata?->location->file;
+            if ($metadata === null || $metadata->hasIncompleteHierarchy() || $file === null) {
+                return false;
+            }
+            $nodes = $this->source->read(str_starts_with($file, '//?/') ? substr($file, 4) : $file);
+            $node = (new NodeFinder)->findFirst(
+                $nodes ?? [],
+                static fn (Node $node): bool => (
+                    $node instanceof Node\Stmt\Class_
+                    && strcasecmp($node->namespacedName?->toString() ?? '', $class) === 0
+                ),
+            );
+            if (
+                ! $node instanceof Node\Stmt\Class_
+                || $node->getMethod($method) !== null
+                || $node->getTraitUses() !== []
+                || strcasecmp($node->extends?->toString() ?? '', $metadata->directParentClass ?? '') !== 0
+            ) {
+                // Trait adaptations and unavailable source cannot prove magic forwarding.
+                return false;
+            }
+            $foundBase = $foundBase || strcasecmp($class, self::BASE) === 0;
+            $class = $metadata->directParentClass;
+        }
+
+        return $foundBase;
     }
 
     private static function frameworkFile(?string $path, string $suffix): bool

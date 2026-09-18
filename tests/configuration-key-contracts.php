@@ -312,6 +312,34 @@ if ($guardExit !== 0 || ($guardReport['issues'] ?? []) !== []) {
 }
 echo "PASS: custom facade dispatch defers\n";
 file_put_contents($facadePath, $facadeSource);
+$nativeMethod = 'public static function get(array|string $key, mixed $default = null): mixed { return 42; }';
+foreach (['direct', 'inherited', 'inherited-trait'] as $dispatch) {
+    $alteredFacade = str_replace("\r\n", "\n", $facadeSource);
+    if ($dispatch === 'direct') {
+        $alteredFacade = str_replace("{\n", "{\n    ".$nativeMethod."\n", $alteredFacade);
+    } else {
+        $parentBody = $dispatch === 'inherited-trait' ? 'use CustomConfigMethods;' : $nativeMethod;
+        $ancestors = $dispatch === 'inherited-trait' ? 'trait CustomConfigMethods { '.$nativeMethod.' }' : '';
+        $ancestors .=
+            'class IntermediateConfig extends Facade { '
+            .$parentBody
+            .' } class BridgeConfig extends IntermediateConfig {}';
+        $alteredFacade = str_replace(
+            'final class Config extends Facade',
+            'final class Config extends BridgeConfig',
+            $alteredFacade,
+        );
+        // Keep the facade PHPDoc attached to Config so pseudo metadata can mask the method.
+        $alteredFacade = str_replace('/** @method', $ancestors."\n/** @method", $alteredFacade);
+    }
+    file_put_contents($facadePath, $alteredFacade);
+    [$guardExit, $guardReport] = $analyze('concrete-facade-'.$dispatch);
+    if ($guardExit !== 0 || ($guardReport['issues'] ?? []) !== []) {
+        throw new RuntimeException('Concrete '.$dispatch.' facade method must defer; inspect '.$workspace);
+    }
+    echo 'PASS: concrete '.$dispatch." facade method retains priority\n";
+}
+file_put_contents($facadePath, $facadeSource);
 file_put_contents($workspace.'/cases.php', $originalSource);
 
 echo "PASS: complete configuration key diagnostics preserve native and dynamic boundaries\n";

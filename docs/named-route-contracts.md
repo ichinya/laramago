@@ -40,8 +40,15 @@ Explicit binding catalogs for `url`, `redirect` or their standard concrete and
 contract aliases disable affected helper checks. The diagnostic points to the
 literal route name and does not replace helper signatures, PHPDoc or native errors.
 
+Native `URL::route()` and `Redirect::route()` facade calls receive the same
+literal-name warning, including imported class aliases and named arguments. Checks
+require standard facade accessors and root dispatch; concrete facade methods,
+custom roots and relevant URL/redirect container bindings defer to native analysis.
+Redirect checks also require the native URL generator. PHPDoc signatures and
+native argument/return diagnostics remain unchanged.
+
 Dynamic values, concatenations, argument unpacking, subclasses, union receivers,
-facades, signed-route entry points, middleware aliases/groups, route parameters and runtime registry
+custom facades, signed-route entry points, middleware aliases/groups, route parameters and runtime registry
 reconstruction are outside this subset. Keep the contract current when route
 providers change; omit it when a complete registry cannot be asserted. The
 extension reads JSON and PHP syntax only and does not bootstrap Laravel, execute
