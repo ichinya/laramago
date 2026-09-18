@@ -15,6 +15,22 @@ trait GuardsAttributes
         throw new \RuntimeException('Must not execute');
     }
 
+    /** @return list<string> */
+    public function getGuarded()
+    {
+        throw new \RuntimeException('Must not execute');
+    }
+
+    public function isGuarded($key)
+    {
+        throw new \RuntimeException('Must not execute');
+    }
+
+    protected function isGuardableColumn($key)
+    {
+        throw new \RuntimeException('Must not execute database-dependent guardability');
+    }
+
     /** @return array<string, mixed> */
     protected function fillableFromArray(array $attributes): array
     {

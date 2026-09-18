@@ -17,7 +17,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 9 | Scope parameters and simple fluent bodies | already-covered; Verified scope signatures and bounded fluent body inference; native and disabled regressions passed. |
 | 10 | Custom builders and collections | already-covered; Verified custom builder and collection resolution with eight focused suites. |
 | 11 | Fillable name validation | implemented; Explicit exact-model field catalogs validate literal fillable names; native dispatch and disabled regressions passed. |
-| 12 | Guarded name validation | running |
+| 12 | Guarded name validation | implemented; Guarded names reuse model catalogs with case-insensitive and wildcard semantics; focused and disabled checks passed. |
 | 13 | Hidden name validation | queued |
 | 14 | Visible name validation | queued |
 | 15 | Appended accessor name validation | queued |
@@ -70,7 +70,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 62 | Controller method existence in string actions | implemented; tests/controller-action-classes.php; standard dispatch and binding guards |
 | 63 | Controller action visibility | implemented; Controller action visibility follows native dispatch scope; 36 real-Mago scenarios passed. |
 | 64 | Array controller action references | implemented; Literal controller action arrays resolve PHP names and preserve native diagnostics; 58 real-Mago scenarios passed. |
-| 65 | Invokable controller actions | queued |
+| 65 | Invokable controller actions | running |
 | 66 | Controller route group context | queued |
 | 67 | Additional route registration methods | queued |
 | 68 | Controller parameter route and DI contracts | queued |
@@ -118,7 +118,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 110 | Conditional and iterative view rendering | queued |
 | 111 | Package view namespaces | queued |
 | 112 | View suggestions and declaration locations | queued |
-| 113 | Existing literal translation types | queued |
+| 113 | Existing literal translation types | running |
 | 114 | Existing explicit-locale reference contracts | queued |
 | 115 | Translator and Lang call sites | queued |
 | 116 | trans_choice references | queued |

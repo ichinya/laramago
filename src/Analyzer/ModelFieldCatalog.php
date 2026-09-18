@@ -65,17 +65,46 @@ final class ModelFieldCatalog
         }
     }
 
+    public function has(string $model): bool
+    {
+        return array_key_exists(strtolower(ltrim($model, '\\')), $this->models);
+    }
+
     /**
      * Return true for a declared field, false for an absent field in an
      * explicitly complete exact-model catalog, and null without such proof.
      */
     public function contains(string $model, string $field): ?bool
     {
-        $key = strtolower(ltrim($model, '\\'));
-        if (! array_key_exists($key, $this->models)) {
+        $fields = $this->fields($model);
+        if ($fields === null) {
             return null;
         }
 
-        return in_array($field, $this->models[$key], true);
+        return in_array($field, $fields, true);
+    }
+
+    /** Guarded attribute matching follows Laravel's case-insensitive comparison. */
+    public function containsCaseInsensitive(string $model, string $field): ?bool
+    {
+        $fields = $this->fields($model);
+        if ($fields === null) {
+            return null;
+        }
+        foreach ($fields as $candidate) {
+            if (strcasecmp($candidate, $field) === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** @return list<string>|null */
+    private function fields(string $model): ?array
+    {
+        $key = strtolower(ltrim($model, '\\'));
+
+        return $this->models[$key] ?? null;
     }
 }

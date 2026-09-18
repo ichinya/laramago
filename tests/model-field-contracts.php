@@ -33,10 +33,16 @@ file_put_contents($workspace.'/composer.json', json_encode([
                     'nullable_value',
                     'virtual',
                 ]),
+                'Example\\CompleteGuardedRecord' => $complete(['known', 'title']),
+                'Example\\GuardedWildcardRecord' => $complete([]),
+                'Example\\GuardedMixedWildcardRecord' => $complete([]),
+                'Example\\DynamicGuardedRecord' => $complete([]),
                 'Example\\DynamicRecord' => $complete(['known']),
                 'Example\\UnpackedRecord' => $complete([]),
                 'Example\\CustomConnectionRecord' => $complete(['remote_only']),
                 'Example\\CustomGetFillableRecord' => $complete([]),
+                'Example\\CustomGetGuardedRecord' => $complete([]),
+                'Example\\CustomIsGuardedRecord' => $complete([]),
                 'Example\\CustomIsFillableRecord' => $complete([]),
                 'Example\\CustomFillRecord' => $complete([]),
                 'Example\\CustomMassAssignmentRecord' => $complete([]),
@@ -105,7 +111,12 @@ foreach ($report['issues'] ?? [] as $issue) {
 }
 $expected = [];
 foreach (explode("\n", $fixture) as $offset => $line) {
-    if (str_contains($line, '// complete-missing') || str_contains($line, '// literal-missing')) {
+    if (
+        str_contains($line, '// complete-missing')
+        || str_contains($line, '// literal-missing')
+        || str_contains($line, '// guarded-missing')
+        || str_contains($line, '// guarded-mixed-missing')
+    ) {
         $expected[$offset + 1] = ['ichinya/laramago/laramago-missing-model-field'];
     }
 }
@@ -119,7 +130,7 @@ if ($actual !== $expected) {
         .$workspace,
     );
 }
-echo "PASS: complete catalogs validate only literal fillable names\n";
+echo "PASS: complete catalogs validate only safe literal fillable and guarded names\n";
 
 $nativeConfig = json_decode(file_get_contents($workspace.'/mago.json'), true, flags: JSON_THROW_ON_ERROR);
 unset($nativeConfig['extension-hosts']);

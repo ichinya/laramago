@@ -21,8 +21,8 @@ use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\ParserFactory;
 
-/** Validate literal $fillable names only against explicit complete field catalogs. */
-final class FillableNameHook implements ClassLikeAnalysisHook
+/** Validate literal $fillable and $guarded names only against explicit complete field catalogs. */
+final class ModelFieldNamesHook implements ClassLikeAnalysisHook
 {
     private const NATIVE_FILLABLE_OWNERS = [
         ModelReflection::MODEL,
@@ -53,6 +53,21 @@ final class FillableNameHook implements ClassLikeAnalysisHook
         ],
     ];
 
+    /** @var array<string, array{owners: list<string>, file: string, visibility: Visibility}> */
+    private const NATIVE_GUARDED_DISPATCH = [
+        ...self::NATIVE_DISPATCH,
+        'getGuarded' => [
+            'owners' => self::NATIVE_FILLABLE_OWNERS,
+            'file' => 'Illuminate/Database/Eloquent/Concerns/GuardsAttributes.php',
+            'visibility' => Visibility::Public,
+        ],
+        'isGuarded' => [
+            'owners' => self::NATIVE_FILLABLE_OWNERS,
+            'file' => 'Illuminate/Database/Eloquent/Concerns/GuardsAttributes.php',
+            'visibility' => Visibility::Public,
+        ],
+    ];
+
     private readonly ModelFieldCatalog $fields;
     private ?string $sourceHash = null;
     /** @var array<string, Node\Stmt\Class_> */
@@ -77,26 +92,29 @@ final class FillableNameHook implements ClassLikeAnalysisHook
     {
         $class = $this->classNode($context);
         $model = $class?->namespacedName?->toString();
-        if ($class === null || $model === null) {
+        if ($class === null || $model === null || ! $this->fields->has($model)) {
             return;
         }
         $metadata = $context->codebase->getClass($model);
         if ($metadata === null || $metadata->hasIncompleteHierarchy()) {
             return;
         }
-        foreach (self::NATIVE_DISPATCH as $method => $contract) {
-            $declaration = $context->codebase->getDeclaringMethod($model, $method);
-            if (! self::nativeMethod($declaration, $contract)) {
-                return;
-            }
+        $nativeFillable = self::hasNativeDispatch($context, $model, self::NATIVE_DISPATCH);
+        $nativeGuarded = self::hasNativeDispatch($context, $model, self::NATIVE_GUARDED_DISPATCH);
+        if (! $nativeFillable && ! $nativeGuarded) {
+            return;
         }
         foreach ($class->stmts as $statement) {
             if (! $statement instanceof Node\Stmt\Property) {
                 continue;
             }
             foreach ($statement->props as $property) {
+                $propertyName = $property->name->toString();
                 if (
-                    $property->name->toString() !== 'fillable'
+                    ($propertyName !== 'fillable'
+                    || ! $nativeFillable)
+                    && ($propertyName !== 'guarded'
+                    || ! $nativeGuarded)
                     || $statement->isPrivate()
                     || $statement->isStatic()
                     || ! $property->default instanceof Node\Expr\Array_
@@ -108,19 +126,35 @@ final class FillableNameHook implements ClassLikeAnalysisHook
                 ) {
                     continue;
                 }
+                if ($propertyName === 'guarded' && self::isTotalGuard($property->default)) {
+                    continue;
+                }
                 foreach ($property->default->items as $item) {
                     if ($item->unpack || ! $item->value instanceof Node\Scalar\String_) {
                         continue;
                     }
                     $name = $item->value->value;
-                    if ($this->fields->contains($model, $name) !== false) {
+                    // In a mixed array Laravel does not treat "*" as the total-guard sentinel.
+                    // Defer that unusual literal itself while still checking ordinary names.
+                    if ($propertyName === 'guarded' && $name === '*') {
+                        continue;
+                    }
+                    $contains = $propertyName === 'guarded'
+                        ? $this->fields->containsCaseInsensitive($model, $name)
+                        : $this->fields->contains($model, $name);
+                    if ($contains !== false) {
                         continue;
                     }
                     $context->report(
                         Level::Warning,
                         'laramago-missing-model-field',
                         Issue::at(
-                            'Fillable name '.$name.' is absent from the complete field catalog for '.$model.'.',
+                            ucfirst($propertyName)
+                            .' name '
+                            .$name
+                            .' is absent from the complete field catalog for '
+                            .$model
+                            .'.',
                             new SourceLocation(
                                 $context->source->path,
                                 new Span($item->value->getStartFilePos(), $item->value->getEndFilePos() + 1),
@@ -130,6 +164,35 @@ final class FillableNameHook implements ClassLikeAnalysisHook
                 }
             }
         }
+    }
+
+    /**
+     * @param array<string, array{owners: list<string>, file: string, visibility: Visibility}> $dispatch
+     */
+    private static function hasNativeDispatch(NodeAnalysisContext $context, string $model, array $dispatch): bool
+    {
+        foreach ($dispatch as $method => $contract) {
+            $declaration = $context->codebase->getDeclaringMethod($model, $method);
+            if (! self::nativeMethod($declaration, $contract)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static function isTotalGuard(Node\Expr\Array_ $array): bool
+    {
+        $item = $array->items[0] ?? null;
+
+        return (
+            count($array->items) === 1
+            && $item instanceof Node\ArrayItem
+            && ! $item->unpack
+            && $item->key === null
+            && $item->value instanceof Node\Scalar\String_
+            && $item->value->value === '*'
+        );
     }
 
     /**

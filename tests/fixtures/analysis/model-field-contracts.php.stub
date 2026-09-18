@@ -26,6 +26,26 @@ namespace Example {
         protected $fillable = ['missing'];
     }
 
+    class CompleteGuardedRecord extends Model
+    {
+        protected $guarded = ['known', 'TITLE', 'missing']; // guarded-missing
+    }
+
+    class GuardedWildcardRecord extends Model
+    {
+        protected $guarded = ['*'];
+    }
+
+    class GuardedMixedWildcardRecord extends Model
+    {
+        protected $guarded = ['*', 'missing']; // guarded-mixed-missing
+    }
+
+    class DynamicGuardedRecord extends Model
+    {
+        protected $guarded = ['key' => 'missing', ...LiteralFields::DYNAMIC];
+    }
+
     class ChildRecord extends CompleteRecord
     {
         protected $fillable = ['missing'];
@@ -66,9 +86,30 @@ namespace Example {
         }
     }
 
+    class CustomGetGuardedRecord extends Model
+    {
+        protected $guarded = ['missing'];
+
+        public function getGuarded(): array
+        {
+            throw new \RuntimeException('Must not execute');
+        }
+    }
+
+    class CustomIsGuardedRecord extends Model
+    {
+        protected $guarded = ['missing'];
+
+        public function isGuarded($key)
+        {
+            throw new \RuntimeException('Must not execute');
+        }
+    }
+
     class CustomIsFillableRecord extends Model
     {
         protected $fillable = ['missing'];
+        protected $guarded = ['missing'];
 
         public function isFillable(string $key): bool
         {
@@ -79,6 +120,7 @@ namespace Example {
     class CustomFillRecord extends Model
     {
         protected $fillable = ['missing'];
+        protected $guarded = ['missing'];
 
         public function fill(array $attributes): static
         {
@@ -89,6 +131,7 @@ namespace Example {
     class CustomMassAssignmentRecord extends Model
     {
         protected $fillable = ['missing'];
+        protected $guarded = ['missing'];
 
         protected function fillableFromArray(array $attributes): array
         {
