@@ -1,0 +1,22 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Illuminate\Routing;
+
+throw new \RuntimeException('Routing fixture must never execute.');
+
+class Controller
+{
+    /** @param array<string, mixed> $parameters */
+    public function callAction(string $method, array $parameters): mixed
+    {
+        return $this->{$method}(...array_values($parameters));
+    }
+
+    /** @param list<mixed> $parameters */
+    public function __call(string $method, array $parameters): mixed
+    {
+        throw new \BadMethodCallException();
+    }
+}

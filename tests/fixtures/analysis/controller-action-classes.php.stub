@@ -6,9 +6,36 @@ namespace App\Http\Controllers;
 
 throw new \RuntimeException('Controller fixture must never execute.');
 
-class ExistingController
+class AppController extends \Illuminate\Routing\Controller
+{
+    public function inherited(): void {}
+}
+
+class ExistingController extends AppController
 {
     public function index(): void {}
 }
 
-class MethodlessController {}
+class MethodlessController extends AppController {}
+
+class PlainMethodlessController {}
+
+class MagicController extends AppController
+{
+    /** @param list<mixed> $parameters */
+    public function __call(string $method, array $parameters): mixed
+    {
+        return null;
+    }
+}
+
+class DispatchController extends AppController
+{
+    /** @param array<string, mixed> $parameters */
+    public function callAction(string $method, array $parameters): mixed
+    {
+        return null;
+    }
+}
+
+class CustomControllerDispatcher {}
