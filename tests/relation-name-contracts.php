@@ -63,6 +63,8 @@ $cases = [
     'with selected columns' => ['RelationNameRecord::query()->with("children:id");', 'void', []],
     'load selected columns' => ['(new RelationNameRecord)->load("children:id");', 'void', []],
     'loadMissing selected columns' => ['(new RelationNameRecord)->loadMissing("children:id");', 'void', []],
+    'withWhereHas selected columns' => ['RelationNameRecord::query()->withWhereHas("children:id");', 'void', []],
+    'static withWhereHas selected columns' => ['RelationNameRecord::withWhereHas("children:id");', 'void', []],
     'has does not accept selected columns' => [
         'RelationNameRecord::query()->has("children:id");',
         'void',
@@ -272,6 +274,7 @@ foreach ($lines as $line => [$name]) {
         'static loadMissing stays native' => ['invalid-static-method-access'],
         'static whereHas',
         'static orWhereHas',
+        'static withWhereHas selected columns',
         'static dynamic registration',
         'custom static dispatch',
         'additional custom static dispatch',

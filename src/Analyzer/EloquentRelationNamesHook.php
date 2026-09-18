@@ -26,7 +26,7 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
     private const MODEL = 'Illuminate\\Database\\Eloquent\\Model';
     private const BUILDER = 'Illuminate\\Database\\Eloquent\\Builder';
     private const RELATION = 'Illuminate\\Database\\Eloquent\\Relations\\Relation';
-    private const EAGER_LOAD_METHODS = ['with', 'load', 'loadmissing'];
+    private const EAGER_LOAD_METHODS = ['with', 'load', 'loadmissing', 'withwherehas'];
     private const RELATION_METHODS = [
         'has',
         'orhas',
