@@ -1,0 +1,25 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Inertia;
+
+throw new \RuntimeException('Inertia fixture must never execute.');
+
+class Response {}
+
+class ResponseFactory
+{
+    public function render(string $component, array $props = []): Response
+    {
+        return new Response;
+    }
+}
+
+class CustomResponseFactory extends ResponseFactory
+{
+    public function render(string $component, array $props = []): Response
+    {
+        return new Response;
+    }
+}

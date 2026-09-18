@@ -67,7 +67,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 59 | Domain optional and default route parameters | queued |
 | 60 | Route declaration diagnostic locations | queued |
 | 61 | Controller class existence in string actions | implemented; tests/controller-action-classes.php; absolute literal actions only |
-| 62 | Controller method existence in string actions | queued |
+| 62 | Controller method existence in string actions | running |
 | 63 | Controller action visibility | queued |
 | 64 | Array controller action references | queued |
 | 65 | Invokable controller actions | queued |
@@ -131,7 +131,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 123 | Pluralization syntax contracts | queued |
 | 124 | Translation fallback provenance | queued |
 | 125 | Static filesystem disk catalog | implemented; tests/configuration-index.php; source-only completeness |
-| 126 | Storage disk references | queued |
+| 126 | Storage disk references | running |
 | 127 | Storage injection attribute references | queued |
 | 128 | Storage fake and forget semantics | queued |
 | 129 | Unknown default disk configuration | queued |
@@ -145,7 +145,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 137 | Path existence in required-file contexts | queued |
 | 138 | Vite manifest adaptation | queued |
 | 139 | Explicit Inertia page catalog | implemented; tests/inertia-page-catalog.php; symlink creation test skipped on host |
-| 140 | Inertia render page references | queued |
+| 140 | Inertia render page references | implemented; tests/inertia-page-references.php; opt-in complete catalog |
 | 141 | Inertia helper and route references | queued |
 | 142 | Optional Inertia integration calls | queued |
 | 143 | Ambiguous Inertia page names | queued |

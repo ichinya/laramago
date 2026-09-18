@@ -48,7 +48,13 @@ and fully qualified calls retain framework identity checks; local shadow functio
 Missing entries report `ichinya/laramago/laramago-missing-view` or
 `ichinya/laramago/laramago-missing-translation` warnings.
 
+Literal component names passed to the installed native `Inertia::render` facade or
+`Inertia\ResponseFactory::render` are checked against a complete `inertia-pages`
+catalog. Missing pages report `ichinya/laramago/laramago-missing-inertia-page`.
+Direct factory subclasses, facade subclasses, custom package replacements, dynamic
+component expressions, argument unpacking and incomplete catalogs defer.
+
 Package namespaces, arbitrary dynamic keys/locales, implicit locale mutation, first-class
 callables, argument unpacking, unsafe/dynamic catalogs, custom helpers and unsupported
-catalog shapes defer. String phrase JSON references, facades, Blade directives, `trans_choice`
+catalog shapes defer. String phrase JSON references, other facades, Blade directives, `trans_choice`
 and view factory methods are not covered. Catalogs are parsed without executing PHP.
