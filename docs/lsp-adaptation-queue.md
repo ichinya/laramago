@@ -24,7 +24,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 16 | Model attribute declarations for field lists | implemented; Native Fillable/Guarded/Hidden/Visible/Appends attributes use exact catalogs and installed lifecycle guards; effective Guarded precedence, custom overrides and older-framework regressions pass. |
 | 17 | Physical columns versus computed accessors | already-covered; Verified physical-column selection versus accessors, raw pluck keys and SQL alias boundaries; three suites passed. |
 | 18 | Literal mass-assignment keys | queued |
-| 19 | Mass-assignment value types | running; Independent implementation or coverage audit in progress. |
+| 19 | Mass-assignment value types | implemented; Native forceFill checks disjoint structured values against independent explicit write contracts. 135 real-Mago case/mode checks pass; fill/create, scalar coercions and schema-derived input types remain deferred. |
 | 20 | Model update versus builder update contracts | queued |
 | 21 | Literal query column references | queued |
 | 22 | Both operands of whereColumn | queued |

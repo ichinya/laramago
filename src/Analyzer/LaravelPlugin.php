@@ -26,6 +26,7 @@ final class LaravelPlugin implements Plugin
     public function register(PluginRegistry $registry): void
     {
         $properties = new EloquentPropertyProvider($this->projectRoot);
+        $registry->registerMethodCallAnalysisHook(new ForceFillWriteContractHook);
         $relationMethods = new EloquentRelationMethodProvider($this->projectRoot);
         $registry->registerMethodReturnTypeProvider($relationMethods);
         $registry->registerInitializationHook($relationMethods);
