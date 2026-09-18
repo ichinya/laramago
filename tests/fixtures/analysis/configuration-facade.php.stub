@@ -4,8 +4,14 @@ declare(strict_types=1);
 
 namespace Illuminate\Support\Facades;
 
-/** @method static mixed get(array|string $key, mixed $default = null) */
+/**
+ * @method static mixed get(array|string $key, mixed $default = null)
+ * @method static array<string, mixed> getMany(array $keys)
+ */
 final class Config extends Facade
 {
-    protected static function getFacadeAccessor(): string { return 'config'; }
+    protected static function getFacadeAccessor(): string
+    {
+        return 'config';
+    }
 }

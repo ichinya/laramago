@@ -75,21 +75,41 @@ final class ConfigurationKeyContractsHook implements NodeAnalysisHook, Initializ
         }
         $reference = $this->reference($context);
         if ($reference instanceof Node\Expr\FuncCall) {
-            if (! $this->nativeHelper($reference, $context) || ! self::validArguments($reference->args)) {
+            if (! $this->nativeHelper($reference, $context) || ! self::validGetArguments($reference->args)) {
                 return;
             }
+            $key = PhpSource::argument($reference->args, 0, 'key');
+            $keys = $key instanceof Node\Scalar\String_ ? [$key] : [];
         } elseif ($reference instanceof Node\Expr\StaticCall) {
+            if (! $reference->name instanceof Node\Identifier) {
+                return;
+            }
+            $method = strtolower($reference->name->toString());
             if (
-                ! self::validArguments($reference->args)
+                ! (
+                    $method === 'get'
+                        ? self::validGetArguments($reference->args)
+                        : self::validGetManyArguments($reference->args)
+                )
                 || ! $this->facade()->dispatchesClass(
                     $context->codebase,
                     self::FACADE,
                     'config',
                     self::REPOSITORY,
-                    'get',
+                    $method,
                 )
             ) {
                 return;
+            }
+            if ($method === 'get') {
+                $key = PhpSource::argument($reference->args, 0, 'key');
+                $keys = $key instanceof Node\Scalar\String_ ? [$key] : [];
+            } else {
+                $argument = PhpSource::argument($reference->args, 0, 'keys');
+                $keys = $argument instanceof Node\Expr\Array_ ? self::getManyKeys($argument) : null;
+                if ($keys === null) {
+                    return;
+                }
             }
         } else {
             return;
@@ -97,10 +117,14 @@ final class ConfigurationKeyContractsHook implements NodeAnalysisHook, Initializ
         if ($this->bindings()->configured('config')) {
             return;
         }
-        $key = PhpSource::argument($reference->args, 0, 'key');
-        if (! $key instanceof Node\Scalar\String_) {
-            return;
+
+        foreach ($keys as $key) {
+            $this->reportMissing($key, $context);
         }
+    }
+
+    private function reportMissing(Node\Scalar\String_ $key, NodeAnalysisContext $context): void
+    {
         $parts = explode('.', $key->value);
         if (count($parts) < 2) {
             // The static index cannot prove that an absent namespace is not package-provided.
@@ -167,7 +191,7 @@ final class ConfigurationKeyContractsHook implements NodeAnalysisHook, Initializ
         && $reference->class instanceof Node\Name
         && strcasecmp($reference->class->toString(), self::FACADE) === 0
         && $reference->name instanceof Node\Identifier
-        && strtolower($reference->name->toString()) === 'get'
+        && in_array(strtolower($reference->name->toString()), ['get', 'getmany'], true)
         && ! $reference->isFirstClassCallable()
             ? $reference
             : null;
@@ -361,7 +385,7 @@ final class ConfigurationKeyContractsHook implements NodeAnalysisHook, Initializ
     }
 
     /** @param array<array-key, Node\Arg|Node\VariadicPlaceholder> $arguments */
-    private static function validArguments(array $arguments): bool
+    private static function validGetArguments(array $arguments): bool
     {
         if (count($arguments) > 2) {
             return false;
@@ -378,6 +402,90 @@ final class ConfigurationKeyContractsHook implements NodeAnalysisHook, Initializ
         }
 
         return true;
+    }
+
+    /** @param array<array-key, Node\Arg|Node\VariadicPlaceholder> $arguments */
+    private static function validGetManyArguments(array $arguments): bool
+    {
+        if (count($arguments) > 1) {
+            return false;
+        }
+        foreach ($arguments as $argument) {
+            if (
+                ! $argument instanceof Node\Arg
+                || $argument->unpack
+                || $argument->name !== null
+                && $argument->name->toString() !== 'keys'
+            ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Mirror Repository::getMany() for a closed array literal. Numeric array keys
+     * select their values as configuration names; non-numeric string keys are the
+     * names and their values are defaults. Unknown, unpacked, referenced,
+     * duplicate and negative integer keys defer the complete call because array
+     * overwrite and append behavior can change the effective entries.
+     *
+     * @return list<Node\Scalar\String_>|null
+     */
+    private static function getManyKeys(Node\Expr\Array_ $array): ?array
+    {
+        /** @var array<int|string, Node\Scalar\String_|null> $entries */
+        $entries = [];
+        $next = 0;
+        foreach ($array->items as $item) {
+            if ($item->unpack || $item->byRef) {
+                return null;
+            }
+            $numeric = false;
+            if ($item->key === null) {
+                if ($next === PHP_INT_MAX) {
+                    return null;
+                }
+                $key = $next++;
+                $numeric = true;
+            } elseif ($item->key instanceof Node\Scalar\LNumber) {
+                $key = $item->key->value;
+                $numeric = true;
+                if ($key < 0 || $key === PHP_INT_MAX) {
+                    return null;
+                }
+                $next = max($next, $key + 1);
+            } elseif ($item->key instanceof Node\Scalar\String_) {
+                $numeric = is_numeric($item->key->value);
+                $key = self::arrayStringKey($item->key->value);
+                if (is_int($key)) {
+                    if ($key < 0 || $key === PHP_INT_MAX) {
+                        return null;
+                    }
+                    $next = max($next, $key + 1);
+                }
+            } else {
+                return null;
+            }
+            if (array_key_exists($key, $entries)) {
+                return null;
+            }
+            $name = $numeric ? $item->value : $item->key;
+            $entries[$key] = $name instanceof Node\Scalar\String_ ? $name : null;
+        }
+
+        return array_values(array_filter(
+            $entries,
+            static fn (?Node\Scalar\String_ $key): bool => $key instanceof Node\Scalar\String_,
+        ));
+    }
+
+    private static function arrayStringKey(string $key): int|string
+    {
+        $integer = (int) $key;
+
+        return (string) $integer === $key ? $integer : $key;
     }
 
     private function hasCompleteRuntime(): bool

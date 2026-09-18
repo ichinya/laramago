@@ -43,7 +43,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 35 | Literal configuration result types | already-covered; Verified literal config and native Config::get types with configuration and configuration-index suites. |
 | 36 | Additional configuration call sites | already-covered; Native config and Config::get literal results verified in configuration/framework-contract tests. Arbitrary Repository instances cannot inherit the application index without producer provenance. |
 | 37 | Complete configuration key diagnostics | implemented; Complete runtime assertions plus source-complete parents enable native helper/facade key diagnostics. Custom app/repository dispatch, bindings, dynamic branches and native errors retain priority. |
-| 38 | Configuration getMany key validation | queued |
+| 38 | Configuration getMany key validation | implemented; Native Config getMany validates literal list/default keys under existing complete catalogs; numeric semantics, custom dispatch, duplicate/reference/negative/overflow deferrals and native errors pass real-Mago checks. |
 | 39 | Typed configuration getters | queued |
 | 40 | Config injection attribute references | queued |
 | 41 | Configuration push and prepend targets | queued |

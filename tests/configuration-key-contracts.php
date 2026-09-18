@@ -92,8 +92,49 @@ $cases = [
     'dynamic facade key deferred' => ['$key = (string) random_int(1, 2); Config::get($key);', []],
     'unpacked facade call deferred' => ['Config::get(...["example.missing"]);', []],
     'invalid facade name remains native' => ['Config::get(Key: "example.missing");', ['invalid-named-argument']],
-    'getMany remains native' => ['Config::getMany(["example.missing"]);', ['non-documented-method']],
+    'known getMany list' => ['Config::getMany(["example.name", "example.nested.count"]);', []],
+    'missing getMany list key' => ['Config::getMany(["example.missing"]);', $missing],
+    'multiple missing getMany keys' => [
+        'Config::getMany(["example.missing", "example.nested.missing"]);',
+        [...$missing, ...$missing],
+    ],
+    'known getMany key with default' => ['Config::getMany(["example.name" => 42]);', []],
+    'missing getMany key with default' => ['Config::getMany(["example.missing" => 42]);', $missing],
+    'numeric getMany key selects value' => ['Config::getMany([4 => "example.missing"]);', $missing],
+    'numeric string getMany key selects value' => ['Config::getMany(["08" => "example.missing"]);', $missing],
+    'named getMany keys' => ['Config::getMany(keys: ["example.missing"]);', $missing],
+    'dynamic getMany entry deferred' => ['$key = (string) random_int(1, 2); Config::getMany([$key]);', []],
+    'computed getMany array key deferred' => [
+        '$offset = random_int(1, 2); Config::getMany([$offset => "example.missing"]);',
+        [],
+    ],
+    'dynamic getMany array deferred' => ['$keys = ["example.missing"]; Config::getMany($keys);', []],
+    'unpacked getMany array deferred' => [
+        '$keys = ["example.name"]; Config::getMany(["example.missing", ...$keys]);',
+        [],
+    ],
+    'duplicate getMany array key deferred' => [
+        'Config::getMany([0 => "example.missing", 0 => "example.name"]);',
+        ['duplicate-array-key'],
+    ],
+    'negative string getMany key sequence deferred' => [
+        'Config::getMany(["-2" => "example.missing", "example.name", 0 => "example.name"]);',
+        ['duplicate-array-key'],
+    ],
+    'referenced getMany item deferred' => [
+        '$default = 42; Config::getMany(["example.missing" => &$default]);',
+        [],
+    ],
+    'maximum implicit getMany index deferred' => [
+        'Config::getMany([9223372036854775806 => "example.name", "example.missing"]);',
+        [],
+    ],
+    'invalid getMany name remains native' => [
+        'Config::getMany(Keys: ["example.missing"]);',
+        ['invalid-named-argument'],
+    ],
     'repository instance excluded' => ['(new Repository)->get("example.missing");', []],
+    'repository getMany instance excluded' => ['(new Repository)->getMany(["example.missing"]);', []],
 ];
 $source = <<<'PHP'
     <?php
@@ -188,7 +229,14 @@ if ($actual !== []) {
     throw new RuntimeException('Unexpected diagnostics outside configuration key scenarios; inspect '.$workspace);
 }
 
-$nativeOnly = ['invalid-argument', 'invalid-named-argument', 'invalid-named-argument', 'non-documented-method'];
+$nativeOnly = [
+    'invalid-argument',
+    'invalid-named-argument',
+    'invalid-named-argument',
+    'invalid-named-argument',
+    'duplicate-array-key',
+    'duplicate-array-key',
+];
 $guards = [
     'no-contract' => null,
     'incomplete-contract' => ['complete' => false, 'runtime-configuration-unchanged' => true],
@@ -314,7 +362,11 @@ if ($guardExit !== 0 || ($guardReport['issues'] ?? []) !== []) {
 echo "PASS: custom app helper dispatch defers\n";
 file_put_contents($workspace.'/'.$helpers, $nativeHelpers);
 
-file_put_contents($workspace.'/cases.php', '<?php \\Illuminate\\Support\\Facades\\Config::get("example.missing");');
+file_put_contents(
+    $workspace.'/cases.php',
+    '<?php \\Illuminate\\Support\\Facades\\Config::get("example.missing");'
+    .' \\Illuminate\\Support\\Facades\\Config::getMany(["example.missing"]);',
+);
 $configuration = $originalConfiguration;
 file_put_contents($workspace.'/mago.json', json_encode($configuration, JSON_THROW_ON_ERROR));
 $facadePath = $framework.'/Support/Facades/Config.php';
@@ -326,32 +378,44 @@ if ($guardExit !== 0 || ($guardReport['issues'] ?? []) !== []) {
 }
 echo "PASS: custom facade dispatch defers\n";
 file_put_contents($facadePath, $facadeSource);
-$nativeMethod = 'public static function get(array|string $key, mixed $default = null): mixed { return 42; }';
-foreach (['direct', 'inherited', 'inherited-trait'] as $dispatch) {
-    $alteredFacade = str_replace("\r\n", "\n", $facadeSource);
-    if ($dispatch === 'direct') {
-        $alteredFacade = str_replace("{\n", "{\n    ".$nativeMethod."\n", $alteredFacade);
-    } else {
-        $parentBody = $dispatch === 'inherited-trait' ? 'use CustomConfigMethods;' : $nativeMethod;
-        $ancestors = $dispatch === 'inherited-trait' ? 'trait CustomConfigMethods { '.$nativeMethod.' }' : '';
-        $ancestors .=
-            'class IntermediateConfig extends Facade { '
-            .$parentBody
-            .' } class BridgeConfig extends IntermediateConfig {}';
-        $alteredFacade = str_replace(
-            'final class Config extends Facade',
-            'final class Config extends BridgeConfig',
-            $alteredFacade,
-        );
-        // Keep the facade PHPDoc attached to Config so pseudo metadata can mask the method.
-        $alteredFacade = str_replace('/** @method', $ancestors."\n/** @method", $alteredFacade);
+$concreteMethods = [
+    'get' => [
+        '<?php \\Illuminate\\Support\\Facades\\Config::get("example.missing");',
+        'public static function get(array|string $key, mixed $default = null): mixed { return 42; }',
+    ],
+    'getMany' => [
+        '<?php \\Illuminate\\Support\\Facades\\Config::getMany(["example.missing"]);',
+        'public static function getMany(array $keys): array { return []; }',
+    ],
+];
+foreach ($concreteMethods as $method => [$call, $nativeMethod]) {
+    file_put_contents($workspace.'/cases.php', $call);
+    foreach (['direct', 'inherited', 'inherited-trait'] as $dispatch) {
+        $alteredFacade = str_replace("\r\n", "\n", $facadeSource);
+        if ($dispatch === 'direct') {
+            $alteredFacade = str_replace("{\n", "{\n    ".$nativeMethod."\n", $alteredFacade);
+        } else {
+            $parentBody = $dispatch === 'inherited-trait' ? 'use CustomConfigMethods;' : $nativeMethod;
+            $ancestors = $dispatch === 'inherited-trait' ? 'trait CustomConfigMethods { '.$nativeMethod.' }' : '';
+            $ancestors .=
+                'class IntermediateConfig extends Facade { '
+                .$parentBody
+                .' } class BridgeConfig extends IntermediateConfig {}';
+            $alteredFacade = str_replace(
+                'final class Config extends Facade',
+                'final class Config extends BridgeConfig',
+                $alteredFacade,
+            );
+            // Keep the facade PHPDoc attached to Config so pseudo metadata can mask the method.
+            $alteredFacade = str_replace('/**', $ancestors."\n/**", $alteredFacade);
+        }
+        file_put_contents($facadePath, $alteredFacade);
+        [$guardExit, $guardReport] = $analyze('concrete-facade-'.$method.'-'.$dispatch);
+        if ($guardExit !== 0 || ($guardReport['issues'] ?? []) !== []) {
+            throw new RuntimeException('Concrete '.$dispatch.' facade '.$method.' must defer; inspect '.$workspace);
+        }
+        echo 'PASS: concrete '.$dispatch.' facade '.$method." retains priority\n";
     }
-    file_put_contents($facadePath, $alteredFacade);
-    [$guardExit, $guardReport] = $analyze('concrete-facade-'.$dispatch);
-    if ($guardExit !== 0 || ($guardReport['issues'] ?? []) !== []) {
-        throw new RuntimeException('Concrete '.$dispatch.' facade method must defer; inspect '.$workspace);
-    }
-    echo 'PASS: concrete '.$dispatch." facade method retains priority\n";
 }
 file_put_contents($facadePath, $facadeSource);
 file_put_contents($workspace.'/cases.php', $originalSource);

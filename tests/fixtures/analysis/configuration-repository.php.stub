@@ -2,13 +2,40 @@
 
 declare(strict_types=1);
 
+// Laravel excerpts: Copyright (c) Taylor Otwell. See configuration-LICENSE.md.
+
 namespace Illuminate\Config;
 
 class Repository
 {
+    /** @var array<string, mixed> */
+    protected array $items = [];
+
     /**
      * @param array|string $key
      * @return mixed
      */
-    public function get($key, mixed $default = null): mixed { return null; }
+    public function get($key, mixed $default = null): mixed
+    {
+        return null;
+    }
+
+    /**
+     * @param array<string|int, mixed> $keys
+     * @return array<string, mixed>
+     */
+    public function getMany($keys)
+    {
+        $config = [];
+
+        foreach ($keys as $key => $default) {
+            if (is_numeric($key)) {
+                [$key, $default] = [$default, null];
+            }
+
+            $config[$key] = \Illuminate\Support\Arr::get($this->items, $key, $default);
+        }
+
+        return $config;
+    }
 }
