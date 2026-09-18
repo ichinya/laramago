@@ -126,6 +126,50 @@ final class ModelFieldNamesHook implements ClassLikeAnalysisHook
         ],
     ];
 
+    /** @var array<string, array{owners: list<string>, file: string, visibility: Visibility}> */
+    private const NATIVE_APPENDS_DISPATCH = [
+        'toArray' => [
+            'owners' => [self::MODEL],
+            'file' => 'Illuminate/Database/Eloquent/Model.php',
+            'visibility' => Visibility::Public,
+        ],
+        'attributesToArray' => [
+            'owners' => [self::MODEL, self::HAS_ATTRIBUTES],
+            'file' => 'Illuminate/Database/Eloquent/Concerns/HasAttributes.php',
+            'visibility' => Visibility::Public,
+        ],
+        'getArrayableAppends' => [
+            'owners' => [self::MODEL, self::HAS_ATTRIBUTES],
+            'file' => 'Illuminate/Database/Eloquent/Concerns/HasAttributes.php',
+            'visibility' => Visibility::Protected,
+        ],
+        'getArrayableItems' => [
+            'owners' => [self::MODEL, self::HAS_ATTRIBUTES],
+            'file' => 'Illuminate/Database/Eloquent/Concerns/HasAttributes.php',
+            'visibility' => Visibility::Protected,
+        ],
+        'getAppends' => [
+            'owners' => [self::MODEL, self::HAS_ATTRIBUTES],
+            'file' => 'Illuminate/Database/Eloquent/Concerns/HasAttributes.php',
+            'visibility' => Visibility::Public,
+        ],
+        'mutateAttributeForArray' => [
+            'owners' => [self::MODEL, self::HAS_ATTRIBUTES],
+            'file' => 'Illuminate/Database/Eloquent/Concerns/HasAttributes.php',
+            'visibility' => Visibility::Protected,
+        ],
+        'getHidden' => [
+            'owners' => [self::MODEL, self::HIDES_ATTRIBUTES],
+            'file' => 'Illuminate/Database/Eloquent/Concerns/HidesAttributes.php',
+            'visibility' => Visibility::Public,
+        ],
+        'getVisible' => [
+            'owners' => [self::MODEL, self::HIDES_ATTRIBUTES],
+            'file' => 'Illuminate/Database/Eloquent/Concerns/HidesAttributes.php',
+            'visibility' => Visibility::Public,
+        ],
+    ];
+
     private readonly ModelFieldCatalog $fields;
     private ?string $sourceHash = null;
     /** @var array<string, Node\Stmt\Class_> */
@@ -150,7 +194,7 @@ final class ModelFieldNamesHook implements ClassLikeAnalysisHook
     {
         $class = $this->classNode($context);
         $model = $class?->namespacedName?->toString();
-        if ($class === null || $model === null || ! $this->fields->has($model)) {
+        if ($class === null || $model === null || ! $this->fields->hasAny($model)) {
             return;
         }
         $metadata = $context->codebase->getClass($model);
@@ -160,7 +204,8 @@ final class ModelFieldNamesHook implements ClassLikeAnalysisHook
         $nativeFillable = self::hasNativeDispatch($context, $model, self::NATIVE_DISPATCH);
         $nativeGuarded = self::hasNativeDispatch($context, $model, self::NATIVE_GUARDED_DISPATCH);
         $nativeHidden = self::hasNativeDispatch($context, $model, self::NATIVE_HIDDEN_DISPATCH);
-        if (! $nativeFillable && ! $nativeGuarded && ! $nativeHidden) {
+        $nativeAppends = self::hasNativeDispatch($context, $model, self::NATIVE_APPENDS_DISPATCH);
+        if (! $nativeFillable && ! $nativeGuarded && ! $nativeHidden && ! $nativeAppends) {
             return;
         }
         foreach ($class->stmts as $statement) {
@@ -174,6 +219,7 @@ final class ModelFieldNamesHook implements ClassLikeAnalysisHook
                     'fillable' => $nativeFillable,
                     'guarded' => $nativeGuarded,
                     'hidden', 'visible' => $nativeHidden,
+                    'appends' => $nativeAppends,
                     default => null,
                 };
                 if (
@@ -205,6 +251,7 @@ final class ModelFieldNamesHook implements ClassLikeAnalysisHook
                     $contains = match ($propertyName) {
                         'guarded' => $this->fields->containsCaseInsensitive($model, $name),
                         'hidden', 'visible' => $this->fields->containsSerializationKey($model, $name),
+                        'appends' => $this->fields->containsAppendableKey($model, $name),
                         default => $this->fields->contains($model, $name),
                     };
                     if ($contains !== false) {
@@ -212,15 +259,17 @@ final class ModelFieldNamesHook implements ClassLikeAnalysisHook
                     }
                     $context->report(
                         Level::Warning,
-                        $serializationFilter
-                            ? 'laramago-missing-model-serialization-key'
-                            : 'laramago-missing-model-field',
+                        match (true) {
+                            $propertyName === 'appends' => 'laramago-missing-model-appendable-key',
+                            $serializationFilter => 'laramago-missing-model-serialization-key',
+                            default => 'laramago-missing-model-field',
+                        },
                         Issue::at(
-                            ucfirst($propertyName)
-                            .' name '
-                            .$name
-                            .' is absent from the complete '
-                            .($serializationFilter ? 'serialization key' : 'field')
+                            ucfirst($propertyName).' name '.$name.' is absent from the complete '.match (true) {
+                                $propertyName === 'appends' => 'appendable key',
+                                $serializationFilter => 'serialization key',
+                                default => 'field',
+                            }
                             .' catalog for '
                             .$model
                             .'.',

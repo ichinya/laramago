@@ -1,6 +1,6 @@
 # Model field catalogs
 
-Literal `$fillable`, `$guarded`, `$hidden` and `$visible` names can be checked
+Literal `$fillable`, `$guarded`, `$hidden`, `$visible` and `$appends` names can be checked
 against explicit complete catalogs for an exact model class:
 
 ```json
@@ -14,6 +14,10 @@ against explicit complete catalogs for an exact model class:
           "serialization": {
             "complete": true,
             "keys": ["author", "display_name"]
+          },
+          "appends": {
+            "complete": true,
+            "keys": ["display_name"]
           }
         }
       }
@@ -45,6 +49,14 @@ Relationship keys use the name stored on the model before serialization. For
 example, list `userProfile`, not the `user_profile` key that Laravel may emit
 after the hidden filter runs. Appended names use their stored append key.
 
+The independent `appends` contract identifies every key that native append
+serialization can resolve. Its complete `keys` list must include legacy get
+accessors, `Attribute` accessors with a getter, and class-cast keys. Ordinary
+fields, relationship names and primitive casts are not appendable merely because
+they occur in `fields` or `serialization.keys`. Keep a key in both lists when it
+is both appendable and filterable. This contract can be used without a complete
+field or serialization contract.
+
 The analyzer reports `laramago-missing-model-field` only for unkeyed literal
 string items in directly declared `$fillable` or `$guarded` arrays on the
 cataloged model. The exact guarded array `['*']` retains Laravel's total-guard
@@ -55,6 +67,11 @@ With a complete nested serialization contract, the analyzer reports
 `laramago-missing-model-serialization-key` for a literal name in the exact
 model's directly declared `$hidden` or `$visible` array only when it is absent
 from both `fields` and `serialization.keys`.
+
+With a complete nested appends contract, the analyzer reports
+`laramago-missing-model-appendable-key` for an unkeyed literal string in the
+exact model's directly declared `$appends` array only when it is absent from
+`appends.keys`. Matching is case-sensitive.
 
 Laravel applies a non-empty `$visible` array as an allowlist before applying
 `$hidden`; an empty `$visible` array leaves the values unfiltered. The analyzer
@@ -74,3 +91,10 @@ Hidden and visible validation also defer for non-literal effective arrays, custo
 serialization dispatch such as `toArray()`, arrayable attribute, append, or
 relationship collection. The analyzer never resolves runtime relationships or
 executes serialization.
+
+Appends validation likewise requires native `toArray()`, `attributesToArray()`,
+append collection, visibility filtering and append mutation dispatch. Custom
+`getAppends()`, `mutateAttributeForArray()` or related serialization methods
+defer. The contract is the proof for accessors whose getter availability or
+class-cast registration depends on runtime behavior; application methods and
+casters are never invoked.

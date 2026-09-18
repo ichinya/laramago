@@ -29,6 +29,7 @@ $serializable = static fn (array $fields, array $keys): array => [
     ...$complete($fields),
     'serialization' => ['complete' => true, 'keys' => $keys],
 ];
+$appendable = static fn (array $keys): array => ['appends' => ['complete' => true, 'keys' => $keys]];
 file_put_contents($workspace.'/composer.json', json_encode([
     'extra' => [
         'laramago' => [
@@ -60,6 +61,28 @@ file_put_contents($workspace.'/composer.json', json_encode([
                 'Example\\EmptyVisibleRecord' => $serializable([], []),
                 'Example\\OpenVisibleRecord' => $complete([]),
                 'Example\\DynamicVisibleRecord' => $serializable([], []),
+                'Example\\CompleteAppendsRecord' => [
+                    ...$serializable(['known', 'primitive_value'], [
+                        'userProfile',
+                        'legacy_value',
+                        'modern_value',
+                        'class_value',
+                        'primitive_value',
+                    ]),
+                    ...$appendable(['legacy_value', 'modern_value', 'class_value']),
+                ],
+                'Example\\AppendsOnlyRecord' => $appendable(['legacy_value']),
+                'Example\\IncompleteAppendsRecord' => [
+                    ...$complete([]),
+                    'appends' => ['complete' => false, 'keys' => []],
+                ],
+                'Example\\DynamicAppendsRecord' => [...$complete([]), ...$appendable([])],
+                'Example\\MalformedAppendsRecord' => [
+                    ...$complete([]),
+                    'appends' => ['complete' => true, 'keys' => [false]],
+                ],
+                'Example\\CustomGetAppendsRecord' => [...$complete([]), ...$appendable([])],
+                'Example\\CustomAppendMutationRecord' => [...$complete([]), ...$appendable([])],
                 'Example\\DynamicRecord' => $complete(['known']),
                 'Example\\UnpackedRecord' => $complete([]),
                 'Example\\CustomConnectionRecord' => $complete(['remote_only']),
@@ -150,11 +173,16 @@ foreach (explode("\n", $fixture) as $offset => $line) {
         || str_contains($line, '// visible-output-key')
         || str_contains($line, '// visible-case-mismatch')
         || str_contains($line, '// visible-missing')
+        || str_contains($line, '// appends-')
     ) {
         $expected[$offset + 1] = [
-            str_contains($line, '// hidden-') || str_contains($line, '// visible-')
-                ? 'ichinya/laramago/laramago-missing-model-serialization-key'
-                : 'ichinya/laramago/laramago-missing-model-field',
+            match (true) {
+                str_contains($line, '// appends-') => 'ichinya/laramago/laramago-missing-model-appendable-key',
+                str_contains($line, '// hidden-'),
+                str_contains($line, '// visible-'),
+                    => 'ichinya/laramago/laramago-missing-model-serialization-key',
+                default => 'ichinya/laramago/laramago-missing-model-field',
+            },
         ];
     }
 }
@@ -168,7 +196,7 @@ if ($actual !== $expected) {
         .$workspace,
     );
 }
-echo "PASS: complete catalogs validate only safe literal fillable, guarded, hidden and visible names\n";
+echo "PASS: complete catalogs validate only safe literal fillable, guarded, hidden, visible and appended names\n";
 
 $nativeConfig = json_decode(file_get_contents($workspace.'/mago.json'), true, flags: JSON_THROW_ON_ERROR);
 unset($nativeConfig['extension-hosts']);

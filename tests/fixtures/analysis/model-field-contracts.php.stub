@@ -1,8 +1,15 @@
 <?php
 
+namespace Illuminate\Database\Eloquent\Casts {
+    class Attribute {}
+}
+
 namespace Example {
     use Illuminate\Database\Eloquent\Attributes\Fillable;
+    use Illuminate\Database\Eloquent\Casts\Attribute;
     use Illuminate\Database\Eloquent\Model;
+
+    class JsonCast {}
 
     final class LiteralFields
     {
@@ -97,6 +104,84 @@ namespace Example {
     class DynamicVisibleRecord extends Model
     {
         protected $visible = ['key' => 'missing', ...LiteralFields::DYNAMIC];
+    }
+
+    class CompleteAppendsRecord extends Model
+    {
+        protected $casts = [
+            'class_value' => JsonCast::class,
+            'primitive_value' => 'array',
+        ];
+        protected $appends = [
+            'legacy_value',
+            'modern_value',
+            'class_value',
+            'known', // appends-field-only
+            'userProfile', // appends-serialization-only
+            'primitive_value', // appends-primitive-cast
+            'Legacy_Value', // appends-case-mismatch
+            'missing', // appends-missing
+        ];
+
+        public function getLegacyValueAttribute(): string
+        {
+            throw new \RuntimeException('Must not execute');
+        }
+
+        protected function modernValue(): Attribute
+        {
+            throw new \RuntimeException('Must not execute');
+        }
+    }
+
+    class OpenAppendsRecord extends Model
+    {
+        protected $appends = ['missing'];
+    }
+
+    class AppendsOnlyRecord extends Model
+    {
+        protected $appends = ['legacy_value', 'missing']; // appends-only-missing
+
+        public function getLegacyValueAttribute(): string
+        {
+            throw new \RuntimeException('Must not execute');
+        }
+    }
+
+    class IncompleteAppendsRecord extends Model
+    {
+        protected $appends = ['missing'];
+    }
+
+    class DynamicAppendsRecord extends Model
+    {
+        protected $appends = ['key' => 'missing', ...LiteralFields::DYNAMIC];
+    }
+
+    class MalformedAppendsRecord extends Model
+    {
+        protected $appends = ['missing'];
+    }
+
+    class CustomGetAppendsRecord extends Model
+    {
+        protected $appends = ['missing'];
+
+        public function getAppends(): array
+        {
+            throw new \RuntimeException('Must not execute');
+        }
+    }
+
+    class CustomAppendMutationRecord extends Model
+    {
+        protected $appends = ['missing'];
+
+        protected function mutateAttributeForArray($key, $value): mixed
+        {
+            throw new \RuntimeException('Must not execute');
+        }
     }
 
     class ChildRecord extends CompleteRecord

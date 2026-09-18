@@ -11,6 +11,8 @@ final class ModelFieldCatalog
     private array $models = [];
     /** @var array<string, list<string>> */
     private array $serializationKeys = [];
+    /** @var array<string, list<string>> */
+    private array $appendableKeys = [];
 
     public function __construct(string $projectRoot)
     {
@@ -43,59 +45,94 @@ final class ModelFieldCatalog
             if (isset($seen[$key])) {
                 unset($this->models[$key]);
                 unset($this->serializationKeys[$key]);
+                unset($this->appendableKeys[$key]);
                 continue;
             }
             $seen[$key] = true;
-            /** @var mixed $fields */
-            $fields = is_array($catalog) ? $catalog['fields'] ?? null : null;
-            if (
-                ! is_array($catalog)
-                || ($catalog['complete'] ?? null) !== true
-                || ! is_array($fields)
-                || ! array_is_list($fields)
-            ) {
+            if (! is_array($catalog)) {
                 continue;
             }
-            $valid = [];
-            /** @var mixed $field */
-            foreach ($fields as $field) {
-                if (! is_string($field) || $field === '' || str_contains($field, "\0")) {
-                    continue 2;
+            /** @var mixed $fields */
+            $fields = $catalog['fields'] ?? null;
+            if (
+                ($catalog['complete'] ?? null) === true
+                && is_array($fields)
+                && array_is_list($fields)
+            ) {
+                $valid = [];
+                /** @var mixed $field */
+                foreach ($fields as $field) {
+                    if (! is_string($field) || $field === '' || str_contains($field, "\0")) {
+                        $valid = null;
+                        break;
+                    }
+                    $valid[] = $field;
                 }
-                $valid[] = $field;
+                if ($valid !== null) {
+                    $this->models[$key] = array_values(array_unique($valid));
+                }
             }
-            $this->models[$key] = array_values(array_unique($valid));
             /** @var mixed $serialization */
             $serialization = $catalog['serialization'] ?? null;
             /** @var mixed $keys */
             $keys = is_array($serialization) ? $serialization['keys'] ?? null : null;
             if (
-                ! is_array($serialization)
-                || ($serialization['complete'] ?? null) !== true
-                || ! is_array($keys)
-                || ! array_is_list($keys)
+                is_array($serialization)
+                && ($serialization['complete'] ?? null) === true
+                && is_array($keys)
+                && array_is_list($keys)
+            ) {
+                $valid = [];
+                /** @var mixed $serializationKey */
+                foreach ($keys as $serializationKey) {
+                    if (
+                        ! is_string($serializationKey)
+                        || $serializationKey === ''
+                        || str_contains($serializationKey, "\0")
+                    ) {
+                        $valid = null;
+                        break;
+                    }
+                    $valid[] = $serializationKey;
+                }
+                if ($valid !== null) {
+                    $this->serializationKeys[$key] = array_values(array_unique($valid));
+                }
+            }
+            /** @var mixed $appends */
+            $appends = $catalog['appends'] ?? null;
+            /** @var mixed $appendableKeys */
+            $appendableKeys = is_array($appends) ? $appends['keys'] ?? null : null;
+            if (
+                ! is_array($appends)
+                || ($appends['complete'] ?? null) !== true
+                || ! is_array($appendableKeys)
+                || ! array_is_list($appendableKeys)
             ) {
                 continue;
             }
             $valid = [];
-            /** @var mixed $serializationKey */
-            foreach ($keys as $serializationKey) {
-                if (
-                    ! is_string($serializationKey)
-                    || $serializationKey === ''
-                    || str_contains($serializationKey, "\0")
-                ) {
+            /** @var mixed $appendableKey */
+            foreach ($appendableKeys as $appendableKey) {
+                if (! is_string($appendableKey) || $appendableKey === '' || str_contains($appendableKey, "\0")) {
                     continue 2;
                 }
-                $valid[] = $serializationKey;
+                $valid[] = $appendableKey;
             }
-            $this->serializationKeys[$key] = array_values(array_unique($valid));
+            $this->appendableKeys[$key] = array_values(array_unique($valid));
         }
     }
 
     public function has(string $model): bool
     {
         return array_key_exists(strtolower(ltrim($model, '\\')), $this->models);
+    }
+
+    public function hasAny(string $model): bool
+    {
+        $key = strtolower(ltrim($model, '\\'));
+
+        return array_key_exists($key, $this->models) || array_key_exists($key, $this->appendableKeys);
     }
 
     /**
@@ -140,6 +177,17 @@ final class ModelFieldCatalog
         }
 
         return in_array($name, $this->models[$key], true) || in_array($name, $this->serializationKeys[$key], true);
+    }
+
+    /**
+     * Return whether native append serialization may resolve a key through a
+     * legacy/Attribute accessor or class cast under an explicit complete contract.
+     */
+    public function containsAppendableKey(string $model, string $name): ?bool
+    {
+        $keys = $this->appendableKeys[strtolower(ltrim($model, '\\'))] ?? null;
+
+        return $keys === null ? null : in_array($name, $keys, true);
     }
 
     /** @return list<string>|null */
