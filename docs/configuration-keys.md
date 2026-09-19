@@ -51,7 +51,12 @@ referenced entries, computed or duplicate array keys and negative integer-coerci
 keys because array overwrite and append behavior can change the effective entries.
 Positional arguments and named `key:` or `keys:` arguments are supported where Laravel declares them.
 
-Repository instances, `Config::get()` array forwarding, injection attributes, `push()`,
+Native `#[Illuminate\Container\Attributes\Config('app.key')]` injection attributes
+also check literal keys under this contract. The constructor, resolver, container
+contract and configuration repository must retain their native declarations.
+Cataloged contextual attribute handlers, service replacements and dynamic keys defer.
+
+Repository instances, `Config::get()` array forwarding, `push()`,
 `prepend()` and other configuration operations remain outside this contract.
 Existing native signatures, PHPDoc, argument diagnostics and return types retain
 priority. Laramago reads Composer JSON, PHP syntax and installed framework metadata

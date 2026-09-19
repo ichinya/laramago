@@ -45,7 +45,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 37 | Complete configuration key diagnostics | implemented; Complete runtime assertions plus source-complete parents enable native helper/facade key diagnostics. Custom app/repository dispatch, bindings, dynamic branches and native errors retain priority. |
 | 38 | Configuration getMany key validation | implemented; Native Config getMany validates literal list/default keys under existing complete catalogs; numeric semantics, custom dispatch, duplicate/reference/negative/overflow deferrals and native errors pass real-Mago checks. |
 | 39 | Typed configuration getters | implemented; Six native typed Config getters reuse complete-key diagnostics while retaining native results; exact repository provenance, resolved class identities and helper bodies guard custom chains. Integrated config/getMany regressions pass. |
-| 40 | Config injection attribute references | queued |
+| 40 | Config injection attribute references | implemented; Exact native Config injection attributes validate literal keys under complete runtime/source catalogs; native resolver/container/repository provenance and contextual-handler deferrals pass 23 real-Mago scenarios. |
 | 41 | Configuration push and prepend targets | deferred; Native writer inputs already checked: twelve real-Mago scenarios preserve native diagnostics. Missing push/prepend targets are valid initialization; value diagnostics need independently proven pre-call repository contents. |
 | 42 | Configuration declaration locations | queued |
 | 43 | Explicit environment name catalogs | queued |

@@ -64,6 +64,9 @@ final class LaravelPlugin implements Plugin
         $configurationKeys = new ConfigurationKeyContractsHook($this->projectRoot);
         $registry->registerNodeAnalysisHook($configurationKeys);
         $registry->registerInitializationHook($configurationKeys);
+        $configurationAttributes = new ConfigurationAttributeContractsHook($this->projectRoot);
+        $registry->registerNodeAnalysisHook($configurationAttributes);
+        $registry->registerInitializationHook($configurationAttributes);
         $registry->registerMethodReturnTypeProvider(new FacadeCallProvider($this->projectRoot));
         $registry->registerMethodReturnTypeProvider(new TransactionProvider($this->projectRoot));
         $translations = new TranslationStringProvider($this->projectRoot);
