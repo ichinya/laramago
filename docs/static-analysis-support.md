@@ -6,6 +6,7 @@ implementation; it does not imply support for every dynamic Laravel behavior.
 
 | Integration | Implemented | Deferred |
 | --- | --- | --- |
+| Blade directive references | [Source-only checker](blade-directive-references.md) returns original byte spans and known, missing or unknown names under an explicitly complete native and custom registry | Runtime compiler changes, directive argument validation, full Blade diagnostics and rendered output |
 | Blade view and translation references | [Source-only scan](blade-references.md) of selected native directives and direct PHP translation calls in Blade, preserving original byte spans and required, optional or conditional lookup semantics | Fallback candidate arrays, dynamic expressions, custom directives, runtime lookup and Blade-source diagnostics |
 | Custom Blade directives | Selected ordered `Blade::directive()` and `Blade::if()` [source catalogs](blade-directives.md), including generated condition names, effective overrides, kinds and original registration spans | Runtime registration discovery, Blade compilation, template completion and missing-directive diagnostics |
 | Blade attribute bags | [Names-only partition metadata](blade-attribute-bags.md) for source-proven anonymous `@props` and class constructor parameters with complete final attribute keys; unconsumed HTML, boolean and Alpine keys remain in the bag | Runtime values, class/style/default merging results, rendered HTML, custom resolvers and invalid-extra-attribute diagnostics |
