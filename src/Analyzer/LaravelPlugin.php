@@ -139,6 +139,9 @@ final class LaravelPlugin implements Plugin
         $storageDisks = new StorageDiskContractsHook($this->projectRoot);
         $registry->registerNodeAnalysisHook($storageDisks);
         $registry->registerInitializationHook($storageDisks);
+        $inertiaEntries = new InertiaEntryReferencesHook($this->projectRoot);
+        $registry->registerNodeAnalysisHook($inertiaEntries);
+        $registry->registerInitializationHook($inertiaEntries);
         $inertiaPages = new InertiaPageReferencesHook($this->projectRoot);
         $registry->registerMethodCallAnalysisHook($inertiaPages);
         $registry->registerInitializationHook($inertiaPages);

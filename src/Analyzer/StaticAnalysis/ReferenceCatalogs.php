@@ -186,6 +186,12 @@ final class ReferenceCatalogs
         return count($paths) > 1 ? $paths : null;
     }
 
+    /** The application explicitly asserts that Inertia's package router macro is active. */
+    public function inertiaRouteMacroActive(): bool
+    {
+        return ($this->inertiaPageConfiguration['route-macro-active'] ?? null) === true;
+    }
+
     public function completeViews(): bool
     {
         return $this->views !== [];

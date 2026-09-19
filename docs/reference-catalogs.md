@@ -76,11 +76,18 @@ and fully qualified calls retain framework identity checks; local shadow functio
 Missing entries report `ichinya/laramago/laramago-missing-view` or
 `ichinya/laramago/laramago-missing-translation` warnings.
 
-Literal component names passed to the installed native `Inertia::render` facade or
-`Inertia\ResponseFactory::render` are checked against a complete `inertia-pages`
+Literal component names passed to the installed native `Inertia::render` facade,
+`Inertia\ResponseFactory::render`, truthy literal `inertia()` helper calls, or
+native `Route::inertia` registrations are checked against a complete `inertia-pages`
 catalog. Missing pages report `ichinya/laramago/laramago-missing-inertia-page`.
 Direct factory subclasses, facade subclasses, custom package replacements, dynamic
 component expressions, argument unpacking and incomplete catalogs defer.
+
+Helper and route checks verify the audited Inertia 3.x forwarding contracts.
+Route checks additionally require `"route-macro-active": true` in `inertia-pages`:
+this asserts that the native provider macro is active, which package installation
+alone cannot prove. Configured router bindings and application macro replacements
+disable route checks. The helper's empty string and `"0"` factory branches remain native.
 
 Unconfigured package namespaces, arbitrary dynamic keys/locales, implicit locale mutation, first-class
 callables, argument unpacking, unsafe/dynamic catalogs, custom helpers and unsupported
