@@ -69,3 +69,13 @@ defer. `exists()` is an intentional existence query, `first()` may use fallbacks
 `file()` accepts a filesystem path, and conditional rendering may never reach lookup;
 these methods do not produce missing-view warnings. This contract also excludes
 runtime finder replacement, name-cache remapping and dynamically added view paths.
+
+Native `Response::view()`, exact `Illuminate\Routing\ResponseFactory::view()` and
+zero-argument `response()->view()` calls also check a literal string view name. Named
+`view`, `data`, `status` and `headers` arguments retain their native positions.
+Response and View factory forwarding, normalization, response helpers and facade
+dispatch must match the audited native declarations. Known response/view/finder
+bindings, subclasses, arbitrary response contract receivers, changed declarations,
+array view candidates, dynamic values and unpacked arguments defer. Array candidates
+use Laravel's `first()` lookup and are not individually required views. The complete
+view catalog remains an assertion of the actual application's finder behavior.

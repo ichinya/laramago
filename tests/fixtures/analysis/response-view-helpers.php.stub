@@ -1,0 +1,32 @@
+<?php
+
+/**
+ * Return a new response from the application.
+ *
+ * @param  \Illuminate\Contracts\View\View|string|array|null  $content
+ * @param  int  $status
+ * @return ($content is null ? \Illuminate\Contracts\Routing\ResponseFactory : \Illuminate\Http\Response)
+ */
+function response($content = \null, $status = 200, array $headers = []): \Illuminate\Contracts\Routing\ResponseFactory|\Illuminate\Http\Response
+{
+    $factory = \app(\Illuminate\Contracts\Routing\ResponseFactory::class);
+    if (\func_num_args() === 0) {
+        return $factory;
+    }
+    return $factory->make($content ?? '', $status, $headers);
+}
+/**
+ * Get the available container instance.
+ *
+ * @template TClass of object
+ *
+ * @param  string|class-string<TClass>|null  $abstract
+ * @return ($abstract is class-string<TClass> ? TClass : ($abstract is null ? \Illuminate\Foundation\Application : mixed))
+ */
+function app($abstract = \null, array $parameters = [])
+{
+    if (\is_null($abstract)) {
+        return \Illuminate\Container\Container::getInstance();
+    }
+    return \Illuminate\Container\Container::getInstance()->make($abstract, $parameters);
+}
