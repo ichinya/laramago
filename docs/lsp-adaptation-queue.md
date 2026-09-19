@@ -139,7 +139,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 131 | Explicit public asset catalogs | implemented; Added lazy opt-in public asset metadata with ordered roots and three-state exact-path lookup. Complete safe catalogs alone prove absence; URLs, encoding, ambiguous case, links and bounded-scan failures defer. Focused filesystem tests, source analysis, formatting and Composer validation pass; item132 owns call-site checks. |
 | 132 | Asset literal references | queued |
 | 133 | Mix manifest parsing | implemented; Explicit Mix manifest paths provide lazy resettable native key/value snapshots, parse/read statuses and independent hot-file observation. Duplicate and numeric key semantics retained; unsupported schema and unsafe paths defer. Focused parsing tests and source/format checks pass; runtime consumers remain separately guarded. |
-| 134 | Mix manifest key references | queued |
+| 134 | Mix manifest key references | implemented; Literal native Mix keys checked under explicit serving assertions, complete manifests and absent hot files; native source, dispatch and namespace guards retain uncertain cases. |
 | 135 | Malformed Mix manifest diagnostics | queued |
 | 136 | Static path helper resolution | implemented; Eight native path helpers retain literal paths under explicit effective-root and native-joining assertions; dynamic and custom contracts defer. |
 | 137 | Path existence in required-file contexts | queued |
