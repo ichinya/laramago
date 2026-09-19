@@ -172,7 +172,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 164 | Blade Livewire component references | implemented; Standalone literal Blade Livewire references retain original spans; missing names require separately complete effective resolution and native syntax assertions. Class-capable names, ambiguous PHP delimiters and dynamic syntax defer. Twenty focused checks and source analysis pass; SDK Blade publication remains unsupported. |
 | 165 | Volt route component references | queued |
 | 166 | Explicit Livewire mount contracts | implemented; Selected explicitly registered Livewire classes expose native mount parameter declarations and direct public property metadata without execution. Defaults are syntax metadata, never caller-requiredness; DI, routing and trait/inherited contracts remain unknown. Focused tests and source analysis pass. |
-| 167 | Livewire event and listener contracts | queued |
+| 167 | Livewire event and listener contracts | implemented; Source-only Livewire On attributes, listener property candidates and component dispatch sites retain provenance and unresolved state. Numeric shorthand is supported; Echo, dynamic events and foreign this contexts defer. Focused tests and source analysis pass; no global missing-listener claim. |
 | 168 | Existing validated field shapes | already-covered; Verified validated field shapes, nested rules and dynamic/custom contract deferrals with focused suites. |
 | 169 | Additional validation declaration contexts | queued |
 | 170 | Versioned built-in validation rule catalog | queued |
