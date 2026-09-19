@@ -202,14 +202,15 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
         foreach ($paths as $path) {
             if ($aggregate) {
                 // Aggregate resolution calls one model method, not the nested eager-load resolver.
-                // Column-selection and malformed alias syntax are outside this name-only check.
-                if (str_contains($path, '.') || str_contains($path, ':')) {
-                    continue;
-                }
+                // Parse the native three-token alias before excluding unsupported relation paths.
+                // Punctuation in the alias does not change which relation method is called.
                 $parts = explode(' ', $path);
                 if (count($parts) === 3 && strtolower($parts[1]) === 'as') {
                     $path = $parts[0];
                 } elseif (count($parts) !== 1) {
+                    continue;
+                }
+                if (str_contains($path, '.') || str_contains($path, ':')) {
                     continue;
                 }
             }

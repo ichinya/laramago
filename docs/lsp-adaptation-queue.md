@@ -38,7 +38,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 30 | Eager-loading callback parameter types | implemented; Direct Builder::with literal-path callbacks receive concrete Relation types under native broad contracts. Real-Mago/native comparisons pass; nested callback arrays remain SDK-deferred. |
 | 31 | Morph callbacks with explicit model classes | implemented; Four native Morph existence callbacks refine explicit fully qualified model targets under per-class runtime identity assertions; 45 morph and native trait callback regressions pass. Unknown morph maps/imports and custom dispatch defer. |
 | 32 | Relation aggregate references | implemented; Seven native Builder with-aggregate methods validate relation references under existing complete catalogs; four real-Mago modes pass. Model/Collection load aggregates defer pending standard collection selection proof; no SQL column/result-property claims. |
-| 33 | Relation aggregate alias syntax | queued |
+| 33 | Relation aggregate alias syntax | implemented; Native three-token aggregate alias extraction precedes relation-path filtering, retaining relation checks with alias punctuation; 58 scenarios in four real-Mago modes pass. No SQL alias validity or aggregate-property inference. |
 | 34 | Query-local aggregate result properties | queued |
 | 35 | Literal configuration result types | already-covered; Verified literal config and native Config::get types with configuration and configuration-index suites. |
 | 36 | Additional configuration call sites | already-covered; Native config and Config::get literal results verified in configuration/framework-contract tests. Arbitrary Repository instances cannot inherit the application index without producer provenance. |

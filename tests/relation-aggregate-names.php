@@ -78,6 +78,26 @@ $cases += [
     ],
     'alias valid' => ['RelationNameRecord::query()->withCount("children as missing");', 'void', []],
     'alias missing relation' => ['RelationNameRecord::query()->withCount("missing AS total");', 'void', $missing],
+    'dotted alias missing relation' => [
+        'RelationNameRecord::query()->withCount("missing as report.total");',
+        'void',
+        $missing,
+    ],
+    'associative colon alias missing relation' => [
+        'RelationNameRecord::query()->withCount(["missing as report:total" => fn () => null]);',
+        'void',
+        $missing,
+    ],
+    'quoted alias missing relation' => [
+        'RelationNameRecord::query()->withCount("missing as `report-total`");',
+        'void',
+        $missing,
+    ],
+    'whitespace in quoted alias deferred' => [
+        'RelationNameRecord::query()->withCount("missing as `report total`");',
+        'void',
+        [],
+    ],
     'malformed alias deferred' => ['RelationNameRecord::query()->withCount("missing  as total");', 'void', []],
     'nested deferred' => ['RelationNameRecord::query()->withCount("children.missing");', 'void', []],
     'column selection deferred' => ['RelationNameRecord::query()->withCount("missing:id");', 'void', []],
