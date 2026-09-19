@@ -141,7 +141,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 133 | Mix manifest parsing | implemented; Explicit Mix manifest paths provide lazy resettable native key/value snapshots, parse/read statuses and independent hot-file observation. Duplicate and numeric key semantics retained; unsupported schema and unsafe paths defer. Focused parsing tests and source/format checks pass; runtime consumers remain separately guarded. |
 | 134 | Mix manifest key references | queued |
 | 135 | Malformed Mix manifest diagnostics | queued |
-| 136 | Static path helper resolution | queued |
+| 136 | Static path helper resolution | implemented; Eight native path helpers retain literal paths under explicit effective-root and native-joining assertions; dynamic and custom contracts defer. |
 | 137 | Path existence in required-file contexts | queued |
 | 138 | Vite manifest adaptation | queued |
 | 139 | Explicit Inertia page catalog | implemented; tests/inertia-page-catalog.php; symlink creation test skipped on host |
