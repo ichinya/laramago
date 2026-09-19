@@ -70,6 +70,9 @@ final class LaravelPlugin implements Plugin
         $environmentNames = new EnvironmentHelperReferencesHook($this->projectRoot);
         $registry->registerNodeAnalysisHook($environmentNames);
         $registry->registerInitializationHook($environmentNames);
+        $environmentMethods = new EnvironmentMethodReferencesHook($this->projectRoot);
+        $registry->registerNodeAnalysisHook($environmentMethods);
+        $registry->registerInitializationHook($environmentMethods);
         $registry->registerMethodReturnTypeProvider(new FacadeCallProvider($this->projectRoot));
         $registry->registerMethodReturnTypeProvider(new TransactionProvider($this->projectRoot));
         $translations = new TranslationStringProvider($this->projectRoot);
