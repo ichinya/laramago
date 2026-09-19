@@ -76,7 +76,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 68 | Controller parameter route and DI contracts | deferred; Controller parameter validation requires finalized route/domain/default/binding/middleware and DI contracts. Native scalar dispatch is positional while model binding uses names; unlisted container bindings do not prove failure. Five framework-only probes and existing controller/route suites passed. |
 | 69 | Static middleware alias catalog | implemented; Metadata-only alias catalog reads explicitly selected literal maps and bounded typed native withMiddleware alias declarations without execution. Unknown and complete empty states differ; exact target spelling is preserved. Forty-one catalog checks and Mago source analysis passed; absence is not a pipeline error. |
 | 70 | Middleware groups and legacy kernel catalog | implemented; Metadata-only group catalog reads selected literal maps or direct legacy Kernel group declarations, preserving order, duplicates and raw nested references. Activation and completeness are explicit independent contracts; legacy aliases and modern callback extraction defer. Thirty-one metadata checks and source analysis passed. |
-| 71 | Middleware name references | queued |
+| 71 | Middleware name references | deferred; Complete alias/group catalogs do not close callable or container resolution. Five native framework probes accept unlisted names and even nonexistent class targets through valid bindings. Missing-name diagnostics require a separate complete resolution contract; existing container suite passed. |
 | 72 | Middleware parameter string parsing | queued |
 | 73 | Middleware class-string references | queued |
 | 74 | Middleware handle contracts | queued |
