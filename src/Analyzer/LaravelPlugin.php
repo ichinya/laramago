@@ -84,6 +84,9 @@ final class LaravelPlugin implements Plugin
         $environmentNames = new EnvironmentHelperReferencesHook($this->projectRoot);
         $registry->registerNodeAnalysisHook($environmentNames);
         $registry->registerInitializationHook($environmentNames);
+        $assetReferences = new AssetReferencesHook($this->projectRoot);
+        $registry->registerNodeAnalysisHook($assetReferences);
+        $registry->registerInitializationHook($assetReferences);
         $environmentMethods = new EnvironmentMethodReferencesHook($this->projectRoot);
         $registry->registerNodeAnalysisHook($environmentMethods);
         $registry->registerInitializationHook($environmentMethods);
