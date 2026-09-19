@@ -63,7 +63,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 55 | Route-name predicate semantics | already-covered; Native bool contracts cover route-name predicates; absent names and wildcard patterns are valid boolean tests, so missing-route warnings would be incorrect. Installed bodies reviewed; existing route/facade suites pass. |
 | 56 | Static literal route registration catalogs | implemented; Explicit named-routes.files extracts a strict native literal registration subset under completeness assertions; unsupported syntax or unsafe/unreadable paths disables the entire catalog. Catalog and real-Mago consumer tests, manual compatibility and source analysis passed. |
 | 57 | Conflicting active route names | deferred; Native route collections replace equal method/domain/URI registrations; names-only catalogs cannot prove distinct surviving routes. Requires ordered active identities, final names and replacement proof. Existing route contract suite: 34 checks passed. |
-| 58 | Required named-route parameters | queued |
+| 58 | Required named-route parameters | deferred; Names-only catalogs cannot prove required URL parameters: mutable URL defaults, domain placeholders and binding-field mapping change satisfaction. Isolated native probe confirms missing-to-valid transition after defaults; 20 existing real-Mago route checks passed. |
 | 59 | Domain optional and default route parameters | queued |
 | 60 | Route declaration diagnostic locations | queued |
 | 61 | Controller class existence in string actions | implemented; tests/controller-action-classes.php; absolute literal actions only |
