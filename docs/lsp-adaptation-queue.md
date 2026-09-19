@@ -140,7 +140,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 132 | Asset literal references | queued |
 | 133 | Mix manifest parsing | implemented; Explicit Mix manifest paths provide lazy resettable native key/value snapshots, parse/read statuses and independent hot-file observation. Duplicate and numeric key semantics retained; unsupported schema and unsafe paths defer. Focused parsing tests and source/format checks pass; runtime consumers remain separately guarded. |
 | 134 | Mix manifest key references | implemented; Literal native Mix keys checked under explicit serving assertions, complete manifests and absent hot files; native source, dispatch and namespace guards retain uncertain cases. |
-| 135 | Malformed Mix manifest diagnostics | queued |
+| 135 | Malformed Mix manifest diagnostics | implemented; Malformed JSON and unsupported Mix manifest shapes produce snapshot warnings at verified native literal callsites; hot, custom and uncertain contexts defer. |
 | 136 | Static path helper resolution | implemented; Eight native path helpers retain literal paths under explicit effective-root and native-joining assertions; dynamic and custom contracts defer. |
 | 137 | Path existence in required-file contexts | queued |
 | 138 | Vite manifest adaptation | queued |
