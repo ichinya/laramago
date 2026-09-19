@@ -88,7 +88,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 80 | Explicit policy mapping catalog | implemented; Explicit native AuthServiceProvider policy maps preserve exact keys and ordered overrides. Metadata only; absence remains unknown. Root added contained project-relative source validation. 26 focused checks and source analysis pass. |
 | 81 | Declarative model-policy attributes | queued |
 | 82 | Policy class references | already-covered; Real Mago preserves four exact native missing class-reference diagnostics with extension enabled and disabled. Four native Gate/Container probes confirm raw policy targets may be valid container keys; additional raw-target checks require closed effective container resolution. |
-| 83 | Policy method availability | queued |
+| 83 | Policy method availability | deferred; Sixteen native Gate probes show missing policy methods are valid fallback or denial. Gate definitions, global callbacks, container substitution, magic methods and guest eligibility prevent declaration-only missing-method diagnostics. |
 | 84 | Gate ability name references | queued |
 | 85 | Gate ability arrays | queued |
 | 86 | Route can and Authorize attributes | queued |
