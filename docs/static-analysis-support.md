@@ -78,7 +78,7 @@ development artifacts and are not part of the package.
 
 `MiddlewareAliasCatalog` reads explicitly asserted effective alias sources without executing the application. See [middleware alias metadata](middleware-aliases.md); alias absence alone is not an invalid-middleware diagnostic.
 
-[Middleware group metadata](middleware-groups.md) preserves selected literal group maps and direct legacy Kernel declarations without expanding or executing the pipeline.
+[Middleware group metadata](middleware-groups.md) preserves selected literal group maps and direct legacy Kernel declarations without executing the pipeline; selected analyzed declarations receive warnings for proven nested-group cycles.
 
 `laramago-missing-pipeline-dispatch` checks only the first directly constructed object in an immediate `(new Illuminate\Pipeline\Pipeline)->send(...)->through([new Pipe, ...])->thenReturn()` chain. Construction must have no arguments; the pipe must be a concrete class without a constructor, parent, traits, magic methods, PHPDoc methods, mixins, or incomplete hierarchy. The array must be an ordinary unkeyed list. It warns only when neither `handle` nor `__invoke` is available. Later pipes may never execute, so they are not diagnosed. Existing methods keep native signature and visibility checking; class strings, routed middleware, container resolution, saved pipeline variables, subclasses, `via()`, and other chain shapes remain outside this check.
 

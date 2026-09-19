@@ -18,6 +18,8 @@ final class PhpSource
     /** @var array<string, array<array-key, Node>|null> */
     private array $files = [];
     /** @var array<string, string> */
+    private array $contentHashes = [];
+    /** @var array<string, string> */
     public array $warnings = [];
 
     public function __construct(
@@ -33,6 +35,12 @@ final class PhpSource
             : $this->root.'/'.$path;
     }
 
+    /** Hash of the exact parsed snapshot, without rereading the file. */
+    public function contentHash(string $path): ?string
+    {
+        return $this->contentHashes[$this->path($path)] ?? null;
+    }
+
     /** @return array<array-key, Node>|null */
     public function read(string $path): ?array
     {
@@ -46,6 +54,7 @@ final class PhpSource
 
             return $this->files[$path] = null;
         }
+        $this->contentHashes[$path] = hash('sha256', $contents);
         try {
             $nodes = $this->parser->parse($contents) ?? [];
 

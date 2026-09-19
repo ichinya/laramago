@@ -12,6 +12,8 @@ final class MiddlewareGroupCatalog
     /** @var array<string, list<string>>|null */
     private ?array $groups = null;
     private bool $complete = false;
+    /** @var array<string, array{path: string, start: int, end: int, hash: string}> */
+    private array $locations = [];
 
     public function __construct(string $root)
     {
@@ -52,7 +54,7 @@ final class MiddlewareGroupCatalog
                 if (! is_string($path) || $path === '') {
                     return;
                 }
-                $entries = self::readFile($source, $path);
+                $entries = $this->readFile($source, $path);
                 if ($entries === null) {
                     return;
                 }
@@ -63,13 +65,19 @@ final class MiddlewareGroupCatalog
             if (! is_string($file) || $file === '' || ! is_string($class) || $class === '') {
                 return;
             }
-            $this->groups = (new KernelMiddlewareDeclarations($source, $file, $class))->groups();
+            $declarations = new KernelMiddlewareDeclarations($source, $file, $class);
+            $this->groups = $declarations->groups();
+            $node = $declarations->groupNode();
+            $path = KernelMiddlewareDeclarations::sourcePath($root, $file);
+            if ($node !== null && $path !== null) {
+                $this->rememberLocations($node, $path, $source->contentHash($path));
+            }
         }
         $this->complete = $complete;
     }
 
     /** @return array<string, list<string>>|null */
-    private static function readFile(PhpSource $source, string $path): ?array
+    private function readFile(PhpSource $source, string $path): ?array
     {
         $resolved = KernelMiddlewareDeclarations::sourcePath($source->root, $path);
         if ($resolved === null) {
@@ -91,12 +99,36 @@ final class MiddlewareGroupCatalog
                 return null;
             }
             $groups = KernelMiddlewareDeclarations::readGroups($node->expr);
-            if ($groups === null) {
+            if ($groups === null || ! $node->expr instanceof Node\Expr\Array_) {
                 return null;
             }
+            $this->rememberLocations($node->expr, $resolved, $source->contentHash($resolved));
         }
 
         return $groups;
+    }
+
+    private function rememberLocations(Node\Expr\Array_ $node, string $path, ?string $hash): void
+    {
+        if ($hash === null) {
+            return;
+        }
+        foreach ($node->items as $item) {
+            if ($item->key instanceof Node\Scalar\String_) {
+                $this->locations[$item->key->value] = [
+                    'path' => str_replace('\\', '/', $path),
+                    'start' => $item->key->getStartFilePos(),
+                    'end' => $item->key->getEndFilePos() + 1,
+                    'hash' => $hash,
+                ];
+            }
+        }
+    }
+
+    /** @return array<string, array{path: string, start: int, end: int, hash: string}> */
+    public function locations(): array
+    {
+        return $this->groups === null ? [] : $this->locations;
     }
 
     /** @return array<string, list<string>>|null Ordered raw entries, without expansion or alias substitution. */

@@ -130,6 +130,19 @@ file_put_contents(
     '<?php namespace Example; class Kernel { protected $middlewareGroups = []; protected $middlewareGroups = []; }',
 );
 $assert($catalog($options)->groups() === null, 'duplicate group properties are unknown');
+$snapshot = new PhpSource($root);
+$before = '<?php return ["before" => []];';
+$after = '<?php return ["after" => []];';
+file_put_contents($root.'/groups.php', $before);
+$nodes = $snapshot->read('groups.php');
+file_put_contents($root.'/groups.php', $after);
+$assert(
+    $snapshot->read('groups.php') === $nodes && $snapshot->contentHash('groups.php') === hash('sha256', $before),
+    'cached AST provenance retains the exact original source snapshot',
+);
+$fresh = new PhpSource($root);
+$fresh->read('groups.php');
+$assert($fresh->contentHash('groups.php') === hash('sha256', $after), 'new source reader observes changed contents');
 foreach (['Kernel.php', 'groups.php', 'override.php', 'invalid.php', 'composer.json'] as $file) {
     unlink($root.'/'.$file);
 }

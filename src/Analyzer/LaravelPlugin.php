@@ -25,6 +25,11 @@ final class LaravelPlugin implements Plugin
 
     public function register(PluginRegistry $registry): void
     {
+        $middlewareCycles = new MiddlewareGroupCyclesHook($this->projectRoot);
+        if ($middlewareCycles->hasSources()) {
+            $registry->registerNodeAnalysisHook($middlewareCycles);
+            $registry->registerInitializationHook($middlewareCycles);
+        }
         $properties = new EloquentPropertyProvider($this->projectRoot);
         $registry->registerMethodCallAnalysisHook(new PipelineDispatchHook($this->projectRoot));
         $registry->registerMethodCallAnalysisHook(new PipelineArityHook($this->projectRoot));

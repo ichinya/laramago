@@ -11,6 +11,7 @@ final class KernelMiddlewareDeclarations
 {
     /** @var array<string, list<string>>|null */
     private ?array $groups = null;
+    private ?Node\Expr\Array_ $groupNode = null;
 
     public function __construct(PhpSource $source, string $file, string $class)
     {
@@ -51,7 +52,15 @@ final class KernelMiddlewareDeclarations
         }
         if (count($properties) === 1 && $declaration->namespacedName !== null) {
             $this->groups = self::readGroups($properties[0]->default, $declaration->namespacedName->toString());
+            if ($this->groups !== null && $properties[0]->default instanceof Node\Expr\Array_) {
+                $this->groupNode = $properties[0]->default;
+            }
         }
+    }
+
+    public function groupNode(): ?Node\Expr\Array_
+    {
+        return $this->groupNode;
     }
 
     /** Project-relative PHP files only, including containment after resolving links. */

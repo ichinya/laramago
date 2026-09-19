@@ -1,6 +1,6 @@
 # Offline middleware group metadata
 
-`MiddlewareGroupCatalog` exposes `groups()`, `contains(string)` and `isComplete()` to metadata consumers. It does not register an analyzer hook or validate middleware arguments, expand groups, instantiate a kernel, execute application code, or read the effective router registry.
+`MiddlewareGroupCatalog` exposes `groups()`, `contains(string)` and `isComplete()` to metadata consumers. The analyzer reports declared nested-group cycles at selected, analyzed source declarations. It does not validate middleware arguments, instantiate a kernel, execute application code, or read the effective router registry.
 
 Select literal group map files in application Composer metadata:
 
@@ -24,6 +24,12 @@ The Kernel reader inspects only a directly declared nonstatic `middlewareGroups`
 
 `complete: true` additionally asserts that every effective group is present, including framework defaults and package registrations. Only then can `contains()` return false for an absent name. Without completeness, absent names return null. Missing files, malformed options, or unsupported values invalidate the entire catalog. There is no implicit `web` or `api` group: native Kernel defaults are empty, whereas modern configuration builds defaults and applies replacements, removals, prepends and appends. Alias completeness is independent of group completeness.
 
-The returned map is declaration metadata, not a resolved pipeline. Laravel checks exact group names before string aliases, and recursively expands nested groups before alias substitution. No inference about that dispatch, pipeline ordering, deduplication, or parameter contracts is made here.
+The returned map is declaration metadata, not a resolved pipeline. Laravel checks exact group names before string aliases, and recursively expands nested groups before alias substitution. Direct resolution first permits a closure alias to bypass a group. No inference about route dispatch, pipeline ordering, deduplication, or parameter contracts is made here.
 
 A false membership result proves only absence from the group catalog. It does not prove an invalid middleware reference: aliases, class names and arbitrary container bindings are separate resolution paths.
+
+## Declared cycles
+
+`laramago-middleware-group-cycle` warns on each group participating in an exact-key directed cycle in the asserted effective map. This is a declaration integrity fact, not a claim that every route fails: direct closure aliases can bypass group expansion and a group may never be used. Nested group traversal checks raw group keys before aliases; strings containing colons remain exact keys, without parameter splitting. The installed Laravel resolver rejects direct self references and recursively traverses longer cycles; the analyzer itself uses a bounded visited set and never executes that resolver.
+
+Positive cycle proof does not require `complete: true`: every edge is supplied by known effective declarations. Unknown members do not prove edges. Unsupported sources invalidate all cycle diagnostics. Later selected files replace both members and diagnostic provenance; superseded declarations are not reported. Warnings appear only when the effective declaration file is analyzed by Mago and its source matches the selected contents. An unindexed metadata file is never annotated. Entry groups merely leading into a cycle and acyclic diamonds do not receive cycle warnings.
