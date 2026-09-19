@@ -91,7 +91,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 83 | Policy method availability | deferred; Sixteen native Gate probes show missing policy methods are valid fallback or denial. Gate definitions, global callbacks, container substitution, magic methods and guest eligibility prevent declaration-only missing-method diagnostics. |
 | 84 | Gate ability name references | deferred; Eight native Gate probes show explicit definition absence does not make an ability invalid: policies, discovery, before/after callbacks and magic methods remain effective. All 28 catalog checks pass. A missing-name diagnostic needs effective dispatch provenance and a separate validity rule. |
 | 85 | Gate ability arrays | already-covered; Exact native Gate aggregate and singular contracts produce ten identical Mago diagnostics with extension enabled and disabled. Thirteen native iteration probes cover empty arrays, short-circuiting and nested any semantics. Per-element name diagnostics retain item084 limits. |
-| 86 | Route can and Authorize attributes | queued |
+| 86 | Route can and Authorize attributes | already-covered; Fifteen exact real-Mago diagnostics for native Route can and Authorize attributes match with extension enabled and disabled; fifteen native serialization and model-token probes pass. Ability-name checks remain deferred under policy, callback and custom Gate dispatch. |
 | 87 | Policy model argument compatibility | queued |
 | 88 | Additional policy arguments | queued |
 | 89 | Class-level policy abilities | queued |
