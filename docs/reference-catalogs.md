@@ -166,3 +166,27 @@ false, zero, empty-string or array values conservatively defer; this check does
 not assert a useful translated value. Numeric JSON object keys defer because
 native file loading renumbers integer keys. Malformed/unreadable JSON, dynamic
 locales and filesystem-ambiguous group names defer. Catalog files are never run.
+
+## Package translation namespace hints
+
+A complete `translations` catalog may declare an optional final namespace map:
+
+```json
+"namespaces": {"billing": "packages/billing/lang"}
+```
+
+Each value is the single project-relative hint directory selected by Laravel's native
+`FileLoader::addNamespace()`. This map is an explicit assertion, not provider discovery.
+Unknown namespaces remain unknown. Literal `billing::messages.key` references check
+requested-locale JSON first, then the package hint and application
+`<translations.path>/vendor/billing/<locale>/messages.php` for every configured PHP
+fallback locale. No package JSON directory is inferred. Configured hint directories
+must exist and resolve inside the application; paths with spaces are supported.
+
+The check proves absence only when both package and override catalogs lack the key.
+Any possible declaration suppresses a warning: recursive overrides which replace an
+existing parent therefore conservatively defer instead of claiming the key survives.
+Dynamic arrays, dotted literal array keys, malformed/unreadable files, case-ambiguous
+paths and nested symlinks also defer. No provider, translation file or bootstrap runs.
+Missing names reuse `laramago-missing-translation`; custom-loader and runtime-injection
+exclusions of the complete translations contract still apply.

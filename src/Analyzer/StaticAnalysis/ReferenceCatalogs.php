@@ -14,6 +14,7 @@ final class ReferenceCatalogs
     private ?ViewNamespaceCatalog $viewNamespaces = null;
     private ?ViewSuggestions $viewSuggestions = null;
     private ?string $translations = null;
+    private ?TranslationNamespaceCatalog $translationNamespaces = null;
     private readonly PhpSource $source;
     /** @var array<string, list<string>> */
     private array $locales = [];
@@ -108,6 +109,12 @@ final class ReferenceCatalogs
             $this->locales[$locale] = $valid;
         }
         $this->translations = $path;
+        $this->translationNamespaces = new TranslationNamespaceCatalog(
+            $root,
+            $path,
+            $translations['namespaces'] ?? null,
+            $this->source,
+        );
     }
 
     public function enabled(): bool
@@ -176,6 +183,11 @@ final class ReferenceCatalogs
 
     public function missingTranslation(string $key, string $locale): bool
     {
+        if (str_contains($key, '::')) {
+            $chain = $this->locales[$locale] ?? [];
+
+            return $chain !== [] && ($this->translationNamespaces?->missing($key, $chain) ?? false);
+        }
         if (
             $this->translations === null
             || ! isset($this->locales[$locale])

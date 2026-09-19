@@ -26,6 +26,9 @@ foreach ([
     foreach ([
         'lang/en',
         'lang/fr',
+        'packages/billing/lang/en',
+        'packages/billing/lang/fr',
+        'lang/vendor/billing/en',
         'app',
         'vendor/laravel/framework/src/Illuminate/Translation',
         'vendor/laravel/framework/src/Illuminate/Support/Facades',
@@ -104,11 +107,15 @@ foreach ([
     );
     file_put_contents($workspace.'/lang/fr/messages.php', '<?php return ["fallback" => "Present"];');
     file_put_contents($workspace.'/lang/en.json', $mode === 'malformed-json' ? '{' : '{"messages.json":"Present"}');
+    file_put_contents($workspace.'/packages/billing/lang/en/messages.php', '<?php return ["exists" => "Present"];');
+    file_put_contents($workspace.'/packages/billing/lang/fr/messages.php', '<?php return ["fallback" => "Present"];');
+    file_put_contents($workspace.'/lang/vendor/billing/en/override.php', '<?php return ["exists" => "Present"];');
     $settings = [
         'reference-catalogs' => [
             'translations' => [
                 'complete' => $mode !== 'incomplete',
                 'path' => 'lang',
+                'namespaces' => ['billing' => 'packages/billing/lang'],
                 'locales' => ['en' => ['en', 'fr']],
             ],
         ],
@@ -129,6 +136,14 @@ foreach ([
     $missing = ['ichinya/laramago/laramago-missing-translation'];
     $on = $mode === 'enabled';
     $cases = [
+        ['Lang::get("billing::messages.exists", [], "en");', []],
+        ['Lang::get("billing::messages.fallback", [], "en");', []],
+        ['Lang::get("billing::override.exists", [], "en");', []],
+        ['Lang::get("billing::messages.absent", [], "en");', $on ? $missing : []],
+        ['$translator->get("billing::messages.absent", [], "en");', $on ? $missing : []],
+        ['Lang::get("billing::messages.absent", [], "en", false);', []],
+        ['Lang::has("billing::messages.absent", "en");', []],
+
         ['Lang::get("messages.exists", [], "en");', []],
         ['Lang::get("messages.nested.exists", [], "en");', []],
         ['Lang::get("messages.fallback", [], "en");', []],
