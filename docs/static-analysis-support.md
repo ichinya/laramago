@@ -6,6 +6,7 @@ implementation; it does not imply support for every dynamic Laravel behavior.
 
 | Integration | Implemented | Deferred |
 | --- | --- | --- |
+| Custom Blade directives | Selected ordered `Blade::directive()` and `Blade::if()` [source catalogs](blade-directives.md), including generated condition names, effective overrides, kinds and original registration spans | Runtime registration discovery, Blade compilation, template completion and missing-directive diagnostics |
 | Blade attribute bags | [Names-only partition metadata](blade-attribute-bags.md) for source-proven anonymous `@props` and class constructor parameters with complete final attribute keys; unconsumed HTML, boolean and Alpine keys remain in the bag | Runtime values, class/style/default merging results, rendered HTML, custom resolvers and invalid-extra-attribute diagnostics |
 | Blade component opening attributes | [Source-only parser](blade-component-attributes.md) for isolated opening tags, literal and bound attributes, short bindings, escaped Alpine names, booleans and original byte spans; explicit incompleteness on dynamic or unsupported syntax | Document traversal, tag resolution, Blade compilation, expression type inference and diagnostics |
 | Blade component tag resolution | Explicitly complete registration snapshots resolve aliases, class namespaces, conventional classes and anonymous files in [native lookup order](blade-component-tags.md) | Unknown catalogs, unproven view aliases, runtime registration, full template parsing and Blade-source diagnostics |

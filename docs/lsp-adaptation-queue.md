@@ -163,7 +163,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 155 | Blade prop argument types | implemented; Bounded constructor type checker identifies disjoint bound literal values only with complete unique attributes and standard direct resolver proof. Weak scalar coercions and dynamic/container paths defer; ten focused checks and source analysis pass, diagnostic consumer pending. |
 | 156 | Blade attribute bag semantics | implemented; Names-only attribute partition follows anonymous exact/kebab props and class constructor camel matching; residual HTML/Alpine keys remain valid bags. Ambiguous aliases and incomplete inputs defer; six focused checks and source analysis pass. |
 | 157 | Blade view and translation references | queued |
-| 158 | Static custom Blade directive catalogs | queued |
+| 158 | Static custom Blade directive catalogs | implemented; Selected literal Blade::directive/if registrations preserve effective ordering, generated conditional names, custom overrides and declaration byte spans without executing callbacks. Sixteen focused checks and source analysis pass; metadata only. |
 | 159 | Complete Blade directive reference checks | queued |
 | 160 | Blade diagnostic source mapping | queued |
 | 161 | Explicit Livewire component catalog | queued |
