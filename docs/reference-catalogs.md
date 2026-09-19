@@ -40,6 +40,14 @@ roots, unsafe paths, unreadable directories, linked entries and malformed paths 
 extensions make the Inertia catalog unknown. Mark the catalog complete only when the
 listed roots and extensions describe every page that the application can resolve.
 
+Set `"unique": true` inside `inertia-pages` only when your frontend resolver requires
+each page name to identify one file across the configured roots and extensions. A native
+render call then reports `ichinya/laramago/laramago-ambiguous-inertia-page` if its exact
+page name matches distinct files. Repeated roots that point to the same file count once.
+The assertion works with incomplete catalogs because the collision is already known.
+Without it, duplicate names remain valid: a resolver may deliberately select the first
+matching root or extension. The analyzer does not execute or model frontend resolution.
+
 The optional `public-assets` catalog indexes files under explicit project-relative
 public roots, including custom directories and paths with spaces:
 

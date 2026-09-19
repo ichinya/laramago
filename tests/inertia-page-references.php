@@ -14,13 +14,14 @@ mkdir($pages, 0777, true);
 mkdir($framework, 0777, true);
 mkdir($inertia, 0777, true);
 file_put_contents($pages.'/Users.vue', '<script>unknown()</script>');
+file_put_contents($pages.'/Users.tsx', 'unknown()');
 copy(__DIR__.'/fixtures/analysis/route-facade-base.php.stub', $framework.'/Facade.php');
 copy(__DIR__.'/fixtures/analysis/inertia-facade.php.stub', $inertia.'/Inertia.php');
 copy(__DIR__.'/fixtures/analysis/inertia-response-factory.php.stub', $inertia.'/ResponseFactory.php');
 $catalog = [
     'complete' => true,
     'paths' => ['resources/js/Pages'],
-    'extensions' => ['vue'],
+    'extensions' => ['vue', 'tsx'],
 ];
 file_put_contents($workspace.'/composer.json', json_encode([
     'extra' => ['laramago' => ['reference-catalogs' => ['inertia-pages' => $catalog]]],
@@ -71,7 +72,14 @@ $configuration = [
     ],
     'extension-hosts' => [
         'laramago' => [
-            'command' => [PHP_BINARY, $package.'/bin/laramago-worker.php', $package.'/vendor/autoload.php', $workspace],
+            'command' => [
+                PHP_BINARY,
+                '-d',
+                'opcache.enable_cli=0',
+                $package.'/bin/laramago-worker.php',
+                $package.'/vendor/autoload.php',
+                $workspace,
+            ],
             'workers' => 3,
         ],
     ],
@@ -122,6 +130,53 @@ if ($actual !== []) {
     throw new RuntimeException('Unexpected diagnostics outside Inertia scenarios; inspect '.$workspace);
 }
 
+file_put_contents($workspace.'/composer.json', json_encode([
+    'extra' => ['laramago' => ['reference-catalogs' => ['inertia-pages' => [...$catalog, 'unique' => true]]]],
+], JSON_THROW_ON_ERROR));
+$exit = $analyze('unique.json', 'unique.log');
+$report = json_decode(file_get_contents($workspace.'/unique.json'), true, flags: JSON_THROW_ON_ERROR);
+if (
+    $exit !== 0
+    || preg_match(
+        '/External analyzer provider failed|extension worker .*rejected request/i',
+        file_get_contents($workspace.'/unique.log'),
+    )
+) {
+    throw new RuntimeException('Expected unique-page warnings without extension fallback; inspect '.$workspace);
+}
+$actual = [];
+foreach ($report['issues'] ?? [] as $issue) {
+    $primary = array_values(array_filter(
+        $issue['annotations'],
+        static fn (array $a): bool => $a['kind'] === 'Primary',
+    ))[0];
+    $actual[$primary['span']['start']['line'] + 1][] = $issue['code'];
+}
+foreach ($lines as $line => [$name, $expected]) {
+    if (in_array($name, ['known facade page', 'known factory page'], true)) {
+        $expected[] = 'ichinya/laramago/laramago-ambiguous-inertia-page';
+    }
+    $codes = $actual[$line] ?? [];
+    sort($codes);
+    sort($expected);
+    if ($codes !== $expected) {
+        throw new RuntimeException(
+            $name
+            .' with unique assertion: expected '
+            .json_encode($expected)
+            .', got '
+            .json_encode($codes)
+            .'; see '
+            .$workspace,
+        );
+    }
+    unset($actual[$line]);
+}
+if ($actual !== []) {
+    throw new RuntimeException('Unexpected diagnostics under unique-page assertion; inspect '.$workspace);
+}
+echo "PASS: explicit unique assertion warns at native render calls only\n";
+
 foreach ([
     'incomplete catalog' => [...$catalog, 'complete' => false],
     'missing catalog' => null,
@@ -148,7 +203,7 @@ mkdir($workspace.'/custom', 0777, true);
 copy(__DIR__.'/fixtures/analysis/inertia-facade.php.stub', $workspace.'/custom/Inertia.php');
 copy(__DIR__.'/fixtures/analysis/inertia-response-factory.php.stub', $workspace.'/custom/ResponseFactory.php');
 file_put_contents($workspace.'/composer.json', json_encode([
-    'extra' => ['laramago' => ['reference-catalogs' => ['inertia-pages' => $catalog]]],
+    'extra' => ['laramago' => ['reference-catalogs' => ['inertia-pages' => [...$catalog, 'unique' => true]]]],
 ], JSON_THROW_ON_ERROR));
 $configuration['source']['includes'] = [
     'vendor/laravel/framework/src/Illuminate/Support/Facades/Facade.php',
@@ -171,7 +226,7 @@ if (
 echo "PASS: custom Inertia replacements defer\n";
 
 file_put_contents($workspace.'/composer.json', json_encode([
-    'extra' => ['laramago' => ['reference-catalogs' => ['inertia-pages' => $catalog]]],
+    'extra' => ['laramago' => ['reference-catalogs' => ['inertia-pages' => [...$catalog, 'unique' => true]]]],
 ], JSON_THROW_ON_ERROR));
 $configuration['source']['includes'] = [
     'vendor/laravel/framework/src/Illuminate/Support/Facades/Facade.php',

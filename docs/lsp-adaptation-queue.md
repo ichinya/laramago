@@ -148,7 +148,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 140 | Inertia render page references | implemented; tests/inertia-page-references.php; opt-in complete catalog |
 | 141 | Inertia helper and route references | queued |
 | 142 | Optional Inertia integration calls | queued |
-| 143 | Ambiguous Inertia page names | queued |
+| 143 | Ambiguous Inertia page names | implemented; Opt-in unique Inertia page names diagnose multiple distinct physical files at native render calls; default resolver order stays valid and aliases are deduplicated. |
 | 144 | Simple Vue defineProps names | queued |
 | 145 | Required Inertia props contracts | queued |
 | 146 | PHP and frontend prop type contracts | queued |

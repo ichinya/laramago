@@ -24,6 +24,7 @@ final class ReferenceCatalogs
     private ?array $inertiaPageConfiguration = null;
     private bool $inertiaPagesLoaded = false;
     private bool $inertiaPagesComplete = false;
+    private bool $inertiaPageNamesUnique = false;
 
     public function __construct(
         private readonly string $root,
@@ -147,6 +148,42 @@ final class ReferenceCatalogs
         }
 
         return $this->inertiaPagesComplete ? false : null;
+    }
+
+    /**
+     * Return distinct matching files only when the application asserts that
+     * its Inertia page names must be unique. Runtime resolvers may otherwise
+     * intentionally select one of several matching files.
+     *
+     * @return list<string>|null
+     */
+    public function ambiguousInertiaPagePaths(string $name): ?array
+    {
+        $this->loadInertiaPages();
+        if ($this->inertiaPages === null || ! $this->inertiaPageNamesUnique) {
+            return null;
+        }
+        $paths = [];
+        $identities = [];
+        foreach ($this->inertiaPages as $page) {
+            if ($page['name'] !== $name) {
+                continue;
+            }
+            $realPath = realpath($this->root.'/'.$page['path']);
+            if ($realPath === false) {
+                return null;
+            }
+            $identity = str_replace('\\', '/', $realPath);
+            if (DIRECTORY_SEPARATOR === '\\') {
+                $identity = strtolower($identity);
+            }
+            if (! isset($identities[$identity])) {
+                $identities[$identity] = true;
+                $paths[] = $page['path'];
+            }
+        }
+
+        return count($paths) > 1 ? $paths : null;
     }
 
     public function completeViews(): bool
@@ -314,12 +351,15 @@ final class ReferenceCatalogs
         }
         /** @var mixed $complete */
         $complete = $configuration['complete'] ?? false;
+        /** @var mixed $unique */
+        $unique = $configuration['unique'] ?? false;
         /** @var mixed $paths */
         $paths = $configuration['paths'] ?? null;
         /** @var mixed $extensions */
         $extensions = $configuration['extensions'] ?? null;
         if (
             ! is_bool($complete)
+            || ! is_bool($unique)
             || ! is_array($paths)
             || ! array_is_list($paths)
             || $paths === []
@@ -384,6 +424,7 @@ final class ReferenceCatalogs
         }
         $this->inertiaPages = $pages;
         $this->inertiaPagesComplete = $complete;
+        $this->inertiaPageNamesUnique = $unique;
     }
 
     private static function inertiaPath(string $value): bool

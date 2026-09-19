@@ -99,10 +99,28 @@ final class InertiaPageReferencesHook implements MethodCallAnalysisHook, Initial
                 $component = $argument->value;
             }
         }
-        if (
-            ! $component instanceof Node\Scalar\String_
-            || $this->catalogs()->containsInertiaPage($component->value) !== false
-        ) {
+        if (! $component instanceof Node\Scalar\String_) {
+            return;
+        }
+        $catalogs = $this->catalogs();
+        $ambiguousPaths = $catalogs->ambiguousInertiaPagePaths($component->value);
+        if ($ambiguousPaths !== null) {
+            $context->report(
+                Level::Warning,
+                'laramago-ambiguous-inertia-page',
+                Issue::at(
+                    'Inertia page "'
+                    .$component->value
+                    .'" matches multiple files despite the unique inertia-pages assertion: '
+                    .implode(', ', $ambiguousPaths)
+                    .'.',
+                    new SourceLocation($context->source->path, $context->node->span),
+                ),
+            );
+
+            return;
+        }
+        if ($catalogs->containsInertiaPage($component->value) !== false) {
             return;
         }
         $context->report(
