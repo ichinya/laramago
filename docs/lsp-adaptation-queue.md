@@ -127,7 +127,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 119 | Translation replacement placeholders | deferred; Pinned LSP offers placeholder completion, not required replacement validation. Fourteen native probes preserve valid partial/prefix/closure/group replacements; 234 Mago regressions pass. Requires an editor completion integration or separately explicit lint policy. |
 | 120 | Suspicious replacement names | deferred; Native replacement keys allow prefixes, spaces, punctuation, empty/numeric keys and shared locale dictionaries. Nineteen native probes and 234 Mago regressions pass. Suspicious-name advice requires a separate heuristic policy, not a required-name contract. |
 | 121 | Translation string leaves versus groups | queued |
-| 122 | Cross-locale placeholder consistency | queued |
+| 122 | Cross-locale placeholder consistency | deferred; Complete catalogs describe lookup, not cross-locale placeholder equality. Seventeen native probes and 234 Mago regressions preserve valid renamed/omitted placeholders, plural branches and JSON/fallback selection. Requires an explicit translation-quality policy. |
 | 123 | Pluralization syntax contracts | queued |
 | 124 | Translation fallback provenance | queued |
 | 125 | Static filesystem disk catalog | implemented; tests/configuration-index.php; source-only completeness |
