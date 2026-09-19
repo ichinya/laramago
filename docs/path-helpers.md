@@ -38,5 +38,3 @@ dispatch or path method needs its own native/PHPDoc contract. Laravel preserves
 a trailing separator in the asserted base and appends another separator for a
 nonempty child; the literal result preserves both. No file-existence assertion
 is made by this provider.
-
-The assertion also covers the effective app() dispatch reaching those path methods.
