@@ -72,7 +72,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 64 | Array controller action references | implemented; Literal controller action arrays resolve PHP names and preserve native diagnostics; 58 real-Mago scenarios passed. |
 | 65 | Invokable controller actions | implemented; Absolute invokable strings require actual invoke declarations; namespace uncertainty defers; 77 scenarios passed. |
 | 66 | Controller route group context | implemented; Safe controller pair arrays and absolute Controller@method actions retain diagnostics inside namespace/controller/prefix, dynamic and nested route groups. Relative and method-only group resolution remains deferred. Real-Mago controller suite and source analysis passed. |
-| 67 | Additional route registration methods | queued |
+| 67 | Additional route registration methods | implemented; Native fallback controller actions and view/redirect/permanentRedirect URI declarations now use existing checks with correct argument positions. Resource expansion and registrar chains defer. Combined group/fallback coverage and shared fixture consumers passed 220 checks; source analysis clean. |
 | 68 | Controller parameter route and DI contracts | deferred; Controller parameter validation requires finalized route/domain/default/binding/middleware and DI contracts. Native scalar dispatch is positional while model binding uses names; unlisted container bindings do not prove failure. Five framework-only probes and existing controller/route suites passed. |
 | 69 | Static middleware alias catalog | queued |
 | 70 | Middleware groups and legacy kernel catalog | queued |

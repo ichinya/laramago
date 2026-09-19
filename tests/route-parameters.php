@@ -80,6 +80,32 @@ $cases = [
         [],
     ],
 ];
+foreach (['redirect', 'permanentRedirect', 'view'] as $method) {
+    $second = $method === 'view' ? 'view' : 'destination';
+    foreach (['$router->', '\Illuminate\Support\Facades\Route::'] as $receiver) {
+        $cases[$receiver.$method.' repeated source URI'] = [
+            $receiver.$method.'("/{item}/{item}", "target");',
+            'void',
+            ['ichinya/laramago/laramago-duplicate-route-parameter'],
+        ];
+        $cases[$receiver.$method.' named URI'] = [
+            $receiver.$method.'('.$second.': "target", uri: "/{item}/{item}");',
+            'void',
+            ['ichinya/laramago/laramago-duplicate-route-parameter'],
+        ];
+        $cases[$receiver.$method.' second argument is not URI'] = [
+            $receiver.$method.'("/unique/{item}", "/{item}/{item}");',
+            'void',
+            [],
+        ];
+    }
+    $cases[$method.' custom receiver deferred'] = [
+        '(new \Illuminate\Routing\ExtendedRouter)->'.$method.'("/{item}/{item}", "target");',
+        'void',
+        [],
+    ];
+    $cases[$method.' dynamic URI deferred'] = ['$router->'.$method.'($uri, "target");', 'void', []];
+}
 $source = <<<'PHP'
     <?php
     use Illuminate\Routing\Router;
@@ -106,6 +132,8 @@ file_put_contents($workspace.'/mago.json', json_encode([
         'laramago' => [
             'command' => [
                 PHP_BINARY,
+                '-d',
+                'opcache.enable_cli=0',
                 $package.'/bin/laramago-worker.php',
                 $package.'/vendor/autoload.php',
                 $workspace,

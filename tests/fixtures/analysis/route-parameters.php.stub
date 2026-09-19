@@ -2,42 +2,111 @@
 
 declare(strict_types=1);
 
+// Additional registration overloads follow Laravel Router (MIT; see named-route-LICENSE.md).
 namespace Illuminate\Routing;
 
 throw new \RuntimeException('Routing fixture must never execute.');
 
 class Route
 {
-    public function setUri(string $uri): self { return $this; }
+    public function setUri(string $uri): self
+    {
+        return $this;
+    }
 }
 
 class Router
 {
-    public function get(string $uri, mixed $action = null): Route { return new Route; }
-    public function post(string $uri, mixed $action = null): Route { return new Route; }
-    public function put(string $uri, mixed $action = null): Route { return new Route; }
-    public function patch(string $uri, mixed $action = null): Route { return new Route; }
-    public function delete(string $uri, mixed $action = null): Route { return new Route; }
-    public function options(string $uri, mixed $action = null): Route { return new Route; }
-    public function any(string $uri, mixed $action = null): Route { return new Route; }
+    public function redirect($uri, $destination, $status = 302)
+    {
+        return $this
+            ->any($uri, '\Illuminate\Routing\RedirectController')
+            ->defaults('destination', $destination)
+            ->defaults('status', $status);
+    }
+
+    public function permanentRedirect($uri, $destination)
+    {
+        return $this->redirect($uri, $destination, 301);
+    }
+
+    public function view($uri, $view, $data = [], $status = 200, array $headers = [])
+    {
+        return $this->match(['GET', 'HEAD'], $uri, '\Illuminate\Routing\ViewController')
+            ->setDefaults([
+                'view' => $view,
+                'data' => $data,
+                'status' => is_array($status) ? 200 : $status,
+                'headers' => is_array($status) ? $status : $headers,
+            ]);
+    }
+
+    public function get(string $uri, mixed $action = null): Route
+    {
+        return new Route;
+    }
+
+    public function post(string $uri, mixed $action = null): Route
+    {
+        return new Route;
+    }
+
+    public function put(string $uri, mixed $action = null): Route
+    {
+        return new Route;
+    }
+
+    public function patch(string $uri, mixed $action = null): Route
+    {
+        return new Route;
+    }
+
+    public function delete(string $uri, mixed $action = null): Route
+    {
+        return new Route;
+    }
+
+    public function options(string $uri, mixed $action = null): Route
+    {
+        return new Route;
+    }
+
+    public function any(string $uri, mixed $action = null): Route
+    {
+        return new Route;
+    }
+
     /**
      * @param list<string> $methods
      */
-    public function match(array $methods, string $uri, mixed $action = null): Route { return new Route; }
+    public function match(array $methods, string $uri, mixed $action = null): Route
+    {
+        return new Route;
+    }
+
     /**
      * @param list<string> $methods
      */
-    public function addRoute(array $methods, string $uri, mixed $action): Route { return new Route; }
+    public function addRoute(array $methods, string $uri, mixed $action): Route
+    {
+        return new Route;
+    }
 }
 
 class ExtendedRouter extends Router {}
 
 class CustomRouter extends Router
 {
-    public function get(string $uri, mixed $action = null): Route { return new Route; }
+    public function get(string $uri, mixed $action = null): Route
+    {
+        return new Route;
+    }
 }
 
 class CustomRoute extends Route
 {
-    public function setUri(string $uri): self { return $this; }
+    public function setUri(string $uri): self
+    {
+        return $this;
+    }
 }

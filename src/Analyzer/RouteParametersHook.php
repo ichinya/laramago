@@ -38,7 +38,20 @@ final class RouteParametersHook implements MethodCallAnalysisHook
     public function getTargets(): array
     {
         $targets = [MethodTarget::exact(self::ROUTE, 'setUri')];
-        foreach (['get', 'post', 'put', 'patch', 'delete', 'options', 'any', 'match', 'addRoute'] as $method) {
+        foreach ([
+            'get',
+            'post',
+            'put',
+            'patch',
+            'delete',
+            'options',
+            'any',
+            'match',
+            'addRoute',
+            'redirect',
+            'permanentRedirect',
+            'view',
+        ] as $method) {
             $targets[] = MethodTarget::exact(self::ROUTER, $method);
             $targets[] = MethodTarget::exact(self::FACADE, $method);
         }

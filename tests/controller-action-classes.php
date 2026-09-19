@@ -324,6 +324,24 @@ $cases['grouped missing invokable class deferred'] = [
     '$router->group(["controller" => "OtherController"], function () use ($router): void { '.$body.' });',
     [],
 ];
+foreach ([
+    'fallback absolute class action' => ['$router->fallback("\\Missing\\FallbackController@index");', $classWarning],
+    'fallback named action' => ['$router->fallback(action: [ExistingController::class, "missing"]);', $methodWarning],
+    'fallback facade action' => ['LaravelRoute::fallback([ExistingController::class, "missing"]);', $methodWarning],
+    'fallback known action' => ['$router->fallback([ExistingController::class, "index"]);', []],
+    'fallback dynamic action deferred' => ['$router->fallback($action);', []],
+    'fallback inherited router deferred' => [
+        '(new \Illuminate\Routing\ExtendedRouter)->fallback([ExistingController::class, "missing"]);',
+        [],
+    ],
+    'fallback action inside controller group' => [
+        '$router->group(["controller" => "OtherController", "namespace" => "Admin"], function () use ($router): void { '
+            .'$router->fallback([ExistingController::class, "missing"]); });',
+        $methodWarning,
+    ],
+] as $name => $case) {
+    $cases[$name] = $case;
+}
 $source = <<<'PHP'
     <?php
     namespace Routes;

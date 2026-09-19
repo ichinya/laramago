@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+// Additional registration overloads follow Laravel Router (MIT; see named-route-LICENSE.md).
 namespace Illuminate\Routing;
 
 throw new \RuntimeException('Routing fixture must never execute.');
@@ -16,51 +17,65 @@ class Route
 
 class Router
 {
+    public function fallback($action)
+    {
+        $placeholder = 'fallbackPlaceholder';
+
+        return $this
+            ->addRoute(
+                'GET',
+                "{{$placeholder}}",
+                $action,
+            )
+            ->where($placeholder, '.*')
+            ->fallback();
+    }
+
     public function get(string $uri, mixed $action = null): Route
     {
-        return new Route();
+        return new Route;
     }
 
     public function post(string $uri, mixed $action = null): Route
     {
-        return new Route();
+        return new Route;
     }
 
     public function put(string $uri, mixed $action = null): Route
     {
-        return new Route();
+        return new Route;
     }
 
     public function patch(string $uri, mixed $action = null): Route
     {
-        return new Route();
+        return new Route;
     }
 
     public function delete(string $uri, mixed $action = null): Route
     {
-        return new Route();
+        return new Route;
     }
 
     public function options(string $uri, mixed $action = null): Route
     {
-        return new Route();
+        return new Route;
     }
 
     public function any(string $uri, mixed $action = null): Route
     {
-        return new Route();
+        return new Route;
     }
 
     /** @param list<string> $methods */
     public function match(array $methods, string $uri, mixed $action = null): Route
     {
-        return new Route();
+        return new Route;
     }
 
     /** @param list<string> $methods */
     public function addRoute(array $methods, string $uri, mixed $action): Route
     {
-        return new Route();
+        return new Route;
     }
 
     public function group(array $attributes, \Closure $callback): void {}
@@ -72,6 +87,6 @@ class CustomRouter extends Router
 {
     public function get(string $uri, mixed $action = null): Route
     {
-        return new Route();
+        return new Route;
     }
 }

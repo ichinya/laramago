@@ -49,7 +49,18 @@ final class ControllerActionClassHook implements MethodCallAnalysisHook
     public function getTargets(): array
     {
         $targets = [];
-        foreach (['get', 'post', 'put', 'patch', 'delete', 'options', 'any', 'match', 'addRoute'] as $method) {
+        foreach ([
+            'get',
+            'post',
+            'put',
+            'patch',
+            'delete',
+            'options',
+            'any',
+            'match',
+            'addRoute',
+            'fallback',
+        ] as $method) {
             $targets[] = MethodTarget::exact(self::ROUTER, $method);
             $targets[] = MethodTarget::exact(self::FACADE, $method);
         }
@@ -72,7 +83,11 @@ final class ControllerActionClassHook implements MethodCallAnalysisHook
         if (! $this->isNativeCall($context, $call, $method)) {
             return;
         }
-        $position = in_array($method, ['match', 'addroute'], true) ? 2 : 1;
+        $position = match ($method) {
+            'match', 'addroute' => 2,
+            'fallback' => 0,
+            default => 1,
+        };
         $action = null;
         foreach ($call->getArgs() as $offset => $argument) {
             if ($argument->unpack) {
