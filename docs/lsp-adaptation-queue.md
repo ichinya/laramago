@@ -100,7 +100,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 92 | Existing framework aliases and facade roots | already-covered; Verified literal framework aliases and facade roots; focused enabled/disabled suites passed. |
 | 93 | Additional literal binding registrations | implemented; Literal unconditional scoped registrations reuse binding inference; direct/named, duplicate/runtime deferral and core-service replacement regressions pass. Conditional registration APIs remain deferred. |
 | 94 | Container alias chains and uncertainty | already-covered; Alias chains preserve exact keys and propagate unknown terminals, conditional and conflicting registrations. Eleven new real-Mago regressions and eight native Container probes pass; all container binding tests pass without production changes. |
-| 95 | Container injection attributes | queued |
+| 95 | Container injection attributes | deferred; Existing Config and Storage attribute checks pass 60 real-Mago scenarios. Eleven native probes establish arbitrary Give identifiers, mutable or heterogeneous sources, direct-call and handler overrides. Further injected-value inference needs effective resolution provenance. |
 | 96 | Container alias cycles | queued |
 | 97 | Binding interface compatibility | queued |
 | 98 | Explicit factory required arguments | implemented; Literal container factories accept zero to two untyped required by-value parameters supplied by Laravel. Real-Mago checks retain return/body and uncertain-signature boundaries. |
