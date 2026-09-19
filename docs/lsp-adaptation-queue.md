@@ -134,7 +134,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 126 | Storage disk references | implemented; Guarded native Storage::disk diagnostics; 27 real-Mago scenarios passed. |
 | 127 | Storage injection attribute references | implemented; Native Storage injection attribute diagnostics with provenance and custom-handler guards; focused suites passed. |
 | 128 | Storage fake and forget semantics | already-covered; Verified native fake/persistentFake register arbitrary cached disks and forgetDisk removes cached entries. Existing disk-only explicit complete/unchanged contract correctly excludes these mutators; 37 real-Mago storage scenarios pass. No new missing-name rule is appropriate. |
-| 129 | Unknown default disk configuration | queued |
+| 129 | Unknown default disk configuration | already-covered; Omitted, dynamic and falsey disk names preserve unknown runtime defaults. Existing storage suite and an additional env-dependent default fixture passed, while explicit missing names still warn. No environment evaluation or default hardcoding added. |
 | 130 | Concrete filesystem adapter types | queued |
 | 131 | Explicit public asset catalogs | queued |
 | 132 | Asset literal references | queued |
