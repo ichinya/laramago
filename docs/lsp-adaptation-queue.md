@@ -37,7 +37,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 29 | Related model projection columns | deferred; Missing projection columns require complete effective-query metadata or an explicit query-source contract; schema alone cannot exclude scopes, joins, from changes, and aliases. No diagnostic added. |
 | 30 | Eager-loading callback parameter types | implemented; Direct Builder::with literal-path callbacks receive concrete Relation types under native broad contracts. Real-Mago/native comparisons pass; nested callback arrays remain SDK-deferred. |
 | 31 | Morph callbacks with explicit model classes | implemented; Four native Morph existence callbacks refine explicit fully qualified model targets under per-class runtime identity assertions; 45 morph and native trait callback regressions pass. Unknown morph maps/imports and custom dispatch defer. |
-| 32 | Relation aggregate references | queued |
+| 32 | Relation aggregate references | implemented; Seven native Builder with-aggregate methods validate relation references under existing complete catalogs; four real-Mago modes pass. Model/Collection load aggregates defer pending standard collection selection proof; no SQL column/result-property claims. |
 | 33 | Relation aggregate alias syntax | queued |
 | 34 | Query-local aggregate result properties | queued |
 | 35 | Literal configuration result types | already-covered; Verified literal config and native Config::get types with configuration and configuration-index suites. |

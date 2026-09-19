@@ -1,0 +1,146 @@
+<?php
+// Contains Laravel framework excerpts, Copyright (c) Taylor Otwell.
+// MIT license: laravel-aggregate-LICENSE.txt in this directory.
+namespace Illuminate\Database\Eloquent;
+/** @template TModel of Model */
+class Builder
+{
+    use Concerns\QueriesRelationships;
+    /**
+     * Parse a list of relations into individuals.
+     *
+     * @param  array  $relations
+     * @return array
+     */
+    protected function parseWithRelations(array $relations)
+    {
+        if ($relations === []) {
+            return [];
+        }
+
+        $results = [];
+
+        foreach ($this->prepareNestedWithRelationships($relations) as $name => $constraints) {
+            // We need to separate out any nested includes, which allows the developers
+            // to load deep relationships using "dots" without stating each level of
+            // the relationship with its own key in the array of eager-load names.
+            $results = $this->addNestedWiths($name, $results);
+
+            $results[$name] = $constraints;
+        }
+
+        return $results;
+    }
+
+    /**
+     * Prepare nested with relationships.
+     *
+     * @param  array  $relations
+     * @param  string  $prefix
+     * @return array
+     */
+    protected function prepareNestedWithRelationships($relations, $prefix = '')
+    {
+        $preparedRelationships = [];
+
+        if ($prefix !== '') {
+            $prefix .= '.';
+        }
+
+        // If any of the relationships are formatted with the [$attribute => array()]
+        // syntax, we shall loop over the nested relations and prepend each key of
+        // this array while flattening into the traditional dot notation format.
+        foreach ($relations as $key => $value) {
+            if (! is_string($key) || ! is_array($value)) {
+                continue;
+            }
+
+            [$attribute, $attributeSelectConstraint] = $this->parseNameAndAttributeSelectionConstraint($key);
+
+            $preparedRelationships = array_merge(
+                $preparedRelationships,
+                ["{$prefix}{$attribute}" => $attributeSelectConstraint],
+                $this->prepareNestedWithRelationships($value, "{$prefix}{$attribute}"),
+            );
+
+            unset($relations[$key]);
+        }
+
+        // We now know that the remaining relationships are in a dot notation format
+        // and may be a string or Closure. We'll loop over them and ensure all of
+        // the present Closures are merged + strings are made into constraints.
+        foreach ($relations as $key => $value) {
+            if (is_numeric($key) && is_string($value)) {
+                [$key, $value] = $this->parseNameAndAttributeSelectionConstraint($value);
+            }
+
+            $preparedRelationships[$prefix.$key] = $this->combineConstraints([
+                $value,
+                $preparedRelationships[$prefix.$key] ?? static function () {
+                    //
+                },
+            ]);
+        }
+
+        return $preparedRelationships;
+    }
+
+    /**
+     * Combine an array of constraints into a single constraint.
+     *
+     * @param  array  $constraints
+     * @return \Closure
+     */
+    protected function combineConstraints(array $constraints)
+    {
+        return static function ($builder) use ($constraints) {
+            foreach ($constraints as $constraint) {
+                $builder = $constraint($builder) ?? $builder;
+            }
+
+            return $builder;
+        };
+    }
+
+    /**
+     * Parse the attribute select constraints from the name.
+     *
+     * @param  string  $name
+     * @return array
+     */
+    protected function parseNameAndAttributeSelectionConstraint($name)
+    {
+        return str_contains($name, ':')
+            ? $this->createSelectWithConstraint($name)
+            : [$name, static function () {
+                //
+            }];
+    }
+
+    /**
+     * Parse the nested relationships in a relation.
+     *
+     * @param  string  $name
+     * @param  array  $results
+     * @return array
+     */
+    protected function addNestedWiths($name, $results)
+    {
+        $progress = [];
+
+        // If the relation has already been set on the result array, we will not set it
+        // again, since that would override any constraints that were already placed
+        // on the relationships. We will only set the ones that are not specified.
+        foreach (explode('.', $name) as $segment) {
+            $progress[] = $segment;
+
+            if (! isset($results[$last = implode('.', $progress)])) {
+                $results[$last] = static function () {
+                    //
+                };
+            }
+        }
+
+        return $results;
+    }
+}

@@ -26,6 +26,8 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
     private const MODEL = 'Illuminate\\Database\\Eloquent\\Model';
     private const BUILDER = 'Illuminate\\Database\\Eloquent\\Builder';
     private const RELATION = 'Illuminate\\Database\\Eloquent\\Relations\\Relation';
+    private const QUERIES = 'Illuminate\\Database\\Eloquent\\Concerns\\QueriesRelationships';
+    private const AGGREGATES = ['withaggregate', 'withcount', 'withsum', 'withavg', 'withmin', 'withmax', 'withexists'];
     private const EAGER_LOAD_METHODS = ['with', 'load', 'loadmissing', 'withwherehas'];
     private const RELATION_METHODS = [
         'has',
@@ -56,11 +58,15 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
         return [
             ...array_map(
                 static fn (string $method): MethodTarget => MethodTarget::exact(self::BUILDER, $method),
-                ['with', ...self::RELATION_METHODS],
+                ['with', ...self::RELATION_METHODS, ...self::AGGREGATES],
             ),
             ...array_map(
                 static fn (string $method): MethodTarget => MethodTarget::exact(self::MODEL, $method),
-                ['load', 'loadmissing', 'with', ...self::RELATION_METHODS],
+                ['load', 'loadmissing', 'with', ...self::RELATION_METHODS, ...self::AGGREGATES],
+            ),
+            ...array_map(
+                static fn (string $method): MethodTarget => MethodTarget::exact(self::QUERIES, $method),
+                self::AGGREGATES,
             ),
         ];
     }
@@ -109,6 +115,7 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
             return;
         }
         $methodName = strtolower($call->name->name);
+        $aggregate = in_array($methodName, self::AGGREGATES, true);
         if ($call instanceof Node\Expr\StaticCall) {
             if (
                 ! $call->class instanceof Node\Name\FullyQualified
@@ -126,7 +133,7 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
             $owner = $context->codebase->getDeclaringMethod($model, $methodName)?->identifier->class;
             if (
                 $owner === null
-                && in_array($methodName, self::RELATION_METHODS, true)
+                && in_array($methodName, [...self::RELATION_METHODS, ...self::AGGREGATES], true)
                 && $context->codebase->getDeclaringMethod($model, '__callStatic')?->identifier->class === self::MODEL
             ) {
                 $owner = $context->codebase->getDeclaringMethod(self::BUILDER, $methodName)?->identifier->class;
@@ -156,8 +163,17 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
         )) {
             return;
         }
+        if ($aggregate && ! $this->standardAggregate($context->codebase, $model, $methodName)) {
+            return;
+        }
         $argument = null;
-        $parameter = in_array($methodName, self::RELATION_METHODS, true) ? 'relation' : 'relations';
+        $parameter = in_array(
+            $methodName,
+            [...self::RELATION_METHODS, 'withsum', 'withavg', 'withmin', 'withmax', 'withexists'],
+            true,
+        )
+            ? 'relation'
+            : 'relations';
         foreach ($call->getArgs() as $offset => $arg) {
             if ($arg->unpack) {
                 return;
@@ -174,7 +190,29 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
         if ($argument === null) {
             return;
         }
-        foreach ($this->paths($argument) as $path) {
+        $paths = $this->paths($argument);
+        // Builder::withCount collects additional positional names only for a non-array first argument.
+        if ($methodName === 'withcount' && $argument instanceof Node\Scalar\String_) {
+            foreach (array_slice($call->getArgs(), 1) as $arg) {
+                if ($arg->name === null && $arg->value instanceof Node\Scalar\String_) {
+                    $paths = [...$paths, ...$this->paths($arg->value)];
+                }
+            }
+        }
+        foreach ($paths as $path) {
+            if ($aggregate) {
+                // Aggregate resolution calls one model method, not the nested eager-load resolver.
+                // Column-selection and malformed alias syntax are outside this name-only check.
+                if (str_contains($path, '.') || str_contains($path, ':')) {
+                    continue;
+                }
+                $parts = explode(' ', $path);
+                if (count($parts) === 3 && strtolower($parts[1]) === 'as') {
+                    $path = $parts[0];
+                } elseif (count($parts) !== 1) {
+                    continue;
+                }
+            }
             $current = $model;
             $relationPath = in_array($methodName, self::EAGER_LOAD_METHODS, true)
                 ? explode(':', $path, 2)[0]
@@ -248,6 +286,47 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
                 $current = $related->name;
             }
         }
+    }
+
+    private function standardAggregate(Codebase $codebase, string $model, string $name): bool
+    {
+        foreach (['newEloquentBuilder', 'newQuery', 'newModelQuery', 'newQueryWithoutScopes'] as $factory) {
+            $owner = $codebase->getDeclaringMethod($model, $factory)?->identifier->class;
+            if ($owner !== null && $owner !== self::MODEL) {
+                return false;
+            }
+        }
+        foreach ([$model, ...($codebase->getClass($model)?->parentClasses ?? [])] as $class) {
+            $metadata = $codebase->getClass($class);
+            if ($metadata !== null && in_array($name, array_map(strtolower(...), [
+                ...$metadata->pseudoMethods,
+                ...$metadata->staticPseudoMethods,
+            ]), true)) {
+                return false;
+            }
+        }
+        $methods = [
+            [self::BUILDER, $name, self::QUERIES],
+            [self::BUILDER, 'withAggregate', self::QUERIES],
+            [self::BUILDER, 'getRelationWithoutConstraints', self::QUERIES],
+            [self::BUILDER, 'parseWithRelations', self::BUILDER],
+        ];
+        foreach ($methods as [$class, $methodName, $owner]) {
+            $method = $codebase->getDeclaringMethod($class, $methodName);
+            $suffix = $owner === self::BUILDER ? 'Builder.php' : 'Concerns/QueriesRelationships.php';
+            if (
+                $method === null
+                || $method->identifier->class !== $owner
+                || ! str_ends_with(
+                    str_replace('\\', '/', $method->location->file ?? ''),
+                    '/laravel/framework/src/Illuminate/Database/Eloquent/'.$suffix,
+                )
+            ) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function object(?Type $type): ?NamedObjectType

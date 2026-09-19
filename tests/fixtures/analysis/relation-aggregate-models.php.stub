@@ -1,0 +1,156 @@
+<?php
+// Contains Laravel framework excerpts, Copyright (c) Taylor Otwell.
+// MIT license: laravel-aggregate-LICENSE.txt in this directory.
+namespace Illuminate\Database\Eloquent {
+class Model {
+    /**
+     * Eager load relation's column aggregations on the model.
+     *
+     * @param  array|string  $relations
+     * @param  string  $column
+     * @param  string|null  $function
+     * @return $this
+     */
+    public function loadAggregate($relations, $column, $function = null)
+    {
+        $this->newCollection([$this])->loadAggregate($relations, $column, $function);
+
+        return $this;
+    }
+
+    /**
+     * Eager load relation counts on the model.
+     *
+     * @param  array|string  $relations
+     * @return $this
+     */
+    public function loadCount($relations)
+    {
+        $relations = is_string($relations) ? func_get_args() : $relations;
+
+        return $this->loadAggregate($relations, '*', 'count');
+    }
+
+    /**
+     * Eager load relation's column summations on the model.
+     *
+     * @param  array|string  $relations
+     * @param  string  $column
+     * @return $this
+     */
+    public function loadSum($relations, $column)
+    {
+        return $this->loadAggregate($relations, $column, 'sum');
+    }
+
+    /**
+     * Eager load relation average column values on the model.
+     *
+     * @param  array|string  $relations
+     * @param  string  $column
+     * @return $this
+     */
+    public function loadAvg($relations, $column)
+    {
+        return $this->loadAggregate($relations, $column, 'avg');
+    }
+
+    /**
+     * Eager load relation min column values on the model.
+     *
+     * @param  array|string  $relations
+     * @param  string  $column
+     * @return $this
+     */
+    public function loadMin($relations, $column)
+    {
+        return $this->loadAggregate($relations, $column, 'min');
+    }
+
+    /**
+     * Eager load relation max column values on the model.
+     *
+     * @param  array|string  $relations
+     * @param  string  $column
+     * @return $this
+     */
+    public function loadMax($relations, $column)
+    {
+        return $this->loadAggregate($relations, $column, 'max');
+    }
+
+    /**
+     * Eager load related model existence values on the model.
+     *
+     * @param  array|string  $relations
+     * @return $this
+     */
+    public function loadExists($relations)
+    {
+        return $this->loadAggregate($relations, '*', 'exists');
+    }
+    /**
+     * @return Builder<static>
+     */
+    public static function with(string|array $relations): Builder { throw new \RuntimeException('Must not execute'); }
+    public static function __callStatic(string $name, array $arguments): mixed { throw new \RuntimeException('Must not execute'); }
+
+    /**
+     * @return Builder<static>
+     */
+    public static function query() {}
+    public function load(string|array $relations): static { return $this; }
+    public function loadMissing(string|array $relations): static { return $this; }
+}
+
+} namespace Illuminate\Database\Eloquent\Relations {
+/**
+ * @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+ */
+class Relation {}
+/**
+ * @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+ * @extends Relation<TRelatedModel>
+ */
+class HasMany extends Relation {}
+} namespace {
+    use Illuminate\Database\Eloquent\Model;
+    use Illuminate\Database\Eloquent\Relations\HasMany;
+    interface RelationNameContract {}
+    class RelationNameRecord extends Model {
+        /**
+         * @return HasMany<OpenRelationRecord>
+         */
+        public function open(): HasMany { throw new \RuntimeException('Must not execute'); }
+        /**
+         * @return HasMany<DynamicRelationNameRecord>
+         */
+        public function custom(): HasMany { throw new \RuntimeException('Must not execute'); }
+        public function contract(): RelationNameContract { throw new \RuntimeException('Must not execute'); }
+        /**
+         * @return HasMany<RelationNameChild>
+         */
+        public function children(): HasMany { throw new \RuntimeException('Must not execute'); }
+        public function label(): \DateTimeImmutable { throw new \RuntimeException('Must not execute'); }
+        public function unknown() { throw new \RuntimeException('Must not execute'); }
+    }
+    class CustomQueryRelationRecord extends RelationNameRecord {
+        public function newQuery(): \Illuminate\Database\Eloquent\Builder { throw new \RuntimeException('Must not execute'); }
+    }
+    class DuplicateContractRecord extends RelationNameRecord {}
+    class PartialContractRecord extends RelationNameRecord {}
+    class StaticDispatcherRecord extends RelationNameRecord {
+        public static function __callStatic(string $name, array $arguments): mixed { throw new \RuntimeException('Must not execute'); }
+    }
+    class OpenRelationRecord extends RelationNameRecord {}
+    class MalformedRelationRecord extends RelationNameRecord {}
+    class ResolverRelationRecord extends RelationNameRecord {
+        public function relationResolver(string $class, string $key): mixed { throw new \RuntimeException('Must not execute'); }
+    }
+    class RelationNameChild extends Model {
+        public function label(): \DateTimeImmutable { throw new \RuntimeException('Must not execute'); }
+    }
+    class DynamicRelationNameRecord extends RelationNameRecord {
+        public function __call(string $name, array $arguments): mixed { throw new \RuntimeException('Must not execute'); }
+    }
+}
