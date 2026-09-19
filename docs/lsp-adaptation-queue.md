@@ -112,7 +112,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 104 | Route view references | deferred; Eight native probes show Route view stores mutable defaults; URI or domain parameters, defaults, binding and middleware may replace the view even on a fixed URI. Complete finder catalogs do not establish mandatory lookup of the original literal; effective route dispatch proof or a separate declaration policy is required. |
 | 105 | MailMessage view and markdown references | deferred; Thirteen native probes show MailMessage setters are mutable, may never render, and Markdown uses distinct HTML and text namespaces. Missing-view diagnostics need terminal-render state and effective renderer contracts. All 196 existing real-Mago catalog checks pass. |
 | 106 | Declarative mail content references | deferred; Native Content is a mutable DTO: thirteen probes confirm html alias and raw HTML precedence, overwritten references, falsey hydration skips and retained Mailable state. Missing-name diagnostics need terminal rendering and state contracts; 196 existing real-Mago checks pass. |
-| 107 | assertViewIs references | queued |
+| 107 | assertViewIs references | deferred; assertViewIs compares stored View identity without finder lookup. Seven native-body probes accept arbitrary and file-based identities; 196 existing real-Mago checks pass. Missing-name diagnostics require response-origin proof or a separate assertion-name policy. |
 | 108 | Pagination view references | queued |
 | 109 | View first fallback lists | queued |
 | 110 | Conditional and iterative view rendering | queued |
