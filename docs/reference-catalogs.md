@@ -250,3 +250,5 @@ exists or identify the locale actually selected at runtime. Fallback-locale JSON
 is not part of the `get` lookup chain. Existing success, uncertain catalog, custom
 translator and dynamic fallback cases retain their existing behavior. No language
 file or application bootstrap is executed to produce these notes.
+
+Explicit [required Inertia prop contracts](inertia-required-props.md) can check closed literal render props when shared names and subsequent response mutations are covered by completeness assertions.

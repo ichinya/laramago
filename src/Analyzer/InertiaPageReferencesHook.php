@@ -23,7 +23,9 @@ use PhpParser\Node;
 use PhpParser\NodeFinder;
 use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitor\NameResolver;
+use PhpParser\NodeVisitorAbstract;
 use PhpParser\ParserFactory;
+use PhpParser\PrettyPrinter\Standard;
 
 /** Diagnose missing literal pages on the installed native Inertia render entry points. */
 final class InertiaPageReferencesHook implements MethodCallAnalysisHook, InitializationHook
@@ -36,6 +38,7 @@ final class InertiaPageReferencesHook implements MethodCallAnalysisHook, Initial
     private ?PhpSource $source = null;
     private ?ContainerBindings $bindings = null;
     private ?InertiaUiModalProof $modal = null;
+    private ?bool $nativeFactoryProps = null;
     private string $sourceHash = '';
     /** @var array<string, Node\Expr\MethodCall|Node\Expr\StaticCall> */
     private array $calls = [];
@@ -50,6 +53,7 @@ final class InertiaPageReferencesHook implements MethodCallAnalysisHook, Initial
         $this->source = null;
         $this->bindings = null;
         $this->modal = null;
+        $this->nativeFactoryProps = null;
         $this->sourceHash = '';
         $this->calls = [];
     }
@@ -135,7 +139,13 @@ final class InertiaPageReferencesHook implements MethodCallAnalysisHook, Initial
 
             return;
         }
-        if ($catalogs->containsInertiaPage($component->value) !== false) {
+        $known = $catalogs->containsInertiaPage($component->value);
+        if ($known === true) {
+            $this->checkRequiredProps($context, $call, $component->value, $catalogs);
+
+            return;
+        }
+        if ($known !== false) {
             return;
         }
         $context->report(
@@ -146,6 +156,193 @@ final class InertiaPageReferencesHook implements MethodCallAnalysisHook, Initial
                 new SourceLocation($context->source->path, $context->node->span),
             ),
         );
+    }
+
+    private function checkRequiredProps(
+        NodeAnalysisContext $context,
+        Node\Expr\MethodCall|Node\Expr\StaticCall $call,
+        string $page,
+        ReferenceCatalogs $catalogs,
+    ): void {
+        if (! $call->name instanceof Node\Identifier || strcasecmp($call->name->name, 'render') !== 0) {
+            return;
+        }
+        $contract = $catalogs->inertiaRequiredProps($page);
+        if (
+            $contract === null
+            || $contract['required'] === []
+            || $this->chainedRenderCall($call)
+            || ! $this->factoryMergesProps($context)
+        ) {
+            return;
+        }
+        $provided = $this->literalPropNames($call);
+        if ($provided === null) {
+            return;
+        }
+        $available = array_fill_keys([...$provided, ...$contract['shared']], true);
+        foreach ($contract['required'] as $required) {
+            if (isset($available[$required])) {
+                continue;
+            }
+            $context->report(
+                Level::Warning,
+                'laramago-missing-inertia-prop',
+                Issue::at(
+                    'Inertia page "'
+                    .$page
+                    .'" requires prop "'
+                    .$required
+                    .'" under the explicit full-page props contract.',
+                    new SourceLocation($context->source->path, $context->node->span),
+                ),
+            );
+        }
+    }
+
+    /** @return list<string>|null */
+    private function literalPropNames(Node\Expr\MethodCall|Node\Expr\StaticCall $call): ?array
+    {
+        $props = null;
+        $assigned = [];
+        $position = 0;
+        $named = false;
+        foreach ($call->getArgs() as $argument) {
+            if ($argument->unpack) {
+                return null;
+            }
+            if ($argument->name === null) {
+                if ($named || $position > 1) {
+                    return null;
+                }
+                $parameter = $position === 0 ? 'component' : 'props';
+                $position++;
+            } else {
+                $named = true;
+                $parameter = $argument->name->name;
+                if ($parameter !== 'component' && $parameter !== 'props') {
+                    return null;
+                }
+            }
+            if (isset($assigned[$parameter])) {
+                return null;
+            }
+            $assigned[$parameter] = true;
+            if ($parameter === 'props') {
+                $props = $argument->value;
+            }
+        }
+        if ($props === null) {
+            return [];
+        }
+        if (! $props instanceof Node\Expr\Array_) {
+            return null;
+        }
+        $names = [];
+        foreach ($props->items as $item) {
+            if (
+                $item->unpack
+                || ! $item->key instanceof Node\Scalar\String_
+                || str_contains($item->key->value, '.')
+            ) {
+                return null;
+            }
+            $names[] = $item->key->value;
+        }
+
+        return $names;
+    }
+
+    private function chainedRenderCall(Node\Expr\MethodCall|Node\Expr\StaticCall $call): bool
+    {
+        foreach ($this->calls as $other) {
+            if ($other instanceof Node\Expr\MethodCall && $other->var === $call) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function factoryMergesProps(NodeAnalysisContext $context): bool
+    {
+        // Same native 3.x render body used by InertiaEntryReferencesHook (MIT).
+        if ($this->nativeFactoryProps !== null) {
+            return $this->nativeFactoryProps;
+        }
+        $method = $context->codebase->getDeclaringMethod(self::FACTORY, 'render');
+        if ($method === null) {
+            return $this->nativeFactoryProps = false;
+        }
+        $node = (new ModelReflection($context->codebase, $this->source()))->methodNode($method);
+        $expectedSource = <<<'PHP'
+            <?php
+            namespace Inertia;
+            use BackedEnum;
+            use UnitEnum;
+            use Illuminate\Contracts\Support\Arrayable;
+            use InvalidArgumentException;
+            use Inertia\DevTools\DevTools;
+            class ResponseFactory {
+                public function render($component, $props = []): Response {
+                    $component = $this->transformComponent($component);
+                    $component = match (true) {
+                        $component instanceof BackedEnum => $component->value,
+                        $component instanceof UnitEnum => $component->name,
+                        default => $component,
+                    };
+                    if (! is_string($component)) {
+                        throw new InvalidArgumentException('Component argument must be of type string or a string BackedEnum');
+                    }
+                    if (config('inertia.pages.ensure_pages_exist', false)) {
+                        $this->findComponentOrFail($component);
+                    }
+                    if ($props instanceof Arrayable) {
+                        $props = $props->toArray();
+                    } elseif ($props instanceof ProvidesInertiaProperties) {
+                        $props = [$props];
+                    }
+                    $response = new Response(
+                        $component,
+                        $this->sharedProps,
+                        $props,
+                        $this->rootView,
+                        $this->getVersion(),
+                        $this->encryptHistory ?? config('inertia.history.encrypt', false),
+                        $this->urlResolver,
+                    );
+                    DevTools::recorder()?->pageRendering($component, $response, $this->sharedProps);
+                    return $response;
+                }
+            }
+            PHP;
+        $expected = (new ParserFactory)
+            ->createForNewestSupportedVersion()
+            ->parse($expectedSource) ?? [];
+        $expected = (new NodeTraverser(new NameResolver))->traverse($expected);
+        $expectedMethod = (new NodeFinder)->findFirstInstanceOf($expected, Node\Stmt\ClassMethod::class);
+        if (! $node instanceof Node\Stmt\ClassMethod || ! $expectedMethod instanceof Node\Stmt\ClassMethod) {
+            return $this->nativeFactoryProps = false;
+        }
+        $printer = new Standard;
+        $actual = clone $node;
+        $expectedMethod = clone $expectedMethod;
+        $stripComments = static function (Node $method): void {
+            (new NodeTraverser(new class extends NodeVisitorAbstract {
+                public function enterNode(Node $node): ?Node
+                {
+                    $node->setAttribute('comments', []);
+
+                    return null;
+                }
+            }))->traverse([$method]);
+        };
+        $stripComments($actual);
+        $stripComments($expectedMethod);
+
+        return $this->nativeFactoryProps = $printer->prettyPrint([$actual]) === $printer->prettyPrint([
+            $expectedMethod,
+        ]);
     }
 
     private function nativeDispatch(NodeAnalysisContext $context, string $receiver): bool

@@ -150,7 +150,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 142 | Optional Inertia integration calls | implemented; Verified inertiaui/modal snapshots and explicit activation/unchanged-dispatch assertions enable literal modal page references; missing, modified and overridden optional packages defer. |
 | 143 | Ambiguous Inertia page names | implemented; Opt-in unique Inertia page names diagnose multiple distinct physical files at native render calls; default resolver order stays valid and aliases are deduplicated. |
 | 144 | Simple Vue defineProps names | implemented; Bounded lexical Vue defineProps metadata returns literal names and completeness for one canonical page; shadows, nested/custom contexts, oversized and ambiguous sources defer. |
-| 145 | Required Inertia props contracts | queued |
+| 145 | Required Inertia props contracts | implemented; Explicit required/shared/full-response contracts check closed literal native render props; dynamic/dotted/provider values, changed dispatch and later augmentation defer. |
 | 146 | PHP and frontend prop type contracts | queued |
 | 147 | Inertia assertion page contracts | queued |
 | 148 | Static Blade class component catalog | queued |

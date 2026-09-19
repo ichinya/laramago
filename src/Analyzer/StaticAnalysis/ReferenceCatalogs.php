@@ -257,6 +257,58 @@ final class ReferenceCatalogs
         return ($this->inertiaPageConfiguration['route-macro-active'] ?? null) === true;
     }
 
+    /**
+     * An opt-in assertion about full-page props. The shared list must cover
+     * every key that application code can add before a response is resolved.
+     *
+     * @return array{required: list<string>, shared: list<string>}|null
+     */
+    public function inertiaRequiredProps(string $page): ?array
+    {
+        $configuration = $this->inertiaPageConfiguration;
+        if ($configuration === null) {
+            return null;
+        }
+        /** @var mixed $contracts */
+        $contracts = $configuration['required-props'] ?? null;
+        /** @var mixed $shared */
+        $shared = $configuration['shared-props'] ?? null;
+        if (
+            ! is_array($contracts)
+            || ! array_key_exists($page, $contracts)
+            || ! is_array($shared)
+            || ($shared['complete'] ?? null) !== true
+            || ($configuration['render-props-complete'] ?? null) !== true
+        ) {
+            return null;
+        }
+        $required = self::inertiaPropNames($contracts[$page]);
+        $sharedNames = self::inertiaPropNames($shared['names'] ?? null);
+        if ($required === null || $sharedNames === null) {
+            return null;
+        }
+
+        return ['required' => $required, 'shared' => $sharedNames];
+    }
+
+    /** @return list<string>|null */
+    private static function inertiaPropNames(mixed $names): ?array
+    {
+        if (! is_array($names) || ! array_is_list($names)) {
+            return null;
+        }
+        $valid = [];
+        /** @var mixed $name */
+        foreach ($names as $name) {
+            if (! is_string($name) || preg_match('/^[A-Za-z_$][A-Za-z0-9_$-]*$/D', $name) !== 1) {
+                return null;
+            }
+            $valid[] = $name;
+        }
+
+        return array_values(array_unique($valid));
+    }
+
     public function completeViews(): bool
     {
         return $this->views !== [];
