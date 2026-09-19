@@ -12,6 +12,7 @@ final class ReferenceCatalogs
     /** @var list<string> */
     private array $views = [];
     private ?ViewNamespaceCatalog $viewNamespaces = null;
+    private ?ViewSuggestions $viewSuggestions = null;
     private ?string $translations = null;
     private readonly PhpSource $source;
     /** @var array<string, list<string>> */
@@ -163,6 +164,14 @@ final class ReferenceCatalogs
         }
 
         return true;
+    }
+
+    /** @return list<string> */
+    public function viewSuggestionNotes(string $name): array
+    {
+        $this->viewSuggestions ??= new ViewSuggestions($this->root, $this->views);
+
+        return $this->viewSuggestions->notes($name);
     }
 
     public function missingTranslation(string $key, string $locale): bool

@@ -137,16 +137,20 @@ final class ResponseViewReferencesHook implements NodeAnalysisHook, Initializati
         if (! $name instanceof Node\Scalar\String_ || ! $catalog->missingView($name->value)) {
             return;
         }
+        $issue = Issue::at(
+            'View "'.$name->value.'" is absent from the explicitly complete view catalog.',
+            new SourceLocation(
+                $context->source->path,
+                new Span($name->getStartFilePos(), $name->getEndFilePos() + 1),
+            ),
+        );
+        foreach ($catalog->viewSuggestionNotes($name->value) as $note) {
+            $issue = $issue->withNote($note);
+        }
         $context->report(
             Level::Warning,
             'laramago-missing-view',
-            Issue::at(
-                'View "'.$name->value.'" is absent from the explicitly complete view catalog.',
-                new SourceLocation(
-                    $context->source->path,
-                    new Span($name->getStartFilePos(), $name->getEndFilePos() + 1),
-                ),
-            ),
+            $issue,
         );
     }
 

@@ -126,13 +126,17 @@ final class ReferenceCatalogHook implements NodeAnalysisHook, InitializationHook
             && $this->catalogs->missingTranslation($key->value, $locale->value);
         if ($missing) {
             $kind = $name === 'view' ? 'view' : 'translation';
+            $issue = Issue::at(
+                'Literal '.$kind.' reference "'.$key->value.'" is absent from the explicitly complete catalogs.',
+                new SourceLocation($context->source->path, $context->node->span),
+            );
+            foreach ($name === 'view' ? $this->catalogs->viewSuggestionNotes($key->value) : [] as $note) {
+                $issue = $issue->withNote($note);
+            }
             $context->report(
                 Level::Warning,
                 'laramago-missing-'.$kind,
-                Issue::at(
-                    'Literal '.$kind.' reference "'.$key->value.'" is absent from the explicitly complete catalogs.',
-                    new SourceLocation($context->source->path, $context->node->span),
-                ),
+                $issue,
             );
         }
     }

@@ -127,3 +127,15 @@ Literal `billing::invoice` names use the same guarded helper, View and Response
 entry points as ordinary view names, with the default Blade/PHP/CSS/HTML extensions.
 This requires the selected native lookup contract, without later namespace changes,
 custom extensions, cached-name remapping or custom finders. Templates are never executed.
+
+Missing single-view diagnostics from `view()`, `View::make()` and response view
+entry points can include up to three nearby conventional view names and their
+project-relative declaration paths. Suggestions use only the explicitly configured
+ordinary view paths, never execute templates, and do not change diagnostic severity
+or add edits. Namespaced catalogs, conditional rendering and `first()` lists currently
+have no suggestions. The optional index is lazy, skips symbolic links, stays within
+the project, and stops after 4,096 entries or 32 directory levels. Unreadable or
+oversized catalogs omit suggestions without suppressing a missing-view diagnostic.
+Suggestions use edit distance at most two (one for names shorter than five characters),
+then lexical order. Blade declarations remain textual notes rather than foreign-file
+Mago annotations or editor navigation targets.

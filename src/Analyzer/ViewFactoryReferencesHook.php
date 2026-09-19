@@ -114,13 +114,17 @@ final class ViewFactoryReferencesHook implements MethodCallAnalysisHook, Initial
         ) {
             return;
         }
+        $issue = Issue::at(
+            'Literal view reference "'.$view->value.'" is absent from the explicitly complete views catalog.',
+            new SourceLocation($context->source->path, $context->node->span),
+        );
+        foreach ($this->catalogs()->viewSuggestionNotes($view->value) as $note) {
+            $issue = $issue->withNote($note);
+        }
         $context->report(
             Level::Warning,
             'laramago-missing-view',
-            Issue::at(
-                'Literal view reference "'.$view->value.'" is absent from the explicitly complete views catalog.',
-                new SourceLocation($context->source->path, $context->node->span),
-            ),
+            $issue,
         );
     }
 
