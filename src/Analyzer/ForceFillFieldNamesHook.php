@@ -77,13 +77,18 @@ final class ForceFillFieldNamesHook implements MethodCallAnalysisHook
             ) {
                 continue;
             }
-            $context->report(Level::Warning, 'laramago-force-fill-missing-field', Issue::at(
+            $issue = Issue::at(
                 'Attribute "'.$key.'" is absent from the complete field catalog for '.$model.'.',
                 new SourceLocation(
                     $context->source->path,
                     new Span($node->getStartFilePos(), $node->getEndFilePos() + 1),
                 ),
-            ));
+            );
+            $suggestion = $this->fields->closestField($model, $key);
+            if ($suggestion !== null) {
+                $issue = $issue->withHelp('Did you mean "'.$suggestion.'"?');
+            }
+            $context->report(Level::Warning, 'laramago-force-fill-missing-field', $issue);
         }
     }
 }

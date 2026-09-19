@@ -451,6 +451,26 @@ final class ModelFieldNamesHook implements ClassLikeAnalysisHook
         if ($contains !== false) {
             return;
         }
+        $issue = Issue::at(
+            ucfirst($propertyName).' name '.$name.' is absent from the complete '.match (true) {
+                $propertyName === 'appends' => 'appendable key',
+                $serializationFilter => 'serialization key',
+                default => 'field',
+            }
+            .' catalog for '
+            .$model
+            .'.',
+            new SourceLocation(
+                $context->source->path,
+                new Span($literal->getStartFilePos(), $literal->getEndFilePos() + 1),
+            ),
+        );
+        if (! $serializationFilter && $propertyName !== 'appends') {
+            $suggestion = $this->fields->closestField($model, $name);
+            if ($suggestion !== null) {
+                $issue = $issue->withHelp('Did you mean "'.$suggestion.'"?');
+            }
+        }
         $context->report(
             Level::Warning,
             match (true) {
@@ -458,20 +478,7 @@ final class ModelFieldNamesHook implements ClassLikeAnalysisHook
                 $serializationFilter => 'laramago-missing-model-serialization-key',
                 default => 'laramago-missing-model-field',
             },
-            Issue::at(
-                ucfirst($propertyName).' name '.$name.' is absent from the complete '.match (true) {
-                    $propertyName === 'appends' => 'appendable key',
-                    $serializationFilter => 'serialization key',
-                    default => 'field',
-                }
-                .' catalog for '
-                .$model
-                .'.',
-                new SourceLocation(
-                    $context->source->path,
-                    new Span($literal->getStartFilePos(), $literal->getEndFilePos() + 1),
-                ),
-            ),
+            $issue,
         );
     }
 

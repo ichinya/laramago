@@ -25,7 +25,7 @@ namespace Example {
     class CompleteRecord extends Model
     {
         protected $casts = ['virtual' => 'array'];
-        protected $fillable = ['known', 'profile->enabled', 'nullable_value', 'virtual', 'missing']; // complete-missing
+        protected $fillable = ['known', 'profile->enabled', 'nullable_value', 'virtual', 'knwon']; // complete-missing typo-suggestion
 
         public function setVirtualAttribute(array $value): void
         {

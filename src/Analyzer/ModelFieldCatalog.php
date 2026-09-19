@@ -166,6 +166,46 @@ final class ModelFieldCatalog
     }
 
     /**
+     * Suggest a uniquely closest field only when an exact complete catalog is available.
+     *
+     * Adjacent transpositions count as one edit so common literal typos remain useful,
+     * while the small length-based threshold avoids guesses for unrelated names.
+     */
+    public function closestField(string $model, string $field): ?string
+    {
+        $fields = $this->fields($model);
+        if ($fields === null || $field === '' || strlen($field) > 128) {
+            return null;
+        }
+        $limit = match (true) {
+            strlen($field) <= 6 => 1,
+            strlen($field) <= 12 => 2,
+            default => 3,
+        };
+        $closest = null;
+        $closestDistance = $limit + 1;
+        $ambiguous = false;
+        foreach ($fields as $candidate) {
+            if (strlen($candidate) > 128 || abs(strlen($candidate) - strlen($field)) > $limit) {
+                continue;
+            }
+            $distance = self::editDistance(strtolower($field), strtolower($candidate));
+            if ($distance > $limit || $distance > $closestDistance) {
+                continue;
+            }
+            if ($distance === $closestDistance) {
+                $ambiguous = true;
+                continue;
+            }
+            $closest = $candidate;
+            $closestDistance = $distance;
+            $ambiguous = false;
+        }
+
+        return $ambiguous ? null : $closest;
+    }
+
+    /**
      * Hidden names may identify attributes or the pre-serialization names of
      * relationships and appends. Absence is proven only when both sets are complete.
      */
@@ -196,5 +236,32 @@ final class ModelFieldCatalog
         $key = strtolower(ltrim($model, '\\'));
 
         return $this->models[$key] ?? null;
+    }
+
+    /** Optimal-string-alignment distance with adjacent transpositions. */
+    private static function editDistance(string $left, string $right): int
+    {
+        $rows = [range(0, strlen($right))];
+        for ($i = 1, $leftLength = strlen($left); $i <= $leftLength; $i++) {
+            $rows[$i] = [$i];
+            for ($j = 1, $rightLength = strlen($right); $j <= $rightLength; $j++) {
+                $cost = $left[$i - 1] === $right[$j - 1] ? 0 : 1;
+                $rows[$i][$j] = min(
+                    $rows[$i - 1][$j] + 1,
+                    $rows[$i][$j - 1] + 1,
+                    $rows[$i - 1][$j - 1] + $cost,
+                );
+                if (
+                    $i > 1
+                    && $j > 1
+                    && $left[$i - 1] === $right[$j - 2]
+                    && $left[$i - 2] === $right[$j - 1]
+                ) {
+                    $rows[$i][$j] = min($rows[$i][$j], $rows[$i - 2][$j - 2] + 1);
+                }
+            }
+        }
+
+        return $rows[strlen($left)][strlen($right)];
     }
 }

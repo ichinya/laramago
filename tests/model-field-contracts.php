@@ -200,12 +200,16 @@ $run = static function (array $command, string $workspace, string $output, strin
 
 $report = $run($command, $workspace, $workspace.'/report.json', $workspace.'/stderr.log');
 $actual = [];
+$help = [];
 foreach ($report['issues'] ?? [] as $issue) {
     $primary = array_values(array_filter(
         $issue['annotations'],
         static fn (array $annotation): bool => $annotation['kind'] === 'Primary',
     ))[0];
     $actual[$primary['span']['start']['line'] + 1][] = $issue['code'];
+    if (($issue['help'] ?? null) !== null) {
+        $help[$primary['span']['start']['line'] + 1][] = $issue['help'];
+    }
 }
 $expected = [];
 foreach (explode("\n", $fixture) as $offset => $line) {
@@ -248,6 +252,16 @@ if ($actual !== $expected) {
         .'; inspect '
         .$workspace,
     );
+}
+$suggestionLine = null;
+foreach (explode("\n", $fixture) as $offset => $line) {
+    if (str_contains($line, '// complete-missing typo-suggestion')) {
+        $suggestionLine = $offset + 1;
+        break;
+    }
+}
+if ($suggestionLine === null || $help !== [$suggestionLine => ['Did you mean "known"?']]) {
+    throw new RuntimeException('Expected one unique proven field typo suggestion; inspect '.$workspace);
 }
 echo "PASS: complete catalogs validate safe literal property and attribute field-list names\n";
 

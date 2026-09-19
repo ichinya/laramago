@@ -47,6 +47,7 @@ file_put_contents($workspace.'/models.php', <<<'PHP'
     /** @method static static forceFill(array $attributes) */
     class MethodDocumented extends Record {}
     class EmptyCatalog extends Model {}
+    class Ambiguous extends Record {}
     PHP);
 $catalogs = [];
 foreach ([
@@ -71,13 +72,14 @@ $catalogs['App\\Malformed'] = ['complete' => true, 'fields' => ['name', false]];
 $catalogs['App\\DuplicateCatalog'] = ['complete' => true, 'fields' => ['name']];
 $catalogs['app\\duplicatecatalog'] = ['complete' => true, 'fields' => ['name']];
 $catalogs['App\\EmptyCatalog'] = ['complete' => true, 'fields' => []];
+$catalogs['App\\Ambiguous'] = ['complete' => true, 'fields' => ['name', 'game']];
 file_put_contents($workspace.'/composer.json', json_encode(
     ['extra' => ['laramago' => ['model-fields' => $catalogs]]],
     JSON_THROW_ON_ERROR,
 ));
 file_put_contents($workspace.'/bootstrap.php', '<?php throw new RuntimeException("No application execution.");');
 $cases = [
-    'function missing(Record $m): void { $m->forceFill(["typo" => 1]); }',
+    'function missing(Record $m): void { $m->forceFill(["nmae" => 1]); }',
     'function valid(Record $m): void { $m->forceFill(["name" => "ok"]); }',
     'function caseSensitive(Record $m): void { $m->forceFill(["Name" => "ok"]); }',
     'function exactChild(CatalogChild $m): void { $m->forceFill(["typo" => 1]); }',
@@ -115,6 +117,7 @@ $cases = [
     'function multiple(Record $m): void { $m->forceFill(["first_typo" => 1, "second_typo" => 2]); }',
     'function nullable(?Record $m): void { $m?->forceFill(["typo" => 1]); }',
     'function catalogSetter(Record $m): void { $m->forceFill(["virtual_setter" => 1]); }',
+    'function ambiguous(Ambiguous $m): void { $m->forceFill(["fame" => 1]); }',
 ];
 file_put_contents($workspace.'/cases.php', "<?php\nnamespace App;\n".implode("\n", $cases)."\n");
 foreach (['enabled', 'disabled', 'changed-body', 'changed-doc', 'changed-signature'] as $mode) {
@@ -171,10 +174,17 @@ foreach (['enabled', 'disabled', 'changed-body', 'changed-doc', 'changed-signatu
     }
     $issues = json_decode(file_get_contents($workspace.'/'.$mode.'.json'), true, flags: JSON_THROW_ON_ERROR)['issues'];
     $actual = [];
+    $help = [];
     foreach ($issues as $issue) {
         foreach ($issue['annotations'] as $a) {
             if ($a['kind'] === 'Primary') {
                 $actual[$a['span']['start']['line'] - 2][] = $issue['code'];
+                if (
+                    $issue['code'] === 'ichinya/laramago/laramago-force-fill-missing-field'
+                    && ($issue['help'] ?? null) !== null
+                ) {
+                    $help[$a['span']['start']['line'] - 2][] = $issue['help'];
+                }
                 break;
             }
         }
@@ -196,7 +206,7 @@ foreach (['enabled', 'disabled', 'changed-body', 'changed-doc', 'changed-signatu
         unset($expected[34]);
     }
     if ($mode === 'enabled') {
-        foreach ([0, 2, 3, 9, 29, 31] as $case) {
+        foreach ([0, 2, 3, 9, 29, 31, 38] as $case) {
             $expected[$case] = ['ichinya/laramago/laramago-force-fill-missing-field'];
         }
         $expected[35] = array_fill(0, 2, 'ichinya/laramago/laramago-force-fill-missing-field');
@@ -206,6 +216,12 @@ foreach (['enabled', 'disabled', 'changed-body', 'changed-doc', 'changed-signatu
     ksort($expected);
     if ($actual !== $expected) {
         throw new RuntimeException($mode.': '.json_encode($actual).' workspace '.$workspace);
+    }
+    $expectedHelp = $mode === 'enabled'
+        ? [0 => ['Did you mean "name"?'], 2 => ['Did you mean "name"?']]
+        : [];
+    if ($help !== $expectedHelp) {
+        throw new RuntimeException($mode.' help: '.json_encode($help).' workspace '.$workspace);
     }
     echo 'PASS force fill keys '.$mode.' '.count($cases)." cases\n";
 }
