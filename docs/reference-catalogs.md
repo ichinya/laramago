@@ -254,3 +254,5 @@ file or application bootstrap is executed to produce these notes.
 Explicit [required Inertia prop contracts](inertia-required-props.md) can check closed literal render props when shared names and subsequent response mutations are covered by completeness assertions.
 
 Explicit per-page literal frontend JSON type expectations can be checked on native render calls; see [Inertia literal prop type contracts](inertia-prop-types.md).
+
+The complete Inertia catalog also checks literal expected names in native `Inertia\Testing\AssertableInertia::component()` assertions, including `assertInertia()` callbacks. Explicit `shouldExist: false`, dynamic existence options, custom receivers and modified package methods defer. The audited Inertia 2.x/3.x method body is required. This checks the catalog contract, not response contents or test outcomes.

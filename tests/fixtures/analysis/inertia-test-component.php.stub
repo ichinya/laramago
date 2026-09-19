@@ -1,0 +1,59 @@
+<?php
+
+// The component method follows inertiajs/inertia-laravel 3.x (MIT).
+// See inertia-LICENSE.md. This source is parsed but never executed.
+namespace Illuminate\Testing\Fluent {
+    class AssertableJson {}
+}
+
+namespace Illuminate\Testing {
+    class TestResponse
+    {
+        public function __call($method, $arguments): mixed { return null; }
+    }
+}
+
+namespace Inertia\Testing {
+    use Illuminate\Testing\Fluent\AssertableJson;
+    use InvalidArgumentException;
+    use PHPUnit\Framework\Assert as PHPUnit;
+
+    class AssertableInertia extends AssertableJson
+    {
+        private $component;
+
+        /**
+         * Assert that the page uses the given component.
+         *
+         * @param bool|null $shouldExist
+         */
+        public function component(?string $value = null, $shouldExist = null): self
+        {
+            PHPUnit::assertSame($value, $this->component, 'Unexpected Inertia page component.');
+            if ($shouldExist || (is_null($shouldExist) && config('inertia.testing.ensure_pages_exist', true))) {
+                try {
+                    app('inertia.view-finder')->find($value);
+                } catch (InvalidArgumentException $exception) {
+                    PHPUnit::fail(sprintf('Inertia page component file [%s] does not exist.', $value));
+                }
+            }
+
+            return $this;
+        }
+    }
+
+    class TestResponseMacros
+    {
+        public function assertInertia(): \Closure
+        {
+            return function (?\Closure $callback = null) { return $this; };
+        }
+    }
+}
+
+namespace Inertia {
+    class ServiceProvider
+    {
+        protected function registerTestingMacros(): void {}
+    }
+}
