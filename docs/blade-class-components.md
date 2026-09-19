@@ -76,3 +76,22 @@ constructor data. It returns missing names, or null if the constructor, names or
 completeness cannot be established. It does not parse Blade tags, resolve tag
 names or aliases, evaluate attribute values, register diagnostics or assert that
 an explicit contract mirrors runtime container behavior.
+
+`BladeClassPropArgumentTypes::mismatchLiteral()` checks a narrower type case for
+class components. A caller must provide a proven class tag target, all ordered
+post-parse attribute names, the interior PHP expression of one syntactically bound
+attribute, and an explicit assertion that the standard compiler and
+`Component::resolve()` are active with no custom resolver or override. Every
+constructor parameter name must occur exactly once after Laravel camel
+normalization, including parameters with defaults; otherwise Laravel can use its
+container path. Duplicate names defer because the compiler keeps the last value.
+
+Only direct array, scalar, boolean and null expression syntax is classified.
+The checker returns a `BladePropTypeMismatch` for values disjoint from every
+supported native constructor type arm, such as `:items="42"` for an `array`
+parameter. It does not evaluate expressions. Scalar-to-scalar conversions,
+callables, complex type syntax, dynamic expressions, unbound HTML strings,
+short/escaped/boolean attributes and uncertain resolution return null. Null
+means either compatible or unknown; it is not a validation result. PHPDoc and
+native Mago contracts remain authoritative. This metadata API is not connected
+to Blade source diagnostics; source mapping is separate work.

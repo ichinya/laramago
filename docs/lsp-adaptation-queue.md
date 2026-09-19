@@ -160,7 +160,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 152 | Required Blade constructor props | implemented; Reusable class-prop validator separates runtime-dependent constructor candidates from independent required-name contracts and complete parsed attributes. Eleven focused checks pass; Blade diagnostics await source mapping and a consumer. |
 | 153 | Literal Blade props declarations | implemented; Bounded literal Blade @props parser exports names/default presence through anonymous component catalog; comments/verbatim, dynamic arrays and conditional ambiguity remain unknown. Parser/catalog/resolver regressions and source analysis pass. |
 | 154 | Blade HTML attributes versus PHP bindings | implemented; Isolated Blade opening tags distinguish literal/bound/short/escaped/boolean attributes with exact byte spans; dynamic bags, PHP, directives and exhausted limits remain incomplete. Focused parser/required-prop integration and source analysis pass. |
-| 155 | Blade prop argument types | queued |
+| 155 | Blade prop argument types | implemented; Bounded constructor type checker identifies disjoint bound literal values only with complete unique attributes and standard direct resolver proof. Weak scalar coercions and dynamic/container paths defer; ten focused checks and source analysis pass, diagnostic consumer pending. |
 | 156 | Blade attribute bag semantics | queued |
 | 157 | Blade view and translation references | queued |
 | 158 | Static custom Blade directive catalogs | queued |
