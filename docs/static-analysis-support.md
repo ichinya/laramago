@@ -75,3 +75,5 @@ development artifacts and are not part of the package.
 
 [Untyped local scopes](scope-bodies.md) describe bounded query-preserving body inference.
 [Raw original attributes](raw-original.md) explain native coverage and why schema-only field inference is deferred.
+
+`MiddlewareAliasCatalog` reads explicitly asserted effective alias sources without executing the application. See [middleware alias metadata](middleware-aliases.md); alias absence alone is not an invalid-middleware diagnostic.
