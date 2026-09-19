@@ -138,7 +138,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 130 | Concrete filesystem adapter types | implemented; Exact native FilesystemManager driver factories refine five concrete adapter results from installed construction bodies. Generator/callable results, custom class/fluent/native return contracts and dynamic disk factories defer. All factory and negative Mago modes pass, source analysis clean; AST cache resets per worker. |
 | 131 | Explicit public asset catalogs | implemented; Added lazy opt-in public asset metadata with ordered roots and three-state exact-path lookup. Complete safe catalogs alone prove absence; URLs, encoding, ambiguous case, links and bounded-scan failures defer. Focused filesystem tests, source analysis, formatting and Composer validation pass; item132 owns call-site checks. |
 | 132 | Asset literal references | queued |
-| 133 | Mix manifest parsing | queued |
+| 133 | Mix manifest parsing | implemented; Explicit Mix manifest paths provide lazy resettable native key/value snapshots, parse/read statuses and independent hot-file observation. Duplicate and numeric key semantics retained; unsupported schema and unsafe paths defer. Focused parsing tests and source/format checks pass; runtime consumers remain separately guarded. |
 | 134 | Mix manifest key references | queued |
 | 135 | Malformed Mix manifest diagnostics | queued |
 | 136 | Static path helper resolution | queued |
