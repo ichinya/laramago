@@ -148,6 +148,9 @@ final class LaravelPlugin implements Plugin
         $inertiaTestPages = new InertiaTestComponentReferencesHook($this->projectRoot);
         $registry->registerMethodCallAnalysisHook($inertiaTestPages);
         $registry->registerInitializationHook($inertiaTestPages);
+        $livewireComponents = new LivewireComponentReferencesHook($this->projectRoot);
+        $registry->registerMethodCallAnalysisHook($livewireComponents);
+        $registry->registerInitializationHook($livewireComponents);
         $registry->registerMethodReturnTypeProvider(new EloquentBuilderProvider);
         $registry->registerMethodReturnTypeProvider(new EloquentBuilderForwardingProvider($this->projectRoot));
         $scopes = new EloquentScopeProvider($this->projectRoot);
