@@ -47,6 +47,18 @@ custom roots and relevant URL/redirect container bindings defer to native analys
 Redirect checks also require the native URL generator. PHPDoc signatures and
 native argument/return diagnostics remain unchanged.
 
+Native `Response::redirectToRoute()` and exact concrete
+`ResponseFactory::redirectToRoute()` calls also check literal `route:` names.
+The zero-argument `response()->redirectToRoute()` form is covered when the
+installed helper returns the native response factory contract through `app()`.
+Checks require the native factory, redirector and URL generator declarations,
+the factory-to-redirector and redirector-to-generator forwarding bodies, standard
+constructor wiring, and the facade accessor. Explicit response-factory,
+redirector or URL-generator bindings disable this chain. Calls on arbitrary
+response-factory contract variables, custom helpers, subclasses and
+`response($content)` defer to native analysis. No response creation or route
+provider is executed.
+
 The same catalog checks literal names on native `signedRoute()` and
 `temporarySignedRoute()` calls through exact URL generator/redirector receivers
 and the native URL/Redirect facades. These checks require the installed native

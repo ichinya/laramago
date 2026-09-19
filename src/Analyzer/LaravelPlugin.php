@@ -90,6 +90,7 @@ final class LaravelPlugin implements Plugin
         $registry->registerMethodCallAnalysisHook(new NamedRouteContractsHook($this->projectRoot));
         $registry->registerNodeAnalysisHook(new NamedRouteHelperContractsHook($this->projectRoot));
         $registry->registerNodeAnalysisHook(new NamedRouteFacadeContractsHook($this->projectRoot));
+        $registry->registerNodeAnalysisHook(new NamedRouteResponseContractsHook($this->projectRoot));
         $storageDisks = new StorageDiskContractsHook($this->projectRoot);
         $registry->registerNodeAnalysisHook($storageDisks);
         $registry->registerInitializationHook($storageDisks);
