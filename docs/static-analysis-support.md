@@ -94,3 +94,5 @@ magic dispatch, non-public/static methods, PHPDoc method contracts, and unresolv
 Literal middleware strings, alias/group expansion, container targets, and later pipes remain deferred.
 
 [Gate definition metadata](gate-definitions.md) preserves explicitly selected literal registrations and callback syntax; definition completeness never proves authorization outcomes.
+
+[Policy mapping metadata](policy-mappings.md) reads explicitly selected native provider declarations without runtime policy discovery or missing-policy inference.

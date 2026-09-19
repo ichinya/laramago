@@ -85,7 +85,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 77 | Middleware group cycles | implemented; Selected effective middleware group declarations report exact-key cycles at matching analyzed source snapshots. Ten real-Mago modes and 33 metadata checks pass; source analyzer clean. Registration skips unconfigured projects; cached AST hashes prevent stale source spans. |
 | 78 | withoutMiddleware semantics | already-covered; Native array/string and fluent exclusion contracts remain authoritative. Twelve framework probes confirm unmatched exclusions are harmless and preserve exact parameter, closure, inheritance and group semantics; route exclusions do not remove global middleware. New effectiveness-policy diagnostics defer. |
 | 79 | Static Gate define catalog | implemented; Explicitly selected literal Gate definitions retain ordered overrides and callback AST/PHPDoc provenance, including direct provider boot bodies. Metadata only; no authorization inference. 28 focused checks and source analysis pass. |
-| 80 | Explicit policy mapping catalog | queued |
+| 80 | Explicit policy mapping catalog | implemented; Explicit native AuthServiceProvider policy maps preserve exact keys and ordered overrides. Metadata only; absence remains unknown. Root added contained project-relative source validation. 26 focused checks and source analysis pass. |
 | 81 | Declarative model-policy attributes | queued |
 | 82 | Policy class references | queued |
 | 83 | Policy method availability | queued |
