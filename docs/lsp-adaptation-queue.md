@@ -165,7 +165,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 157 | Blade view and translation references | implemented; Bounded source-only Blade view/translation references retain original literal spans and optional/conditional lookup semantics. Nested directive strings, escapes and malformed wrapper suffixes do not create references; focused regressions and source analysis pass. |
 | 158 | Static custom Blade directive catalogs | implemented; Selected literal Blade::directive/if registrations preserve effective ordering, generated conditional names, custom overrides and declaration byte spans without executing callbacks. Sixteen focused checks and source analysis pass; metadata only. |
 | 159 | Complete Blade directive reference checks | implemented; Complete effective directive registries classify original Blade spans with native compiler source discovery and custom precedence; custom vendor paths, opaque PHP/component syntax and numeric keys covered. Focused tests and source analysis pass; standalone consumer required. |
-| 160 | Blade diagnostic source mapping | queued |
+| 160 | Blade diagnostic source mapping | implemented; Standalone original Blade source-check results compose complete catalogs, reference/directive scanners and explicit class-prop contracts with exact file identity, byte spans and line/byte columns. Nineteen integration checks pass; current SDK Blade publication remains unsupported. |
 | 161 | Explicit Livewire component catalog | queued |
 | 162 | Conventional Livewire class and view mapping | queued |
 | 163 | PHP Livewire component references | queued |
