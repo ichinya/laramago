@@ -167,7 +167,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 159 | Complete Blade directive reference checks | implemented; Complete effective directive registries classify original Blade spans with native compiler source discovery and custom precedence; custom vendor paths, opaque PHP/component syntax and numeric keys covered. Focused tests and source analysis pass; standalone consumer required. |
 | 160 | Blade diagnostic source mapping | implemented; Standalone original Blade source-check results compose complete catalogs, reference/directive scanners and explicit class-prop contracts with exact file identity, byte spans and line/byte columns. Nineteen integration checks pass; current SDK Blade publication remains unsupported. |
 | 161 | Explicit Livewire component catalog | implemented; Explicit selected Livewire 3/4 registrations preserve names, class/view targets and source provenance with version/order assertions. Complete registration maps remain distinct from complete runtime resolution; focused metadata tests and source analysis pass. |
-| 162 | Conventional Livewire class and view mapping | queued |
+| 162 | Conventional Livewire class and view mapping | implemented; Versioned explicit class/view roots provide positive Livewire convention metadata, native acronym and Index naming, and source locations. Overlapping roots are covered; absence and runtime discovery remain unknown. Focused tests and source analysis pass. |
 | 163 | PHP Livewire component references | queued |
 | 164 | Blade Livewire component references | queued |
 | 165 | Volt route component references | queued |
