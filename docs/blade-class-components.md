@@ -56,3 +56,23 @@ components, aliases, registration, tag conversion/resolution, view links and
 required-prop diagnostics are separate work. Each instance is a snapshot; create
 a new catalog after source/configuration changes. There is no analyzer hook or
 diagnostic attached to this reusable metadata API.
+
+`BladeClassRequiredProps` can derive constructor **candidates** from a catalog
+record. These are non-variadic parameters with no syntactic default, not required
+Blade attributes. Laravel's `Component::resolve()` may use the container when
+attributes are missing. The container can provide contextual primitives, class
+dependencies and null for nullable parameters; a custom component resolver can
+also supply the instance. Candidate names must not be used directly as missing
+prop diagnostics.
+
+`missingExplicit($component, $requiredNames, $attributeNames, $complete)` checks
+an application-authored required-name contract against an already parsed,
+complete attribute-name list for a proven class target. Required names must be
+non-variadic constructor parameters. The caller must provide the explicit
+contract independently; it is not inferred from `candidates()`. Attribute names
+must already have Blade's bound/short attribute syntax removed. Ordinary ASCII
+hyphen and underscore names are converted to camel case as Laravel does for
+constructor data. It returns missing names, or null if the constructor, names or
+completeness cannot be established. It does not parse Blade tags, resolve tag
+names or aliases, evaluate attribute values, register diagnostics or assert that
+an explicit contract mirrors runtime container behavior.
