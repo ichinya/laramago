@@ -62,6 +62,7 @@ foreach ([
     '@if($active) @props(["name"]) @endif',
     '@php if ($active): @endphp @props(["name"])',
     '@props(["unterminated"',
+    '@props(["name"]; //)',
 ] as $unknown) {
     $assert(
         $parser->parse($unknown) === null,

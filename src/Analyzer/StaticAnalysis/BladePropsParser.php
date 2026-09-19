@@ -175,10 +175,11 @@ final class BladePropsParser
     /** @return list<BladePropDeclaration>|null */
     private function parseArray(string $expression): ?array
     {
+        $source = '<?php return '.$expression.';';
         try {
             $statements = (new ParserFactory)
                 ->createForNewestSupportedVersion()
-                ->parse('<?php return '.$expression.';');
+                ->parse($source);
         } catch (\PhpParser\Error) {
             return null;
         }
@@ -186,7 +187,11 @@ final class BladePropsParser
             return null;
         }
         $statement = $statements[0];
-        if (! $statement instanceof Return_ || ! $statement->expr instanceof Array_) {
+        if (
+            ! $statement instanceof Return_
+            || ! $statement->expr instanceof Array_
+            || $statement->getEndFilePos() !== (strlen($source) - 1)
+        ) {
             return null;
         }
 
