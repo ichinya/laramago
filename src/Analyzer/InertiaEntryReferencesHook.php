@@ -219,7 +219,7 @@ final class InertiaEntryReferencesHook implements NodeAnalysisHook, Initializati
             ! $call->class instanceof Node\Name
             || strcasecmp($call->class->toString(), self::ROUTE) !== 0
             || ! $call->name instanceof Node\Identifier
-            || strcasecmp($call->name->name, 'inertia') !== 0
+            || $call->name->name !== 'inertia'
         ) {
             return false;
         }

@@ -189,6 +189,7 @@ $source = <<<'PHP'
     function namedRoute(): void { Route::inertia(component: 'Admin/User', uri: '/users'); }
     function dynamicRoute(string $name): void { Route::inertia('/users', $name); }
     function unpackedRoute(): void { Route::inertia(...['/users', 'Admin/User']); }
+    function uppercaseMacro(): void { Route::INERTIA('/users', 'Admin/User'); }
     PHP;
 file_put_contents($workspace.'/cases.php', $source);
 $configuration = [
