@@ -80,7 +80,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 72 | Middleware parameter string parsing | deferred; Parameter parsing needs a resolved consumer and dispatch contract. Seventeen native probes confirm callable-before-parse, exact group precedence and different empty/zero suffix behavior for direct versus grouped middleware. Raw catalogs remain unchanged; no unused parser added. |
 | 73 | Middleware class-string references | already-covered; Native Mago already checks middleware ::class references through imports, arrays and parameter concatenation; enabled/native proof produced the same four precise class diagnostics. Additional raw-string checks remain deferred because missing class names can be valid container keys. |
 | 74 | Middleware handle contracts | queued |
-| 75 | Middleware attributes and arrays | queued |
+| 75 | Middleware attributes and arrays | already-covered; Native Mago preserves actual Middleware/WithoutMiddleware attribute targets and argument contracts, ordinary constructor and inherited HasMiddleware array PHPDoc. Thirteen exact native/enabled diagnostics matched. Additional raw-name resolution remains deferred. |
 | 76 | Middleware parameter arity | queued |
 | 77 | Middleware group cycles | queued |
 | 78 | withoutMiddleware semantics | queued |
