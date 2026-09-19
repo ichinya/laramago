@@ -89,7 +89,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 81 | Declarative model-policy attributes | queued |
 | 82 | Policy class references | already-covered; Real Mago preserves four exact native missing class-reference diagnostics with extension enabled and disabled. Four native Gate/Container probes confirm raw policy targets may be valid container keys; additional raw-target checks require closed effective container resolution. |
 | 83 | Policy method availability | deferred; Sixteen native Gate probes show missing policy methods are valid fallback or denial. Gate definitions, global callbacks, container substitution, magic methods and guest eligibility prevent declaration-only missing-method diagnostics. |
-| 84 | Gate ability name references | queued |
+| 84 | Gate ability name references | deferred; Eight native Gate probes show explicit definition absence does not make an ability invalid: policies, discovery, before/after callbacks and magic methods remain effective. All 28 catalog checks pass. A missing-name diagnostic needs effective dispatch provenance and a separate validity rule. |
 | 85 | Gate ability arrays | queued |
 | 86 | Route can and Authorize attributes | queued |
 | 87 | Policy model argument compatibility | queued |
