@@ -98,3 +98,5 @@ Literal middleware strings, alias/group expansion, container targets, and later 
 [Policy mapping metadata](policy-mappings.md) reads explicitly selected native provider declarations without runtime policy discovery or missing-policy inference.
 
 [Policy attribute declarations](policy-attributes.md) preserve direct literal UsePolicy metadata without claiming effective Gate resolution or inherited policy priority.
+
+Direct native container self-alias registration receives a bounded warning; see [container binding contracts](container-bindings.md#direct-self-alias-registrations). Multi-key alias graph cycles remain unresolved.

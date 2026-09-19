@@ -83,3 +83,20 @@ return declarations, unresolved/abstract/generic classes, conditional
 registrations, and duplicate registrations. Existing catalog mutation safeguards
 and native/PHPDoc priority remain in force. This is not support for arbitrary
 runtime factories or service-provider activation.
+
+## Direct self-alias registrations
+
+`laramago-container-self-alias` warns when `(new Illuminate\Container\Container)->alias(...)`
+receives two identical literal string keys. Native Laravel throws `LogicException`
+before changing state, including for empty strings and `"0"`. Named arguments are
+matched by their exact parameter names; key case and leading backslashes are preserved.
+
+This check requires the audited native `alias` declaration and a concrete exact
+container without a constructor or class PHPDoc overrides. Subclasses, saved
+instances, helper receivers, dynamic values, unpacking and modified native bodies
+remain outside this check. PHP's invalid-call and instantiation diagnostics retain
+priority. No application or catalog file executes.
+
+Longer alias cycles continue to prevent type refinement. Diagnosing their effective
+runtime graph requires registration-order, receiver and source-provenance proof;
+this direct self-alias check does not claim to validate that graph.

@@ -33,6 +33,7 @@ final class LaravelPlugin implements Plugin
         $properties = new EloquentPropertyProvider($this->projectRoot);
         $registry->registerMethodCallAnalysisHook(new PipelineDispatchHook($this->projectRoot));
         $registry->registerMethodCallAnalysisHook(new PipelineArityHook($this->projectRoot));
+        $registry->registerMethodCallAnalysisHook(new ContainerSelfAliasHook($this->projectRoot));
         $registry->registerMethodCallAnalysisHook(new ForceFillWriteContractHook);
         $registry->registerMethodCallAnalysisHook(new ForceFillFieldNamesHook($this->projectRoot));
         $relationMethods = new EloquentRelationMethodProvider($this->projectRoot);
