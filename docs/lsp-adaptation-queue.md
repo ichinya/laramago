@@ -60,7 +60,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 52 | Signed and temporary signed routes | implemented; Signed and temporary signed route names use complete catalogs on native facades/exact receivers; forwarding-chain signature guards, changed defaults and twelve real-Mago modes preserve custom/native errors. |
 | 53 | Response route redirects | implemented; Native Response facade/factory and zero-argument response helper route redirects use complete catalogs with forwarding-chain and binding guards; 209 real-Mago cases pass, preserving custom/native behavior and literal spans. |
 | 54 | RedirectToRoute attribute references | queued |
-| 55 | Route-name predicate semantics | queued |
+| 55 | Route-name predicate semantics | already-covered; Native bool contracts cover route-name predicates; absent names and wildcard patterns are valid boolean tests, so missing-route warnings would be incorrect. Installed bodies reviewed; existing route/facade suites pass. |
 | 56 | Static literal route registration catalogs | queued |
 | 57 | Conflicting active route names | queued |
 | 58 | Required named-route parameters | queued |
