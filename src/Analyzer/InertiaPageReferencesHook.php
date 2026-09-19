@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\InertiaUiModalProof;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ModelReflection;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ReferenceCatalogs;
@@ -34,6 +35,7 @@ final class InertiaPageReferencesHook implements MethodCallAnalysisHook, Initial
     private ?ReferenceCatalogs $catalogs = null;
     private ?PhpSource $source = null;
     private ?ContainerBindings $bindings = null;
+    private ?InertiaUiModalProof $modal = null;
     private string $sourceHash = '';
     /** @var array<string, Node\Expr\MethodCall|Node\Expr\StaticCall> */
     private array $calls = [];
@@ -47,13 +49,19 @@ final class InertiaPageReferencesHook implements MethodCallAnalysisHook, Initial
         $this->catalogs = null;
         $this->source = null;
         $this->bindings = null;
+        $this->modal = null;
         $this->sourceHash = '';
         $this->calls = [];
     }
 
     public function getTargets(): array
     {
-        return [MethodTarget::exact(self::FACADE, 'render'), MethodTarget::exact(self::FACTORY, 'render')];
+        return [
+            MethodTarget::exact(self::FACADE, 'render'),
+            MethodTarget::exact(self::FACTORY, 'render'),
+            MethodTarget::exact(self::FACADE, 'modal'),
+            MethodTarget::exact(self::FACTORY, 'modal'),
+        ];
     }
 
     public function getRequirements(): array
@@ -64,7 +72,11 @@ final class InertiaPageReferencesHook implements MethodCallAnalysisHook, Initial
     public function analyze(NodeAnalysisContext $context): void
     {
         $call = $this->call($context);
-        if ($call === null || $call->isFirstClassCallable()) {
+        if ($call === null || $call->isFirstClassCallable() || ! $call->name instanceof Node\Identifier) {
+            return;
+        }
+        $modal = strcasecmp($call->name->name, 'modal') === 0;
+        if ($modal && $call->name->name !== 'modal') {
             return;
         }
         $receiver = $context->receiverType?->atomicTypes[0] ?? null;
@@ -83,6 +95,9 @@ final class InertiaPageReferencesHook implements MethodCallAnalysisHook, Initial
             || $receiver->name !== self::FACTORY
             || ! $this->nativeDispatch($context, self::FACTORY)
         ) {
+            return;
+        }
+        if ($modal && ! $this->modal()->supports($context->codebase)) {
             return;
         }
         $component = null;
@@ -225,7 +240,7 @@ final class InertiaPageReferencesHook implements MethodCallAnalysisHook, Initial
             ! $call instanceof Node\Expr\MethodCall
             && ! $call instanceof Node\Expr\StaticCall
             || ! $call->name instanceof Node\Identifier
-            || strcasecmp($call->name->name, 'render') !== 0
+            || ! in_array(strtolower($call->name->name), ['render', 'modal'], true)
         ) {
             return null;
         }
@@ -246,6 +261,11 @@ final class InertiaPageReferencesHook implements MethodCallAnalysisHook, Initial
     private function bindings(): ContainerBindings
     {
         return $this->bindings ??= new ContainerBindings($this->root);
+    }
+
+    private function modal(): InertiaUiModalProof
+    {
+        return $this->modal ??= new InertiaUiModalProof($this->root, $this->source());
     }
 
     private static function inertiaFile(?string $path, string $file): bool

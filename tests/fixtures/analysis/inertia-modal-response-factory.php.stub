@@ -1,0 +1,21 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Inertia;
+
+use Illuminate\Support\Traits\Macroable;
+
+throw new \RuntimeException('Inertia fixture must never execute.');
+
+class Response {}
+
+class ResponseFactory
+{
+    use Macroable;
+
+    public function render($component, $props = []): Response
+    {
+        return new Response;
+    }
+}
