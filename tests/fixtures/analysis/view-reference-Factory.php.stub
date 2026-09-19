@@ -1,0 +1,33 @@
+<?php
+namespace Illuminate\View;
+class Factory {
+/**
+ * Get the evaluated view contents for the given view.
+ *
+ * @param  string  $view
+ * @param  \Illuminate\Contracts\Support\Arrayable|array  $data
+ * @param  array  $mergeData
+ * @return \Illuminate\Contracts\View\View
+ */
+public function make($view, $data = [], $mergeData = [])
+{
+    $path = $this->finder->find($view = $this->normalizeName($view));
+    // Next, we will create the view instance and call the view creator for the view
+    // which can set any data, etc. Then we will return the view instance back to
+    // the caller for rendering or performing other view manipulations on this.
+    $data = array_merge($mergeData, $this->parseData($data));
+    return tap($this->viewInstance($view, $path, $data), function ($view) {
+        $this->callCreator($view);
+    });
+}
+/**
+ * Normalize a view name.
+ *
+ * @param  string  $name
+ * @return string
+ */
+protected function normalizeName($name)
+{
+    return $this->normalizedNameCache[$name] ??= \Illuminate\View\ViewName::normalize($name);
+}
+}

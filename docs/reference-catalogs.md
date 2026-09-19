@@ -57,4 +57,15 @@ component expressions, argument unpacking and incomplete catalogs defer.
 Package namespaces, arbitrary dynamic keys/locales, implicit locale mutation, first-class
 callables, argument unpacking, unsafe/dynamic catalogs, custom helpers and unsupported
 catalog shapes defer. String phrase JSON references, other facades, Blade directives, `trans_choice`
-and view factory methods are not covered. Catalogs are parsed without executing PHP.
+and other view factory methods are not covered. Catalogs are parsed without executing PHP.
+
+Native `View::make()` and exact `Illuminate\View\Factory::make()` receivers also
+check literal view names with the complete `views` contract. Positional and named
+arguments are supported. The native factory lookup and name-normalization methods
+must match the audited Laravel implementation; facade forwarding must remain native.
+Configured view/finder service replacements disable these checks. Subclasses,
+interface-typed factories, dynamic/unpacked arguments and customized native methods
+defer. `exists()` is an intentional existence query, `first()` may use fallbacks,
+`file()` accepts a filesystem path, and conditional rendering may never reach lookup;
+these methods do not produce missing-view warnings. This contract also excludes
+runtime finder replacement, name-cache remapping and dynamically added view paths.
