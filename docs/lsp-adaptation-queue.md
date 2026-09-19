@@ -151,7 +151,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 143 | Ambiguous Inertia page names | implemented; Opt-in unique Inertia page names diagnose multiple distinct physical files at native render calls; default resolver order stays valid and aliases are deduplicated. |
 | 144 | Simple Vue defineProps names | implemented; Bounded lexical Vue defineProps metadata returns literal names and completeness for one canonical page; shadows, nested/custom contexts, oversized and ambiguous sources defer. |
 | 145 | Required Inertia props contracts | implemented; Explicit required/shared/full-response contracts check closed literal native render props; dynamic/dotted/provider values, changed dispatch and later augmentation defer. |
-| 146 | PHP and frontend prop type contracts | queued |
+| 146 | PHP and frontend prop type contracts | implemented; Opt-in per-page frontend JSON type contracts validate native render literal primitive/list props with value preservation assertion; unknown serialization defers. Real Mago type and required-prop tests plus source analysis pass. |
 | 147 | Inertia assertion page contracts | queued |
 | 148 | Static Blade class component catalog | implemented; Explicit AST-only Blade class component catalog preserves constructor and inherited public property declarations; 17 focused checks and source analysis pass. Runtime registration and tag resolution remain separate. |
 | 149 | Static Blade anonymous component catalog | queued |

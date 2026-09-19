@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\InertiaLiteralPropTypes;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\InertiaUiModalProof;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ModelReflection;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
@@ -38,6 +39,7 @@ final class InertiaPageReferencesHook implements MethodCallAnalysisHook, Initial
     private ?PhpSource $source = null;
     private ?ContainerBindings $bindings = null;
     private ?InertiaUiModalProof $modal = null;
+    private ?InertiaLiteralPropTypes $propTypes = null;
     private ?bool $nativeFactoryProps = null;
     private string $sourceHash = '';
     /** @var array<string, Node\Expr\MethodCall|Node\Expr\StaticCall> */
@@ -53,6 +55,7 @@ final class InertiaPageReferencesHook implements MethodCallAnalysisHook, Initial
         $this->source = null;
         $this->bindings = null;
         $this->modal = null;
+        $this->propTypes = null;
         $this->nativeFactoryProps = null;
         $this->sourceHash = '';
         $this->calls = [];
@@ -142,6 +145,7 @@ final class InertiaPageReferencesHook implements MethodCallAnalysisHook, Initial
         $known = $catalogs->containsInertiaPage($component->value);
         if ($known === true) {
             $this->checkRequiredProps($context, $call, $component->value, $catalogs);
+            $this->checkLiteralPropTypes($context, $call, $component->value);
 
             return;
         }
@@ -156,6 +160,51 @@ final class InertiaPageReferencesHook implements MethodCallAnalysisHook, Initial
                 new SourceLocation($context->source->path, $context->node->span),
             ),
         );
+    }
+
+    private function checkLiteralPropTypes(
+        NodeAnalysisContext $context,
+        Node\Expr\MethodCall|Node\Expr\StaticCall $call,
+        string $page,
+    ): void {
+        if (! $call->name instanceof Node\Identifier || strcasecmp($call->name->name, 'render') !== 0) {
+            return;
+        }
+        $contracts = $this->propTypes ??= new InertiaLiteralPropTypes($this->root);
+        $expected = $contracts->forPage($page);
+        if ($expected === [] || ! $this->factoryMergesProps($context)) {
+            return;
+        }
+        foreach ($this->calls as $other) {
+            if ($other instanceof Node\Expr\MethodCall && $other->var === $call) {
+                return;
+            }
+        }
+        $actual = $contracts->literalProps($call);
+        if ($actual === null) {
+            return;
+        }
+        foreach ($actual as $name => $kind) {
+            if (! isset($expected[$name]) || in_array($kind, $expected[$name], true)) {
+                continue;
+            }
+            $context->report(
+                Level::Warning,
+                'laramago-incompatible-inertia-prop',
+                Issue::at(
+                    'Inertia page "'
+                    .$page
+                    .'" prop "'
+                    .$name
+                    .'" has literal JSON type '
+                    .$kind
+                    .'; its explicit frontend contract expects '
+                    .implode('|', $expected[$name])
+                    .'.',
+                    new SourceLocation($context->source->path, $context->node->span),
+                ),
+            );
+        }
     }
 
     private function checkRequiredProps(

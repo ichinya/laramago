@@ -252,3 +252,5 @@ translator and dynamic fallback cases retain their existing behavior. No languag
 file or application bootstrap is executed to produce these notes.
 
 Explicit [required Inertia prop contracts](inertia-required-props.md) can check closed literal render props when shared names and subsequent response mutations are covered by completeness assertions.
+
+Explicit per-page literal frontend JSON type expectations can be checked on native render calls; see [Inertia literal prop type contracts](inertia-prop-types.md).
