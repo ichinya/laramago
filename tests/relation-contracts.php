@@ -52,6 +52,8 @@ $framework = str_replace('class Builder'."\n".'{', <<<'PHP'
          * @return $this */
         public function whereHas($relation, $callback = null) { return $this; }
     PHP, $framework);
+// Nowdoc fragments inherit checkout line endings; normalize after inserting them.
+$framework = str_replace(["\r\n", "\r"], "\n", $framework);
 file_put_contents($workspace.'/framework.php', $framework);
 file_put_contents(
     $workspace.'/models.php',
@@ -71,7 +73,14 @@ $config = [
     'source' => ['paths' => ['cases.php'], 'includes' => ['framework.php', 'models.php']],
     'extension-hosts' => [
         'laramago' => [
-            'command' => [PHP_BINARY, $package.'/bin/laramago-worker.php', $package.'/vendor/autoload.php', $workspace],
+            'command' => [
+                PHP_BINARY,
+                '-d',
+                'opcache.enable_cli=0',
+                $package.'/bin/laramago-worker.php',
+                $package.'/vendor/autoload.php',
+                $workspace,
+            ],
             'workers' => 3,
         ],
     ],
@@ -208,11 +217,16 @@ check_relation_contracts(
     $workspace,
 );
 file_put_contents($workspace.'/framework.php', $framework);
-file_put_contents($workspace.'/framework.php', str_replace(
+$changedFramework = str_replace(
     '* @return $this */'."\n".'    public function using',
     '* @return string */'."\n".'    public function using',
     $framework,
-));
+    $changedReturnCount,
+);
+if ($changedReturnCount !== 1) {
+    throw new RuntimeException('Expected exactly one pivot return contract replacement.');
+}
+file_put_contents($workspace.'/framework.php', $changedFramework);
 check_relation_contracts(
     [
         'changed pivot return defers' => [
