@@ -40,6 +40,26 @@ roots, unsafe paths, unreadable directories, linked entries and malformed paths 
 extensions make the Inertia catalog unknown. Mark the catalog complete only when the
 listed roots and extensions describe every page that the application can resolve.
 
+The optional `public-assets` catalog indexes files under explicit project-relative
+public roots, including custom directories and paths with spaces:
+
+```json
+"public-assets": {"complete": true, "paths": ["public", "custom public"]}
+```
+
+Names are paths relative to each root, with `/` separators; root order and duplicate
+names are retained. The index initializes on first use and can be reset between analyses.
+An omitted or false `complete` value exposes known files but cannot prove a missing
+reference. Set `complete: true` only when these roots describe every locally resolvable
+public file for the application, including any build output. A conventional `public`
+directory is not assumed to be complete: URL generators can use remote asset hosts,
+custom serving rules or generated manifest paths. The index does not interpret Mix or
+Vite manifests, inspect remote URLs or infer runtime asset closure. Absolute URLs,
+query strings, fragments, percent-encoded paths and dot segments are left unknown.
+Missing roots, linked entries, unreadable directories or files, and scans beyond 4,096
+entries or 32 directory levels also leave the catalog unknown. No application bootstrap,
+environment configuration, JavaScript or PHP asset file is executed.
+
 The `view` helper checks conventional dotted or slash-separated literal names against
 Blade/PHP/CSS/HTML files. The `trans` and `__` helpers check literal PHP keys and JSON phrases only
 with an explicit literal locale listed in the contract. Static JSON overrides, nested
