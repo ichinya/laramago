@@ -92,3 +92,5 @@ and variadic parameters do not cause warnings. Extra arguments to user-defined m
 PHP and are never diagnosed here. This bounded check excludes constructors, inheritance, traits,
 magic dispatch, non-public/static methods, PHPDoc method contracts, and unresolved class metadata.
 Literal middleware strings, alias/group expansion, container targets, and later pipes remain deferred.
+
+[Gate definition metadata](gate-definitions.md) preserves explicitly selected literal registrations and callback syntax; definition completeness never proves authorization outcomes.

@@ -84,7 +84,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 76 | Middleware parameter arity | implemented; Checks minimum required arity only for proven first direct-object native Pipeline dispatch, which supplies two arguments and prefers callable __invoke. Required-after-optional, defaults, variadics and valid extra arguments are covered. Nine arity and seventeen shared dispatch modes passed; raw string arity defers. |
 | 77 | Middleware group cycles | implemented; Selected effective middleware group declarations report exact-key cycles at matching analyzed source snapshots. Ten real-Mago modes and 33 metadata checks pass; source analyzer clean. Registration skips unconfigured projects; cached AST hashes prevent stale source spans. |
 | 78 | withoutMiddleware semantics | already-covered; Native array/string and fluent exclusion contracts remain authoritative. Twelve framework probes confirm unmatched exclusions are harmless and preserve exact parameter, closure, inheritance and group semantics; route exclusions do not remove global middleware. New effectiveness-policy diagnostics defer. |
-| 79 | Static Gate define catalog | queued |
+| 79 | Static Gate define catalog | implemented; Explicitly selected literal Gate definitions retain ordered overrides and callback AST/PHPDoc provenance, including direct provider boot bodies. Metadata only; no authorization inference. 28 focused checks and source analysis pass. |
 | 80 | Explicit policy mapping catalog | queued |
 | 81 | Declarative model-policy attributes | queued |
 | 82 | Policy class references | queued |
