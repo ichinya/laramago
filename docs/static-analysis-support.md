@@ -96,3 +96,5 @@ Literal middleware strings, alias/group expansion, container targets, and later 
 [Gate definition metadata](gate-definitions.md) preserves explicitly selected literal registrations and callback syntax; definition completeness never proves authorization outcomes.
 
 [Policy mapping metadata](policy-mappings.md) reads explicitly selected native provider declarations without runtime policy discovery or missing-policy inference.
+
+[Policy attribute declarations](policy-attributes.md) preserve direct literal UsePolicy metadata without claiming effective Gate resolution or inherited policy priority.
