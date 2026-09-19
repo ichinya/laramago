@@ -14,5 +14,6 @@ final readonly class BladeAnonymousComponent
         public ?string $prefix,
         public string $relativeName,
         public array $candidateNames,
+        public ?BladePropsMetadata $props,
     ) {}
 }

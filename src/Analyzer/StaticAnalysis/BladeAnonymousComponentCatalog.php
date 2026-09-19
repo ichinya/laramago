@@ -38,6 +38,7 @@ final class BladeAnonymousComponentCatalog
         }
         $project = str_replace('\\', '/', $project);
         $found = [];
+        $propsParser = new BladePropsParser;
         /** @var mixed $root */
         foreach ($roots as $root) {
             if (! is_array($root) || array_diff(array_keys($root), ['path', 'prefix']) !== []) {
@@ -110,6 +111,9 @@ final class BladeAnonymousComponentCatalog
                         $prefix,
                         $name,
                         $candidates,
+                        ($source = @file_get_contents($absolute, false, null, 0, 262145)) === false
+                            ? null
+                            : $propsParser->parse($source),
                     );
                 }
             } catch (\UnexpectedValueException) {

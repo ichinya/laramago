@@ -158,7 +158,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 150 | Explicit Blade component aliases | implemented; Explicitly selected literal Blade component registrations preserve alias ordering, prefixes and raw class/view targets; complete registry assertion controls negative lookup. Focused metadata tests and source analysis pass without application execution. |
 | 151 | Blade component tag resolution | implemented; Explicit complete registration snapshots resolve native alias/class/anonymous precedence; root-before-candidate ordering, prefixed-path plain tags and acronym class cases covered. Seventeen focused checks pass; metadata API awaits Blade diagnostics consumer. |
 | 152 | Required Blade constructor props | implemented; Reusable class-prop validator separates runtime-dependent constructor candidates from independent required-name contracts and complete parsed attributes. Eleven focused checks pass; Blade diagnostics await source mapping and a consumer. |
-| 153 | Literal Blade props declarations | queued |
+| 153 | Literal Blade props declarations | implemented; Bounded literal Blade @props parser exports names/default presence through anonymous component catalog; comments/verbatim, dynamic arrays and conditional ambiguity remain unknown. Parser/catalog/resolver regressions and source analysis pass. |
 | 154 | Blade HTML attributes versus PHP bindings | queued |
 | 155 | Blade prop argument types | queued |
 | 156 | Blade attribute bag semantics | queued |
