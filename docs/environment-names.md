@@ -30,6 +30,12 @@ authentication model or affect configuration value inference. Helper references,
 template interpolation and duplicate template declarations, and Vite references
 are separate features. This catalog alone emits no diagnostics.
 
+The native Laravel `env()` helper checks literal keys when this catalog is complete.
+An uncataloged key produces `laramago-uncataloged-environment-name` at the literal,
+including calls with a fallback. This reports a contract mismatch, not a missing
+runtime value or an invalid fallback. Custom helpers, changed forwarding, dynamic
+keys, unpacked calls and first-class callables retain native analysis.
+
 Malformed catalogs are ignored. `names` must be a list of nonempty strings without
 ASCII whitespace, ASCII control characters or `=`. `complete` is optional and defaults to
 `false`; when present it must be a boolean.
