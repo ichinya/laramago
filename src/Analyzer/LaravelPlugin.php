@@ -91,6 +91,9 @@ final class LaravelPlugin implements Plugin
         $registry->registerInitializationHook($translations);
         $references = new ReferenceCatalogHook($this->projectRoot);
         $firstViews = new ViewFirstReferencesHook($this->projectRoot);
+        $conditionalViews = new ConditionalViewReferencesHook($this->projectRoot);
+        $registry->registerMethodCallAnalysisHook($conditionalViews);
+        $registry->registerInitializationHook($conditionalViews);
         $registry->registerMethodCallAnalysisHook($firstViews);
         $registry->registerInitializationHook($firstViews);
         $viewReferences = new ViewFactoryReferencesHook($this->projectRoot);

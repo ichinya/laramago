@@ -1,0 +1,67 @@
+<?php
+namespace Illuminate\View;
+class Factory {
+/**
+ * Get the rendered content of the view based on a given condition.
+ *
+ * @param  bool  $condition
+ * @param  string  $view
+ * @param  \Illuminate\Contracts\Support\Arrayable|array  $data
+ * @param  array  $mergeData
+ * @return string
+ */
+public function renderWhen($condition, $view, $data = [], $mergeData = [])
+{
+    if (!$condition) {
+        return '';
+    }
+    return $this->make($view, $this->parseData($data), $mergeData)->render();
+}
+/**
+ * Get the rendered content of the view based on the negation of a given condition.
+ *
+ * @param  bool  $condition
+ * @param  string  $view
+ * @param  \Illuminate\Contracts\Support\Arrayable|array  $data
+ * @param  array  $mergeData
+ * @return string
+ */
+public function renderUnless($condition, $view, $data = [], $mergeData = [])
+{
+    return $this->renderWhen(!$condition, $view, $data, $mergeData);
+}
+/**
+ * Get the rendered contents of a partial from a loop.
+ *
+ * @param  string  $view
+ * @param  array  $data
+ * @param  string  $iterator
+ * @param  string  $empty
+ * @return string
+ */
+public function renderEach($view, $data, $iterator, $empty = 'raw|')
+{
+    $result = '';
+    // If is actually data in the array, we will loop through the data and append
+    // an instance of the partial view to the final result HTML passing in the
+    // iterated value of this data array, allowing the views to access them.
+    if (count($data) > 0) {
+        foreach ($data as $key => $value) {
+            $result .= $this->make($view, ['key' => $key, $iterator => $value])->render();
+        }
+    } else {
+        $result = str_starts_with($empty, 'raw|') ? substr($empty, 4) : $this->make($empty)->render();
+    }
+    return $result;
+}
+/**
+ * Parse the given data into a raw array.
+ *
+ * @param  mixed  $data
+ * @return array
+ */
+protected function parseData($data)
+{
+    return $data instanceof \Illuminate\Contracts\Support\Arrayable ? $data->toArray() : $data;
+}
+}

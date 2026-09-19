@@ -115,7 +115,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 107 | assertViewIs references | deferred; assertViewIs compares stored View identity without finder lookup. Seven native-body probes accept arbitrary and file-based identities; 196 existing real-Mago checks pass. Missing-name diagnostics require response-origin proof or a separate assertion-name policy. |
 | 108 | Pagination view references | deferred; Twenty-four native probes show paginator links and render use independently mutable static factory resolvers, including falsey default-name behavior. Complete finder catalogs do not prove that resolver identity. All 266 existing View factory checks pass. |
 | 109 | View first fallback lists | implemented; Complete view catalogs warn only when every candidate in a literal unkeyed native first list is missing; known or unknown candidates defer. Audited fallback helpers and target PHP >=8.4 guard polyfill uncertainty. All 378 new and 266 existing real-Mago assertions pass; source analysis clean. |
-| 110 | Conditional and iterative view rendering | queued |
+| 110 | Conditional and iterative view rendering | implemented; Native conditional rendering checks literal true/false selected branches and literal-array renderEach item or empty views, excluding raw text and unknown state. Required argument, native body, PHPDoc, binding and shadow-function guards preserve errors. All 646 new and 266 existing real-Mago assertions pass; source analysis clean. |
 | 111 | Package view namespaces | queued |
 | 112 | View suggestions and declaration locations | queued |
 | 113 | Existing literal translation types | already-covered; Verified literal translation string refinement with translation-strings and reference-catalogs suites. |

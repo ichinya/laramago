@@ -66,8 +66,8 @@ must match the audited Laravel implementation; facade forwarding must remain nat
 Configured view/finder service replacements disable these checks. Subclasses,
 interface-typed factories, dynamic/unpacked arguments and customized native methods
 defer. `exists()` is an intentional existence query; `first()` has separate fallback checks below.
-`file()` accepts a filesystem path, and conditional rendering may never reach lookup;
-those methods do not produce missing-view warnings. This contract also excludes
+`file()` accepts a filesystem path and does not produce missing-view warnings.
+Conditional rendering has separate selected-branch checks below. This contract also excludes
 runtime finder replacement, name-cache remapping and dynamically added view paths.
 
 Native `Response::view()`, exact `Illuminate\Routing\ResponseFactory::view()` and
@@ -95,3 +95,14 @@ target to be at least 8.4; lower targets and older or changed Arr implementation
 defer. Namespaced helper overrides, custom factory/facade contracts and configured
 finder/view replacements also defer. Engine creation is never reached when every
 candidate is missing. No application, view, callback or framework method is executed.
+
+Native facade and exact concrete factory `renderWhen(true, "name")` and
+`renderUnless(false, "name")` calls check the selected literal view. Explicit data
+and merge data must be literal arrays; arbitrary Arrayable conversions are not
+executed. `renderEach("name", [1], "item")` checks the item view for a nonempty
+literal array. With an empty literal array, only an explicit literal `empty` view
+is required; the default and `raw|` text are not view references. Named arguments
+retain native positions, and missing required arguments retain native diagnostics.
+Dynamic conditions/data, array unpacking, factory subclasses/interface receivers,
+custom service bindings, modified native methods and shadowed branch functions defer.
+Neither views nor application bootstrap are executed.

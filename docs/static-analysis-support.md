@@ -106,3 +106,5 @@ An explicit permitted service ID catalog checks literal native app/resolve refer
 Complete view catalogs also check literal native View::make() and exact concrete view-factory make() calls; custom dispatch and optional lookup APIs defer.
 
 Complete view catalogs check all-missing literal native View::first fallback lists at target PHP 8.4 or later; unknown or existing candidates defer.
+
+Native conditional view rendering checks only literal selected branches and literal-array iteration; unknown conditions and data defer.
