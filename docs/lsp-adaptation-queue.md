@@ -120,7 +120,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 112 | View suggestions and declaration locations | implemented; Missing single-view diagnostics add up to three deterministic nearby names with project-relative declarations. Bounded lazy filesystem index; no edits, foreign annotations or changed absence semantics. Fifty new Mago checks, 481 regression assertions and clean source analysis passed. |
 | 113 | Existing literal translation types | already-covered; Verified literal translation string refinement with translation-strings and reference-catalogs suites. |
 | 114 | Existing explicit-locale reference contracts | already-covered; Verified explicit locale/fallback reference catalogs; reference-catalogs and translation-strings suites passed. |
-| 115 | Translator and Lang call sites | queued |
+| 115 | Translator and Lang call sites | implemented; Native Lang::get and exact Translator::get required-key checks use explicit literal locale and complete translation catalogs. Native AST/PHPDoc/dispatch guards preserve custom bindings, queries and unknown fallback state. Passed 364 focused Mago assertions, 196 regressions, source analysis and formatting. |
 | 116 | trans_choice references | deferred; Native choice selects the actual fallback locale before get and can resolve fallback JSON outside the requested get catalog. Ten native assertions and 238 Mago assertions passed. Requires a separate explicit actual-choice-fallback contract; PHP chain order is insufficient. |
 | 117 | JSON phrase translation references | queued |
 | 118 | Package translation namespaces | queued |

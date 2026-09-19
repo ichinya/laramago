@@ -139,3 +139,19 @@ oversized catalogs omit suggestions without suppressing a missing-view diagnosti
 Suggestions use edit distance at most two (one for names shorter than five characters),
 then lexical order. Blade declarations remain textual notes rather than foreign-file
 Mago annotations or editor navigation targets.
+
+Native `Lang::get()` and exact `Illuminate\Translation\Translator::get()` receivers
+also check literal dotted keys with an explicit, non-empty locale in the complete
+translation catalog. Positional and named arguments work; `fallback` must be omitted
+or literal `true`, so the configured PHP fallback chain applies. Literal `false`,
+dynamic fallback selection, falsey locales, subclass receivers and argument unpacking
+defer. `has()` and `hasForLocale()` are existence queries and never produce required-key
+warnings. This does not narrow return types.
+
+The installed Translator, NamespacedItemResolver and Lang declarations must match the
+audited native implementation, including PHPDoc. Facade forwarding and array lookup
+methods are checked as well; known translator/loader replacements and relevant
+namespace function overrides disable the check. The explicit catalog contract excludes
+runtime loaded-line changes, parsed-key remapping, custom missing-key callbacks,
+replacement/stringable callbacks that change lookup
+state, and additional loader paths. Different framework declarations conservatively defer.
