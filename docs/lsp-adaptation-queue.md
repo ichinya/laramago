@@ -143,7 +143,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 135 | Malformed Mix manifest diagnostics | implemented; Malformed JSON and unsupported Mix manifest shapes produce snapshot warnings at verified native literal callsites; hot, custom and uncertain contexts defer. |
 | 136 | Static path helper resolution | implemented; Eight native path helpers retain literal paths under explicit effective-root and native-joining assertions; dynamic and custom contracts defer. |
 | 137 | Path existence in required-file contexts | queued |
-| 138 | Vite manifest adaptation | queued |
+| 138 | Vite manifest adaptation | implemented; Explicit Vite manifest snapshots preserve chunk/import/CSS/asset metadata with bounded parsing, hot-file observations and reset; runtime reference diagnostics remain outside this metadata-only scope. |
 | 139 | Explicit Inertia page catalog | implemented; tests/inertia-page-catalog.php; symlink creation test skipped on host |
 | 140 | Inertia render page references | implemented; tests/inertia-page-references.php; opt-in complete catalog |
 | 141 | Inertia helper and route references | queued |
