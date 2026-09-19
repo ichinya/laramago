@@ -52,7 +52,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 44 | Environment helper key references | implemented; Native env helper literal keys are checked against explicit complete permitted-name catalogs; five real-Mago modes pass. Custom helpers/forwarding/Env origins defer, no values read or fallback-error claims; caches reset per analysis generation. |
 | 45 | Env get key references | implemented; Direct native Env get literal references reuse the permitted-name catalog and literal spans; three real-Mago modes pass. Custom origins/subclasses/dynamic calls defer; native types and fallbacks retained, no environment values read. |
 | 46 | Environment template interpolation references | deferred; Template interpolation needs a registered non-PHP source target; item47 real-Mago lifecycle probe rejects template spans as unknown files. Existing PHP env/catalog tests pass; no unused parser or mislocated diagnostics added. |
-| 47 | Duplicate environment template declarations | queued |
+| 47 | Duplicate environment template declarations | deferred; Real-Mago lifecycle Issue at a synthetic .env.example key fails with unknown-file protocol error. Duplicate-template review warnings need non-PHP source registration or a separate checker; values remain unread. |
 | 48 | Vite environment name references | queued |
 | 49 | Existing complete named-route contracts | already-covered; Verified complete named-route catalogs; 19 real-Mago scenarios and source analysis passed. |
 | 50 | Route and to_route helpers | implemented; Native route/to_route literal names use shared complete catalogs, helper/method provenance and service-binding guards. Seven real-Mago modes verify native/custom contracts and literal spans. |
