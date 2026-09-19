@@ -8,6 +8,65 @@ namespace Ichinya\Laramago\Analyzer\StaticAnalysis;
 final class BladeSourceDiagnostics
 {
     /**
+     * Check literal @livewire and <livewire:name> references in the original buffer.
+     * Explicit registration completeness is only one part of the effective name
+     * universe. The caller separately asserts complete conventional names, native
+     * version-specific syntax, and no custom resolvers or runtime mutations.
+     *
+     * @param list<string>|null $conventionalNames Names from a separately verified resolver snapshot.
+     */
+    public function livewire(
+        BladeSourceDocument $document,
+        LivewireComponentCatalog $registrations,
+        ?array $conventionalNames,
+        bool $conventionalComplete,
+        bool $effectiveResolverComplete,
+        bool $nativeReferenceSemantics,
+    ): ?BladeSourceCheckResult {
+        if (! $nativeReferenceSemantics) {
+            return null;
+        }
+        $scan = (new BladeLivewireReferenceParser)->parse($document->source);
+        if ($scan === null) {
+            return null;
+        }
+        $conventional = [];
+        if ($conventionalNames !== null) {
+            foreach ($conventionalNames as $name) {
+                if ($name === '' || preg_match('/^[A-Za-z0-9][A-Za-z0-9_.:-]*$/D', $name) !== 1) {
+                    return null;
+                }
+                $conventional[$name] = true;
+            }
+        }
+        $absenceProven =
+            $registrations->isComplete()
+            && $conventionalNames !== null
+            && $conventionalComplete
+            && $effectiveResolverComplete;
+        $diagnostics = [];
+        foreach ($scan->references as $reference) {
+            if (
+                str_contains($reference->name, '\\')
+                || strpbrk($reference->name, '.:-') === false
+                || isset($conventional[$reference->name])
+                || $registrations->contains($reference->name) !== false
+                || ! $absenceProven
+            ) {
+                continue;
+            }
+            $diagnostics[] = $document->diagnostic(
+                'blade-missing-livewire-component',
+                'The complete effective Livewire component resolver does not contain "'.$reference->name.'".',
+                $reference->start,
+                $reference->end,
+            );
+        }
+
+        return new BladeSourceCheckResult($diagnostics, $scan->complete);
+    }
+
+    /**
      * The caller asserts native reference directive/helper semantics, including no
      * overriding custom directives, helpers, compiler extensions or precompilers.
      * Only required view lookups are checked. Class-capable @component calls,

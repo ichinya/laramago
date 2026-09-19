@@ -40,6 +40,15 @@ Directive checks require an explicitly complete effective
 `BladeDirectiveReferenceChecker` and emit only its `missing` references with
 code `blade-missing-directive`. Unknown registry state returns `null`.
 
+`livewire($document, $registrations, $conventionalNames,
+$conventionalComplete, $effectiveResolverComplete, $nativeReferenceSemantics)`
+checks literal `@livewire('name')` and `<livewire:name>` references. It emits
+`blade-missing-livewire-component` only when explicit registrations,
+conventional names and the entire effective resolver are independently
+asserted complete, and native version-specific Blade syntax is asserted.
+See [Livewire component references](livewire-components.md) for the exact
+boundary. Dynamic names remain unknown.
+
 `requiredClassProps($document, $start, $end, $resolver, $classes, $requiredNames,
 $activeOpeningTag)` checks one original isolated opening-tag span. The caller
 must establish that the selected tag is active Blade markup, outside comments,
