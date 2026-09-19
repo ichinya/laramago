@@ -73,7 +73,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 65 | Invokable controller actions | implemented; Absolute invokable strings require actual invoke declarations; namespace uncertainty defers; 77 scenarios passed. |
 | 66 | Controller route group context | queued |
 | 67 | Additional route registration methods | queued |
-| 68 | Controller parameter route and DI contracts | queued |
+| 68 | Controller parameter route and DI contracts | deferred; Controller parameter validation requires finalized route/domain/default/binding/middleware and DI contracts. Native scalar dispatch is positional while model binding uses names; unlisted container bindings do not prove failure. Five framework-only probes and existing controller/route suites passed. |
 | 69 | Static middleware alias catalog | queued |
 | 70 | Middleware groups and legacy kernel catalog | queued |
 | 71 | Middleware name references | queued |
