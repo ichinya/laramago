@@ -100,3 +100,45 @@ priority. No application or catalog file executes.
 Longer alias cycles continue to prevent type refinement. Diagnosing their effective
 runtime graph requires registration-order, receiver and source-provenance proof;
 this direct self-alias check does not claim to validate that graph.
+
+## Permitted service reference IDs
+
+An independent opt-in reference policy can check literal `app()` and `resolve()`
+identifiers:
+
+```json
+{
+    "extra": {
+        "laramago": {
+            "service-ids": {
+                "complete": true,
+                "ids": ["clock", "App\\Services\\Clock"]
+            }
+        }
+    }
+}
+```
+
+Here `complete` closes the application's permitted/expected literal reference
+list. It does **not** assert that the runtime container has only these bindings,
+that every listed ID resolves, or that an unlisted ID fails. Laravel may autowire
+unregistered classes and resolve arbitrary string keys through bindings and
+aliases. `laramago-uncataloged-service-id` reports a reference outside this
+explicit policy, including an autowirable class written as a literal string.
+No policy is inferred from `binding-files`, service providers or Composer classes.
+
+IDs retain their exact case, whitespace, leading backslashes and empty strings.
+Only an actual boolean `complete: true` enables warnings; a missing, partial or
+malformed list produces none. The policy never changes inferred return types.
+
+Checks require native helper declarations, their generic contracts and native
+forwarding bodies. Custom helpers, custom PHPDoc, changed forwarding, dynamic
+expressions, `ClassName::class`, unpacked arguments and first-class callables are
+left to native analysis. `app()` and `app(null)` are container getter calls, not
+ID references. Optional parameter overrides are supported only as literal arrays;
+other expressions retain native argument checking. Direct `make`, facade methods,
+injection attributes and contextual bindings are outside this initial subset.
+
+`tests/service-id-references.php` runs eight real-Mago scenarios covering native
+helpers, policy opt-out/malformed input, exact key identity, autowirable strings,
+custom declarations, forwarding changes and preserved native errors.

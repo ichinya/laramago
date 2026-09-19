@@ -104,7 +104,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 96 | Container alias cycles | implemented; Fresh exact native Container self-alias calls with identical literal keys produce a bounded warning. Eight real-Mago modes pass and native diagnostic multisets remain unchanged. Audited method fingerprint, constructor and abstract guards retain priority; multi-key effective graph cycles remain deferred. |
 | 97 | Binding interface compatibility | deferred; Existing hierarchy compatibility inference and conservative mismatch fallback pass 65 real-Mago cases. Six native probes show registration and resolution alone do not enforce interface compatibility; additional errors require proven typed use or an explicit lint policy. |
 | 98 | Explicit factory required arguments | implemented; Literal container factories accept zero to two untyped required by-value parameters supplied by Laravel. Real-Mago checks retain return/body and uncertain-signature boundaries. |
-| 99 | Complete service ID catalog references | queued |
+| 99 | Complete service ID catalog references | implemented; An explicit complete permitted service-ID policy checks literal native app and resolve references without asserting runtime resolvability or changing types. Exact key identity, native helper provenance and lazy initialization preserved. 192 real-Mago checks, 65 container regressions and six native probes pass. |
 | 100 | Contextual binding resolution | queued |
 | 101 | Existing complete view helper contracts | already-covered; Verified complete view helper catalogs; seven reference-catalog modes and source analysis passed. |
 | 102 | View facade and factory references | queued |

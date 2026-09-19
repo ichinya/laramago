@@ -75,6 +75,9 @@ final class LaravelPlugin implements Plugin
         $configurationAttributes = new ConfigurationAttributeContractsHook($this->projectRoot);
         $registry->registerNodeAnalysisHook($configurationAttributes);
         $registry->registerInitializationHook($configurationAttributes);
+        $serviceIds = new ServiceIdReferencesHook($this->projectRoot);
+        $registry->registerNodeAnalysisHook($serviceIds);
+        $registry->registerInitializationHook($serviceIds);
         $environmentNames = new EnvironmentHelperReferencesHook($this->projectRoot);
         $registry->registerNodeAnalysisHook($environmentNames);
         $registry->registerInitializationHook($environmentNames);

@@ -100,3 +100,5 @@ Literal middleware strings, alias/group expansion, container targets, and later 
 [Policy attribute declarations](policy-attributes.md) preserve direct literal UsePolicy metadata without claiming effective Gate resolution or inherited policy priority.
 
 Direct native container self-alias registration receives a bounded warning; see [container binding contracts](container-bindings.md#direct-self-alias-registrations). Multi-key alias graph cycles remain unresolved.
+
+An explicit permitted service ID catalog checks literal native app/resolve references independently of runtime resolvability; see [service reference policy](container-bindings.md#permitted-service-reference-ids).
