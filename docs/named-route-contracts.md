@@ -104,6 +104,18 @@ Configured URL bindings disable signed redirect checks because their internal
 generator is no longer proven. No signing key, expiration value or signature is
 evaluated, and signature validation methods do not reference route names.
 
+Laravel's native class-level `Illuminate\Foundation\Http\Attributes\RedirectToRoute`
+on a direct `FormRequest` subclass also checks a literal positional or `route:`
+name against the same complete catalog. This requires the installed attribute's
+public promoted string constructor, native FormRequest attribute reading and
+validation-failure redirect handlers, the native Redirector-to-URL-generator
+chain, and the URL generator's native named lookup, missing resolver and final
+missing-route exception.
+Empty and `"0"` names skip the route branch in FormRequest. Custom request
+handlers, competing redirect attributes, request properties or traits, and
+configured URL or redirect services defer. Other attributes and older Laravel
+versions without this declaration retain native analysis.
+
 Dynamic values, concatenations, argument unpacking, subclasses, union receivers,
 custom facades, middleware aliases/groups, route parameters and runtime registry
 reconstruction are outside this subset. Keep the contract current when route

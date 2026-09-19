@@ -88,6 +88,9 @@ final class LaravelPlugin implements Plugin
         $registry->registerMethodCallAnalysisHook(new RouteParametersHook($this->projectRoot));
         $registry->registerMethodCallAnalysisHook(new ControllerActionClassHook($this->projectRoot));
         $registry->registerMethodCallAnalysisHook(new NamedRouteContractsHook($this->projectRoot));
+        $namedRouteAttributes = new NamedRouteAttributeContractsHook($this->projectRoot);
+        $registry->registerNodeAnalysisHook($namedRouteAttributes);
+        $registry->registerInitializationHook($namedRouteAttributes);
         $registry->registerNodeAnalysisHook(new NamedRouteHelperContractsHook($this->projectRoot));
         $registry->registerNodeAnalysisHook(new NamedRouteFacadeContractsHook($this->projectRoot));
         $registry->registerNodeAnalysisHook(new NamedRouteResponseContractsHook($this->projectRoot));
