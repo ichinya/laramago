@@ -142,7 +142,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 134 | Mix manifest key references | implemented; Literal native Mix keys checked under explicit serving assertions, complete manifests and absent hot files; native source, dispatch and namespace guards retain uncertain cases. |
 | 135 | Malformed Mix manifest diagnostics | implemented; Malformed JSON and unsupported Mix manifest shapes produce snapshot warnings at verified native literal callsites; hot, custom and uncertain contexts defer. |
 | 136 | Static path helper resolution | implemented; Eight native path helpers retain literal paths under explicit effective-root and native-joining assertions; dynamic and custom contracts defer. |
-| 137 | Path existence in required-file contexts | queued |
+| 137 | Path existence in required-file contexts | implemented; Resolved absolute require/require_once paths warn only when parent enumeration proves snapshot absence; relative, optional, stream and inaccessible paths defer. |
 | 138 | Vite manifest adaptation | implemented; Explicit Vite manifest snapshots preserve chunk/import/CSS/asset metadata with bounded parsing, hot-file observations and reset; runtime reference diagnostics remain outside this metadata-only scope. |
 | 139 | Explicit Inertia page catalog | implemented; tests/inertia-page-catalog.php; symlink creation test skipped on host |
 | 140 | Inertia render page references | implemented; tests/inertia-page-references.php; opt-in complete catalog |

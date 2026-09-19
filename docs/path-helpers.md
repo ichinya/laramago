@@ -38,3 +38,12 @@ dispatch or path method needs its own native/PHPDoc contract. Laravel preserves
 a trailing separator in the asserted base and appends another separator for a
 nonempty child; the literal result preserves both. No file-existence assertion
 is made by this provider.
+
+For `require` and `require_once`, Laramago reports a missing required file when
+Mago resolves the operand to one absolute local path and its parent directory
+can be enumerated without finding the target name. This includes a path
+returned by an asserted helper, as well as an absolute literal independent of
+helpers. The warning describes the analyzed filesystem snapshot. Relative
+paths, stream wrappers, dynamic values, inaccessible directories and optional
+`include`/`include_once` targets are left to Mago and PHP's runtime behavior.
+A file created later at runtime can make the snapshot warning stale.
