@@ -49,3 +49,13 @@ The extension reads Composer JSON, configuration PHP syntax and installed
 framework source only. It does not bootstrap Laravel, execute configuration or
 provider code, resolve a facade, or inspect a runtime filesystem manager. A stale
 or incorrect explicit contract can therefore cause false warnings.
+
+Direct calls on the exact native `FilesystemManager` also expose concrete results
+for `createLocalDriver()`, `createFtpDriver()`, `createSftpDriver()`,
+`createS3Driver()` and `createReadThroughDriver()` when their installed method
+bodies construct the expected adapter and retain the native return contract.
+This refinement does not use the disk catalog. `disk()`, `drive()`, `cloud()`,
+`build()`, `createScopedDriver()`, subclasses and facade calls keep their native
+contracts because cached disks, custom creators and runtime replacements can
+change their results. Native `Storage::fake()` and `persistentFake()` already
+document their concrete local adapter result.

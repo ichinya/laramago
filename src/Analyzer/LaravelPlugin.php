@@ -85,6 +85,9 @@ final class LaravelPlugin implements Plugin
         $registry->registerNodeAnalysisHook($environmentMethods);
         $registry->registerInitializationHook($environmentMethods);
         $registry->registerMethodReturnTypeProvider(new FacadeCallProvider($this->projectRoot));
+        $filesystemFactories = new FilesystemFactoryProvider($this->projectRoot);
+        $registry->registerMethodReturnTypeProvider($filesystemFactories);
+        $registry->registerInitializationHook($filesystemFactories);
         $registry->registerMethodReturnTypeProvider(new TransactionProvider($this->projectRoot));
         $translations = new TranslationStringProvider($this->projectRoot);
         $registry->registerFunctionReturnTypeProvider($translations);
