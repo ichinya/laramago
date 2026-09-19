@@ -48,7 +48,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 40 | Config injection attribute references | implemented; Exact native Config injection attributes validate literal keys under complete runtime/source catalogs; native resolver/container/repository provenance and contextual-handler deferrals pass 23 real-Mago scenarios. |
 | 41 | Configuration push and prepend targets | deferred; Native writer inputs already checked: twelve real-Mago scenarios preserve native diagnostics. Missing push/prepend targets are valid initialization; value diagnostics need independently proven pre-call repository contents. |
 | 42 | Configuration declaration locations | deferred; Configuration typing passes 29 scenarios; SDK1.48.1 exposes no literal-to-declaration/document-link provider. Editor navigation needs a source-span/target-location extension point; no unused provenance or artificial valid-key diagnostics added. |
-| 43 | Explicit environment name catalogs | queued |
+| 43 | Explicit environment name catalogs | implemented; Composer-only exact environment name catalog has explicit completeness and tri-state membership; malformed metadata defers. Thirteen catalog cases pass; no .env reads, values, diagnostics or Auth/config inference. |
 | 44 | Environment helper key references | queued |
 | 45 | Env get key references | queued |
 | 46 | Environment template interpolation references | queued |
