@@ -179,7 +179,6 @@ final class ReferenceCatalogs
         if (
             $this->translations === null
             || ! isset($this->locales[$locale])
-            || ! preg_match('/^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+$/D', $key)
         ) {
             return false;
         }
@@ -199,13 +198,30 @@ final class ReferenceCatalogs
             if (! $values instanceof \stdClass || property_exists($values, $key)) {
                 return false;
             }
+            // FileLoader uses array_merge, which renumbers integer JSON keys.
+            // An exact object-property miss is therefore not proof of absence.
+            foreach (array_keys(get_object_vars($values)) as $jsonKey) {
+                if (is_int($jsonKey)) {
+                    return false;
+                }
+            }
         }
         $parts = explode('.', $key);
         $group = array_shift($parts);
+        // A JSON phrase can also select a PHP group. Refuse paths and names that
+        // have different filesystem meanings across supported platforms.
+        if ($group === '' || preg_match('/[\x00-\x1f\x7f<>:"\/\\\\|?*]/u', $group) !== 0) {
+            return false;
+        }
         foreach ($this->locales[$locale] as $fallback) {
             $file = $base.'/'.$fallback.'/'.$group.'.php';
             if (! is_file($file)) {
                 continue;
+            }
+            // A whole-group lookup can return an array; its presence is not a
+            // missing phrase, even when JSON has no exact key.
+            if ($parts === []) {
+                return false;
             }
             $nodes = $this->source->read($file);
             if ($nodes === null) {

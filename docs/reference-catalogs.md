@@ -41,7 +41,7 @@ extensions make the Inertia catalog unknown. Mark the catalog complete only when
 listed roots and extensions describe every page that the application can resolve.
 
 The `view` helper checks conventional dotted or slash-separated literal names against
-Blade/PHP/CSS/HTML files. The `trans` and `__` helpers check literal dotted PHP keys only
+Blade/PHP/CSS/HTML files. The `trans` and `__` helpers check literal PHP keys and JSON phrases only
 with an explicit literal locale listed in the contract. Static JSON overrides, nested
 PHP arrays, duplicate literal keys and fallback catalogs are respected. Namespace-imported
 and fully qualified calls retain framework identity checks; local shadow functions defer.
@@ -56,7 +56,7 @@ component expressions, argument unpacking and incomplete catalogs defer.
 
 Unconfigured package namespaces, arbitrary dynamic keys/locales, implicit locale mutation, first-class
 callables, argument unpacking, unsafe/dynamic catalogs, custom helpers and unsupported
-catalog shapes defer. String phrase JSON references, other facades, Blade directives, `trans_choice`
+catalog shapes defer. Other facades, Blade directives, `trans_choice`
 and other view factory methods are not covered. Catalogs are parsed without executing PHP.
 
 Native `View::make()` and exact `Illuminate\View\Factory::make()` receivers also
@@ -141,7 +141,7 @@ then lexical order. Blade declarations remain textual notes rather than foreign-
 Mago annotations or editor navigation targets.
 
 Native `Lang::get()` and exact `Illuminate\Translation\Translator::get()` receivers
-also check literal dotted keys with an explicit, non-empty locale in the complete
+also check literal PHP keys and JSON phrases with an explicit, non-empty locale in the complete
 translation catalog. Positional and named arguments work; `fallback` must be omitted
 or literal `true`, so the configured PHP fallback chain applies. Literal `false`,
 dynamic fallback selection, falsey locales, subclass receivers and argument unpacking
@@ -155,3 +155,14 @@ namespace function overrides disable the check. The explicit catalog contract ex
 runtime loaded-line changes, parsed-key remapping, custom missing-key callbacks,
 replacement/stringable callbacks that change lookup
 state, and additional loader paths. Different framework declarations conservatively defer.
+
+Literal JSON phrase references in `__()` and `trans()` use an explicit locale and
+complete translation catalog. Exact requested-locale JSON keys take priority over
+PHP group keys, including dotted or namespace-shaped JSON keys. A missing phrase
+also checks PHP groups in the configured locale chain; fallback-locale JSON files
+are not consulted by native `Translator::get`. A whole PHP group can return an
+array and is not reported as a missing phrase. Existing JSON keys with null,
+false, zero, empty-string or array values conservatively defer; this check does
+not assert a useful translated value. Numeric JSON object keys defer because
+native file loading renumbers integer keys. Malformed/unreadable JSON, dynamic
+locales and filesystem-ambiguous group names defer. Catalog files are never run.
