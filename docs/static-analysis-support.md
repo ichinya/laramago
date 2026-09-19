@@ -77,3 +77,5 @@ development artifacts and are not part of the package.
 [Raw original attributes](raw-original.md) explain native coverage and why schema-only field inference is deferred.
 
 `MiddlewareAliasCatalog` reads explicitly asserted effective alias sources without executing the application. See [middleware alias metadata](middleware-aliases.md); alias absence alone is not an invalid-middleware diagnostic.
+
+[Middleware group metadata](middleware-groups.md) preserves selected literal group maps and direct legacy Kernel declarations without expanding or executing the pipeline.
