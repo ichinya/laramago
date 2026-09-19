@@ -36,6 +36,7 @@ $framework = $workspace.'/vendor/laravel/framework/src/Illuminate/Foundation';
 mkdir($framework, 0777, true);
 mkdir($workspace.'/public/admin', 0777, true);
 $mix = file_get_contents(__DIR__.'/fixtures/analysis/mix-native.php.stub');
+$mix = str_replace(["\r\n", "\r"], "\n", $mix);
 if ($mode === 'changed-mix') {
     $mix = str_replace("if (! isset(\$manifest[\$path]))", "if (false && ! isset(\$manifest[\$path]))", $mix);
 }
