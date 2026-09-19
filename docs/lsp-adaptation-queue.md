@@ -156,7 +156,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 148 | Static Blade class component catalog | implemented; Explicit AST-only Blade class component catalog preserves constructor and inherited public property declarations; 17 focused checks and source analysis pass. Runtime registration and tag resolution remain separate. |
 | 149 | Static Blade anonymous component catalog | implemented; Bounded anonymous Blade file catalog preserves explicit roots, prefixes and direct/index/repeated-segment candidate names without compiling templates. Exhausted scan limits return unknown; 13 focused checks and source analysis pass. |
 | 150 | Explicit Blade component aliases | implemented; Explicitly selected literal Blade component registrations preserve alias ordering, prefixes and raw class/view targets; complete registry assertion controls negative lookup. Focused metadata tests and source analysis pass without application execution. |
-| 151 | Blade component tag resolution | queued |
+| 151 | Blade component tag resolution | implemented; Explicit complete registration snapshots resolve native alias/class/anonymous precedence; root-before-candidate ordering, prefixed-path plain tags and acronym class cases covered. Seventeen focused checks pass; metadata API awaits Blade diagnostics consumer. |
 | 152 | Required Blade constructor props | implemented; Reusable class-prop validator separates runtime-dependent constructor candidates from independent required-name contracts and complete parsed attributes. Eleven focused checks pass; Blade diagnostics await source mapping and a consumer. |
 | 153 | Literal Blade props declarations | queued |
 | 154 | Blade HTML attributes versus PHP bindings | queued |
