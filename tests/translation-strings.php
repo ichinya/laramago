@@ -38,6 +38,13 @@ foreach ([
             'welcome' => 'Welcome :name',
             'nested' => ['title' => 'A title'],
             'group' => ['one' => 'One', 'two' => 'Two'],
+            'dotted.string' => 'Exact string',
+            'dotted' => ['string' => ['hidden'], 'array' => 'Hidden string', 'null' => 'Hidden string'],
+            'dotted.array' => ['Exact array'],
+            'dotted.null' => null,
+            'deep' => ['exact.title' => ['Array'], 'exact' => ['title' => 'Hidden string']],
+            'duplicate.dot' => 'First string',
+            'duplicate.dot' => ['Final array'],
             'dynamic' => file_put_contents(__DIR__.'/executed.txt', 'forbidden'),
             'duplicate' => 'First',
             'duplicate' => ['last' => 'An array'],
@@ -60,6 +67,9 @@ foreach ([
             'JSON phrase' => 'A phrase',
             'Empty JSON' => '',
             'Zero JSON' => '0',
+            2 => 'Original integer key',
+            5 => 'Another integer key',
+            7 => ['Renumbered array at key two'],
         ], JSON_THROW_ON_ERROR));
     } elseif ($mode === 'malformed-json') {
         file_put_contents($workspace.'/lang/en.json', '{');
@@ -83,6 +93,31 @@ foreach ([
             'string',
             $phpNarrow ? [] : ['invalid-return-statement'],
         ],
+        'exact dotted string precedes nested array' => [
+            'return trans("messages.dotted.string", [], "en");',
+            'string',
+            $phpNarrow ? [] : ['invalid-return-statement'],
+        ],
+        'exact dotted array precedes nested string' => [
+            'return trans("messages.dotted.array", [], "en");',
+            'string',
+            ['invalid-return-statement'],
+        ],
+        'exact dotted null does not use nested string' => [
+            'return trans("messages.dotted.null", [], "en");',
+            'string',
+            ['invalid-return-statement'],
+        ],
+        'nested dotted key does not override segment traversal' => [
+            'return trans("messages.deep.exact.title", [], "en");',
+            'string',
+            $phpNarrow ? [] : ['invalid-return-statement'],
+        ],
+        'exact dotted duplicate respects final array' => [
+            'return trans("messages.duplicate.dot", [], "en");',
+            'string',
+            ['invalid-return-statement'],
+        ],
         'wrong expected result' => ['return trans("messages.welcome", [], "en");', 'int', ['invalid-return-statement']],
         'group remains union' => ['return trans("messages.group", [], "en");', 'array|string', []],
         'group cannot become string' => [
@@ -95,6 +130,11 @@ foreach ([
             'return trans("messages.dynamic", [], "en");',
             'string',
             $jsonLiteral ? [] : ['invalid-return-statement'],
+        ],
+        'numeric JSON keys defer after loader renumbering' => [
+            'return trans("2", [], "en");',
+            'string',
+            ['invalid-return-statement'],
         ],
         'json phrase' => [
             'return trans("JSON phrase", [], "en");',
@@ -161,6 +201,8 @@ foreach ([
             'laramago' => [
                 'command' => [
                     PHP_BINARY,
+                    '-d',
+                    'opcache.enable_cli=0',
                     $package.'/bin/laramago-worker.php',
                     $package.'/vendor/autoload.php',
                     $workspace,

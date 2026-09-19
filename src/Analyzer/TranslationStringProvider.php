@@ -109,19 +109,30 @@ final class TranslationStringProvider implements FunctionReturnTypeProvider, Ini
                 return null;
             }
         }
+        $fullKey = implode('.', $parts);
         foreach ($parts as $part) {
             if (! $value instanceof Node\Expr\Array_) {
                 return null;
             }
             $next = null;
+            $exact = null;
             foreach ($value->items as $item) {
-                if ($item->unpack || ! $item->key instanceof Node\Scalar\String_) {
+                if ($item->unpack || $item->byRef || ! $item->key instanceof Node\Scalar\String_) {
                     return null;
+                }
+                if ($item->key->value === $fullKey) {
+                    $exact = $item->value;
                 }
                 if ($item->key->value === $part) {
                     $next = $item->value;
                 }
             }
+            // Arr::get() checks the full key once, then traverses individual segments.
+            if ($exact !== null) {
+                $value = $exact;
+                break;
+            }
+            $fullKey = null;
             $value = $next;
         }
         if (! $value instanceof Node\Scalar\String_) {
@@ -151,6 +162,11 @@ final class TranslationStringProvider implements FunctionReturnTypeProvider, Ini
             return false;
         }
         if (! is_array($catalog)) {
+            return false;
+        }
+        // FileLoader merges JSON catalogs with array_merge(), which renumbers integer keys.
+        // Their effective values depend on the complete ordered loader path list.
+        if (preg_match('/^(?:0|-?[1-9][0-9]*)$/D', $key)) {
             return false;
         }
         if (! isset($catalog[$key])) {
