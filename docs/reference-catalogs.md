@@ -190,3 +190,13 @@ Dynamic arrays, dotted literal array keys, malformed/unreadable files, case-ambi
 paths and nested symlinks also defer. No provider, translation file or bootstrap runs.
 Missing names reuse `laramago-missing-translation`; custom-loader and runtime-injection
 exclusions of the complete translations contract still apply.
+
+### Translation diagnostic provenance
+
+Missing-translation warnings include the requested locale's project-relative JSON
+lookup path and the configured PHP locale chain, with its `composer.json` setting.
+These notes explain the explicit catalog contract; they do not assert that a file
+exists or identify the locale actually selected at runtime. Fallback-locale JSON
+is not part of the `get` lookup chain. Existing success, uncertain catalog, custom
+translator and dynamic fallback cases retain their existing behavior. No language
+file or application bootstrap is executed to produce these notes.

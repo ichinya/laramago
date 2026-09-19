@@ -120,16 +120,16 @@ final class TranslationReferencesHook implements MethodCallAnalysisHook, Initial
         ) {
             return;
         }
-        $context->report(
-            Level::Warning,
-            'laramago-missing-translation',
-            Issue::at(
-                'Literal translation reference "'
-                .$key->value
-                .'" is absent from the explicitly complete translations catalog.',
-                new SourceLocation($context->source->path, $context->node->span),
-            ),
+        $issue = Issue::at(
+            'Literal translation reference "'
+            .$key->value
+            .'" is absent from the explicitly complete translations catalog.',
+            new SourceLocation($context->source->path, $context->node->span),
         );
+        foreach ($this->catalogs()->translationLookupNotes($arguments['locale']->value) as $note) {
+            $issue = $issue->withNote($note);
+        }
+        $context->report(Level::Warning, 'laramago-missing-translation', $issue);
     }
 
     private function nativeDispatch(NodeAnalysisContext $context, string $receiver): bool

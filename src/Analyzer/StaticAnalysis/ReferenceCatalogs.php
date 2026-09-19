@@ -181,6 +181,27 @@ final class ReferenceCatalogs
         return $this->viewSuggestions->notes($name);
     }
 
+    /**
+     * Describe the explicit catalog contract, not an observed runtime fallback.
+     *
+     * @return list<string>
+     */
+    public function translationLookupNotes(string $locale): array
+    {
+        if ($this->translations === null || ! isset($this->locales[$locale])) {
+            return [];
+        }
+
+        return [
+            'Catalog JSON lookup: '.$this->translations.'/'.$locale.'.json (requested locale only).',
+            'Configured PHP locale chain: '
+                .implode(' -> ', $this->locales[$locale])
+                .'; declared in composer.json at extra.laramago.reference-catalogs.translations.locales.'
+                .$locale
+                .'. This describes the catalog contract, not an observed runtime fallback.',
+        ];
+    }
+
     public function missingTranslation(string $key, string $locale): bool
     {
         if (str_contains($key, '::')) {

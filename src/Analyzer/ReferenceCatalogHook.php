@@ -130,7 +130,13 @@ final class ReferenceCatalogHook implements NodeAnalysisHook, InitializationHook
                 'Literal '.$kind.' reference "'.$key->value.'" is absent from the explicitly complete catalogs.',
                 new SourceLocation($context->source->path, $context->node->span),
             );
-            foreach ($name === 'view' ? $this->catalogs->viewSuggestionNotes($key->value) : [] as $note) {
+            foreach ($name === 'view'
+                ? $this->catalogs->viewSuggestionNotes($key->value)
+                : (
+                    $locale instanceof Node\Scalar\String_
+                        ? $this->catalogs->translationLookupNotes($locale->value)
+                        : []
+                ) as $note) {
                 $issue = $issue->withNote($note);
             }
             $context->report(

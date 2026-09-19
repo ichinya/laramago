@@ -38,7 +38,11 @@ foreach (['enabled', 'disabled', 'native', 'incomplete', 'custom', 'malformed-js
             'paths' => ['resources/views', 'custom-views'],
             'namespaces' => ['billing' => ['custom-views', 'resources/views']],
         ],
-        'translations' => ['complete' => true, 'path' => 'lang', 'locales' => ['en' => ['en', 'fr']]],
+        'translations' => [
+            'complete' => true,
+            'path' => 'lang',
+            'locales' => ['en' => ['en', 'fr'], 'fr' => ['fr', 'en']],
+        ],
     ];
     if ($mode === 'incomplete') {
         $catalogs['views']['complete'] = false;
@@ -61,6 +65,14 @@ foreach (['enabled', 'disabled', 'native', 'incomplete', 'custom', 'malformed-js
     $on = $mode === 'enabled';
     $viewsOn = $on || $mode === 'malformed-json';
     $cases = [
+        [
+            'trans("messages.absent", [], "fr");',
+            $on || $mode === 'malformed-json' ? ['ichinya/laramago/laramago-missing-translation'] : [],
+        ],
+        [
+            '__(locale: "fr", key: "messages.absent");',
+            $on || $mode === 'malformed-json' ? ['ichinya/laramago/laramago-missing-translation'] : [],
+        ],
         ['view("nested.exists");', []],
         ['view("nested/exists");', []],
         ['view(view: "other");', []],
@@ -152,6 +164,24 @@ foreach (['enabled', 'disabled', 'native', 'incomplete', 'custom', 'malformed-js
             static fn (array $a): bool => $a['kind'] === 'Primary',
         ))[0];
         $actual[$primary['span']['start']['line'] + 1][] = $issue['code'];
+        if ($issue['code'] === 'ichinya/laramago/laramago-missing-translation') {
+            $body = $lines[$primary['span']['start']['line'] + 1][0];
+            $locale = str_contains($body, '"fr"') ? 'fr' : 'en';
+            $chain = $locale === 'fr' ? 'fr -> en' : 'en -> fr';
+            $expectedNotes = [
+                'Catalog JSON lookup: lang/'.$locale.'.json (requested locale only).',
+                'Configured PHP locale chain: '
+                    .$chain
+                    .'; declared in composer.json at '
+                    .'extra.laramago.reference-catalogs.translations.locales.'
+                    .$locale
+                    .'. '
+                    .'This describes the catalog contract, not an observed runtime fallback.',
+            ];
+            if (($issue['notes'] ?? []) !== $expectedNotes) {
+                throw new RuntimeException('Incorrect translation provenance; inspect '.$workspace);
+            }
+        }
     }
     foreach ($lines as $line => [$body, $expected]) {
         $codes = $actual[$line] ?? [];
