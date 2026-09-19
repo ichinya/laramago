@@ -235,9 +235,30 @@ $cases = [
         '$router->get("/array-config", ["uses" => [ExistingController::class, "missing"], '.'"middleware" => "auth"]);',
         [],
     ],
-    'array action in route group deferred' => [
+    'array action in namespace group' => [
         '$router->group(["namespace" => "Admin"], function () use ($router): void { '
             .'$router->get("/array-group", [ExistingController::class, "missing"]); });',
+        $methodWarning,
+    ],
+    'array action in dynamic group' => [
+        '$router->group($attributes, function () use ($router): void { '
+            .'$router->get("/array-group", [ExistingController::class, "missing"]); });',
+        $methodWarning,
+    ],
+    'array action in controller and prefix group' => [
+        '$router->group(["controller" => "OtherController", "prefix" => "admin"], function () use ($router): void { '
+            .'$router->get("/array-group", [ExistingController::class, "missing"]); });',
+        $methodWarning,
+    ],
+    'nested namespace and controller groups preserve arrays' => [
+        '$router->group(["namespace" => "Outer"], function () use ($router): void { '
+            .'$router->group(["controller" => "OtherController"], function () use ($router): void { '
+            .'$router->get("/nested", [ExistingController::class, "missing"]); }); });',
+        $methodWarning,
+    ],
+    'method-only group action deferred' => [
+        '$router->group(["controller" => ExistingController::class], function () use ($router): void { '
+            .'$router->get("/method-only", "missing"); });',
         [],
     ],
     'native facade array action' => [
@@ -283,6 +304,25 @@ $cases = [
         [],
     ],
     'non action literal deferred' => ['$router->get("/plain", "not-an-action");', []],
+];
+foreach ([
+    'absolute missing controller class',
+    'existing controller class',
+    'missing method with standard dispatch',
+] as $label) {
+    [$body, $issues] = $cases[$label];
+    $cases['grouped '.$label] = [
+        '$router->group(["controller" => "OtherController", "namespace" => "Admin", "prefix" => "admin"], '
+            .'function () use ($router): void { '
+            .$body
+            .' });',
+        $issues,
+    ];
+}
+[$body] = $cases['absolute missing invokable class'];
+$cases['grouped missing invokable class deferred'] = [
+    '$router->group(["controller" => "OtherController"], function () use ($router): void { '.$body.' });',
+    [],
 ];
 $source = <<<'PHP'
     <?php
@@ -341,6 +381,8 @@ $configuration = [
         'laramago' => [
             'command' => [
                 PHP_BINARY,
+                '-d',
+                'opcache.enable_cli=0',
                 $package.'/bin/laramago-worker.php',
                 $package.'/vendor/autoload.php',
                 $workspace,

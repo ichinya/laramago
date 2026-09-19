@@ -65,7 +65,7 @@ final class ControllerActionClassHook implements MethodCallAnalysisHook
     public function analyze(NodeAnalysisContext $context): void
     {
         $call = $this->call($context);
-        if ($call === null || ! $call->name instanceof Node\Identifier || $this->insideRouteGroup($call)) {
+        if ($call === null || ! $call->name instanceof Node\Identifier) {
             return;
         }
         $method = strtolower($call->name->name);
@@ -91,9 +91,12 @@ final class ControllerActionClassHook implements MethodCallAnalysisHook
             return;
         }
         $controller = $this->controller($action);
-        if ($controller === null) {
+        if ($controller === null || $controller['invokable'] && $this->insideRouteGroup($call)) {
             return;
         }
+        // Pair arrays bypass Router::convertToControllerAction; absolute named actions
+        // bypass both group controller and namespace rewriting. URI prefixes do not affect either.
+        // Bare invokable strings can still become group-controller methods when class_exists fails.
         $location = $controller['location'];
         $customBinding =
             $this->bindings->configured($controller['name']) || $this->bindings->configured(self::DISPATCHER);
