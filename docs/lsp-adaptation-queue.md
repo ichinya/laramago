@@ -128,7 +128,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 120 | Suspicious replacement names | deferred; Native replacement keys allow prefixes, spaces, punctuation, empty/numeric keys and shared locale dictionaries. Nineteen native probes and 234 Mago regressions pass. Suspicious-name advice requires a separate heuristic policy, not a required-name contract. |
 | 121 | Translation string leaves versus groups | implemented; Corrected existing string-leaf inference for exact dotted-key precedence, duplicate keys and integer JSON-key renumbering; group unions and native contracts preserved. Passed 288 Mago assertions, nine native probes and clean source analysis. Effective array-group narrowing remains deferred. |
 | 122 | Cross-locale placeholder consistency | deferred; Complete catalogs describe lookup, not cross-locale placeholder equality. Seventeen native probes and 234 Mago regressions preserve valid renamed/omitted placeholders, plural branches and JSON/fallback selection. Requires an explicit translation-quality policy. |
-| 123 | Pluralization syntax contracts | queued |
+| 123 | Pluralization syntax contracts | deferred; Native MessageSelector accepts empty, overlapping, incomplete and mismatched-looking plural forms; pinned LSP defines no stricter grammar. Passed 24 native probes and 288 Mago regressions. Requires an explicit advisory plural-message quality policy and effective locale/selector proof. |
 | 124 | Translation fallback provenance | queued |
 | 125 | Static filesystem disk catalog | implemented; tests/configuration-index.php; source-only completeness |
 | 126 | Storage disk references | implemented; Guarded native Storage::disk diagnostics; 27 real-Mago scenarios passed. |
