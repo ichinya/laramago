@@ -83,7 +83,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 75 | Middleware attributes and arrays | already-covered; Native Mago preserves actual Middleware/WithoutMiddleware attribute targets and argument contracts, ordinary constructor and inherited HasMiddleware array PHPDoc. Thirteen exact native/enabled diagnostics matched. Additional raw-name resolution remains deferred. |
 | 76 | Middleware parameter arity | implemented; Checks minimum required arity only for proven first direct-object native Pipeline dispatch, which supplies two arguments and prefers callable __invoke. Required-after-optional, defaults, variadics and valid extra arguments are covered. Nine arity and seventeen shared dispatch modes passed; raw string arity defers. |
 | 77 | Middleware group cycles | queued |
-| 78 | withoutMiddleware semantics | queued |
+| 78 | withoutMiddleware semantics | already-covered; Native array/string and fluent exclusion contracts remain authoritative. Twelve framework probes confirm unmatched exclusions are harmless and preserve exact parameter, closure, inheritance and group semantics; route exclusions do not remove global middleware. New effectiveness-policy diagnostics defer. |
 | 79 | Static Gate define catalog | queued |
 | 80 | Explicit policy mapping catalog | queued |
 | 81 | Declarative model-policy attributes | queued |
