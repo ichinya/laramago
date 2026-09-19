@@ -81,7 +81,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 73 | Middleware class-string references | already-covered; Native Mago already checks middleware ::class references through imports, arrays and parameter concatenation; enabled/native proof produced the same four precise class diagnostics. Additional raw-string checks remain deferred because missing class names can be valid container keys. |
 | 74 | Middleware handle contracts | implemented; Checks proven missing dispatch only for the first directly constructed plain object in an immediate audited native Pipeline chain. Strings, container state, later pipes and custom bodies defer. Seventeen real-Mago modes cover native/default/doc changes, function shadows, line endings and custom vendor paths; source clean. |
 | 75 | Middleware attributes and arrays | already-covered; Native Mago preserves actual Middleware/WithoutMiddleware attribute targets and argument contracts, ordinary constructor and inherited HasMiddleware array PHPDoc. Thirteen exact native/enabled diagnostics matched. Additional raw-name resolution remains deferred. |
-| 76 | Middleware parameter arity | queued |
+| 76 | Middleware parameter arity | implemented; Checks minimum required arity only for proven first direct-object native Pipeline dispatch, which supplies two arguments and prefers callable __invoke. Required-after-optional, defaults, variadics and valid extra arguments are covered. Nine arity and seventeen shared dispatch modes passed; raw string arity defers. |
 | 77 | Middleware group cycles | queued |
 | 78 | withoutMiddleware semantics | queued |
 | 79 | Static Gate define catalog | queued |

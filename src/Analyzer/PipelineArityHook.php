@@ -9,14 +9,15 @@ use Mago\Sdk\Analyzer\Metadata\MetadataFlags;
 use Mago\Sdk\Analyzer\MethodCallAnalysisHook;
 use Mago\Sdk\Analyzer\MethodTarget;
 use Mago\Sdk\Analyzer\NodeAnalysisContext;
+use Mago\Sdk\Analyzer\Type\Visibility;
 use Mago\Sdk\Reporting\Issue;
 use Mago\Sdk\Reporting\Level;
 use Mago\Sdk\SourceLocation;
 use Mago\Sdk\Span;
 use PhpParser\Node;
 
-/** Checks the first, directly constructed pipe in an immediate native Pipeline chain. */
-final class PipelineDispatchHook implements MethodCallAnalysisHook
+/** Checks minimum arity only after proving native first-object dispatch. */
+final class PipelineArityHook implements MethodCallAnalysisHook
 {
     private const PIPELINE = 'Illuminate\\Pipeline\\Pipeline';
 
@@ -53,16 +54,45 @@ final class PipelineDispatchHook implements MethodCallAnalysisHook
         ) {
             return;
         }
-        foreach ($class->methods as $method) {
-            if (in_array(strtolower($method), ['handle', '__invoke', '__call', '__callstatic', '__construct'], true)) {
+        $names = array_map(strtolower(...), $class->methods);
+        foreach (['__construct', '__call', '__callstatic'] as $uncertain) {
+            if (in_array($uncertain, $names, true)) {
                 return;
             }
+        }
+        // Callable objects run __invoke before Pipeline considers handle.
+        $name = in_array('__invoke', $names, true) ? '__invoke' : 'handle';
+        if (! in_array($name, $names, true)) {
+            return;
+        }
+        $method = $context->codebase->getMethod($class->name, $name);
+        if (
+            $method === null
+            || $method->visibility !== Visibility::Public
+            || $method->static
+            || $method->abstract
+            || $method->hasDocblock
+            || $method->flags->contains(MetadataFlags::MAGIC_METHOD)
+        ) {
+            return;
+        }
+        $required = 0;
+        foreach ($method->parameters as $index => $parameter) {
+            if (
+                ! $parameter->flags->contains(MetadataFlags::VARIADIC)
+                && ! $parameter->flags->contains(MetadataFlags::HAS_DEFAULT)
+            ) {
+                $required = $index + 1;
+            }
+        }
+        if ($required <= 2) {
+            return;
         }
         if (! (new StaticAnalysis\NativePipelineContract($this->projectRoot))->matches($context->codebase)) {
             return;
         }
-        $context->report(Level::Warning, 'laramago-missing-pipeline-dispatch', Issue::at(
-            'The first pipeline object '.$class->name.' has neither handle nor __invoke.',
+        $context->report(Level::Warning, 'laramago-pipeline-required-arguments', Issue::at(
+            'Pipeline passes 2 arguments to '.$class->name.'::'.$name.', but at least '.$required.' are required.',
             new SourceLocation($context->source->path, new Span($pipe->getStartFilePos(), $pipe->getEndFilePos() + 1)),
         ));
     }

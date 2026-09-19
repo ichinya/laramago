@@ -83,3 +83,12 @@ development artifacts and are not part of the package.
 `laramago-missing-pipeline-dispatch` checks only the first directly constructed object in an immediate `(new Illuminate\Pipeline\Pipeline)->send(...)->through([new Pipe, ...])->thenReturn()` chain. Construction must have no arguments; the pipe must be a concrete class without a constructor, parent, traits, magic methods, PHPDoc methods, mixins, or incomplete hierarchy. The array must be an ordinary unkeyed list. It warns only when neither `handle` nor `__invoke` is available. Later pipes may never execute, so they are not diagnosed. Existing methods keep native signature and visibility checking; class strings, routed middleware, container resolution, saved pipeline variables, subclasses, `via()`, and other chain shapes remain outside this check.
 
 The check accepts only the audited Pipeline member bodies/defaults and PHPDoc contracts from Laravel framework commit `7c75fbf` (including its transaction-aware `then` implementation). Resolved AST fingerprints ignore ordinary comments and PHP whitespace and normalize PHPDoc line endings. Changed or unknown implementations and namespaced overrides of the dispatch built-ins defer without a warning. Custom Composer vendor directories are supported. The exact upstream fixture and MIT attribution are in `tests/fixtures/analysis/pipeline-native.php.stub` and `pipeline-native.LICENSE.md`. This narrow Pipeline dispatch check does not establish general middleware contract coverage.
+
+`PipelineArityHook` checks minimum required arguments for the first directly constructed object in
+`(new Pipeline)->send($value)->through([new Pipe])->thenReturn()` after verifying native Pipeline
+source contracts. Native dispatch passes exactly two arguments and prefers a public `__invoke`
+over `handle`. Required parameters after defaults are counted by their positional index; optional
+and variadic parameters do not cause warnings. Extra arguments to user-defined methods are valid
+PHP and are never diagnosed here. This bounded check excludes constructors, inheritance, traits,
+magic dispatch, non-public/static methods, PHPDoc method contracts, and unresolved class metadata.
+Literal middleware strings, alias/group expansion, container targets, and later pipes remain deferred.
