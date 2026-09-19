@@ -11,6 +11,7 @@ final class ReferenceCatalogs
 {
     /** @var list<string> */
     private array $views = [];
+    private ?ViewNamespaceCatalog $viewNamespaces = null;
     private ?string $translations = null;
     private readonly PhpSource $source;
     /** @var array<string, list<string>> */
@@ -68,6 +69,7 @@ final class ReferenceCatalogs
                     $valid[] = $path;
                 }
                 $this->views = $valid;
+                $this->viewNamespaces = new ViewNamespaceCatalog($root, $views['namespaces'] ?? null);
             }
         }
         /** @var mixed $translations */
@@ -146,6 +148,9 @@ final class ReferenceCatalogs
 
     public function missingView(string $name): bool
     {
+        if (str_contains($name, '::')) {
+            return $this->viewNamespaces?->missing($name) ?? false;
+        }
         if ($this->views === [] || ! preg_match('/^[A-Za-z0-9_-]+(?:[.\/][A-Za-z0-9_-]+)*$/D', $name)) {
             return false;
         }

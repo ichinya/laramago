@@ -105,7 +105,11 @@ foreach ([
     file_put_contents($workspace.'/custom-views/other.html', 'Exists');
     $settings = [
         'reference-catalogs' => [
-            'views' => ['complete' => $mode !== 'incomplete', 'paths' => ['resources/views', 'custom-views']],
+            'views' => [
+                'complete' => $mode !== 'incomplete',
+                'paths' => ['resources/views', 'custom-views'],
+                'namespaces' => ['billing' => ['custom-views', 'resources/views']],
+            ],
         ],
     ];
     if (in_array($mode, ['binding', 'finder-binding'], true)) {
@@ -132,6 +136,12 @@ foreach ([
         ['$factory->make(mergeData: [], view: "absent");', $factoryOn ? $missing : []],
         ['$factory->make("nested/exists");', []],
         ['View::make("pkg::absent");', []],
+        ['View::make("billing::nested.exists");', []],
+        ['View::make("billing::other");', []],
+        ['View::make("billing::nested.EXISTS");', []],
+        ['View::make("billing::absent");', $on ? ['ichinya/laramago/laramago-missing-view'] : []],
+        ['View::make("Billing::absent");', []],
+        ['View::make("billing::../outside");', []],
         ['View::make("../outside");', []],
         ['View::make($name);', []],
         ['View::make(...["absent"]);', []],

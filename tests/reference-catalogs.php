@@ -33,7 +33,11 @@ foreach (['enabled', 'disabled', 'native', 'incomplete', 'custom', 'malformed-js
     );
     file_put_contents($workspace.'/lang/en.json', '{"messages.json":"Present"}');
     $catalogs = [
-        'views' => ['complete' => true, 'paths' => ['resources/views', 'custom-views']],
+        'views' => [
+            'complete' => true,
+            'paths' => ['resources/views', 'custom-views'],
+            'namespaces' => ['billing' => ['custom-views', 'resources/views']],
+        ],
         'translations' => ['complete' => true, 'path' => 'lang', 'locales' => ['en' => ['en', 'fr']]],
     ];
     if ($mode === 'incomplete') {
@@ -49,6 +53,7 @@ foreach (['enabled', 'disabled', 'native', 'incomplete', 'custom', 'malformed-js
     }
     if ($mode === 'invalid-root') {
         $catalogs['views']['paths'] = ['../outside'];
+        $catalogs['views']['namespaces'] = ['billing' => ['../outside']];
         file_put_contents($workspace.'/composer.json', json_encode([
             'extra' => ['laramago' => ['reference-catalogs' => $catalogs]],
         ], JSON_THROW_ON_ERROR));
@@ -61,6 +66,12 @@ foreach (['enabled', 'disabled', 'native', 'incomplete', 'custom', 'malformed-js
         ['view(view: "other");', []],
         ['view("absent");', $viewsOn ? ['ichinya/laramago/laramago-missing-view'] : []],
         ['view("pkg::absent");', []],
+        ['view("billing::nested.exists");', []],
+        ['view("billing::other");', []],
+        ['view("billing::nested.EXISTS");', []],
+        ['view("billing::absent");', $viewsOn ? ['ichinya/laramago/laramago-missing-view'] : []],
+        ['view("Billing::absent");', []],
+        ['view("billing::../outside");', []],
         ['view("../outside");', []],
         ['view();', []],
         ['$name = (string) random_int(1, 2); view($name);', []],
@@ -104,6 +115,8 @@ foreach (['enabled', 'disabled', 'native', 'incomplete', 'custom', 'malformed-js
             'laramago' => [
                 'command' => [
                     PHP_BINARY,
+                    '-d',
+                    'opcache.enable_cli=0',
                     $package.'/bin/laramago-worker.php',
                     $package.'/vendor/autoload.php',
                     $workspace,

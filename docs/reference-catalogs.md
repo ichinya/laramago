@@ -54,7 +54,7 @@ catalog. Missing pages report `ichinya/laramago/laramago-missing-inertia-page`.
 Direct factory subclasses, facade subclasses, custom package replacements, dynamic
 component expressions, argument unpacking and incomplete catalogs defer.
 
-Package namespaces, arbitrary dynamic keys/locales, implicit locale mutation, first-class
+Unconfigured package namespaces, arbitrary dynamic keys/locales, implicit locale mutation, first-class
 callables, argument unpacking, unsafe/dynamic catalogs, custom helpers and unsupported
 catalog shapes defer. String phrase JSON references, other facades, Blade directives, `trans_choice`
 and other view factory methods are not covered. Catalogs are parsed without executing PHP.
@@ -83,7 +83,7 @@ view catalog remains an assertion of the actual application's finder behavior.
 Native `View::first()` and exact `Illuminate\View\Factory::first()` receivers report
 `ichinya/laramago/laramago-missing-first-view` only when every candidate in a literal
 unkeyed list is provably missing from the explicitly complete views catalog. Empty
-lists also warn. Any existing candidate, unknown/dynamic name, package namespace,
+lists also warn. Any existing candidate, unknown/dynamic name, unconfigured package namespace,
 keyed entry, unpacking or reference defers; a missing candidate before an existing
 fallback is valid. An existing view named `0` conservatively defers even though the
 native selection subsequently rejects its falsey name.
@@ -106,3 +106,24 @@ retain native positions, and missing required arguments retain native diagnostic
 Dynamic conditions/data, array unpacking, factory subclasses/interface receivers,
 custom service bindings, modified native methods and shadowed branch functions defer.
 Neither views nor application bootstrap are executed.
+
+The optional `views.namespaces` map selects complete effective hint paths for each
+listed package namespace, for example:
+
+```json
+{"complete": true, "paths": ["resources/views"], "namespaces": {
+  "billing": ["resources/views/vendor/billing", "packages/billing/resources/views"]
+}}
+```
+
+Each list must contain all effective hint paths in their runtime order, including
+application overrides. Only listed namespaces are asserted complete: an unknown
+namespace still defers even when ordinary view paths are complete. No service
+provider is loaded and namespace registration is not inferred. Existing, readable,
+project-relative directories are required; paths with spaces work. Malformed maps,
+missing roots, root escapes, unreadable lookup directories and linked lookup entries
+defer. Case-only file mismatches defer because filesystem case behavior varies.
+Literal `billing::invoice` names use the same guarded helper, View and Response
+entry points as ordinary view names, with the default Blade/PHP/CSS/HTML extensions.
+This requires the selected native lookup contract, without later namespace changes,
+custom extensions, cached-name remapping or custom finders. Templates are never executed.

@@ -136,7 +136,11 @@ file_put_contents($workspace.'/composer.json', json_encode([
             'reference-catalogs' => [
                 'views' => $mode === '--no-catalog'
                     ? null
-                    : ['complete' => $mode !== '--incomplete-catalog', 'paths' => ['resources/views']],
+                    : [
+                        'complete' => $mode !== '--incomplete-catalog',
+                        'paths' => ['resources/views'],
+                        'namespaces' => ['billing' => ['resources/views']],
+                    ],
             ],
             'binding-files' => $binding === null ? [] : ['bootstrap/bindings.php'],
         ],
@@ -160,6 +164,10 @@ $active = $binding === null
 $facadeActive = $active && $mode !== '--custom-accessor';
 $helperActive = $active && $mode !== '--changed-helper';
 $cases = [
+    'namespace facade present' => ['NativeResponse::view("billing::home");', []],
+    'namespace facade missing' => ['NativeResponse::view("billing::typo");', $facadeActive ? $warn : []],
+    'namespace helper missing' => ['\\response()->view("billing::typo");', $helperActive ? $warn : []],
+    'namespace unknown' => ['NativeResponse::view("unknown::typo");', []],
     'native facade literal' => ['NativeResponse::view("typo");', $facadeActive ? $warn : []],
     'native facade known' => ['NativeResponse::view("home");', []],
     'native facade named' => ['NativeResponse::view(status: 201, view: "typo");', $facadeActive ? $warn : []],
@@ -239,7 +247,7 @@ foreach ($report['issues'] ?? [] as $issue) {
             $primary['span']['start']['offset'],
             $primary['span']['end']['offset'] - $primary['span']['start']['offset'],
         );
-        if ($literal !== '"typo"') {
+        if (! in_array($literal, ['"typo"', '"billing::typo"'], true)) {
             throw new RuntimeException('Expected exact literal span, got '.$literal);
         }
     }

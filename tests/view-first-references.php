@@ -157,7 +157,11 @@ foreach ([
     file_put_contents($workspace.'/resources/views/0.blade.php', 'Exists but falsey');
     $settings = [
         'reference-catalogs' => [
-            'views' => ['complete' => $mode !== 'incomplete', 'paths' => ['resources/views', 'custom-views']],
+            'views' => [
+                'complete' => $mode !== 'incomplete',
+                'paths' => ['resources/views', 'custom-views'],
+                'namespaces' => ['billing' => ['custom-views', 'resources/views']],
+            ],
         ],
     ];
     if (in_array($mode, ['binding', 'finder-binding'], true)) {
@@ -183,6 +187,9 @@ foreach ([
         ['View::first(["absent", "nested.exists"]);', []],
         ['View::first(["nested/exists", "absent"]);', []],
         ['View::first(["absent", "pkg::unknown"]);', []],
+        ['View::first(["absent", "billing::absent"]);', $on ? $missing : []],
+        ['View::first(["absent", "billing::nested.exists"]);', []],
+        ['$factory->first(["billing::absent"]);', $factoryOn ? $missing : []],
         ['View::first(["absent", "../outside"]);', []],
         ['View::first(["absent", $name]);', []],
         ['View::first(["absent", ...[$name]]);', []],

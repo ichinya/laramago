@@ -139,7 +139,11 @@ foreach ([
     file_put_contents($workspace.'/custom-views/other.html', 'Exists');
     $settings = [
         'reference-catalogs' => [
-            'views' => ['complete' => $mode !== 'incomplete', 'paths' => ['resources/views', 'custom-views']],
+            'views' => [
+                'complete' => $mode !== 'incomplete',
+                'paths' => ['resources/views', 'custom-views'],
+                'namespaces' => ['billing' => ['custom-views', 'resources/views']],
+            ],
         ],
     ];
     if (in_array($mode, ['binding', 'finder-binding'], true)) {
@@ -163,6 +167,13 @@ foreach ([
         ['$factory->renderEach(view: "absent", iterator: "item");', ['too-few-arguments']],
         ['$factory->renderEach(view: "absent", data: [1]);', ['too-few-arguments']],
         ['View::renderWhen(true, "absent");', $on ? $missing : []],
+        ['View::renderWhen(true, "billing::absent");', $on ? $missing : []],
+        ['View::renderWhen(false, "billing::absent");', []],
+        ['View::renderWhen(true, "billing::nested.exists");', []],
+        ['$factory->renderUnless(false, "billing::absent");', $factoryOn ? $missing : []],
+        ['$factory->renderEach("billing::absent", [1], "item");', $factoryOn ? $missing : []],
+        ['$factory->renderEach("billing::nested.exists", [], "item", "billing::absent");', $factoryOn ? $missing : []],
+        ['$factory->renderEach("billing::absent", [], "item", "billing::nested.exists");', []],
         ['View::renderUnless(false, "absent");', $on || $mode === 'custom-facade-method' ? $missing : []],
         ['View::renderWhen(false, "absent");', []],
         ['View::renderUnless(true, "absent");', []],
