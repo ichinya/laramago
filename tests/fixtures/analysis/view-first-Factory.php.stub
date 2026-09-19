@@ -1,0 +1,38 @@
+<?php
+namespace Illuminate\View; class Factory {
+/**
+ * Get the first view that actually exists from the given list.
+ *
+ * @param  array  $views
+ * @param  \Illuminate\Contracts\Support\Arrayable|array  $data
+ * @param  array  $mergeData
+ * @return \Illuminate\Contracts\View\View
+ *
+ * @throws \InvalidArgumentException
+ */
+public function first(array $views, $data = [], $mergeData = [])
+{
+    $view = \Illuminate\Support\Arr::first($views, function ($view) {
+        return $this->exists($view);
+    });
+    if (!$view) {
+        throw new \InvalidArgumentException('None of the views in the given array exist.');
+    }
+    return $this->make($view, $data, $mergeData);
+}
+/**
+ * Determine if a given view exists.
+ *
+ * @param  string  $view
+ * @return bool
+ */
+public function exists($view)
+{
+    try {
+        $this->finder->find($view);
+    } catch (\InvalidArgumentException) {
+        return false;
+    }
+    return true;
+}
+}

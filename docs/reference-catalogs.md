@@ -65,9 +65,9 @@ arguments are supported. The native factory lookup and name-normalization method
 must match the audited Laravel implementation; facade forwarding must remain native.
 Configured view/finder service replacements disable these checks. Subclasses,
 interface-typed factories, dynamic/unpacked arguments and customized native methods
-defer. `exists()` is an intentional existence query, `first()` may use fallbacks,
+defer. `exists()` is an intentional existence query; `first()` has separate fallback checks below.
 `file()` accepts a filesystem path, and conditional rendering may never reach lookup;
-these methods do not produce missing-view warnings. This contract also excludes
+those methods do not produce missing-view warnings. This contract also excludes
 runtime finder replacement, name-cache remapping and dynamically added view paths.
 
 Native `Response::view()`, exact `Illuminate\Routing\ResponseFactory::view()` and
@@ -79,3 +79,19 @@ bindings, subclasses, arbitrary response contract receivers, changed declaration
 array view candidates, dynamic values and unpacked arguments defer. Array candidates
 use Laravel's `first()` lookup and are not individually required views. The complete
 view catalog remains an assertion of the actual application's finder behavior.
+
+Native `View::first()` and exact `Illuminate\View\Factory::first()` receivers report
+`ichinya/laramago/laramago-missing-first-view` only when every candidate in a literal
+unkeyed list is provably missing from the explicitly complete views catalog. Empty
+lists also warn. Any existing candidate, unknown/dynamic name, package namespace,
+keyed entry, unpacking or reference defers; a missing candidate before an existing
+fallback is valid. An existing view named `0` conservatively defers even though the
+native selection subsequently rejects its falsey name.
+
+This check audits `first()`, `exists()`, `Arr::first()`, `Arr::from()` and the global
+`value()` helper in addition to the native make/normalization contract. The audited
+Arr implementation uses `array_find_key`, so this check requires Mago's selected PHP
+target to be at least 8.4; lower targets and older or changed Arr implementations
+defer. Namespaced helper overrides, custom factory/facade contracts and configured
+finder/view replacements also defer. Engine creation is never reached when every
+candidate is missing. No application, view, callback or framework method is executed.

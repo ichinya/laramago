@@ -114,7 +114,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 106 | Declarative mail content references | deferred; Native Content is a mutable DTO: thirteen probes confirm html alias and raw HTML precedence, overwritten references, falsey hydration skips and retained Mailable state. Missing-name diagnostics need terminal rendering and state contracts; 196 existing real-Mago checks pass. |
 | 107 | assertViewIs references | deferred; assertViewIs compares stored View identity without finder lookup. Seven native-body probes accept arbitrary and file-based identities; 196 existing real-Mago checks pass. Missing-name diagnostics require response-origin proof or a separate assertion-name policy. |
 | 108 | Pagination view references | deferred; Twenty-four native probes show paginator links and render use independently mutable static factory resolvers, including falsey default-name behavior. Complete finder catalogs do not prove that resolver identity. All 266 existing View factory checks pass. |
-| 109 | View first fallback lists | queued |
+| 109 | View first fallback lists | implemented; Complete view catalogs warn only when every candidate in a literal unkeyed native first list is missing; known or unknown candidates defer. Audited fallback helpers and target PHP >=8.4 guard polyfill uncertainty. All 378 new and 266 existing real-Mago assertions pass; source analysis clean. |
 | 110 | Conditional and iterative view rendering | queued |
 | 111 | Package view namespaces | queued |
 | 112 | View suggestions and declaration locations | queued |

@@ -23,3 +23,5 @@ THE SOFTWARE.
 The view-reference fixtures contain native Laravel framework v13.31.0 declarations
 and AST-printed method excerpts (commit 7c75fbf93f91fa077d3df1c820cc14f4e59a9774).
 They are parsed as analyzer fixtures and never executed.
+
+The view-first Factory, Arr and helpers fixtures also retain selected Laravel framework methods from commit 7c75fbf under this license. Class names in method bodies are resolved for standalone analysis.

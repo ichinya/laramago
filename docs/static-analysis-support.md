@@ -104,3 +104,5 @@ Direct native container self-alias registration receives a bounded warning; see 
 An explicit permitted service ID catalog checks literal native app/resolve references independently of runtime resolvability; see [service reference policy](container-bindings.md#permitted-service-reference-ids).
 
 Complete view catalogs also check literal native View::make() and exact concrete view-factory make() calls; custom dispatch and optional lookup APIs defer.
+
+Complete view catalogs check all-missing literal native View::first fallback lists at target PHP 8.4 or later; unknown or existing candidates defer.

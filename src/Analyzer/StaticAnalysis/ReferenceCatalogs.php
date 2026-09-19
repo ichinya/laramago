@@ -139,6 +139,11 @@ final class ReferenceCatalogs
         return $this->inertiaPagesComplete ? false : null;
     }
 
+    public function completeViews(): bool
+    {
+        return $this->views !== [];
+    }
+
     public function missingView(string $name): bool
     {
         if ($this->views === [] || ! preg_match('/^[A-Za-z0-9_-]+(?:[.\/][A-Za-z0-9_-]+)*$/D', $name)) {

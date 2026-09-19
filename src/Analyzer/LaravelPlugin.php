@@ -90,6 +90,9 @@ final class LaravelPlugin implements Plugin
         $registry->registerFunctionReturnTypeProvider($translations);
         $registry->registerInitializationHook($translations);
         $references = new ReferenceCatalogHook($this->projectRoot);
+        $firstViews = new ViewFirstReferencesHook($this->projectRoot);
+        $registry->registerMethodCallAnalysisHook($firstViews);
+        $registry->registerInitializationHook($firstViews);
         $viewReferences = new ViewFactoryReferencesHook($this->projectRoot);
         $responseViews = new ResponseViewReferencesHook($this->projectRoot);
         $registry->registerNodeAnalysisHook($responseViews);

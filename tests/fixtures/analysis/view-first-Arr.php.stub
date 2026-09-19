@@ -1,0 +1,58 @@
+<?php
+namespace Illuminate\Support; class Arr {
+/**
+ * Return the first element in an iterable passing a given truth test.
+ *
+ * @template TKey
+ * @template TValue
+ * @template TFirstDefault
+ *
+ * @param  iterable<TKey, TValue>  $array
+ * @param  (callable(TValue, TKey): bool)|null  $callback
+ * @param  TFirstDefault|(\Closure(): TFirstDefault)  $default
+ * @return TValue|TFirstDefault
+ */
+public static function first($array, ?callable $callback = null, $default = null)
+{
+    if (is_null($callback)) {
+        if (empty($array)) {
+            return value($default);
+        }
+        if (is_array($array)) {
+            return array_first($array);
+        }
+        foreach ($array as $item) {
+            return $item;
+        }
+        return value($default);
+    }
+    $array = static::from($array);
+    $key = array_find_key($array, $callback);
+    return $key !== null ? $array[$key] : value($default);
+}
+/**
+ * Get the underlying array of items from the given argument.
+ *
+ * @template TKey of array-key = array-key
+ * @template TValue = mixed
+ *
+ * @param  array<TKey, TValue>|Enumerable<TKey, TValue>|Arrayable<TKey, TValue>|WeakMap<object, TValue>|Traversable<TKey, TValue>|Jsonable|JsonSerializable|object  $items
+ * @return ($items is WeakMap ? list<TValue> : array<TKey, TValue>)
+ *
+ * @throws \InvalidArgumentException
+ */
+public static function from($items)
+{
+    return match (true) {
+        is_array($items) => $items,
+        $items instanceof \Illuminate\Support\Enumerable => $items->all(),
+        $items instanceof \Illuminate\Contracts\Support\Arrayable => $items->toArray(),
+        $items instanceof \WeakMap => iterator_to_array($items, false),
+        $items instanceof \Traversable => iterator_to_array($items),
+        $items instanceof \Illuminate\Contracts\Support\Jsonable => json_decode($items->toJson(), true),
+        $items instanceof \JsonSerializable => (array) $items->jsonSerialize(),
+        is_object($items) => (array) $items,
+        default => throw new \InvalidArgumentException('Items cannot be represented by a scalar value.'),
+    };
+}
+}
