@@ -125,7 +125,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 117 | JSON phrase translation references | implemented; Literal JSON phrase references preserve requested JSON precedence and PHP group/fallback semantics; numeric-key renumbering and ambiguous paths defer. Passed 264 new Mago checks, 196 regressions, 13 native probes and 406 root Translator/Lang checks; source clean. |
 | 118 | Package translation namespaces | implemented; Explicit final package translation namespace hints support package and application overrides, requested JSON priority and PHP fallback chains without executing providers. Passed 216 helper, 504 combined Translator/Lang and 264 JSON regression assertions; source clean. |
 | 119 | Translation replacement placeholders | deferred; Pinned LSP offers placeholder completion, not required replacement validation. Fourteen native probes preserve valid partial/prefix/closure/group replacements; 234 Mago regressions pass. Requires an editor completion integration or separately explicit lint policy. |
-| 120 | Suspicious replacement names | queued |
+| 120 | Suspicious replacement names | deferred; Native replacement keys allow prefixes, spaces, punctuation, empty/numeric keys and shared locale dictionaries. Nineteen native probes and 234 Mago regressions pass. Suspicious-name advice requires a separate heuristic policy, not a required-name contract. |
 | 121 | Translation string leaves versus groups | queued |
 | 122 | Cross-locale placeholder consistency | queued |
 | 123 | Pluralization syntax contracts | queued |
