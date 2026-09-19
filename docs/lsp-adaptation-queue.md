@@ -93,7 +93,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 85 | Gate ability arrays | already-covered; Exact native Gate aggregate and singular contracts produce ten identical Mago diagnostics with extension enabled and disabled. Thirteen native iteration probes cover empty arrays, short-circuiting and nested any semantics. Per-element name diagnostics retain item084 limits. |
 | 86 | Route can and Authorize attributes | already-covered; Fifteen exact real-Mago diagnostics for native Route can and Authorize attributes match with extension enabled and disabled; fifteen native serialization and model-token probes pass. Ability-name checks remain deferred under policy, callback and custom Gate dispatch. |
 | 87 | Policy model argument compatibility | queued |
-| 88 | Additional policy arguments | queued |
+| 88 | Additional policy arguments | deferred; Seventeen native probes cover policy extra arguments, defaults, variadics, weak coercion, class-string removal and named-key failures. Global or policy before callbacks and guest eligibility can bypass validation; effective dispatch provenance is required. All 54 metadata checks pass. |
 | 89 | Class-level policy abilities | queued |
 | 90 | Policy discovery resolver boundaries | queued |
 | 91 | Existing explicit container binding types | already-covered; Verified explicit container bindings, aliases and contract guards; focused tests and source analysis passed. |
