@@ -154,7 +154,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 146 | PHP and frontend prop type contracts | implemented; Opt-in per-page frontend JSON type contracts validate native render literal primitive/list props with value preservation assertion; unknown serialization defers. Real Mago type and required-prop tests plus source analysis pass. |
 | 147 | Inertia assertion page contracts | implemented; Native Inertia 2.x/3.x component test assertions check literal expected pages against complete catalogs; false/dynamic existence options and custom implementations defer. Real Mago direct/callback regressions and source analysis pass. |
 | 148 | Static Blade class component catalog | implemented; Explicit AST-only Blade class component catalog preserves constructor and inherited public property declarations; 17 focused checks and source analysis pass. Runtime registration and tag resolution remain separate. |
-| 149 | Static Blade anonymous component catalog | queued |
+| 149 | Static Blade anonymous component catalog | implemented; Bounded anonymous Blade file catalog preserves explicit roots, prefixes and direct/index/repeated-segment candidate names without compiling templates. Exhausted scan limits return unknown; 13 focused checks and source analysis pass. |
 | 150 | Explicit Blade component aliases | queued |
 | 151 | Blade component tag resolution | queued |
 | 152 | Required Blade constructor props | queued |

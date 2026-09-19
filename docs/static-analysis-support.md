@@ -6,6 +6,7 @@ implementation; it does not imply support for every dynamic Laravel behavior.
 
 | Integration | Implemented | Deferred |
 | --- | --- | --- |
+| Blade anonymous component files | Explicit [source-only catalogs](blade-anonymous-components.md) retain selected `.blade.php` paths, local candidate names and optional prefix metadata | Runtime registration, tag resolution, precedence, view-finder checks, `@props`, class aliases and missing-component diagnostics |
 | Blade class component declarations | Explicit namespace/path [source catalog](blade-class-components.md), proven component ancestry, effective public constructor parameter declarations and inherited application public non-static property declarations | Traits and unresolved ancestry, runtime registration/data filtering, view resolution, anonymous components, tag resolution and required-prop diagnostics |
 | Migration preparation | Fresh scalar preparation/literal locals plus bounded flat-list foreach declarations inside Blueprint callbacks; known names, nullable flags, renames and drop lists | PHP/SQL evaluation, dynamic values, expired locals, references, nested/keyed loops, arbitrary calls and conditional schema changes |
 | Query predicates | Standard key, column-comparison, membership, null, range and date filters retain the model through query chains; installed signatures and scope precedence | Custom builders/dispatch, arbitrary predicates, SQL validation and property refinement from filters |
