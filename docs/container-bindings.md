@@ -44,6 +44,11 @@ types and public method forwarding. Class/interface keys must be compatible with
 the final concrete implementation. Native declarations, explicit PHPDoc and
 custom dispatch retain priority.
 
+Alias chains preserve exact container keys, including letter case and leading
+backslashes in literal strings. Unknown terminals and conditional or conflicting
+registrations anywhere along a chain remain unresolved. Duplicate aliases and
+binding/alias overlaps do not assume which registration is effective.
+
 Core service overrides also disable related standard-service refinements:
 authentication for `auth` or its factory contract, validated fields for `validator`
 or its factory contract, and configuration/default-locale reads for `config`.

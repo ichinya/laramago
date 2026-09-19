@@ -397,6 +397,78 @@ $enabled = [
 ];
 runContainerCases('enabled', $enabled, true);
 
+$aliasBoundaries = <<<'PHP'
+    <?php
+    \app()->alias('service.deep', 'Deep.Alias');
+    \app()->alias('service.primary', '\\service.key');
+    \app()->alias('static.service', 'duplicate.alias');
+    \app()->alias('service.primary', 'duplicate.alias');
+    \app()->alias('duplicate.alias', 'duplicate.child');
+    \app()->bind('overlap.alias', \ContainerFixtures\Service::class);
+    \app()->alias('service.primary', 'overlap.alias');
+    \app()->alias('portal', 'conditional.child');
+    \app()->alias('unknown.alias', 'unknown.child');
+    \app()->alias('service.primary', 'Service.Primary');
+    PHP;
+runContainerCases(
+    'alias-key-boundaries',
+    [
+        'long exact alias chain' => ["return resolve('Deep.Alias');", '\\ContainerFixtures\\Service', []],
+        'alias case mismatch stays unknown' => [
+            "return resolve('deep.alias');",
+            '\\ContainerFixtures\\Service',
+            ['mixed-return-statement'],
+        ],
+        'leading slash is an exact alias key' => [
+            "return resolve('\\\\service.key');",
+            '\\ContainerFixtures\\Service',
+            [],
+        ],
+        'leading slash cannot be stripped' => [
+            "return resolve('service.key');",
+            '\\ContainerFixtures\\Service',
+            ['mixed-return-statement'],
+        ],
+        'separately registered case variant resolves' => [
+            "return resolve('Service.Primary');",
+            '\\ContainerFixtures\\Service',
+            [],
+        ],
+        'unregistered uppercase key stays unknown' => [
+            "return resolve('SERVICE.PRIMARY');",
+            '\\ContainerFixtures\\Service',
+            ['mixed-return-statement'],
+        ],
+        'duplicate alias stays uncertain' => [
+            "return resolve('duplicate.alias');",
+            '\\ContainerFixtures\\Service',
+            ['mixed-return-statement'],
+        ],
+        'duplicate target uncertainty propagates' => [
+            "return resolve('duplicate.child');",
+            '\\ContainerFixtures\\Service',
+            ['mixed-return-statement'],
+        ],
+        'binding alias overlap stays uncertain' => [
+            "return resolve('overlap.alias');",
+            '\\ContainerFixtures\\Service',
+            ['mixed-return-statement'],
+        ],
+        'conditional target uncertainty propagates' => [
+            "return resolve('conditional.child');",
+            '\\ContainerFixtures\\Service',
+            ['mixed-return-statement'],
+        ],
+        'missing terminal uncertainty propagates' => [
+            "return resolve('unknown.child');",
+            '\\ContainerFixtures\\Service',
+            ['mixed-return-statement'],
+        ],
+    ],
+    true,
+    $aliasBoundaries,
+);
+
 $conditionalRegistration = <<<'PHP'
     <?php
     app()->scopedIf(\ContainerFixtures\ServiceContract::class, \ContainerFixtures\AlternateService::class);
