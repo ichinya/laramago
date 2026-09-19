@@ -153,7 +153,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 145 | Required Inertia props contracts | implemented; Explicit required/shared/full-response contracts check closed literal native render props; dynamic/dotted/provider values, changed dispatch and later augmentation defer. |
 | 146 | PHP and frontend prop type contracts | queued |
 | 147 | Inertia assertion page contracts | queued |
-| 148 | Static Blade class component catalog | queued |
+| 148 | Static Blade class component catalog | implemented; Explicit AST-only Blade class component catalog preserves constructor and inherited public property declarations; 17 focused checks and source analysis pass. Runtime registration and tag resolution remain separate. |
 | 149 | Static Blade anonymous component catalog | queued |
 | 150 | Explicit Blade component aliases | queued |
 | 151 | Blade component tag resolution | queued |

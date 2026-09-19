@@ -6,6 +6,7 @@ implementation; it does not imply support for every dynamic Laravel behavior.
 
 | Integration | Implemented | Deferred |
 | --- | --- | --- |
+| Blade class component declarations | Explicit namespace/path [source catalog](blade-class-components.md), proven component ancestry, effective public constructor parameter declarations and inherited application public non-static property declarations | Traits and unresolved ancestry, runtime registration/data filtering, view resolution, anonymous components, tag resolution and required-prop diagnostics |
 | Migration preparation | Fresh scalar preparation/literal locals plus bounded flat-list foreach declarations inside Blueprint callbacks; known names, nullable flags, renames and drop lists | PHP/SQL evaluation, dynamic values, expired locals, references, nested/keyed loops, arbitrary calls and conditional schema changes |
 | Query predicates | Standard key, column-comparison, membership, null, range and date filters retain the model through query chains; installed signatures and scope precedence | Custom builders/dispatch, arbitrary predicates, SQL validation and property refinement from filters |
 | Selected query fields | Direct model value/pluck with raw key coercion and exact-table qualification; literal terminal aliases through object intersections | Stateful builder projections, aggregate properties and SQL expressions; raw alias values do not inherit source casts |
@@ -114,3 +115,4 @@ Complete view catalogs also check literal native View::make() and exact concrete
 Complete view catalogs check all-missing literal native View::first fallback lists at target PHP 8.4 or later; unknown or existing candidates defer.
 
 Native conditional view rendering checks only literal selected branches and literal-array iteration; unknown conditions and data defer.
+
