@@ -44,6 +44,13 @@ final class NamedRouteCatalog
             }
             $valid[] = $name;
         }
+        if (array_key_exists('files', $catalog)) {
+            $extracted = LiteralRouteNames::fromFiles($root, $catalog['files']);
+            if ($extracted === null) {
+                return;
+            }
+            array_push($valid, ...$extracted);
+        }
         $this->names = $valid;
     }
 

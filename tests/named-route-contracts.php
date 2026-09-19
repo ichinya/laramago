@@ -12,6 +12,7 @@ $customUrlBinding = in_array('--custom-url-binding', $argv, true);
 $customUrlMethod = in_array('--custom-url-method', $argv, true);
 $customRedirectMethod = in_array('--custom-redirect-method', $argv, true);
 $customDoc = in_array('--custom-doc', $argv, true);
+$literalFiles = in_array('--literal-files', $argv, true);
 $workspace = str_replace('\\', '/', sys_get_temp_dir()).'/laramago named route contracts '.bin2hex(random_bytes(8));
 mkdir($workspace);
 $framework = $workspace.'/vendor/laravel/framework/src/Illuminate/Routing';
@@ -59,13 +60,27 @@ if ($customUrlBinding) {
         '<?php \\app()->bind("url", \\Illuminate\\Routing\\UrlGenerator::class);',
     );
 }
+if ($literalFiles) {
+    mkdir($workspace.'/routes');
+    file_put_contents($workspace.'/routes/web.php', <<<'PHP'
+        <?php
+        use Illuminate\Support\Facades\Route as Routing;
+        Routing::get('/', fn () => 'ok')->name('home');
+        Routing::name('admin.')->group(function () {
+            Routing::group(['as' => 'users.'], function () {
+                Routing::post('/users', [\App\Controller::class, 'store'])->name('store');
+            });
+        });
+        PHP);
+}
 file_put_contents($workspace.'/composer.json', json_encode([
     'extra' => [
         'laramago' => [
             'named-routes' => [
                 'complete' => true,
                 'missing-route-resolver' => false,
-                'names' => ['home', 'provider.added'],
+                'names' => $literalFiles ? ['provider.added'] : ['home', 'provider.added'],
+                ...($literalFiles ? ['files' => ['routes/web.php']] : []),
             ],
             'binding-files' => $customUrlBinding ? ['bootstrap/bindings.php'] : [],
         ],
@@ -79,6 +94,13 @@ $redirectHelperMissing = $customApp || $customRedirect || $customUrlBinding || $
     ? []
     : $missing;
 $cases = [
+    ...(
+        $literalFiles
+            ? [
+                'nested group name extracted' => ['$url->route("admin.users.store");', 'void', []],
+                'unprefixed name is missing' => ['$url->route("store");', 'void', $urlMethodMissing],
+            ] : []
+    ),
     'known route' => ['$url->route("home");', 'void', []],
     'provider route listed' => ['$url->route("provider.added");', 'void', []],
     'missing URL route' => ['$url->route("typo");', 'void', $urlMethodMissing],
@@ -236,6 +258,23 @@ foreach ([
     'fallback unspecified' => ['complete' => true, 'names' => []],
     'fallback enabled' => ['complete' => true, 'missing-route-resolver' => true, 'names' => []],
     'malformed names' => ['complete' => true, 'missing-route-resolver' => false, 'names' => ['home', false]],
+    ...(
+        $literalFiles
+            ? [
+                'unreadable route source' => [
+                    'complete' => true,
+                    'missing-route-resolver' => false,
+                    'names' => [],
+                    'files' => ['missing.php'],
+                ],
+                'unsupported route source' => [
+                    'complete' => true,
+                    'missing-route-resolver' => false,
+                    'names' => [],
+                    'files' => ['routes/web.php', 'cases.php'],
+                ],
+            ] : []
+    ),
 ] as $label => $catalog) {
     file_put_contents($workspace.'/composer.json', json_encode([
         'extra' => ['laramago' => ['named-routes' => $catalog]],

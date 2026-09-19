@@ -61,7 +61,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 53 | Response route redirects | implemented; Native Response facade/factory and zero-argument response helper route redirects use complete catalogs with forwarding-chain and binding guards; 209 real-Mago cases pass, preserving custom/native behavior and literal spans. |
 | 54 | RedirectToRoute attribute references | queued |
 | 55 | Route-name predicate semantics | already-covered; Native bool contracts cover route-name predicates; absent names and wildcard patterns are valid boolean tests, so missing-route warnings would be incorrect. Installed bodies reviewed; existing route/facade suites pass. |
-| 56 | Static literal route registration catalogs | queued |
+| 56 | Static literal route registration catalogs | implemented; Explicit named-routes.files extracts a strict native literal registration subset under completeness assertions; unsupported syntax or unsafe/unreadable paths disables the entire catalog. Catalog and real-Mago consumer tests, manual compatibility and source analysis passed. |
 | 57 | Conflicting active route names | deferred; Native route collections replace equal method/domain/URI registrations; names-only catalogs cannot prove distinct surviving routes. Requires ordered active identities, final names and replacement proof. Existing route contract suite: 34 checks passed. |
 | 58 | Required named-route parameters | queued |
 | 59 | Domain optional and default route parameters | queued |

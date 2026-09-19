@@ -26,6 +26,37 @@ this diagnostic. Laramago cannot detect an incomplete list marked complete; stal
 or omitted names in such a list can cause false warnings.
 Names are case-sensitive; an explicitly empty list is allowed.
 
+To avoid repeating literal route names in JSON, the same assertion can include
+`"files": ["routes/web.php"]` alongside `names`. These are explicit project-relative
+PHP files; absolute paths, parent traversal and symlinks outside the project are
+rejected. The effective catalog is the union of `names` and extracted names.
+`names` remains required and can be empty. Files never imply completeness.
+
+With `files`, the application additionally asserts that those files register
+active routes through Laravel's native Route facade/router, with no custom facade
+root, relevant macro overrides, external name group or later removal/renaming.
+The union must describe names available to every analyzed call. Laramago does not
+prove activation, registration order, URI overwrites or environment selection.
+Keep package/provider names in `names`, and use a manual-only catalog when these
+assertions or the supported source subset do not fit the application.
+
+Supported statements are native `Route::get/post/put/patch/delete/options/any`
+calls with a literal URI and an action followed by literal `->name(...)` calls.
+Concrete route names append when repeated. Actions can be literal controller
+strings, `Controller::class`, literal two-element controller-method arrays, or
+closures; handler bodies are not searched for registrations. Imports, class aliases
+and namespaces are resolved from syntax. Nested `Route::name('admin.')->group(function
+() { ... })` and `Route::group(['as' => 'admin.'], function () { ... })` concatenate
+group prefixes with the route name. Group closures must have no parameters or captures.
+Only positional arguments are accepted. No route file or callback is executed.
+
+This is deliberately a strict input language: unreadable or malformed files,
+conditions, includes, resources, unnamed routes, dynamic expressions, extra group
+attributes and unsupported fluent methods disable the whole catalog's missing-name
+checks. An incomplete extraction never enables negative diagnostics, even when
+some names were extracted successfully. Duplicate names, resource expansion,
+route parameters and source-location catalogs are separate concerns.
+
 For exact native `Illuminate\Routing\UrlGenerator::route()` and
 `Illuminate\Routing\Redirector::route()` receivers, absent literal string names
 produce `laramago-missing-named-route`. Positional arguments and their native
