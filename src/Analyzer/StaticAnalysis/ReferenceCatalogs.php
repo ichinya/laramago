@@ -25,6 +25,8 @@ final class ReferenceCatalogs
     private bool $inertiaPagesLoaded = false;
     private bool $inertiaPagesComplete = false;
     private bool $inertiaPageNamesUnique = false;
+    /** @var array<array-key, array{names: list<string>, complete: bool}|null> */
+    private array $inertiaProps = [];
 
     public function __construct(
         private readonly string $root,
@@ -129,6 +131,69 @@ final class ReferenceCatalogs
         $this->loadInertiaPages();
 
         return $this->inertiaPages;
+    }
+
+    /**
+     * Known literal prop names for one resolved Vue page. A partial result must
+     * never be used to prove that any other prop is absent.
+     *
+     * @return array{names: list<string>, complete: bool}|null
+     */
+    public function inertiaPageProps(string $name): ?array
+    {
+        if (array_key_exists($name, $this->inertiaProps)) {
+            return $this->inertiaProps[$name];
+        }
+        $this->loadInertiaPages();
+        if ($this->inertiaPages === null) {
+            return $this->inertiaProps[$name] = null;
+        }
+        $rootPath = realpath($this->root);
+        if ($rootPath === false) {
+            return $this->inertiaProps[$name] = null;
+        }
+        $rootIdentity = str_replace('\\', '/', $rootPath);
+        if (DIRECTORY_SEPARATOR === '\\') {
+            $rootIdentity = strtolower($rootIdentity);
+        }
+        $selected = null;
+        $selectedPath = null;
+        $identity = null;
+        foreach ($this->inertiaPages as $page) {
+            if ($page['name'] !== $name) {
+                continue;
+            }
+            $realPath = realpath($this->root.'/'.$page['path']);
+            if ($realPath === false) {
+                return $this->inertiaProps[$name] = null;
+            }
+            $currentIdentity = str_replace('\\', '/', $realPath);
+            if (DIRECTORY_SEPARATOR === '\\') {
+                $currentIdentity = strtolower($currentIdentity);
+            }
+            if (! str_starts_with($currentIdentity, rtrim($rootIdentity, '/').'/')) {
+                return $this->inertiaProps[$name] = null;
+            }
+            if ($identity !== null && $identity !== $currentIdentity) {
+                return $this->inertiaProps[$name] = null;
+            }
+            $identity = $currentIdentity;
+            $selected = $page;
+            $selectedPath = $realPath;
+        }
+        if ($selected === null || $selectedPath === null || strtolower($selected['extension']) !== 'vue') {
+            return $this->inertiaProps[$name] = null;
+        }
+        $size = @filesize($selectedPath);
+        if ($size === false || $size > 524288) {
+            return $this->inertiaProps[$name] = null;
+        }
+        $contents = @file_get_contents($selectedPath, false, null, 0, 524289);
+        if ($contents === false) {
+            return $this->inertiaProps[$name] = null;
+        }
+
+        return $this->inertiaProps[$name] = (new VueDefineProps)->read($contents);
     }
 
     /**

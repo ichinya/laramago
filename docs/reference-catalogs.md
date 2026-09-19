@@ -48,6 +48,21 @@ The assertion works with incomplete catalogs because the collision is already kn
 Without it, duplicate names remain valid: a resolver may deliberately select the first
 matching root or extension. The analyzer does not execute or model frontend resolution.
 
+`ReferenceCatalogs::inertiaPageProps($name)` can read literal prop names from a known
+`.vue` page's inline `<script setup>` block. It recognizes `defineProps(['name'])`,
+`defineProps({ name: String })`, and an inline type shape such as
+`defineProps<{ name: string }>()` as a top-level statement or direct variable
+initializer. The result includes `names` in source order and a
+`complete` flag. Dynamic array entries, object spreads and computed keys retain any
+known names with `complete: false`; imported or composed type shapes remain unknown.
+Nested calls such as `withDefaults(defineProps<...>(), ...)` also remain unknown.
+Pages with custom top-level SFC blocks remain unknown because their contents may mimic
+script tags. Sources above 512 KiB or containing binary NUL bytes remain unknown.
+Only a page name resolving to one physical Vue file is inspected. The file is read on
+first request and cached for the catalog instance. Comments, strings, ordinary scripts,
+and frontend code are never treated as declarations or executed. This names-only
+metadata does not assert which props are required or validate their values.
+
 The optional `public-assets` catalog indexes files under explicit project-relative
 public roots, including custom directories and paths with spaces:
 
