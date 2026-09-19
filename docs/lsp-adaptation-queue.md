@@ -110,7 +110,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 102 | View facade and factory references | implemented; Explicit complete view catalogs validate literal native View facade and concrete Factory make calls. Portable source fingerprints and class PHPDoc, binding, finder and normalization guards preserve custom behavior. All 266 real-Mago checks and seven existing catalog modes pass; source analysis clean. |
 | 103 | Response view references | implemented; Complete view catalogs validate literal native Response facade, exact concrete ResponseFactory and zero-argument response helper view calls. Audited forwarding, lazy metadata and cached proof guards preserve custom dispatch and native errors. All 247 real-Mago checks and source analysis pass; array candidates defer. |
 | 104 | Route view references | deferred; Eight native probes show Route view stores mutable defaults; URI or domain parameters, defaults, binding and middleware may replace the view even on a fixed URI. Complete finder catalogs do not establish mandatory lookup of the original literal; effective route dispatch proof or a separate declaration policy is required. |
-| 105 | MailMessage view and markdown references | queued |
+| 105 | MailMessage view and markdown references | deferred; Thirteen native probes show MailMessage setters are mutable, may never render, and Markdown uses distinct HTML and text namespaces. Missing-view diagnostics need terminal-render state and effective renderer contracts. All 196 existing real-Mago catalog checks pass. |
 | 106 | Declarative mail content references | queued |
 | 107 | assertViewIs references | queued |
 | 108 | Pagination view references | queued |
