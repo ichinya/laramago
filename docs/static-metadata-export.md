@@ -10,6 +10,7 @@ are never included.
 vendor/bin/laramago-metadata --project-root /path/to/application
 vendor/bin/laramago-metadata --project-root /path/to/application --config-key app.name
 vendor/bin/laramago-metadata --project-root /path/to/application --config-array services --output metadata.json
+vendor/bin/laramago-metadata --project-root /path/to/application --watch --interval-ms 500
 ```
 
 The project root defaults to the current directory. `--config-key` and
@@ -18,6 +19,18 @@ conventional `config/*.php` arrays and their statically selected nested arrays.
 Output goes to stdout unless `--output` explicitly names a file. The command
 supports Composer's custom `vendor-dir` because it locates its parser beside the
 installed package, without requiring the application's autoloader.
+
+`--watch` writes one JSON object per line (JSONL), beginning with an initial
+snapshot and then when watched source state or error status changes. It polls
+`config/*.php`, `composer.json`, and `composer.lock`; `--interval-ms` accepts
+50–60000 milliseconds and defaults to 500. Each event contains
+`event: "snapshot"`, a revision and source hash, `status: "ready"` with full replacement
+`metadata`, or `status: "error"` with `metadata: null` and generic `errors`.
+Parse/read failures and truncated exports invalidate the prior ready snapshot.
+Stop the command with Ctrl+C or the host process interrupt. `--output` is not
+accepted in watch mode, and invalid options exit with status 2. Watch mode only
+refreshes static configuration metadata; it does not run incremental Mago
+analysis or reuse the analyzer worker.
 
 The JSON object has `schemaVersion: 1`, an absolute `projectRoot`, a `scope`
 of `{"kind":"configuration","evidence":"source-only"}`, `catalogs`,

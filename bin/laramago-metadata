@@ -4,6 +4,7 @@
 declare(strict_types=1);
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\StaticMetadataExport;
+use Ichinya\Laramago\Metadata\ConfigurationWatch;
 
 // Composer's application autoloader may include application files. This command loads
 // only this package's syntax reader and the installed PHP parser dependency.
@@ -24,6 +25,7 @@ if (! is_dir($parserRoot)) {
 spl_autoload_register(static function (string $class) use ($packageRoot, $parserRoot): void {
     foreach ([
         'Ichinya\\Laramago\\Analyzer\\StaticAnalysis\\' => $packageRoot.'/src/Analyzer/StaticAnalysis/',
+        'Ichinya\\Laramago\\Metadata\\' => $packageRoot.'/src/Metadata/',
         'PhpParser\\' => $parserRoot.'/',
     ] as $prefix => $directory) {
         if (str_starts_with($class, $prefix)) {
@@ -37,11 +39,14 @@ spl_autoload_register(static function (string $class) use ($packageRoot, $parser
     }
 });
 
-$usage = "Usage: laramago-metadata [--project-root DIR] [--config-array KEY ...] [--config-key KEY ...] [--output FILE]\n";
+$usage = "Usage: laramago-metadata [--project-root DIR] [--config-array KEY ...] [--config-key KEY ...] [--output FILE] [--watch [--interval-ms 50..60000]]\n";
 $root = getcwd() ?: '';
 $arrayKeys = [];
 $keys = [];
 $output = null;
+$watchMode = false;
+$intervalMs = 500;
+$intervalSpecified = false;
 $error = null;
 for ($i = 1; $i < count($argv); $i++) {
     $argument = $argv[$i];
@@ -49,7 +54,15 @@ for ($i = 1; $i < count($argv); $i++) {
         fwrite(STDOUT, $usage);
         exit(0);
     }
-    if (! in_array($argument, ['--project-root', '--config-array', '--config-key', '--output'], true)) {
+    if ($argument === '--watch') {
+        $watchMode = true;
+        continue;
+    }
+    if (! in_array(
+        $argument,
+        ['--project-root', '--config-array', '--config-key', '--output', '--interval-ms'],
+        true,
+    )) {
         $error = 'Unknown option: '.$argument;
         break;
     }
@@ -71,11 +84,25 @@ for ($i = 1; $i < count($argv); $i++) {
         case '--output':
             $output = $value;
             break;
+        case '--interval-ms':
+            if (! ctype_digit($value) || (int) $value < 50 || (int) $value > 60000) {
+                $error = 'Watch interval must be between 50 and 60000 milliseconds.';
+            } else {
+                $intervalMs = (int) $value;
+                $intervalSpecified = true;
+            }
+            break;
     }
 }
 
 if ($error === null && ! is_dir($root)) {
     $error = 'Project root is not a directory.';
+}
+if ($watchMode && $output !== null) {
+    $error = '--output cannot be used with --watch.';
+}
+if (! $watchMode && $intervalSpecified) {
+    $error = '--interval-ms requires --watch.';
 }
 foreach ($arrayKeys as $arrayKey) {
     if (! preg_match('/^[^.]+(?:\.[^.]+)*$/D', $arrayKey)) {
@@ -98,7 +125,37 @@ if ($root === false) {
     exit(2);
 }
 
-$data = (new StaticMetadataExport)->configuration($root, $arrayKeys, $keys);
+$export = static fn (): array => (new StaticMetadataExport)->configuration($root, $arrayKeys, $keys);
+if ($watchMode) {
+    $watch = new ConfigurationWatch($root);
+    $watch->run(
+        $export,
+        static function (array $event): void {
+            $json = json_encode($event, JSON_UNESCAPED_SLASHES);
+            if ($json === false) {
+                $json = json_encode([
+                    'event' => 'snapshot',
+                    'revision' => $event['revision'],
+                    'sourceHash' => $event['sourceHash'],
+                    'status' => 'error',
+                    'metadata' => null,
+                    'errors' => [[
+                        'code' => 'json-encoding-failure',
+                        'file' => null,
+                        'message' => 'Unable to encode static metadata as JSON.',
+                    ]],
+                ], JSON_UNESCAPED_SLASHES);
+            }
+            if ($json === false || @fwrite(STDOUT, $json."\n") === false) {
+                exit(2);
+            }
+            fflush(STDOUT);
+        },
+        $intervalMs,
+    );
+}
+
+$data = $export();
 $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 if ($json === false) {
     fwrite(STDERR, "Unable to encode static metadata as JSON.\n");

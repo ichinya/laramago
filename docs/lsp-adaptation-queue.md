@@ -202,4 +202,4 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 194 | Version-aware Laravel API capabilities | implemented; Installed-source validation capability now supports standalone illuminate/validation with custom vendor-dir; Composer version stays metadata and changed native methods still defer. |
 | 195 | Static metadata export | implemented; Versioned source-only configuration JSON exports confidence and declaration spans without application autoload; numeric namespaces, custom vendor paths, invalid UTF-8 and write failures tested. |
 | 196 | Diagnostic name fixes and navigation | implemented; Missing configuration keys offer uniquely close potentially unsafe literal edits; exact byte spans and escaping verified with Mago. Source navigation uses the metadata export; no editor definition hook. |
-| 197 | Long-running index watch mode | queued |
+| 197 | Long-running index watch mode | implemented; Metadata CLI watch emits fresh replacement JSONL snapshots and invalidates stale data on errors; finite subprocess tests cover edits, deletion, path replacement and parse recovery. Not incremental Mago analysis. |
