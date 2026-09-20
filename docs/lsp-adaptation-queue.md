@@ -175,7 +175,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 167 | Livewire event and listener contracts | implemented; Source-only Livewire On attributes, listener property candidates and component dispatch sites retain provenance and unresolved state. Numeric shorthand is supported; Echo, dynamic events and foreign this contexts defer. Focused tests and source analysis pass; no global missing-listener claim. |
 | 168 | Existing validated field shapes | already-covered; Verified validated field shapes, nested rules and dynamic/custom contract deferrals with focused suites. |
 | 169 | Additional validation declaration contexts | implemented; Syntax-only extraction covers proven native validation factory, validator, Request macro and controller trait arguments plus simple rules returns. Macro case and ambiguous argument forms defer; 35 focused and 50 existing real-Mago checks pass, source analysis clean. |
-| 170 | Versioned built-in validation rule catalog | queued |
+| 170 | Versioned built-in validation rule catalog | implemented; Installed Laravel validation source provides positive rule-method metadata, parser aliases and package version. Case-insensitive methods, exact namespaces and ambiguous declarations are covered; null never proves an invalid rule. Focused tests and source analysis pass. |
 | 171 | Validation rule name diagnostics | queued |
 | 172 | Validation rule parameter contracts | queued |
 | 173 | Validation regex delimiter parsing | queued |
