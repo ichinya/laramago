@@ -9,7 +9,7 @@ use PhpParser\Node;
 /** Ordered Pest class/trait declarations over an explicitly selected file catalog. */
 final class PestUsesCatalog
 {
-    /** @var list<array{source: string, line: int, names: list<string>, targets: list<string>, files: list<string>}>|null */
+    /** @var list<array{source: string, line: int, names: list<string>, targets: list<string>, files: list<string>, callStart: int, nameSpans: list<array{start: int, end: int}>, sourceHash: string}>|null */
     private ?array $declarations = null;
 
     public function __construct(string $root)
@@ -71,7 +71,13 @@ final class PestUsesCatalog
                 if (! $statement instanceof Node\Stmt\Expression) {
                     continue;
                 }
-                $declaration = self::declaration($statement->expr, $path, $base, array_keys($files));
+                $declaration = self::declaration(
+                    $statement->expr,
+                    $path,
+                    $base,
+                    array_keys($files),
+                    $reader->contentHash($path) ?? '',
+                );
                 if ($declaration !== null) {
                     $declarations[] = $declaration;
                 }
@@ -80,7 +86,7 @@ final class PestUsesCatalog
         $this->declarations = $declarations;
     }
 
-    /** @return list<array{source: string, line: int, names: list<string>, targets: list<string>, files: list<string>}>|null */
+    /** @return list<array{source: string, line: int, names: list<string>, targets: list<string>, files: list<string>, callStart: int, nameSpans: list<array{start: int, end: int}>, sourceHash: string}>|null */
     public function declarations(): ?array
     {
         return $this->declarations;
@@ -116,13 +122,14 @@ final class PestUsesCatalog
     }
 
     /** @param list<string> $selectedFiles
-     * @return array{source: string, line: int, names: list<string>, targets: list<string>, files: list<string>}|null
+     * @return array{source: string, line: int, names: list<string>, targets: list<string>, files: list<string>, callStart: int, nameSpans: list<array{start: int, end: int}>, sourceHash: string}|null
      */
     private static function declaration(
         Node\Expr $expression,
         string $source,
         string $root,
         array $selectedFiles,
+        string $sourceHash,
     ): ?array {
         [$base, $methods] = PhpSource::chain($expression);
         if (
@@ -137,6 +144,7 @@ final class PestUsesCatalog
         if ($names === null || $isPest && ($base->args !== [] || $methods === [])) {
             return null;
         }
+        $nameSpans = $isPest ? [] : self::argumentSpans($base->args);
         $default = $isPest && basename($source) === 'Pest.php' ? dirname($source) : $source;
         $targets = [self::slash($default)];
         foreach ($methods as $index => $method) {
@@ -161,6 +169,7 @@ final class PestUsesCatalog
                     return null;
                 }
                 array_push($names, ...$more);
+                array_push($nameSpans, ...self::argumentSpans($method->args));
             } else {
                 return null;
             }
@@ -181,7 +190,28 @@ final class PestUsesCatalog
             'names' => $names,
             'targets' => $targets,
             'files' => $matched,
+            'callStart' => $base->getStartFilePos(),
+            'nameSpans' => $nameSpans,
+            'sourceHash' => $sourceHash,
         ];
+    }
+
+    /** @param array<array-key, Node\Arg|Node\VariadicPlaceholder> $args
+     * @return list<array{start: int, end: int}>
+     */
+    private static function argumentSpans(array $args): array
+    {
+        $spans = [];
+        foreach ($args as $arg) {
+            if ($arg instanceof Node\Arg) {
+                $spans[] = [
+                    'start' => $arg->value->getStartFilePos(),
+                    'end' => $arg->value->getEndFilePos() + 1,
+                ];
+            }
+        }
+
+        return $spans;
     }
 
     /** @param array<array-key, Node\Arg|Node\VariadicPlaceholder> $args

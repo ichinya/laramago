@@ -15,12 +15,27 @@ declarations remain separate candidates, including repeated use of the same
 class; the mapping does not choose one or issue a diagnostic. Traits likewise
 retain their declared order and multiplicity.
 
+An optional declared-context warning flags selected files with two or more
+statically identified, non-default test classes. Enable it with
+`"diagnose-declared-conflicts": true` in the `extra.laramago.pest-uses` object.
+Mago reports `laramago-pest-declared-test-context-conflict` at the later class
+literal. Repeating the same custom class counts as an overlap because Pest checks
+whether any custom class is already selected. `PHPUnit\Framework\TestCase` does
+not occupy that slot. A class plus traits, or only traits, does not warn. Unknown
+class/trait kinds stop diagnosis for that file. This policy warns about the
+selected **declarations**: it does not assert that both registrations execute or
+that Pest will fail at runtime. Conditional declarations and dynamic
+registrations remain outside the static catalog. It conservatively omits a
+custom class followed by an explicit PHPUnit default class: Pest may reject
+that order at runtime, but effective registration order can differ from source
+order when directory and file targets overlap.
+
 `files() === null` means the underlying declaration catalog was unavailable.
 An unmatched selected file has no mapping entry. Omitted dynamic or unsupported
 Pest calls, conditional execution, other source files, and runtime plugins may
 change the effective context. A caller must independently establish those
 conditions before using this mapping to type a closure's `$this` or diagnose a
-conflict. No default PHPUnit test class is inferred from absent declarations.
+runtime conflict. No default PHPUnit test class is inferred from absent declarations.
 
 This ordering and conflict boundary follows Pest 4.x at commit
 [`5b2293f`](https://github.com/pestphp/pest/tree/5b2293f67adcf1b2320b33f521b94a692d18f360):

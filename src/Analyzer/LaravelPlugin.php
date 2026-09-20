@@ -65,6 +65,9 @@ final class LaravelPlugin implements Plugin
         $registry->registerFunctionReturnTypeProvider($pathHelpers);
         $registry->registerInitializationHook($pathHelpers);
         $registry->registerNodeAnalysisHook(new RequiredFileReferencesHook);
+        $pestConflicts = new PestDeclaredContextConflictsHook($this->projectRoot);
+        $registry->registerNodeAnalysisHook($pestConflicts);
+        $registry->registerInitializationHook($pestConflicts);
         $httpTests = new TestResponseCallbackProvider($this->projectRoot);
         $registry->registerMethodReturnTypeProvider($httpTests);
         $registry->registerInitializationHook($httpTests);
