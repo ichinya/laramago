@@ -73,6 +73,10 @@ $cases = [
     'known helper key' => ['config("example.name");', []],
     'known dynamic value key' => ['config("example.dynamic");', []],
     'missing helper key' => ['config("example.missing");', $missing],
+    // Adapted from laravel/lsp's literal/interpolated argument scenarios
+    // (tests/Unit/InterpolatedStringTest.php, 557d8c959, MIT).
+    'escaped dollar remains a literal key' => ['config("example.\$broker");', $missing],
+    'interpolated helper key deferred' => ['$broker = "missing"; config("example.$broker");', []],
     'missing helper key with default' => ['config("example.missing", 42);', $missing],
     'named helper key' => ['config(default: 42, key: "example.missing");', $missing],
     'known nested helper key' => ['config("example.nested.count");', []],
@@ -96,6 +100,10 @@ $cases = [
     'invalid facade name remains native' => ['Config::get(Key: "example.missing");', ['invalid-named-argument']],
     'known getMany list' => ['Config::getMany(["example.name", "example.nested.count"]);', []],
     'missing getMany list key' => ['Config::getMany(["example.missing"]);', $missing],
+    'getMany skips an interpolated member but checks literal siblings' => [
+        '$broker = "missing"; Config::getMany(["example.name", "example.$broker", "example.missing"]);',
+        $missing,
+    ],
     'multiple missing getMany keys' => [
         'Config::getMany(["example.missing", "example.nested.missing"]);',
         [...$missing, ...$missing],

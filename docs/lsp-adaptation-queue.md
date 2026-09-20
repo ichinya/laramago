@@ -198,7 +198,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 190 | Lazy integration index loading | implemented; Configuration/storage/Inertia diagnostic catalogs load on demand and reset per analysis generation; eager warning scans retained. Behavioral lazy lookup and four focused suites pass. |
 | 191 | Metadata provenance locations | queued |
 | 192 | Explicit metadata confidence states | queued |
-| 193 | Upstream scenario regression adaptation | queued |
+| 193 | Upstream scenario regression adaptation | implemented; Adapted pinned Laravel LSP literal/interpolated argument scenarios into real-Mago config and getMany regressions, preserving literal sibling checks and dynamic deferral. |
 | 194 | Version-aware Laravel API capabilities | queued |
 | 195 | Static metadata export | queued |
 | 196 | Diagnostic name fixes and navigation | queued |
