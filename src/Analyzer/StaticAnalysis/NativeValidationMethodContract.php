@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer\StaticAnalysis;
 
 use PhpParser\Node;
-use PhpParser\NodeFinder;
 
 /** Complete syntax contracts for the supported Laravel validation entry points. */
 final class NativeValidationMethodContract
@@ -46,13 +45,7 @@ final class NativeValidationMethodContract
         if ($nodes === null) {
             return false;
         }
-        $declaration = (new NodeFinder)->findFirst(
-            $nodes,
-            static fn (Node $node): bool => (
-                $node instanceof Node\Stmt\Class_
-                && strcasecmp($node->namespacedName?->toString() ?? '', $class) === 0
-            ),
-        );
+        $declaration = ResolvedClassIdentity::uniqueDeclaration($nodes, $class);
 
         if (! $declaration instanceof Node\Stmt\Class_) {
             return false;

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer\StaticAnalysis;
 
 use PhpParser\Node;
-use PhpParser\NodeFinder;
 
 /** Whole-method contracts for the installed native database-rule parsing path. */
 final class NativeValidationDatabaseContract
@@ -46,17 +45,7 @@ final class NativeValidationDatabaseContract
             if ($nodes === null) {
                 return false;
             }
-            $declarations = (new NodeFinder)->find(
-                $nodes,
-                static fn (Node $node): bool => (
-                    ($node instanceof Node\Stmt\Class_ || $node instanceof Node\Stmt\Trait_)
-                    && strcasecmp($node->namespacedName?->toString() ?? '', $name) === 0
-                ),
-            );
-            if (count($declarations) !== 1) {
-                return false;
-            }
-            $declaration = $declarations[0];
+            $declaration = ResolvedClassIdentity::uniqueDeclaration($nodes, $name);
             if (! $declaration instanceof Node\Stmt\Class_ && ! $declaration instanceof Node\Stmt\Trait_) {
                 return false;
             }
@@ -83,7 +72,7 @@ final class NativeValidationDatabaseContract
                 continue;
             }
             foreach ($statement->traits as $trait) {
-                if (strcasecmp($trait->toString(), 'Illuminate\\Validation\\Concerns\\ValidatesAttributes') === 0) {
+                if (ResolvedClassIdentity::is($trait, 'Illuminate\\Validation\\Concerns\\ValidatesAttributes')) {
                     return true;
                 }
             }

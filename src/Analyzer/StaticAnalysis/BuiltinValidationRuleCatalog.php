@@ -6,6 +6,8 @@ namespace Ichinya\Laramago\Analyzer\StaticAnalysis;
 
 use PhpParser\Node;
 use PhpParser\NodeFinder;
+use PhpParser\NodeTraverser;
+use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\ParserFactory;
 
 /** Positive method metadata from a structurally compatible installed validator source. */
@@ -159,7 +161,7 @@ final class BuiltinValidationRuleCatalog
                 continue;
             }
             foreach ($statement->traits as $name) {
-                if ($name->toString() === 'Concerns\\ValidatesAttributes') {
+                if (ResolvedClassIdentity::is($name, 'Illuminate\\Validation\\Concerns\\ValidatesAttributes')) {
                     return true;
                 }
             }
@@ -182,7 +184,7 @@ final class BuiltinValidationRuleCatalog
             static fn (Node $node): bool => (
                 $node instanceof Node\Expr\StaticCall
                 && $node->class instanceof Node\Name
-                && $node->class->toString() === 'ValidationRuleParser'
+                && ResolvedClassIdentity::is($node->class, 'Illuminate\\Validation\\ValidationRuleParser')
                 && $node->name instanceof Node\Identifier
                 && $node->name->toString() === 'parse'
             ),
@@ -202,7 +204,7 @@ final class BuiltinValidationRuleCatalog
             static fn (Node $node): bool => (
                 $node instanceof Node\Expr\StaticCall
                 && $node->class instanceof Node\Name
-                && $node->class->toString() === 'Str'
+                && ResolvedClassIdentity::is($node->class, 'Illuminate\\Support\\Str')
                 && $node->name instanceof Node\Identifier
                 && $node->name->toString() === 'studly'
             ),
@@ -286,23 +288,11 @@ final class BuiltinValidationRuleCatalog
             $nodes = (new ParserFactory)
                 ->createForNewestSupportedVersion()
                 ->parse($source);
+            $resolved = (new NodeTraverser(new NameResolver))->traverse($nodes ?? []);
         } catch (\PhpParser\Error) {
             return null;
         }
-        $found = null;
-        foreach ($nodes ?? [] as $node) {
-            $actualNamespace = $node instanceof Node\Stmt\Namespace_ ? $node->name?->toString() : null;
-            foreach ($node instanceof Node\Stmt\Namespace_ ? $node->stmts : [$node] as $statement) {
-                if (! $statement instanceof Node\Stmt\ClassLike || $statement->name?->toString() !== $name) {
-                    continue;
-                }
-                if ($actualNamespace !== $namespace || $found !== null) {
-                    return null;
-                }
-                $found = $statement;
-            }
-        }
 
-        return $found;
+        return ResolvedClassIdentity::uniqueDeclaration($resolved, $namespace.'\\'.$name);
     }
 }
