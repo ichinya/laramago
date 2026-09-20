@@ -169,6 +169,9 @@ final class LaravelPlugin implements Plugin
         $registry->registerMethodReturnTypeProvider($projections);
         $registry->registerInitializationHook($projections);
         $registry->registerMethodReturnTypeProvider(new EloquentQueryProvider);
+        $validationParameters = new ValidationRuleParametersHook($this->projectRoot);
+        $registry->registerMethodCallAnalysisHook($validationParameters);
+        $registry->registerInitializationHook($validationParameters);
         $validated = new ValidatedInputProvider($this->projectRoot);
         $registry->registerMethodReturnTypeProvider($validated);
         $registry->registerInitializationHook($validated);
