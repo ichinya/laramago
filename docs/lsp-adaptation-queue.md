@@ -183,7 +183,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 175 | Literal validation table and column references | queued |
 | 176 | Cross-field validation reference hints | implemented; Source-only cross-field references with native parameter roles, CSV, wildcard preservation and numeric-key regression; no unsupported missing-input diagnostics. |
 | 177 | Static Pest uses and path declarations | implemented; Ordered positive Pest uses/path metadata over selected files; native fluent alias and portable glob boundaries tested without execution. |
-| 178 | Pest trait and file mapping | queued |
+| 178 | Pest trait and file mapping | implemented; Ordered class/trait candidates per selected Pest file, unresolved names and source provenance; frozen metadata classification without runtime completeness claims. |
 | 179 | Static Pest expectation extensions | queued |
 | 180 | Pest closure this typing | queued |
 | 181 | Pest expectation method forwarding | queued |
