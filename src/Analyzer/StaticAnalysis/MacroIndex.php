@@ -138,8 +138,8 @@ final class MacroIndex
                     $this->unknown = true;
                 } else {
                     $class = strtolower($node->class->toString());
-                    $key = PhpSource::argument($node->args, 0, 'name');
-                    if ($name !== 'macro' || ! $key instanceof Node\Scalar\String_ || $key->value === '') {
+                    $key = LiteralStringArgument::from(PhpSource::argument($node->args, 0, 'name'));
+                    if ($name !== 'macro' || $key === null || $key->value === '') {
                         $this->blocked[$class] = true;
                     } else {
                         $method = $key->value;
@@ -240,8 +240,8 @@ final class MacroIndex
                     $this->possibleUnknown = true;
                 } else {
                     $class = strtolower($node->class->toString());
-                    $key = PhpSource::argument($node->args, 0, 'name');
-                    if ($name !== 'macro' || ! $key instanceof Node\Scalar\String_ || $key->value === '') {
+                    $key = LiteralStringArgument::from(PhpSource::argument($node->args, 0, 'name'));
+                    if ($name !== 'macro' || $key === null || $key->value === '') {
                         $this->possibleBlocked[$class] = true;
                     } else {
                         $this->possible[$class][$key->value] = true;
@@ -311,8 +311,8 @@ final class MacroIndex
         ) {
             return null;
         }
-        $name = PhpSource::argument($expression->args, 0, 'name');
-        if (! $name instanceof Node\Scalar\String_ || $name->value === '') {
+        $name = LiteralStringArgument::from(PhpSource::argument($expression->args, 0, 'name'));
+        if ($name === null || $name->value === '') {
             return null;
         }
         $class = strtolower($expression->class->toString());

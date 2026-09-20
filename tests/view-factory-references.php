@@ -131,6 +131,9 @@ foreach ([
         ['View::make("nested/exists");', []],
         ['View::make(view: "other");', []],
         ['View::make("absent");', $on ? $missing : []],
+        ['View::make("ab\\x73ent");', $on ? $missing : []],
+        ['View::make("ab" . "sent");', []],
+        ['View::make(VIEW_NAME);', []],
         ['View::make(view: "absent");', $on ? $missing : []],
         ['$factory->make("absent");', $factoryOn ? $missing : []],
         ['$factory->make(mergeData: [], view: "absent");', $factoryOn ? $missing : []],
@@ -153,7 +156,10 @@ foreach ([
         ['View::renderWhen(false, "absent");', []],
         ['$factory->make(42);', $mode === 'custom-class-doc' ? [] : ['invalid-argument']],
     ];
-    $source = "<?php\nuse Illuminate\\Support\\Facades\\View;\nuse Illuminate\\View\\Factory;\nuse Custom\\View as CustomView;\n";
+    if ($mode === 'enabled') {
+        $cases[] = ['View::make(View: "absent");', ['invalid-named-argument']];
+    }
+    $source = "<?php\nuse Illuminate\\Support\\Facades\\View;\nuse Illuminate\\View\\Factory;\nuse Custom\\View as CustomView;\nconst VIEW_NAME = 'absent';\n";
     $lines = [];
     foreach ($cases as $index => [$body, $expected]) {
         $source .=

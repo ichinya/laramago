@@ -14,6 +14,7 @@ file_put_contents($workspace.'/bootstrap/macros.php', <<<'PHP'
     <?php
     use stdClass as Payload;
     MacroBox::macro('label', fn(int $number): string => throw new RuntimeException('Closure executed.'));
+    MacroBox::macro("es\x63aped", fn(): string => 'decoded');
     MacroBox::macro('payload', fn(?Payload $value): Payload|null => $value);
     MacroBox::macro('numbers', fn(int ...$values): int => 1);
     MacroBox::macro('staticClosure', static fn(): string => '');
@@ -46,6 +47,12 @@ $cases = [
         ['mixed-return-statement', 'non-documented-method'],
     ],
     'typed arrow' => ['return MacroBox::label(3);', 'string', []],
+    'escaped literal registration' => ['return MacroBox::escaped();', 'string', []],
+    'macro name remains case-sensitive' => [
+        'return MacroBox::ESCAPED();',
+        'string',
+        ['mixed-return-statement', 'non-documented-method'],
+    ],
     'resolved alias nullable union' => ['return MacroBox::payload(null);', 'stdClass|null', []],
     'variadic parameter' => ['return MacroBox::numbers(1, 2, 3);', 'int', []],
     'variadic wrong parameter' => ["return MacroBox::numbers(1, 'wrong');", 'int', ['invalid-argument']],
@@ -118,6 +125,8 @@ file_put_contents($workspace.'/mago.json', json_encode([
         'laramago' => [
             'command' => [
                 PHP_BINARY,
+                '-d',
+                'opcache.enable_cli=0',
                 $package.'/bin/laramago-worker.php',
                 $package.'/vendor/autoload.php',
                 $workspace,

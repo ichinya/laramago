@@ -154,6 +154,9 @@ foreach ([
         ['$translator->get("A missing phrase", [], "en");', $on ? $missing : []],
         ['Lang::get("messages", [], "en");', []],
         ['Lang::get("messages.absent", [], "en");', $on ? $missing : []],
+        ['Lang::get("messages.ab\\x73ent", [], "en");', $on ? $missing : []],
+        ['Lang::get("messages." . "absent", [], "en");', []],
+        ['Lang::get(TRANSLATION_KEY, [], "en");', []],
         ['Lang::get(locale: "en", key: "messages.absent", fallback: true);', $on ? $missing : []],
         ['$translator->get("messages.absent", [], "en");', $on ? $missing : []],
         ['$translator->get(locale: "en", key: "messages.absent");', $on ? $missing : []],
@@ -176,7 +179,7 @@ foreach ([
         ['CustomLang::get("messages.absent", [], "en");', []],
         ['$translator->get(42, [], "en");', ['invalid-argument']],
     ];
-    $source = "<?php\nuse Illuminate\\Support\\Facades\\Lang;\nuse Illuminate\\Translation\\Translator;\nuse Custom\\Lang as CustomLang;\n";
+    $source = "<?php\nuse Illuminate\\Support\\Facades\\Lang;\nuse Illuminate\\Translation\\Translator;\nuse Custom\\Lang as CustomLang;\nconst TRANSLATION_KEY = 'messages.absent';\n";
     $lines = [];
     foreach ($cases as $index => [$body, $expected]) {
         $source .=

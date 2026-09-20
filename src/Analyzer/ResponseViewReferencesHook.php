@@ -6,6 +6,7 @@ namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\LaravelReferenceCallRegistry;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\LiteralStringArgument;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeFacade;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeResponseViewContract;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeViewFactoryContract;
@@ -119,8 +120,8 @@ final class ResponseViewReferencesHook implements NodeAnalysisHook, Initializati
         if ($arguments === null) {
             return;
         }
-        $name = $arguments['view'] ?? null;
-        if (! $name instanceof Node\Scalar\String_ || ! $catalog->missingView($name->value)) {
+        $name = LiteralStringArgument::from($arguments['view'] ?? null);
+        if ($name === null || ! $catalog->missingView($name->value)) {
             return;
         }
         $issue = Issue::at(

@@ -6,6 +6,7 @@ namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\LaravelReferenceCallRegistry;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\LiteralStringArgument;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeFacade;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeViewFactoryContract;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ReferenceCatalogs;
@@ -93,9 +94,9 @@ final class ViewFactoryReferencesHook implements MethodCallAnalysisHook, Initial
         if ($arguments === null) {
             return;
         }
-        $view = $arguments['view'] ?? null;
+        $view = LiteralStringArgument::from($arguments['view'] ?? null);
         if (
-            ! $view instanceof Node\Scalar\String_
+            $view === null
             || ! $this->catalogs()->missingView($view->value)
         ) {
             return;

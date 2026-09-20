@@ -191,7 +191,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 183 | Shared static metadata indexes | implemented; Bounded per-process resolved-source cache shares parsing work with isolated AST copies, exact-byte freshness and plugin reset; mutable derived indexes remain separate. |
 | 184 | Shared Laravel reference call registry | implemented; Shared audited call targets and named/positional argument maps adopted by four view/translation hooks; native identity and catalog guards retained, real-Mago regressions passed. |
 | 185 | Shared import and class identity resolution | implemented; Shared resolved class identity used by three validation catalogs/contracts; aliases, ambiguous and conditional declarations, leading slashes and conflicting-import recovery tested. |
-| 186 | Shared literal string argument handling | queued |
+| 186 | Shared literal string argument handling | implemented; Shared direct string-literal extraction adopted by reference and macro consumers; decoded escapes, case sensitivity and dynamic/constant/concatenation fallbacks verified through Mago. |
 | 187 | Precise literal element diagnostic spans | queued |
 | 188 | Cross-platform and custom vendor paths | already-covered; Installer and real-worker path tests pass on Windows, including spaces and custom vendor configuration. Linux/macOS execution and combined generated custom-vendor installation remain unverified. |
 | 189 | Index dependency invalidation | already-covered; Fresh analyzer runs reread changed migrations, configuration and source; properties/configuration regressions pass. Same-worker incremental/watch invalidation is not claimed. |

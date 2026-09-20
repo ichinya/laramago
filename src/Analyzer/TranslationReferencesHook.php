@@ -6,6 +6,7 @@ namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\LaravelReferenceCallRegistry;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\LiteralStringArgument;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeFacade;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeTranslationContract;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ReferenceCatalogs;
@@ -93,15 +94,16 @@ final class TranslationReferencesHook implements MethodCallAnalysisHook, Initial
         if ($arguments === null) {
             return;
         }
-        $key = $arguments['key'] ?? null;
+        $key = LiteralStringArgument::from($arguments['key'] ?? null);
+        $locale = LiteralStringArgument::from($arguments['locale'] ?? null);
         if (
-            ! $key instanceof Node\Scalar\String_
-            || ! ($arguments['locale'] ?? null) instanceof Node\Scalar\String_
-            || in_array($arguments['locale']->value, ['', '0'], true)
+            $key === null
+            || $locale === null
+            || in_array($locale->value, ['', '0'], true)
             || isset($arguments['fallback'])
             && (! $arguments['fallback'] instanceof Node\Expr\ConstFetch
             || strtolower($arguments['fallback']->name->toString()) !== 'true')
-            || ! $this->catalogs()->missingTranslation($key->value, $arguments['locale']->value)
+            || ! $this->catalogs()->missingTranslation($key->value, $locale->value)
         ) {
             return;
         }
@@ -111,7 +113,7 @@ final class TranslationReferencesHook implements MethodCallAnalysisHook, Initial
             .'" is absent from the explicitly complete translations catalog.',
             new SourceLocation($context->source->path, $context->node->span),
         );
-        foreach ($this->catalogs()->translationLookupNotes($arguments['locale']->value) as $note) {
+        foreach ($this->catalogs()->translationLookupNotes($locale->value) as $note) {
             $issue = $issue->withNote($note);
         }
         $context->report(Level::Warning, 'laramago-missing-translation', $issue);

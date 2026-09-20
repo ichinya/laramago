@@ -6,6 +6,7 @@ namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\LaravelReferenceCallRegistry;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\LiteralStringArgument;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeFacade;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeViewFirstContract;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ReferenceCatalogs;
@@ -102,12 +103,13 @@ final class ViewFirstReferencesHook implements MethodCallAnalysisHook, Initializ
             return;
         }
         foreach ($view->items as $item) {
+            $candidate = LiteralStringArgument::from($item->value);
             if (
                 $item->unpack
                 || $item->byRef
                 || $item->key !== null
-                || ! $item->value instanceof Node\Scalar\String_
-                || ! $this->catalogs()->missingView($item->value->value)
+                || $candidate === null
+                || ! $this->catalogs()->missingView($candidate->value)
             ) {
                 return;
             }
