@@ -174,7 +174,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 166 | Explicit Livewire mount contracts | implemented; Selected explicitly registered Livewire classes expose native mount parameter declarations and direct public property metadata without execution. Defaults are syntax metadata, never caller-requiredness; DI, routing and trait/inherited contracts remain unknown. Focused tests and source analysis pass. |
 | 167 | Livewire event and listener contracts | implemented; Source-only Livewire On attributes, listener property candidates and component dispatch sites retain provenance and unresolved state. Numeric shorthand is supported; Echo, dynamic events and foreign this contexts defer. Focused tests and source analysis pass; no global missing-listener claim. |
 | 168 | Existing validated field shapes | already-covered; Verified validated field shapes, nested rules and dynamic/custom contract deferrals with focused suites. |
-| 169 | Additional validation declaration contexts | queued |
+| 169 | Additional validation declaration contexts | implemented; Syntax-only extraction covers proven native validation factory, validator, Request macro and controller trait arguments plus simple rules returns. Macro case and ambiguous argument forms defer; 35 focused and 50 existing real-Mago checks pass, source analysis clean. |
 | 170 | Versioned built-in validation rule catalog | queued |
 | 171 | Validation rule name diagnostics | queued |
 | 172 | Validation rule parameter contracts | queued |
