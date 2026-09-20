@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer\StaticAnalysis;
 
 use Mago\Sdk\Analyzer\Codebase;
+use Mago\Sdk\Analyzer\Metadata\MetadataFlags;
 use Mago\Sdk\Analyzer\Type;
 use Mago\Sdk\Analyzer\Type\ArrayItem;
 use Mago\Sdk\Analyzer\Type\ArrayKey;
 use Mago\Sdk\Analyzer\Type\ArrayKeyKind;
 use Mago\Sdk\Analyzer\Type\KeyedArrayType;
+use Mago\Sdk\Analyzer\Type\Visibility;
 use PhpParser\Node;
 
 /** A deliberately small syntax-only model of successful Laravel validation. */
@@ -68,7 +70,7 @@ final class RequestRuleFields
             ) {
                 return null;
             }
-            $rules = self::rules($item->value);
+            $rules = self::rules($item->value, $codebase, $source);
             if ($rules === null) {
                 return null;
             }
@@ -193,7 +195,7 @@ final class RequestRuleFields
     }
 
     /** @return list<string>|null */
-    private static function rules(Node\Expr $expression): ?array
+    private static function rules(Node\Expr $expression, Codebase $codebase, PhpSource $source): ?array
     {
         $value = PhpSource::value($expression);
         if (is_string($value)) {
@@ -206,7 +208,7 @@ final class RequestRuleFields
                 }
                 $rule = PhpSource::value($item->value);
                 if (! is_string($rule)) {
-                    $rule = self::inRule($item->value);
+                    $rule = self::literalRuleObject($item->value, $codebase, $source);
                 }
                 if ($rule === null) {
                     return null;
@@ -264,20 +266,32 @@ final class RequestRuleFields
         return $accepted;
     }
 
-    private static function inRule(Node\Expr $expression): ?string
+    private static function literalRuleObject(Node\Expr $expression, Codebase $codebase, PhpSource $source): ?string
     {
-        // Read the known factory's literal arguments; never invoke the factory
-        // or evaluate dynamic rule objects, constants, or application methods.
+        // These exact native factories return Stringable rule builders whose
+        // initial constraints are string/numeric. No chained calls, macros,
+        // dynamic arguments, or application rule objects are evaluated.
         if (
             ! $expression instanceof Node\Expr\StaticCall
             || ! $expression->class instanceof Node\Name
             || strcasecmp($expression->class->toString(), 'Illuminate\\Validation\\Rule') !== 0
             || ! $expression->name instanceof Node\Identifier
-            || strcasecmp($expression->name->toString(), 'in') !== 0
-            || count($expression->args) !== 1
         ) {
             return null;
         }
+        $factory = strtolower($expression->name->toString());
+        if ($expression->args === []) {
+            return in_array($factory, ['string', 'numeric'], true)
+            && self::nativeStringableRule($factory, $codebase, $source)
+                ? $factory
+                : null;
+        }
+        if ($factory !== 'in' || count($expression->args) !== 1) {
+            return null;
+        }
+
+        // Read the known factory's literal arguments; never invoke the factory
+        // or evaluate dynamic rule objects, constants, or application methods.
         $values = PhpSource::value(PhpSource::argument($expression->args, 0, 'values'));
         if (! is_array($values) || ! array_is_list($values) || $values === []) {
             return null;
@@ -291,6 +305,131 @@ final class RequestRuleFields
         }
 
         return 'in:'.implode(',', $quoted);
+    }
+
+    private static function nativeStringableRule(string $name, Codebase $codebase, PhpSource $source): bool
+    {
+        $factory = $codebase->getMethod('Illuminate\\Validation\\Rule', $name);
+        $builder = 'Illuminate\\Validation\\Rules\\'.($name === 'string' ? 'StringRule' : 'Numeric');
+        $stringify = $codebase->getMethod($builder, '__toString');
+        if (
+            $factory === null
+            || strcasecmp($factory->identifier->class ?? '', 'Illuminate\\Validation\\Rule') !== 0
+            || ! $factory->static
+            || $factory->visibility !== Visibility::Public
+            || $factory->flags->contains(MetadataFlags::BY_REFERENCE)
+            || $stringify === null
+            || strcasecmp($stringify->identifier->class ?? '', $builder) !== 0
+            || $stringify->static
+            || $stringify->visibility !== Visibility::Public
+            || $stringify->flags->contains(MetadataFlags::BY_REFERENCE)
+            || $codebase->getFunction('Illuminate\\Validation\\Rules\\implode') !== null
+            || $codebase->getFunction('Illuminate\\Validation\\Rules\\array_unique') !== null
+        ) {
+            return false;
+        }
+        $reflection = new ModelReflection($codebase, $source);
+        $factoryNode = $reflection->methodNode($factory);
+        $stringifyNode = $reflection->methodNode($stringify);
+        $created = $reflection->returnExpression($factory);
+        $rendered = $reflection->returnExpression($stringify);
+        if (
+            $factoryNode === null
+            || $factoryNode->params !== []
+            || $factoryNode->byRef
+            || $stringifyNode === null
+            || $stringifyNode->params !== []
+            || $stringifyNode->byRef
+            || ! $created instanceof Node\Expr\New_
+            || ! $created->class instanceof Node\Name
+            || strcasecmp($created->class->toString(), $builder) !== 0
+            || $created->args !== []
+            || $codebase->getMethod($builder, '__construct') !== null
+            || $codebase->getDeclaringMethod($builder, '__construct') !== null
+            || ! self::initialRuleConstraint($builder, $name, $stringify->location->file, $source)
+            || ! $rendered instanceof Node\Expr\FuncCall
+            || ! $rendered->name instanceof Node\Name
+            || strcasecmp($rendered->name->toString(), 'implode') !== 0
+            || count($rendered->args) !== 2
+            || ! $rendered->args[0] instanceof Node\Arg
+            || $rendered->args[0]->name !== null
+            || $rendered->args[0]->unpack
+            || $rendered->args[0]->byRef
+            || PhpSource::value($rendered->args[0]->value) !== '|'
+            || ! $rendered->args[1] instanceof Node\Arg
+            || $rendered->args[1]->name !== null
+            || $rendered->args[1]->unpack
+            || $rendered->args[1]->byRef
+            || ! $rendered->args[1]->value instanceof Node\Expr\FuncCall
+        ) {
+            return false;
+        }
+        $unique = $rendered->args[1]->value;
+
+        return (
+            $unique->name instanceof Node\Name
+            && strcasecmp($unique->name->toString(), 'array_unique') === 0
+            && count($unique->args) === 1
+            && $unique->args[0] instanceof Node\Arg
+            && $unique->args[0]->name === null
+            && ! $unique->args[0]->unpack
+            && ! $unique->args[0]->byRef
+            && $unique->args[0]->value instanceof Node\Expr\PropertyFetch
+            && $unique->args[0]->value->var instanceof Node\Expr\Variable
+            && $unique->args[0]->value->var->name === 'this'
+            && $unique->args[0]->value->name instanceof Node\Identifier
+            && $unique->args[0]->value->name->toString() === 'constraints'
+        );
+    }
+
+    private static function initialRuleConstraint(string $builder, string $rule, ?string $file, PhpSource $source): bool
+    {
+        if ($file === null) {
+            return false;
+        }
+        $separator = strrpos($builder, '\\');
+        if ($separator === false) {
+            return false;
+        }
+        $namespace = substr($builder, 0, $separator);
+        $shortName = substr($builder, $separator + 1);
+        foreach ($source->read($file) ?? [] as $scope) {
+            if (
+                ! $scope instanceof Node\Stmt\Namespace_
+                || $scope->name === null
+                || strcasecmp($scope->name->toString(), $namespace) !== 0
+            ) {
+                continue;
+            }
+            foreach ($scope->stmts as $class) {
+                if (
+                    ! $class instanceof Node\Stmt\Class_
+                    || strcasecmp($class->name?->toString() ?? '', $shortName) !== 0
+                    || $class->extends !== null
+                ) {
+                    continue;
+                }
+                foreach ($class->implements as $interface) {
+                    if (strcasecmp($interface->toString(), 'Stringable') !== 0) {
+                        // Laravel handles validation contracts before Stringable.
+                        return false;
+                    }
+                }
+                foreach ($class->getProperties() as $property) {
+                    foreach ($property->props as $declaration) {
+                        if ($declaration->name->toString() === 'constraints') {
+                            return (
+                                ! $property->isStatic()
+                                && $property->hooks === []
+                                && PhpSource::value($declaration->default) === [$rule]
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     /** @param list<string> $rules */

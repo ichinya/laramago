@@ -1,9 +1,32 @@
 <?php
 
+// Native factory/stringifier excerpts: Laravel 7c75fbf, native-validation-LICENSE.md.
+
 namespace Illuminate\Validation {
     class Rule {
         public static function in($values): object {
             throw new \RuntimeException('Never execute rule factories.');
+        }
+        public static function string() {
+            return new Rules\StringRule;
+        }
+        public static function numeric() {
+            return new Rules\Numeric;
+        }
+    }
+}
+
+namespace Illuminate\Validation\Rules {
+    class StringRule implements \Stringable {
+        protected array $constraints = ['string'];
+        public function __toString(): string {
+            return implode('|', array_unique($this->constraints));
+        }
+    }
+    class Numeric implements \Stringable {
+        protected array $constraints = ['numeric'];
+        public function __toString(): string {
+            return implode('|', array_unique($this->constraints));
         }
     }
 }
@@ -48,8 +71,17 @@ namespace {
                 'email' => 'required|email',
                 'json' => 'required|json',
                 'address' => 'required|ip',
+                'string_object' => ['required', Constraint::string()],
+                'numeric_object' => ['required', Constraint::numeric()],
+                'nullable_object' => ['nullable', Constraint::string()],
             ];
         }
+    }
+    class DynamicStringRuleRequest extends NestedInputRequest {
+        public function rules(): array { return ['field' => ['required', Constraint::string()->ascii()]]; }
+    }
+    class UnknownRuleObjectRequest extends NestedInputRequest {
+        public function rules(): array { return ['field' => ['required', new \stdClass]]; }
     }
     class UnknownNestedInputRequest extends NestedInputRequest {
         public function rules(): array { return ['profile' => 'required|array', 'profile.name' => 'required|string|custom']; }

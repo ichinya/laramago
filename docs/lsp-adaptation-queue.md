@@ -179,7 +179,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 171 | Validation rule name diagnostics | implemented; Opt-in real Mago rule-name warnings require a complete effective builtin/custom catalog and full native method AST contracts. Last-write fields, dynamic overrides, custom receivers and changed source defer. Six portable pinned-source worker modes pass; source analysis clean. |
 | 172 | Validation rule parameter contracts | implemented; Opt-in Mago parameter warnings use pinned parser/counter/entry-point AST contracts and direct native minimum checks. CSV quoting, scalar versus array pipelines, overrides and changed source are covered. Focused contract and real-worker tests pass; source analysis clean. |
 | 173 | Validation regex delimiter parsing | implemented; Source-only regex parameter parsing preserves native scalar/array pipe splitting and PHP 8.2 delimiter/escape semantics without executing patterns. Raw-name CSV normalization hazards, dynamic inputs and unknown modifiers defer; focused tests and source analysis pass, no type refinement. |
-| 174 | Validation rule object contracts | queued |
+| 174 | Validation rule object contracts | implemented; Native zero-argument Rule::string and Rule::numeric objects refine validated fields only with proven fresh builders, literal constraints and stringification. Numeric representations and nullable remain; custom validation interfaces, fluent objects, helper shadows and modified source defer. Real Mago regressions and source analysis pass. |
 | 175 | Literal validation table and column references | queued |
 | 176 | Cross-field validation reference hints | queued |
 | 177 | Static Pest uses and path declarations | queued |

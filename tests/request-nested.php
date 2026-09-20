@@ -24,6 +24,8 @@ file_put_contents($workspace.'/mago.json', json_encode([
         'laramago' => [
             'command' => [
                 PHP_BINARY,
+                '-d',
+                'opcache.enable_cli=0',
                 $package.'/bin/laramago-worker.php',
                 $package.'/vendor/autoload.php',
                 $workspace,
@@ -146,6 +148,23 @@ $cases = [
         'void',
         ['mixed-argument'],
     ],
+    'Rule string object proves string' => ['return $request->validated("string_object");', 'string', []],
+    'Rule numeric object keeps numeric input representations' => [
+        'acceptString($request->validated("numeric_object"));',
+        'void',
+        ['possibly-invalid-argument'],
+    ],
+    'Rule string object respects nullable' => ['return $request->validated("nullable_object");', '?string', []],
+    'Rule string chain stays unknown' => [
+        'acceptString((new DynamicStringRuleRequest)->validated("field"));',
+        'void',
+        ['mixed-argument'],
+    ],
+    'custom rule object stays unknown' => [
+        'acceptString((new UnknownRuleObjectRequest)->validated("field"));',
+        'void',
+        ['mixed-argument'],
+    ],
     'unknown nested rule deferred' => [
         'acceptString((new UnknownNestedInputRequest)->validated("profile.name"));',
         'void',
@@ -262,6 +281,53 @@ function check_request_nested(array $cases, array $command, string $workspace): 
 }
 
 check_request_nested($cases, $command, $workspace);
+$nativeRules = file_get_contents($workspace.'/nested.php');
+foreach ([
+    'changed factory target' => str_replace(
+        'return new Rules\\StringRule;',
+        'return new Rules\\Numeric;',
+        $nativeRules,
+    ),
+    'changed initial constraint' => str_replace(
+        "protected array \$constraints = ['string'];",
+        "protected array \$constraints = ['numeric'];",
+        $nativeRules,
+    ),
+    'validation contract bypasses stringification' =>
+        str_replace(
+            'class StringRule implements \\Stringable {',
+            'class StringRule implements \\Stringable, \\Illuminate\\Contracts\\Validation\\ValidationRule { public function validate(string $attribute, mixed $value, \\Closure $fail): void {}',
+            $nativeRules,
+        )
+            .' namespace Illuminate\\Contracts\\Validation { interface ValidationRule { public function validate(string $attribute, mixed $value, \\Closure $fail): void; } }',
+    'changed stringifier' => str_replace(
+        "return implode('|', array_unique(\$this->constraints));",
+        "return 'numeric';",
+        $nativeRules,
+    ),
+    'shadowed namespace helper' => str_replace(
+        'namespace Illuminate\\Validation\\Rules {',
+        "namespace Illuminate\\Validation\\Rules {\n    function implode(string \$separator, array \$parts): string { return 'numeric'; }",
+        $nativeRules,
+    ),
+] as $name => $mutated) {
+    if ($mutated === $nativeRules) {
+        throw new RuntimeException('Mutation did not change the rule source: '.$name);
+    }
+    file_put_contents($workspace.'/nested.php', $mutated);
+    check_request_nested(
+        [
+            $name.' defers refinement' => [
+                'acceptString($request->validated("string_object"));',
+                'void',
+                ['mixed-argument'],
+            ],
+        ],
+        $command,
+        $workspace,
+    );
+}
+file_put_contents($workspace.'/nested.php', $nativeRules);
 mkdir($workspace.'/bootstrap');
 file_put_contents($workspace.'/bootstrap/bindings.php', '<?php app()->bind("validator", stdClass::class);');
 file_put_contents($workspace.'/composer.json', json_encode([
