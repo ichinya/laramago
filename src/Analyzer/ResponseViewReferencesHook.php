@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\LaravelReferenceCallRegistry;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeFacade;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeResponseViewContract;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeViewFactoryContract;
@@ -80,7 +81,7 @@ final class ResponseViewReferencesHook implements NodeAnalysisHook, Initializati
             $call === null
             || $call->isFirstClassCallable()
             || ! $call->name instanceof Node\Identifier
-            || strtolower($call->name->name) !== 'view'
+            || strtolower($call->name->name) !== LaravelReferenceCallRegistry::method(LaravelReferenceCallRegistry::RESPONSE_VIEW)
             || $this->customService()
             || ! ($this->nativeResponse ??= (new NativeResponseViewContract($this->root))->matches($context->codebase))
             || ! ($this->nativeView ??= (new NativeViewFactoryContract($this->root))->matches($context->codebase))
@@ -114,24 +115,9 @@ final class ResponseViewReferencesHook implements NodeAnalysisHook, Initializati
                 return;
             }
         }
-        $parameters = ['view', 'data', 'status', 'headers'];
-        $arguments = [];
-        $named = false;
-        foreach ($call->getArgs() as $offset => $argument) {
-            $parameter = $argument->name?->toString() ?? $parameters[$offset] ?? null;
-            if (
-                $argument->unpack
-                || $argument->byRef
-                || $parameter === null
-                || ! in_array($parameter, $parameters, true)
-                || isset($arguments[$parameter])
-                || $named
-                && $argument->name === null
-            ) {
-                return;
-            }
-            $named = $argument->name !== null;
-            $arguments[$parameter] = $argument->value;
+        $arguments = LaravelReferenceCallRegistry::arguments(LaravelReferenceCallRegistry::RESPONSE_VIEW, $call);
+        if ($arguments === null) {
+            return;
         }
         $name = $arguments['view'] ?? null;
         if (! $name instanceof Node\Scalar\String_ || ! $catalog->missingView($name->value)) {

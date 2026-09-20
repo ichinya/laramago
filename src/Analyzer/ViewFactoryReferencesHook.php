@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\LaravelReferenceCallRegistry;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeFacade;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeViewFactoryContract;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ReferenceCatalogs;
@@ -12,7 +13,6 @@ use Mago\Sdk\Analyzer\FileAnalysisRequirement;
 use Mago\Sdk\Analyzer\InitializationContext;
 use Mago\Sdk\Analyzer\InitializationHook;
 use Mago\Sdk\Analyzer\MethodCallAnalysisHook;
-use Mago\Sdk\Analyzer\MethodTarget;
 use Mago\Sdk\Analyzer\NodeAnalysisContext;
 use Mago\Sdk\Analyzer\Type\NamedObjectType;
 use Mago\Sdk\Reporting\Issue;
@@ -54,7 +54,7 @@ final class ViewFactoryReferencesHook implements MethodCallAnalysisHook, Initial
 
     public function getTargets(): array
     {
-        return [MethodTarget::exact(self::FACADE, 'make'), MethodTarget::exact(self::FACTORY, 'make')];
+        return LaravelReferenceCallRegistry::targets(LaravelReferenceCallRegistry::VIEW_MAKE);
     }
 
     public function getRequirements(): array
@@ -89,23 +89,9 @@ final class ViewFactoryReferencesHook implements MethodCallAnalysisHook, Initial
         ) {
             return;
         }
-        $arguments = [];
-        $parameters = ['view', 'data', 'mergeData'];
-        $named = false;
-        foreach ($call->getArgs() as $offset => $argument) {
-            $parameter = $argument->name?->toString() ?? $parameters[$offset] ?? null;
-            if (
-                $argument->unpack
-                || $parameter === null
-                || ! in_array($parameter, $parameters, true)
-                || isset($arguments[$parameter])
-                || $named
-                && $argument->name === null
-            ) {
-                return;
-            }
-            $named = $argument->name !== null;
-            $arguments[$parameter] = $argument->value;
+        $arguments = LaravelReferenceCallRegistry::arguments(LaravelReferenceCallRegistry::VIEW_MAKE, $call);
+        if ($arguments === null) {
+            return;
         }
         $view = $arguments['view'] ?? null;
         if (
@@ -185,7 +171,10 @@ final class ViewFactoryReferencesHook implements MethodCallAnalysisHook, Initial
             ! $call instanceof Node\Expr\MethodCall
             && ! $call instanceof Node\Expr\StaticCall
             || ! $call->name instanceof Node\Identifier
-            || strcasecmp($call->name->name, 'make') !== 0
+            || strcasecmp(
+                $call->name->name,
+                LaravelReferenceCallRegistry::method(LaravelReferenceCallRegistry::VIEW_MAKE),
+            ) !== 0
         ) {
             return null;
         }

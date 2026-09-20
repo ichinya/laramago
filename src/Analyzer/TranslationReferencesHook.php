@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\LaravelReferenceCallRegistry;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeFacade;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeTranslationContract;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ReferenceCatalogs;
@@ -12,7 +13,6 @@ use Mago\Sdk\Analyzer\FileAnalysisRequirement;
 use Mago\Sdk\Analyzer\InitializationContext;
 use Mago\Sdk\Analyzer\InitializationHook;
 use Mago\Sdk\Analyzer\MethodCallAnalysisHook;
-use Mago\Sdk\Analyzer\MethodTarget;
 use Mago\Sdk\Analyzer\NodeAnalysisContext;
 use Mago\Sdk\Analyzer\Type\NamedObjectType;
 use Mago\Sdk\Reporting\Issue;
@@ -54,7 +54,7 @@ final class TranslationReferencesHook implements MethodCallAnalysisHook, Initial
 
     public function getTargets(): array
     {
-        return [MethodTarget::exact(self::FACADE, 'get'), MethodTarget::exact(self::FACTORY, 'get')];
+        return LaravelReferenceCallRegistry::targets(LaravelReferenceCallRegistry::TRANSLATION_GET);
     }
 
     public function getRequirements(): array
@@ -89,24 +89,9 @@ final class TranslationReferencesHook implements MethodCallAnalysisHook, Initial
         ) {
             return;
         }
-        $arguments = [];
-        $parameters = ['key', 'replace', 'locale', 'fallback'];
-        $named = false;
-        foreach ($call->getArgs() as $offset => $argument) {
-            $parameter = $argument->name?->toString() ?? $parameters[$offset] ?? null;
-            if (
-                $argument->unpack
-                || $argument->byRef
-                || $parameter === null
-                || ! in_array($parameter, $parameters, true)
-                || isset($arguments[$parameter])
-                || $named
-                && $argument->name === null
-            ) {
-                return;
-            }
-            $named = $argument->name !== null;
-            $arguments[$parameter] = $argument->value;
+        $arguments = LaravelReferenceCallRegistry::arguments(LaravelReferenceCallRegistry::TRANSLATION_GET, $call);
+        if ($arguments === null) {
+            return;
         }
         $key = $arguments['key'] ?? null;
         if (
@@ -189,7 +174,10 @@ final class TranslationReferencesHook implements MethodCallAnalysisHook, Initial
             ! $call instanceof Node\Expr\MethodCall
             && ! $call instanceof Node\Expr\StaticCall
             || ! $call->name instanceof Node\Identifier
-            || strcasecmp($call->name->name, 'get') !== 0
+            || strcasecmp(
+                $call->name->name,
+                LaravelReferenceCallRegistry::method(LaravelReferenceCallRegistry::TRANSLATION_GET),
+            ) !== 0
         ) {
             return null;
         }
