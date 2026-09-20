@@ -104,7 +104,7 @@ if ($actual !== []) {
 
 // A changed forwarding body must fail closed, even when the surrounding
 // method names, signatures and mixin annotation stay intact.
-$pest = file_get_contents($workspace.'/pest.php');
+$pest = str_replace("\r\n", "\n", file_get_contents($workspace.'/pest.php'));
 $old = "->run();\n    return \$this;";
 $new = "->run();\n    return new \\Pest\\Expectations\\HigherOrderExpectation(\$this, 1);";
 if (substr_count($pest, $old) !== 1) {
