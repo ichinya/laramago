@@ -182,7 +182,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 174 | Validation rule object contracts | implemented; Native zero-argument Rule::string and Rule::numeric objects refine validated fields only with proven fresh builders, literal constraints and stringification. Numeric representations and nullable remain; custom validation interfaces, fluent objects, helper shadows and modified source defer. Real Mago regressions and source analysis pass. |
 | 175 | Literal validation table and column references | queued |
 | 176 | Cross-field validation reference hints | implemented; Source-only cross-field references with native parameter roles, CSV, wildcard preservation and numeric-key regression; no unsupported missing-input diagnostics. |
-| 177 | Static Pest uses and path declarations | queued |
+| 177 | Static Pest uses and path declarations | implemented; Ordered positive Pest uses/path metadata over selected files; native fluent alias and portable glob boundaries tested without execution. |
 | 178 | Pest trait and file mapping | queued |
 | 179 | Static Pest expectation extensions | queued |
 | 180 | Pest closure this typing | queued |
