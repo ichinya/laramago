@@ -1,0 +1,115 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Ichinya\Laramago\Analyzer\StaticAnalysis\StaticMetadataExport;
+
+// Composer's application autoloader may include application files. This command loads
+// only this package's syntax reader and the installed PHP parser dependency.
+$packageRoot = dirname(__DIR__);
+$vendorRoot = is_dir($packageRoot.'/vendor/nikic/php-parser/lib/PhpParser')
+    ? $packageRoot.'/vendor'
+    : (
+        isset($_composer_autoload_path) && is_string($_composer_autoload_path)
+            ? dirname($_composer_autoload_path)
+            : dirname($packageRoot, 2)
+    );
+$parserRoot = $vendorRoot.'/nikic/php-parser/lib/PhpParser';
+if (! is_dir($parserRoot)) {
+    fwrite(STDERR, "Cannot find the installed nikic/php-parser dependency.\n");
+    exit(2);
+}
+
+spl_autoload_register(static function (string $class) use ($packageRoot, $parserRoot): void {
+    foreach ([
+        'Ichinya\\Laramago\\Analyzer\\StaticAnalysis\\' => $packageRoot.'/src/Analyzer/StaticAnalysis/',
+        'PhpParser\\' => $parserRoot.'/',
+    ] as $prefix => $directory) {
+        if (str_starts_with($class, $prefix)) {
+            $file = $directory.str_replace('\\', '/', substr($class, strlen($prefix))).'.php';
+            if (is_file($file)) {
+                require $file;
+            }
+
+            return;
+        }
+    }
+});
+
+$usage = "Usage: laramago-metadata [--project-root DIR] [--config-array KEY ...] [--config-key KEY ...] [--output FILE]\n";
+$root = getcwd() ?: '';
+$arrayKeys = [];
+$keys = [];
+$output = null;
+$error = null;
+for ($i = 1; $i < count($argv); $i++) {
+    $argument = $argv[$i];
+    if ($argument === '--help' || $argument === '-h') {
+        fwrite(STDOUT, $usage);
+        exit(0);
+    }
+    if (! in_array($argument, ['--project-root', '--config-array', '--config-key', '--output'], true)) {
+        $error = 'Unknown option: '.$argument;
+        break;
+    }
+    if (! isset($argv[$i + 1]) || str_starts_with($argv[$i + 1], '--')) {
+        $error = 'Missing value for '.$argument;
+        break;
+    }
+    $value = $argv[++$i];
+    switch ($argument) {
+        case '--project-root':
+            $root = $value;
+            break;
+        case '--config-array':
+            $arrayKeys[] = $value;
+            break;
+        case '--config-key':
+            $keys[] = $value;
+            break;
+        case '--output':
+            $output = $value;
+            break;
+    }
+}
+
+if ($error === null && ! is_dir($root)) {
+    $error = 'Project root is not a directory.';
+}
+foreach ($arrayKeys as $arrayKey) {
+    if (! preg_match('/^[^.]+(?:\.[^.]+)*$/D', $arrayKey)) {
+        $error = 'Configuration array key must have nonempty dotted segments.';
+    }
+}
+foreach ($keys as $key) {
+    if (! preg_match('/^[^.]+(?:\.[^.]+)+$/D', $key)) {
+        $error = 'Configuration key must have at least two nonempty dotted segments.';
+    }
+}
+if ($error !== null) {
+    fwrite(STDERR, $error."\n".$usage);
+    exit(2);
+}
+
+$root = realpath($root);
+if ($root === false) {
+    fwrite(STDERR, "Unable to resolve project root.\n");
+    exit(2);
+}
+
+$data = (new StaticMetadataExport)->configuration($root, $arrayKeys, $keys);
+$json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+if ($json === false) {
+    fwrite(STDERR, "Unable to encode static metadata as JSON.\n");
+    exit(2);
+}
+$json .= "\n";
+if ($output !== null) {
+    if (@file_put_contents($output, $json) === false) {
+        fwrite(STDERR, "Unable to write the requested output file.\n");
+        exit(2);
+    }
+} else {
+    fwrite(STDOUT, $json);
+}
