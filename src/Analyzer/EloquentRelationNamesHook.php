@@ -14,6 +14,7 @@ use Mago\Sdk\Analyzer\Type\NamedObjectType;
 use Mago\Sdk\Reporting\Issue;
 use Mago\Sdk\Reporting\Level;
 use Mago\Sdk\SourceLocation;
+use Mago\Sdk\Span;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
 use PhpParser\NodeTraverser;
@@ -199,7 +200,7 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
                 }
             }
         }
-        foreach ($paths as $path) {
+        foreach ($paths as [$path, $literal]) {
             if ($aggregate) {
                 // Aggregate resolution calls one model method, not the nested eager-load resolver.
                 // Parse the native three-token alias before excluding unsupported relation paths.
@@ -249,7 +250,10 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
                                 .' is absent from its complete relation contract (path '
                                 .$path
                                 .').',
-                                new SourceLocation($context->source->path, $context->node->span),
+                                new SourceLocation($context->source->path, new Span(
+                                    $literal->getStartFilePos(),
+                                    $literal->getEndFilePos() + 1,
+                                )),
                             ),
                         );
                     }
@@ -275,7 +279,10 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
                             .'() does not return an Eloquent relation (path '
                             .$path
                             .').',
-                            new SourceLocation($context->source->path, $context->node->span),
+                            new SourceLocation($context->source->path, new Span(
+                                $literal->getStartFilePos(),
+                                $literal->getEndFilePos() + 1,
+                            )),
                         ),
                     );
                     break;
@@ -368,16 +375,16 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
         );
     }
 
-    /** @return list<string> */
+    /** @return list<array{string, Node\Scalar\String_}> */
     private function paths(Node\Expr $expression): array
     {
         if ($expression instanceof Node\Scalar\String_) {
-            return [$expression->value];
+            return [[$expression->value, $expression]];
         }
         if (! $expression instanceof Node\Expr\Array_) {
             return [];
         }
-        /** @var array<int|string, string|null> $effective */
+        /** @var array<int|string, array{string, Node\Scalar\String_}|null> $effective */
         $effective = [];
         $next = 0;
         foreach ($expression->items as $item) {
@@ -402,12 +409,23 @@ final class EloquentRelationNamesHook implements MethodCallAnalysisHook
                     $next = $key === PHP_INT_MAX ? null : $key + 1;
                 }
             }
-            $effective[$key] = is_string($key) && ! is_numeric($key)
-                ? $key
-                : ($item->value instanceof Node\Scalar\String_ ? $item->value->value : null);
+            $literal = is_string($key) && ! is_numeric($key) ? $item->key : $item->value;
+            $effective[$key] = $literal instanceof Node\Scalar\String_
+                ? [$literal->value, $literal]
+                : null;
         }
 
-        return array_values(array_unique(array_filter($effective, is_string(...))));
+        $paths = [];
+        $seen = [];
+        foreach ($effective as $entry) {
+            if ($entry === null || isset($seen[$entry[0]])) {
+                continue;
+            }
+            $seen[$entry[0]] = true;
+            $paths[] = $entry;
+        }
+
+        return $paths;
     }
 
     private function literalArrayKey(Node\Expr $expression): int|string|null
