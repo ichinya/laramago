@@ -65,6 +65,9 @@ final class LaravelPlugin implements Plugin
         $registry->registerFunctionReturnTypeProvider($pathHelpers);
         $registry->registerInitializationHook($pathHelpers);
         $registry->registerNodeAnalysisHook(new RequiredFileReferencesHook);
+        $pestForwarding = new PestExpectationForwardingProvider($this->projectRoot);
+        $registry->registerMethodReturnTypeProvider($pestForwarding);
+        $registry->registerInitializationHook($pestForwarding);
         $pestConflicts = new PestDeclaredContextConflictsHook($this->projectRoot);
         $registry->registerNodeAnalysisHook($pestConflicts);
         $registry->registerInitializationHook($pestConflicts);

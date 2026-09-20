@@ -1,0 +1,251 @@
+<?php
+// Selected methods are normalized from pestphp/pest 3.x commit
+// f108313b52e8c28dc7121ce34303f817a3790202 (Copyright Nuno Maduro).
+// See pest-expectation-forwarding-LICENSE.md beside this fixture. Analyze only;
+// never load or execute this source.
+namespace Pest\Mixins {
+    /** @template TValue */
+    final class Expectation {
+        /** @param TValue $value */
+        public function __construct(public mixed $value) {}
+        /** @return self<TValue> */
+        public function toBe(mixed $expected, string $message = ''): self { return $this; }
+        /** @return self<TValue> */
+        public function toBeInt(string $message = ''): self { return $this; }
+    }
+}
+namespace Pest {
+    use Closure;
+    use Pest\Expectations\OppositeExpectation;
+    use Pest\Expectations\EachExpectation;
+    use Pest\Expectations\HigherOrderExpectation;
+    /**
+     * @template TValue
+     * @mixin Mixins\Expectation<TValue>
+     * @method string documented()
+     */
+    final class Expectation {
+        /** @param TValue $value */
+        public function __construct(public mixed $value) {}
+        /**
+ * Creates the opposite expectation for the value.
+ *
+ * @return OppositeExpectation<TValue>
+ */
+public function not(): \Pest\Expectations\OppositeExpectation
+{
+    return new \Pest\Expectations\OppositeExpectation($this);
+}
+        /**
+ * Creates an expectation on each item of the iterable "value".
+ *
+ * @return EachExpectation<TValue>
+ */
+public function each(?callable $callback = null): \Pest\Expectations\EachExpectation
+{
+    if (!is_iterable($this->value)) {
+        throw new \BadMethodCallException('Expectation value is not iterable.');
+    }
+    if (is_callable($callback)) {
+        foreach ($this->value as $key => $item) {
+            $callback(new self($item), $key);
+        }
+    }
+    return new \Pest\Expectations\EachExpectation($this);
+}
+        public function native(): int { return 1; }
+        private static array $extends = [];
+        public static function hasExtend(string $name): bool { return array_key_exists($name, self::$extends); }
+        private function pipes(string $method, object $expectation, string $class): array { return []; }
+        // Upstream Pest\Expectation::__call
+        /**
+ * Dynamically calls methods on the class or creates a new higher order expectation.
+ *
+ * @param  array<int, mixed>  $parameters
+ * @return Expectation<TValue>|HigherOrderExpectation<Expectation<TValue>, TValue>
+ */
+public function __call(string $method, array $parameters): \Pest\Expectation|\Pest\Expectations\HigherOrderExpectation|\Pest\Arch\PendingArchExpectation
+{
+    if (!self::hasMethod($method)) {
+        if (!is_object($this->value) && method_exists(\Pest\Arch\PendingArchExpectation::class, $method)) {
+            $pendingArchExpectation = new \Pest\Arch\PendingArchExpectation($this, []);
+            return $pendingArchExpectation->{$method}(...$parameters);
+            // @phpstan-ignore-line
+        }
+        if (!is_object($this->value)) {
+            throw new \BadMethodCallException(sprintf('Method "%s" does not exist in %s.', $method, gettype($this->value)));
+        }
+        /* @phpstan-ignore-next-line */
+        return new \Pest\Expectations\HigherOrderExpectation($this, call_user_func_array($this->value->{$method}(...), $parameters));
+    }
+    $closure = $this->getExpectationClosure($method);
+    $reflectionClosure = new \ReflectionFunction($closure);
+    $expectation = $reflectionClosure->getClosureThis();
+    assert(is_object($expectation));
+    \Pest\Support\ExpectationPipeline::for($closure)->send(...$parameters)->through($this->pipes($method, $expectation, \Pest\Expectation::class))->run();
+    return $this;
+}
+        // Upstream Pest\Expectation::getExpectationClosure
+        /**
+ * Creates a new expectation closure from the given name.
+ *
+ * @throws ExpectationNotFound
+ */
+private function getExpectationClosure(string $name): \Closure
+{
+    if (method_exists(\Pest\Mixins\Expectation::class, $name)) {
+        // @phpstan-ignore-next-line
+        return \Closure::fromCallable([new \Pest\Mixins\Expectation($this->value), $name]);
+    }
+    if (self::hasExtend($name)) {
+        $extend = self::$extends[$name]->bindTo($this, \Pest\Expectation::class);
+        if ($extend != false) {
+            // @pest-arch-ignore-line
+            return $extend;
+        }
+    }
+    throw \Pest\Exceptions\ExpectationNotFound::fromName($name);
+}
+        // Upstream Pest\Expectation::hasMethod
+        /**
+ * Checks if the given expectation method exists.
+ */
+public static function hasMethod(string $name): bool
+{
+    return method_exists(self::class, $name) || method_exists(\Pest\Mixins\Expectation::class, $name) || self::hasExtend($name);
+}
+    }
+}
+namespace Pest\Expectations {
+    use Pest\Expectation;
+    /**
+     * @template TValue
+     * @mixin \Pest\Expectation<TValue>
+     */
+    final class OppositeExpectation {
+        /**
+ * Creates a new opposite expectation.
+ *
+ * @param  Expectation<TValue>  $original
+ */
+public function __construct(private \Pest\Expectation $original)
+{
+}
+        private function throwExpectationFailedException(string $name, array $arguments): never { throw new \RuntimeException($name); }
+        // Upstream Pest\Expectations\OppositeExpectation::__call
+        /**
+ * Handle dynamic method calls into the original expectation.
+ *
+ * @param  array<int, mixed>  $arguments
+ * @return Expectation<TValue>|Expectation<mixed>|never
+ */
+public function __call(string $name, array $arguments): \Pest\Expectation
+{
+    try {
+        if (!is_object($this->original->value) && method_exists(\Pest\Arch\PendingArchExpectation::class, $name)) {
+            throw \Pest\Exceptions\InvalidExpectation::fromMethods(['not', $name]);
+        }
+        /* @phpstan-ignore-next-line */
+        $this->original->{$name}(...$arguments);
+    } catch (\PHPUnit\Framework\ExpectationFailedException|\PHPUnit\Framework\AssertionFailedError) {
+        return $this->original;
+    }
+    $this->throwExpectationFailedException($name, $arguments);
+}
+    }
+    /**
+     * @template TValue
+     * @mixin \Pest\Expectation<TValue>
+     */
+    final class EachExpectation {
+        private bool $opposite = false;
+        /**
+ * Creates an expectation on each item of the iterable "value".
+ *
+ * @param  Expectation<TValue>  $original
+ */
+public function __construct(private readonly \Pest\Expectation $original)
+{
+}
+        // Upstream Pest\Expectations\EachExpectation::__call
+        /**
+ * Dynamically calls methods on the class with the given arguments on each item.
+ *
+ * @param  array<int|string, mixed>  $arguments
+ * @return self<TValue>
+ */
+public function __call(string $name, array $arguments): self
+{
+    foreach ($this->original->value as $item) {
+        /* @phpstan-ignore-next-line */
+        $this->opposite ? \expect($item)->not()->{$name}(...$arguments) : \expect($item)->{$name}(...$arguments);
+    }
+    $this->opposite = false;
+    return $this;
+}
+    }
+    /**
+     * @template TOriginalValue
+     * @template TValue
+     * @mixin \Pest\Expectation<TOriginalValue>
+     */
+    final class HigherOrderExpectation {
+        /**
+ * Creates a new higher order expectation.
+ *
+ * @param  Expectation<TOriginalValue>  $original
+ * @param  TValue  $value
+ */
+public function __construct(private readonly \Pest\Expectation $original, mixed $value)
+{
+    $this->expectation = $this->expect($value);
+}
+        /**
+ * Determines if the original expectation has the given method name.
+ */
+private function expectationHasMethod(string $name): bool
+{
+    if (method_exists($this->original, $name)) {
+        return true;
+    }
+    if ($this->original::hasMethod($name)) {
+        return true;
+    }
+    return $this->original::hasExtend($name);
+}
+        private function getValue(): mixed { return $this->value; }
+        /**
+ * Performs the given assertion with the current expectation.
+ *
+ * @param  array<int, mixed>  $arguments
+ * @return self<TOriginalValue, TValue>
+ */
+private function performAssertion(string $name, array $arguments): self
+{
+    /* @phpstan-ignore-next-line */
+    $this->expectation = ($this->opposite ? $this->expectation->not() : $this->expectation)->{$name}(...$arguments);
+    $this->opposite = false;
+    $this->shouldReset = true;
+    return $this;
+}
+        // Upstream Pest\Expectations\HigherOrderExpectation::__call
+        /**
+ * Dynamically calls methods on the class with the given arguments.
+ *
+ * @param  array<int, mixed>  $arguments
+ * @return self<TOriginalValue, mixed>|self<TOriginalValue, TValue>
+ */
+public function __call(string $name, array $arguments): self
+{
+    if (!$this->expectationHasMethod($name)) {
+        /* @phpstan-ignore-next-line */
+        return new self($this->original, $this->getValue()->{$name}(...$arguments));
+    }
+    return $this->performAssertion($name, $arguments);
+}
+    }
+}
+namespace {
+    /** @template TValue @param TValue $value @return \Pest\Expectation<TValue> */
+    function expect(mixed $value = null): \Pest\Expectation { return new \Pest\Expectation($value); }
+}
