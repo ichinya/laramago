@@ -115,7 +115,10 @@ final class ValidationRuleNamesHook implements MethodCallAnalysisHook, Initializ
             || $method->visibility !== Visibility::Public
             || $method->flags->contains(MetadataFlags::BY_REFERENCE)
             || array_map(static fn ($parameter): string => $parameter->name, $method->parameters) !== $parameters
-            || ! $this->installedMethodSource($method->location->file ?? '', $receiver->name)
+            || ! ($this->builtins ??= new BuiltinValidationRuleCatalog($this->root))->containsMethodSource(
+                $receiver->name,
+                $method->location->file ?? '',
+            )
             || ! ($this->native ??= new NativeValidationMethodContract($this->root))->matches(
                 $receiver->name,
                 $methodName,
@@ -137,7 +140,7 @@ final class ValidationRuleNamesHook implements MethodCallAnalysisHook, Initializ
             ? LiteralValidationRules::fromValue($rules)
             : LiteralValidationRules::from($rules);
         if ($names->complete()) {
-            $builtins = $this->builtins ??= new BuiltinValidationRuleCatalog($this->root);
+            $builtins = $this->builtins;
             foreach ($literals as [$name, $literal]) {
                 if ($names->contains($name) || $builtins->methodFor($name) !== null) {
                     continue;
@@ -234,21 +237,6 @@ final class ValidationRuleNamesHook implements MethodCallAnalysisHook, Initializ
         }
 
         return $this->schema->column($table, $column) !== null;
-    }
-
-    private function installedMethodSource(string $file, string $class): bool
-    {
-        $directory = ($this->builtins ??= new BuiltinValidationRuleCatalog($this->root))->sourcePath();
-        if ($directory === null) {
-            return false;
-        }
-        $name = substr($class, (int) strrpos($class, '\\') + 1);
-        $actual = str_replace('\\', '/', $file);
-        $expected = str_replace('\\', '/', $directory.'/'.$name.'.php');
-        $root = rtrim(str_replace('\\', '/', $this->root), '/');
-        $relative = str_starts_with($expected, $root.'/') ? substr($expected, strlen($root) + 1) : null;
-
-        return strcasecmp($actual, $expected) === 0 || $relative !== null && strcasecmp($actual, $relative) === 0;
     }
 
     private function report(NodeAnalysisContext $context, string $code, string $message, Node $node): void

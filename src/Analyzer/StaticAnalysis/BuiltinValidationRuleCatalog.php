@@ -20,12 +20,15 @@ final class BuiltinValidationRuleCatalog
 
     private ?string $sourcePath = null;
 
+    private readonly string $projectRoot;
+
     /** @var array<string, string> Parser short rule => normalized method suffix. */
     private array $aliases = [];
 
     public function __construct(string $projectRoot)
     {
         $root = rtrim(str_replace('\\', '/', $projectRoot), '/');
+        $this->projectRoot = $root;
         $vendor = self::vendorDirectory($root);
         if ($vendor === null) {
             return;
@@ -128,6 +131,24 @@ final class BuiltinValidationRuleCatalog
     public function sourcePath(): ?string
     {
         return $this->sourcePath;
+    }
+
+    /** Verify that a native method came from the selected installed validation source. */
+    public function containsMethodSource(string $class, string $file): bool
+    {
+        if (
+            $this->sourcePath === null
+            || ! in_array($class, ['Illuminate\\Validation\\Factory', 'Illuminate\\Validation\\Validator'], true)
+        ) {
+            return false;
+        }
+        $name = substr($class, (int) strrpos($class, '\\') + 1);
+        $actual = str_replace('\\', '/', $file);
+        $expected = str_replace('\\', '/', $this->sourcePath.'/'.$name.'.php');
+        $root = rtrim(str_replace('\\', '/', $this->projectRoot), '/');
+        $relative = str_starts_with($expected, $root.'/') ? substr($expected, strlen($root) + 1) : null;
+
+        return strcasecmp($actual, $expected) === 0 || $relative !== null && strcasecmp($actual, $relative) === 0;
     }
 
     private static function isRuleMethod(Node\Stmt\ClassMethod $method, string $suffix): bool

@@ -199,7 +199,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 191 | Metadata provenance locations | implemented; Configuration declaration provenance retains exact source spans/hashes, raw child names and selection certainty across overrides and dynamic entries; dotted literal ambiguity and numeric keys tested. |
 | 192 | Explicit metadata confidence states | implemented; Explicit known-positive, complete-absent and unknown source states adopted by configuration/storage hooks while preserving separate runtime completeness and native dispatch contracts. |
 | 193 | Upstream scenario regression adaptation | implemented; Adapted pinned Laravel LSP literal/interpolated argument scenarios into real-Mago config and getMany regressions, preserving literal sibling checks and dynamic deferral. |
-| 194 | Version-aware Laravel API capabilities | queued |
+| 194 | Version-aware Laravel API capabilities | implemented; Installed-source validation capability now supports standalone illuminate/validation with custom vendor-dir; Composer version stays metadata and changed native methods still defer. |
 | 195 | Static metadata export | queued |
 | 196 | Diagnostic name fixes and navigation | queued |
 | 197 | Long-running index watch mode | queued |

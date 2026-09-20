@@ -34,6 +34,7 @@ final class ValidationRuleParametersHook implements MethodCallAnalysisHook, Init
 
     private ?bool $enabled = null;
     private ?ValidationRuleParameters $parameters = null;
+    private ?BuiltinValidationRuleCatalog $builtins = null;
     private ?NativeValidationMethodContract $native = null;
     private string $sourceHash = '';
     /** @var array<string, Node\Expr\MethodCall> */
@@ -47,6 +48,7 @@ final class ValidationRuleParametersHook implements MethodCallAnalysisHook, Init
     {
         $this->enabled = null;
         $this->parameters = null;
+        $this->builtins = null;
         $this->native = null;
         $this->sourceHash = '';
         $this->calls = [];
@@ -96,9 +98,9 @@ final class ValidationRuleParametersHook implements MethodCallAnalysisHook, Init
             $method === null
             || strcasecmp($method->identifier->class ?? '', $receiver->name) !== 0
             || $method->static
-            || ! str_ends_with(
-                str_replace('\\', '/', $method->location->file ?? ''),
-                '/laravel/framework/src/'.str_replace('\\', '/', $receiver->name).'.php',
+            || ! ($this->builtins ??= new BuiltinValidationRuleCatalog($this->root))->containsMethodSource(
+                $receiver->name,
+                $method->location->file ?? '',
             )
             || ! ($this->native ??= new NativeValidationMethodContract($this->root))->matches(
                 $receiver->name,
@@ -112,7 +114,7 @@ final class ValidationRuleParametersHook implements MethodCallAnalysisHook, Init
         if ($rules === null) {
             return;
         }
-        $parameters = $this->parameters ??= new ValidationRuleParameters(new BuiltinValidationRuleCatalog($this->root));
+        $parameters = $this->parameters ??= new ValidationRuleParameters($this->builtins);
         $literals = strcasecmp($methodName, 'sometimes') === 0
             ? LiteralValidationRules::fromValue($rules)
             : LiteralValidationRules::from($rules);

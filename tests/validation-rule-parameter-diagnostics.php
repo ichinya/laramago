@@ -3,15 +3,40 @@
 declare(strict_types=1);
 
 $package = str_replace('\\', '/', dirname(__DIR__));
+$mode = $argv[1] ?? '';
+$standalone = in_array($mode, ['standalone', 'standalone-changed'], true);
+if ($mode !== '' && ! $standalone) {
+    throw new RuntimeException('Unknown fixture mode.');
+}
 $workspace =
     str_replace('\\', '/', sys_get_temp_dir()).'/laramago-rule-parameter-diagnostics-'.bin2hex(random_bytes(8));
 $source = __DIR__.'/fixtures/analysis';
-$validation = $workspace.'/vendor/laravel/framework/src/Illuminate/Validation';
+$vendor = $standalone ? 'deps' : 'vendor';
+$validation =
+    $workspace
+    .'/'
+    .$vendor
+    .'/'
+    .(
+        $standalone
+            ? 'illuminate/validation'
+            : 'laravel/framework/src/Illuminate/Validation'
+    );
 mkdir($validation.'/Concerns', 0777, true);
 foreach (['Factory.php', 'Validator.php', 'ValidationRuleParser.php', 'Concerns/ValidatesAttributes.php'] as $file) {
     copy($source.'/native-validation-'.basename($file).'.stub', $validation.'/'.$file);
 }
+if ($mode === 'standalone-changed') {
+    $factory = $validation.'/Factory.php';
+    $contents = file_get_contents($factory);
+    $before = '$validator->excludeUnvalidatedArrayKeys = $this->excludeUnvalidatedArrayKeys;';
+    if (substr_count($contents, $before) !== 1) {
+        throw new RuntimeException('Cannot construct changed standalone validation source.');
+    }
+    file_put_contents($factory, str_replace($before, '$validator->excludeUnvalidatedArrayKeys = false;', $contents));
+}
 file_put_contents($workspace.'/composer.json', json_encode([
+    'config' => ['vendor-dir' => $vendor],
     'extra' => ['laramago' => ['validation-rule-parameters' => ['native' => true]]],
 ], JSON_THROW_ON_ERROR));
 $cases = <<<'PHP'
@@ -38,8 +63,14 @@ file_put_contents($workspace.'/mago.json', json_encode([
     'source' => [
         'paths' => ['cases.php'],
         'includes' => [
-            'vendor/laravel/framework/src/Illuminate/Validation/Factory.php',
-            'vendor/laravel/framework/src/Illuminate/Validation/Validator.php',
+            $vendor
+                .'/'
+                .($standalone ? 'illuminate/validation' : 'laravel/framework/src/Illuminate/Validation')
+                .'/Factory.php',
+            $vendor
+                .'/'
+                .($standalone ? 'illuminate/validation' : 'laravel/framework/src/Illuminate/Validation')
+                .'/Validator.php',
         ],
     ],
     'extension-hosts' => [
@@ -103,6 +134,9 @@ $expected = [
     "'between:1'",
     "'between:1|unsupported rule:2,3'",
 ];
+if ($mode === 'standalone-changed') {
+    $expected = ["'between:1'"];
+}
 sort($expected);
 if ($actual !== $expected || ! in_array($exit, [0, 1], true)) {
     throw new RuntimeException('Parameter diagnostics mismatch: '.json_encode($actual).'; inspect '.$workspace);
@@ -113,7 +147,7 @@ if (preg_match(
 )) {
     throw new RuntimeException('Worker failure; inspect '.$workspace);
 }
-echo "PASS: real Mago native parameter diagnostics, parser quoting, safe unknowns\n";
+echo "PASS: real Mago native parameter diagnostics, parser quoting, safe unknowns ($mode)\n";
 file_put_contents($workspace.'/composer.json', '{}');
 [$exit, $report] = $analyze();
 foreach ($report['issues'] ?? [] as $issue) {
