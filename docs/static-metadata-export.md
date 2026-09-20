@@ -1,16 +1,18 @@
 # Static metadata JSON export
 
-`vendor/bin/laramago-metadata` exports configuration key declarations from PHP
+`vendor/bin/laramago-metadata` exports configuration, route name and translation key declarations from PHP
 syntax without bootstrapping Laravel. It does not load the application's Composer
 autoload file, execute configuration expressions, read `.env`, or connect to a
-database. Only key names and source provenance are exported; configuration values
-are never included.
+database. Only names and source provenance are exported; configuration values
+and translated messages are never included.
 
 ```sh
 vendor/bin/laramago-metadata --project-root /path/to/application
 vendor/bin/laramago-metadata --project-root /path/to/application --config-key app.name
 vendor/bin/laramago-metadata --project-root /path/to/application --config-array services --output metadata.json
 vendor/bin/laramago-metadata --project-root /path/to/application --watch --interval-ms 500
+vendor/bin/laramago-metadata --kind routes --source routes/web.php --source routes/api.php
+vendor/bin/laramago-metadata --kind translations --source lang/en/messages.php
 ```
 
 The project root defaults to the current directory. `--config-key` and
@@ -62,3 +64,44 @@ Unfiltered traversal is bounded to 4,096 catalogs, 100,000 declarations, and
 32 nested array levels. `truncated` and `truncationReasons` disclose when a
 limit is reached. Consumers should check `schemaVersion`, source hashes, and
 `truncated` before reusing spans or treating the export as a complete snapshot.
+
+## Route and translation source exports
+
+`--kind` defaults to `configuration`. The `routes` and `translations` kinds
+require explicit, repeatable `--source` paths relative to the project root.
+Absolute paths, parent traversal and paths resolving outside the project are
+rejected in the JSON `errors` list. No application route files, locale or loader
+paths are discovered by running Laravel. Configuration filters and `--watch`
+cannot be combined with these kinds; invalid option combinations exit with status 2.
+
+Both kinds return `schemaVersion: 1`, `projectRoot`, `scope`, `declarations`,
+`errors`, `truncated` and `truncationReasons`. Each declaration identifies an
+absolute `file`, original half-open byte range (`start`, `end`), one-based `line`,
+and `contentHash`. `confidence: "known-positive"` means the literal declaration
+exists in that source snapshot, not that it is registered or used at runtime.
+There is no complete runtime catalog and no missing-name inference from this output.
+
+The route exporter recognizes top-level or namespace-level expression statements
+of the form `Route::get('/path', $action)->name('example')`, resolving imports of
+`Illuminate\Support\Facades\Route`. It also accepts `post`, `put`, `patch`,
+`delete`, `options` and `any`. URI and name must be literal strings; arguments
+must be positional. The exported `name` is the local literal, with its own source
+span. Groups, prefixes, conditions, extra fluent calls, repeated naming and
+handler bodies are not traversed. Duplicate names remain separate candidates.
+Even an earlier `throw` or a replaced router can prevent a candidate from running.
+
+The translation exporter reads PHP files that directly return one literal array.
+Nested declarations preserve raw `segments` so a dotted key is distinguishable
+from nested keys. `name` retains the final literal key, while `phpKey` reflects
+PHP's numeric-string key normalization. Overwritten duplicates remain visible;
+`sourceSelected: false` marks declarations that are shadowed or may be replaced
+by a later dynamic entry. This describes only the array expression, not locale
+selection, namespace resolution or fallback. Implicit numeric keys, computed keys,
+JSON translation files and executable top-level setup are not inferred. Unsupported
+file forms produce errors; dynamic array entries can coexist with positive literals.
+
+Each source exporter accepts at most 256 input files, 1 MiB per file and 8 MiB
+total source bytes. Route exports stop at 10,000 declarations. Translation exports
+stop at 20,000 declarations or 32 nested key levels. Limits are disclosed through
+`truncated` and `truncationReasons`; consumers must also inspect `errors` on an
+otherwise successful one-shot invocation.

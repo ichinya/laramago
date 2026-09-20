@@ -13,7 +13,7 @@ plugin. Once allowed, the plugin creates `mago.dist.json` in the application roo
 The `carthage-software/mago` dependency provides `vendor/bin/mago`; this package
 uses that executable directly, without a wrapper or Laravel service provider.
 For editor integrations, `vendor/bin/laramago-metadata` exports [source-only
-configuration key metadata](docs/static-metadata-export.md) as versioned JSON.
+configuration, route and translation metadata](docs/static-metadata-export.md) as versioned JSON.
 
 Version `0.0.12` expands static Eloquent, request, collection, authentication and
 HTTP test support, with explicit catalogs for container bindings and macros.

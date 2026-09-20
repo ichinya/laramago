@@ -174,7 +174,11 @@ if ($exit !== 2 || $stdout !== '' || ! str_contains($stderr, 'Unable to write th
 $linkedPackage = $fixture.'/external metadata package';
 mkdir($linkedPackage.'/bin', 0777, true);
 mkdir($linkedPackage.'/src/Analyzer/StaticAnalysis', 0777, true);
+mkdir($linkedPackage.'/src/Metadata', 0777, true);
 copy($package.'/bin/laramago-metadata', $linkedPackage.'/bin/laramago-metadata');
+foreach (['RouteMetadataExport', 'TranslationMetadataExport'] as $class) {
+    copy($package.'/src/Metadata/'.$class.'.php', $linkedPackage.'/src/Metadata/'.$class.'.php');
+}
 foreach ([
     'ConfigurationIndex',
     'ConfigurationDeclaration',
@@ -211,6 +215,41 @@ if (
     || json_decode($stdout, true, 512, JSON_THROW_ON_ERROR)['requests'][0]['confidence'] !== 'known-positive'
 ) {
     throw new RuntimeException('Composer proxy dependency hint did not support an external package path: '.$stderr);
+}
+
+file_put_contents($fixture.'/routes.php', <<<'PHP'
+    <?php
+    use Illuminate\Support\Facades\Route;
+    Route::get('/example', 'ExampleController')->name('example');
+    PHP);
+foreach ([$bin, $linkedProxy] as $entrypoint) {
+    foreach (['routes' => 'routes.php', 'translations' => 'config/app.php'] as $kind => $file) {
+        [$exit, $stdout, $stderr] = $run([
+            PHP_BINARY,
+            '-d',
+            'opcache.enable_cli=0',
+            $entrypoint,
+            '--project-root',
+            $fixture,
+            '--kind',
+            $kind,
+            '--source',
+            $file,
+        ], $fixture);
+        $metadata = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+        if (
+            $exit !== 0
+            || $stderr !== ''
+            || $metadata['scope']['kind'] !== $kind
+            || $metadata['declarations'] === []
+            || $metadata['errors'] !== []
+            || is_file($fixture.'/autoload-executed')
+            || is_file($fixture.'/config-executed')
+            || str_contains($stdout, 'private-value-must-not-export')
+        ) {
+            throw new RuntimeException('Source export failed through the custom-vendor Composer proxy.');
+        }
+    }
 }
 
 file_put_contents($fixture.'/config/binary.php', "<?php return ['".chr(255)."' => 1];");

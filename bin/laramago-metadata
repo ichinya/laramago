@@ -5,6 +5,8 @@ declare(strict_types=1);
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\StaticMetadataExport;
 use Ichinya\Laramago\Metadata\ConfigurationWatch;
+use Ichinya\Laramago\Metadata\RouteMetadataExport;
+use Ichinya\Laramago\Metadata\TranslationMetadataExport;
 
 // Composer's application autoloader may include application files. This command loads
 // only this package's syntax reader and the installed PHP parser dependency.
@@ -39,8 +41,10 @@ spl_autoload_register(static function (string $class) use ($packageRoot, $parser
     }
 });
 
-$usage = "Usage: laramago-metadata [--project-root DIR] [--config-array KEY ...] [--config-key KEY ...] [--output FILE] [--watch [--interval-ms 50..60000]]\n";
+$usage = "Usage: laramago-metadata [--project-root DIR] [--kind configuration|routes|translations] [--source FILE ...] [--config-array KEY ...] [--config-key KEY ...] [--output FILE] [--watch [--interval-ms 50..60000]]\n";
 $root = getcwd() ?: '';
+$kind = 'configuration';
+$files = [];
 $arrayKeys = [];
 $keys = [];
 $output = null;
@@ -60,7 +64,7 @@ for ($i = 1; $i < count($argv); $i++) {
     }
     if (! in_array(
         $argument,
-        ['--project-root', '--config-array', '--config-key', '--output', '--interval-ms'],
+        ['--project-root', '--kind', '--source', '--config-array', '--config-key', '--output', '--interval-ms'],
         true,
     )) {
         $error = 'Unknown option: '.$argument;
@@ -72,6 +76,12 @@ for ($i = 1; $i < count($argv); $i++) {
     }
     $value = $argv[++$i];
     switch ($argument) {
+        case '--kind':
+            $kind = $value;
+            break;
+        case '--source':
+            $files[] = $value;
+            break;
         case '--project-root':
             $root = $value;
             break;
@@ -104,6 +114,19 @@ if ($watchMode && $output !== null) {
 if (! $watchMode && $intervalSpecified) {
     $error = '--interval-ms requires --watch.';
 }
+if (! in_array($kind, ['configuration', 'routes', 'translations'], true)) {
+    $error = 'Metadata kind must be configuration, routes, or translations.';
+} elseif ($kind === 'configuration' && $files !== []) {
+    $error = '--source requires --kind routes or translations.';
+} elseif ($kind !== 'configuration') {
+    if ($files === []) {
+        $error = 'Route and translation exports require at least one --source file.';
+    } elseif ($arrayKeys !== [] || $keys !== []) {
+        $error = 'Configuration filters require --kind configuration.';
+    } elseif ($watchMode) {
+        $error = '--watch currently supports configuration metadata only.';
+    }
+}
 foreach ($arrayKeys as $arrayKey) {
     if (! preg_match('/^[^.]+(?:\.[^.]+)*$/D', $arrayKey)) {
         $error = 'Configuration array key must have nonempty dotted segments.';
@@ -125,7 +148,11 @@ if ($root === false) {
     exit(2);
 }
 
-$export = static fn (): array => (new StaticMetadataExport)->configuration($root, $arrayKeys, $keys);
+$export = static fn (): array => match ($kind) {
+    'routes' => (new RouteMetadataExport)->export($root, $files),
+    'translations' => (new TranslationMetadataExport)->export($root, $files),
+    default => (new StaticMetadataExport)->configuration($root, $arrayKeys, $keys),
+};
 if ($watchMode) {
     $watch = new ConfigurationWatch($root);
     $watch->run(
