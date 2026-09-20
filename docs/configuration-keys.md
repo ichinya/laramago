@@ -57,6 +57,15 @@ referenced entries, computed or duplicate array keys and negative integer-coerci
 keys because array overwrite and append behavior can change the effective entries.
 Positional arguments and named `key:` or `keys:` arguments are supported where Laravel declares them.
 
+When a missing literal has exactly one nearby key in the same complete source
+array, the diagnostic offers a replacement for that PHP string literal. Mago
+marks the edit `potentiallyunsafe` because the intended key is still a guess.
+Case-only differences, equally close names, dynamic or incomplete catalogs, and
+unsupported source names receive no edit. The replacement is a quoted PHP
+literal that preserves special characters in the proposed key. Mago's default
+`analyze --fix` applies only safe edits, so this suggestion requires deliberate
+`--potentially-unsafe` opt-in to apply.
+
 Native `#[Illuminate\Container\Attributes\Config('app.key')]` injection attributes
 also check literal keys under this contract. The constructor, resolver, container
 contract and configuration repository must retain their native declarations.

@@ -201,5 +201,5 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 193 | Upstream scenario regression adaptation | implemented; Adapted pinned Laravel LSP literal/interpolated argument scenarios into real-Mago config and getMany regressions, preserving literal sibling checks and dynamic deferral. |
 | 194 | Version-aware Laravel API capabilities | implemented; Installed-source validation capability now supports standalone illuminate/validation with custom vendor-dir; Composer version stays metadata and changed native methods still defer. |
 | 195 | Static metadata export | queued |
-| 196 | Diagnostic name fixes and navigation | queued |
+| 196 | Diagnostic name fixes and navigation | implemented; Missing configuration keys offer uniquely close potentially unsafe literal edits; exact byte spans and escaping verified with Mago. Source navigation uses the metadata export; no editor definition hook. |
 | 197 | Long-running index watch mode | queued |

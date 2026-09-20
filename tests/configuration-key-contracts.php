@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 $package = str_replace('\\', '/', dirname(__DIR__));
+require $package.'/vendor/autoload.php';
 $binary = getenv('MAGO_BINARY') ?: $package.'/vendor/bin/mago';
 $command = str_ends_with($binary, '.exe') ? [$binary] : [PHP_BINARY, $binary];
 $workspace = str_replace('\\', '/', sys_get_temp_dir()).'/laramago config keys '.bin2hex(random_bytes(8));
@@ -43,6 +44,11 @@ file_put_contents($workspace.'/config/example.php', <<<'PHP'
     <?php
     return [
         'name' => 'Example',
+        'brand' => 'Brand',
+        'grand' => 'Grand',
+        'dollar$' => 'Dollar',
+        "it's" => 'Apostrophe',
+        'path\\name' => 'Backslash',
         'dynamic' => env('EXAMPLE_NAME'),
         'nested' => ['count' => 2],
         'open' => ['known' => true, ...runtimeConfiguration()],
@@ -71,6 +77,12 @@ $writeComposer($contract);
 $missing = ['ichinya/laramago/laramago-missing-configuration-key'];
 $cases = [
     'known helper key' => ['config("example.name");', []],
+    'helper typo offers edit after UTF-8 bytes' => ['/* Café */ config("example.nmae");', $missing],
+    'dollar key edit keeps PHP literal semantics' => ['config("example.dollar#");', $missing],
+    'apostrophe key edit escapes the replacement' => ['config("example.its");', $missing],
+    'backslash key edit escapes the replacement' => ['config("example.pathname");', $missing],
+    'case-only difference has no edit' => ['config("example.Name");', $missing],
+    'ambiguous closest names have no edit' => ['config("example.frand");', $missing],
     'known dynamic value key' => ['config("example.dynamic");', []],
     'missing helper key' => ['config("example.missing");', $missing],
     // Adapted from laravel/lsp's literal/interpolated argument scenarios
@@ -247,6 +259,59 @@ $analyze = static function (string $label) use ($command, $workspace): array {
 [$exit, $report] = $analyze('enabled');
 if ($exit !== 1) {
     throw new RuntimeException('Expected warnings from enabled configuration key contracts; inspect '.$workspace);
+}
+$editCases = [
+    'helper typo offers edit after UTF-8 bytes' => ['"example.nmae"', 'example.name'],
+    'dollar key edit keeps PHP literal semantics' => ['"example.dollar#"', 'example.dollar$'],
+    'apostrophe key edit escapes the replacement' => ['"example.its"', "example.it's"],
+    'backslash key edit escapes the replacement' => ['"example.pathname"', 'example.path\\name'],
+];
+$noEditCases = ['case-only difference has no edit', 'ambiguous closest names have no edit'];
+$caseByLine = [];
+foreach ($lines as $line => [$name]) {
+    $caseByLine[$line] = $name;
+}
+foreach ($report['issues'] ?? [] as $issue) {
+    if ($issue['code'] !== $missing[0]) {
+        continue;
+    }
+    $primary = $issue['annotations'][0]['span'];
+    $case = $caseByLine[$primary['start']['line'] + 1] ?? null;
+    if (isset($editCases[$case])) {
+        [$original, $replacement] = $editCases[$case];
+        $edits = $issue['edits'] ?? [];
+        if (count($edits) !== 1 || count($edits[0][1] ?? []) !== 1) {
+            throw new RuntimeException($case.': expected one Mago edit; inspect '.$workspace);
+        }
+        $file = $edits[0][0];
+        $edit = $edits[0][1][0];
+        $start = $edit['range']['start'];
+        $end = $edit['range']['end'];
+        $newText = implode('', array_map(chr(...), $edit['new_text']));
+        $parsed = (new PhpParser\ParserFactory)
+            ->createForNewestSupportedVersion()
+            ->parse('<?php return '.$newText.';');
+        if (
+            $file['name'] !== 'cases.php'
+            || $file['size'] !== strlen($source)
+            || $start !== $primary['start']['offset']
+            || $end !== $primary['end']['offset']
+            || substr($source, $start, $end - $start) !== $original
+            || $edit['safety'] !== 'potentiallyunsafe'
+            || ! $parsed[0] instanceof PhpParser\Node\Stmt\Return_
+            || Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource::value($parsed[0]->expr) !== $replacement
+        ) {
+            throw new RuntimeException(
+                $case.': edit must replace original bytes with an equivalent PHP literal; inspect '.$workspace,
+            );
+        }
+        unset($editCases[$case]);
+    } elseif (in_array($case, $noEditCases, true) && isset($issue['edits'])) {
+        throw new RuntimeException($case.': ambiguous or case-only names must not offer an edit; inspect '.$workspace);
+    }
+}
+if ($editCases !== []) {
+    throw new RuntimeException('Missing expected configuration edits: '.implode(', ', array_keys($editCases)));
 }
 $actual = [];
 foreach ($report['issues'] ?? [] as $issue) {

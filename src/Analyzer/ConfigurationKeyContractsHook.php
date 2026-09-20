@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ConfigurationIndex;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\ConfigurationNameFixes;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\MetadataConfidence;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ModelReflection;
@@ -19,6 +20,8 @@ use Mago\Sdk\Analyzer\NodeAnalysisHook;
 use Mago\Sdk\Analyzer\Type\MixedType;
 use Mago\Sdk\Reporting\Issue;
 use Mago\Sdk\Reporting\Level;
+use Mago\Sdk\Reporting\Safety;
+use Mago\Sdk\Reporting\TextEdit;
 use Mago\Sdk\SourceLocation;
 use Mago\Sdk\Span;
 use Mago\Sdk\Syntax\NodeKind;
@@ -152,16 +155,31 @@ final class ConfigurationKeyContractsHook implements NodeAnalysisHook, Initializ
         ) {
             return;
         }
+        $issue = Issue::at(
+            'Configuration key "'.$key->value.'" is absent from the explicitly complete runtime catalog.',
+            new SourceLocation(
+                $context->source->path,
+                new Span($key->getStartFilePos(), $key->getEndFilePos() + 1),
+            ),
+        );
+        $catalog = $this->configuration()->stringKeys(implode('.', $parts));
+        $suggestion = $catalog === null ? null : ConfigurationNameFixes::closest($catalog, $name);
+        if ($suggestion !== null) {
+            $replacement = implode('.', $parts).'.'.$suggestion;
+            $issue = $issue
+                ->withHelp('Did you mean "'.$replacement.'"?')
+                ->withEdit(TextEdit::replaceAt(
+                    new SourceLocation(
+                        $context->source->path,
+                        new Span($key->getStartFilePos(), $key->getEndFilePos() + 1),
+                    ),
+                    var_export($replacement, true),
+                )->withSafety(Safety::PotentiallyUnsafe));
+        }
         $context->report(
             Level::Warning,
             'laramago-missing-configuration-key',
-            Issue::at(
-                'Configuration key "'.$key->value.'" is absent from the explicitly complete runtime catalog.',
-                new SourceLocation(
-                    $context->source->path,
-                    new Span($key->getStartFilePos(), $key->getEndFilePos() + 1),
-                ),
-            ),
+            $issue,
         );
     }
 
