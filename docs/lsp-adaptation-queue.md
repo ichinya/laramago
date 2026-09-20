@@ -1,6 +1,8 @@
 # Laravel LSP adaptation queue
 
-This tracks the 197 individually numbered research items. Queued entries are proposals, not promises of supported behavior. Each item receives independent review; existing coverage and SDK limitations must be evidenced. Offline analysis and native contract priority apply throughout.
+This tracks the 197 individually numbered research items. The review is complete: 127 items have bounded implementations, 35 were already covered (including overlap resolved during implementation), and 35 remain deferred with evidence below. Offline analysis and native contract priority apply throughout.
+
+An implemented item may provide type inference, an explicitly enabled diagnostic, or source metadata for an external consumer. It does not imply complete Laravel runtime emulation or automatic removal of existing warnings. See the [support matrix](static-analysis-support.md) and individual contracts for exact prerequisites. The [metadata CLI](static-metadata-export.md) currently exports and watches configuration declarations; it is not an editor integration or incremental Mago analyzer.
 
 Baseline: a67d3ee; previous package validation passed 3393 checks. No application bootstrap or database is required.
 
