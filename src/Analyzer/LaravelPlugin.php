@@ -117,6 +117,9 @@ final class LaravelPlugin implements Plugin
         $registry->registerInitializationHook($viewReferences);
         $registry->registerNodeAnalysisHook($references);
         $registry->registerInitializationHook($references);
+        $voltRoutes = new VoltRouteComponentReferencesHook($this->projectRoot);
+        $registry->registerNodeAnalysisHook($voltRoutes);
+        $registry->registerInitializationHook($voltRoutes);
         $registry->registerMethodReturnTypeProvider(new EloquentRelationCallbackProvider($this->projectRoot));
         $registry->registerMethodReturnTypeProvider(new EloquentMorphCallbackProvider($this->projectRoot));
         $registry->registerMethodCallAnalysisHook(new EloquentRelationNamesHook($this->projectRoot));
