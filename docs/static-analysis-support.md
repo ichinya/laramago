@@ -136,3 +136,4 @@ Complete view catalogs check all-missing literal native View::first fallback lis
 
 Native conditional view rendering checks only literal selected branches and literal-array iteration; unknown conditions and data defer.
 
+| Validation field references | [Positive source hints](validation-field-references.md) preserve native field-parameter roles, CSV quoting, wildcards and literal dots | Missing-field diagnostics require a separate complete input contract; dynamic rules and runtime wildcard expansion remain unknown |
