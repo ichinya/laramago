@@ -188,7 +188,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 180 | Pest closure this typing | deferred; Real Mago honors declared closure-this PHPDoc, but signature provider invocations lack source-file identity for per-file Pest contexts; needs path-aware pre-argument context and effective context proof. |
 | 181 | Pest expectation method forwarding | queued |
 | 182 | Conflicting test context diagnostics | queued |
-| 183 | Shared static metadata indexes | queued |
+| 183 | Shared static metadata indexes | implemented; Bounded per-process resolved-source cache shares parsing work with isolated AST copies, exact-byte freshness and plugin reset; mutable derived indexes remain separate. |
 | 184 | Shared Laravel reference call registry | queued |
 | 185 | Shared import and class identity resolution | queued |
 | 186 | Shared literal string argument handling | queued |

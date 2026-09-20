@@ -14,6 +14,13 @@ use PhpParser\ParserFactory;
 /** Reads syntax only. Files, expressions and application classes are never executed. */
 final class PhpSource
 {
+    private const SHARED_CACHE_BYTES = 8 * 1024 * 1024;
+    private const SHARED_CACHE_ENTRIES = 32;
+
+    /** @var array<string, string> Serialized, resolved ASTs in least-recently-used order. */
+    private static array $sharedFiles = [];
+    private static int $sharedBytes = 0;
+
     private readonly Parser $parser;
     /** @var array<string, array<array-key, Node>|null> */
     private array $files = [];
@@ -41,6 +48,13 @@ final class PhpSource
         return $this->contentHashes[$this->path($path)] ?? null;
     }
 
+    /** Start a fresh plugin registration without changing existing reader snapshots. */
+    public static function clearSharedCache(): void
+    {
+        self::$sharedFiles = [];
+        self::$sharedBytes = 0;
+    }
+
     /** @return array<array-key, Node>|null */
     public function read(string $path): ?array
     {
@@ -54,11 +68,38 @@ final class PhpSource
 
             return $this->files[$path] = null;
         }
-        $this->contentHashes[$path] = hash('sha256', $contents);
+        $hash = $this->contentHashes[$path] = hash('sha256', $contents);
+        $key = hash('sha256', $path."\0".$hash);
+        if (isset(self::$sharedFiles[$key])) {
+            $serialized = self::$sharedFiles[$key];
+            unset(self::$sharedFiles[$key]);
+            self::$sharedFiles[$key] = $serialized;
+
+            /** @var array<array-key, Node> $nodes The bytes were serialized by this process. */
+            $nodes = unserialize($serialized, ['allowed_classes' => true]);
+
+            return $this->files[$path] = $nodes;
+        }
         try {
             $nodes = $this->parser->parse($contents) ?? [];
+            $resolved = (new NodeTraverser(new NameResolver))->traverse($nodes);
+            $serialized = serialize($resolved);
+            $size = strlen($serialized);
+            if ($size <= self::SHARED_CACHE_BYTES) {
+                while (
+                    self::$sharedFiles !== []
+                    && (count(self::$sharedFiles) >= self::SHARED_CACHE_ENTRIES
+                    || (self::$sharedBytes + $size) > self::SHARED_CACHE_BYTES)
+                ) {
+                    $oldest = array_key_first(self::$sharedFiles);
+                    self::$sharedBytes -= strlen(self::$sharedFiles[$oldest]);
+                    unset(self::$sharedFiles[$oldest]);
+                }
+                self::$sharedFiles[$key] = $serialized;
+                self::$sharedBytes += $size;
+            }
 
-            return $this->files[$path] = (new NodeTraverser(new NameResolver))->traverse($nodes);
+            return $this->files[$path] = $resolved;
         } catch (Error $error) {
             $this->warnings[$path] = 'Cannot parse PHP source for static model metadata: '.$error->getMessage();
 

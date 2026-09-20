@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ichinya\Laramago\Analyzer;
 
+use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Mago\Sdk\Analyzer\Plugin;
 use Mago\Sdk\Analyzer\PluginDefinition;
 use Mago\Sdk\Analyzer\PluginRegistry;
@@ -25,6 +26,7 @@ final class LaravelPlugin implements Plugin
 
     public function register(PluginRegistry $registry): void
     {
+        PhpSource::clearSharedCache();
         $middlewareCycles = new MiddlewareGroupCyclesHook($this->projectRoot);
         if ($middlewareCycles->hasSources()) {
             $registry->registerNodeAnalysisHook($middlewareCycles);
