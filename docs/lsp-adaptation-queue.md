@@ -185,7 +185,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 177 | Static Pest uses and path declarations | implemented; Ordered positive Pest uses/path metadata over selected files; native fluent alias and portable glob boundaries tested without execution. |
 | 178 | Pest trait and file mapping | implemented; Ordered class/trait candidates per selected Pest file, unresolved names and source provenance; frozen metadata classification without runtime completeness claims. |
 | 179 | Static Pest expectation extensions | implemented; Selected literal Pest expectation extension declarations retain names, closure syntax, order and locations; no runtime registry or inferred-method claim. |
-| 180 | Pest closure this typing | queued |
+| 180 | Pest closure this typing | deferred; Real Mago honors declared closure-this PHPDoc, but signature provider invocations lack source-file identity for per-file Pest contexts; needs path-aware pre-argument context and effective context proof. |
 | 181 | Pest expectation method forwarding | queued |
 | 182 | Conflicting test context diagnostics | queued |
 | 183 | Shared static metadata indexes | queued |
