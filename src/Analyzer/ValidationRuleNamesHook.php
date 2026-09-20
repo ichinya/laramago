@@ -5,8 +5,12 @@ declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\BuiltinValidationRuleCatalog;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\LiteralValidationDatabaseRules;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\LiteralValidationRules;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeValidationDatabaseContract;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeValidationMethodContract;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\SchemaIndex;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ValidationRuleDeclarations;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ValidationRuleNames;
 use Mago\Sdk\Analyzer\FileAnalysisRequirement;
@@ -37,6 +41,9 @@ final class ValidationRuleNamesHook implements MethodCallAnalysisHook, Initializ
     private ?ValidationRuleNames $names = null;
     private ?BuiltinValidationRuleCatalog $builtins = null;
     private ?NativeValidationMethodContract $native = null;
+    private ?ValidationDatabaseCatalog $database = null;
+    private ?SchemaIndex $schema = null;
+    private ?bool $nativeDatabase = null;
     private string $sourceHash = '';
     /** @var array<string, Node\Expr\MethodCall> */
     private array $calls = [];
@@ -50,6 +57,9 @@ final class ValidationRuleNamesHook implements MethodCallAnalysisHook, Initializ
         $this->names = null;
         $this->builtins = null;
         $this->native = null;
+        $this->database = null;
+        $this->schema = null;
+        $this->nativeDatabase = null;
         $this->sourceHash = '';
         $this->calls = [];
     }
@@ -73,10 +83,10 @@ final class ValidationRuleNamesHook implements MethodCallAnalysisHook, Initializ
     public function analyze(NodeAnalysisContext $context): void
     {
         $names = $this->names ??= new ValidationRuleNames($this->root);
-        if (! $names->complete()) {
+        $database = $this->database ??= new ValidationDatabaseCatalog($this->root);
+        if (! $names->complete() && ! $database->enabled()) {
             return;
         }
-        $builtins = $this->builtins ??= new BuiltinValidationRuleCatalog($this->root);
         $receiver = $context->receiverType?->atomicTypes[0] ?? null;
         if (
             $context->receiverType === null
@@ -105,10 +115,7 @@ final class ValidationRuleNamesHook implements MethodCallAnalysisHook, Initializ
             || $method->visibility !== Visibility::Public
             || $method->flags->contains(MetadataFlags::BY_REFERENCE)
             || array_map(static fn ($parameter): string => $parameter->name, $method->parameters) !== $parameters
-            || ! str_ends_with(
-                str_replace('\\', '/', $method->location->file ?? ''),
-                '/laravel/framework/src/'.str_replace('\\', '/', $receiver->name).'.php',
-            )
+            || ! $this->installedMethodSource($method->location->file ?? '', $receiver->name)
             || ! ($this->native ??= new NativeValidationMethodContract($this->root))->matches(
                 $receiver->name,
                 $methodName,
@@ -129,22 +136,127 @@ final class ValidationRuleNamesHook implements MethodCallAnalysisHook, Initializ
         $literals = strtolower($methodName) === 'sometimes'
             ? LiteralValidationRules::fromValue($rules)
             : LiteralValidationRules::from($rules);
-        foreach ($literals as [$name, $literal]) {
-            if ($names->contains($name) || $builtins->methodFor($name) !== null) {
+        if ($names->complete()) {
+            $builtins = $this->builtins ??= new BuiltinValidationRuleCatalog($this->root);
+            foreach ($literals as [$name, $literal]) {
+                if ($names->contains($name) || $builtins->methodFor($name) !== null) {
+                    continue;
+                }
+                $this->report(
+                    $context,
+                    'laramago-unknown-validation-rule',
+                    'Validation rule "'.$name.'" is absent from the explicitly complete effective rule-name catalog.',
+                    $literal,
+                );
+            }
+        }
+        if (! $database->enabled()) {
+            return;
+        }
+        if ($this->nativeDatabase === null) {
+            $this->nativeDatabase = (new NativeValidationDatabaseContract($this->root))->matches();
+        }
+        if (! $this->nativeDatabase) {
+            return;
+        }
+        $references = strtolower($methodName) === 'sometimes'
+            ? LiteralValidationDatabaseRules::fromValue($rules, '')
+            : LiteralValidationDatabaseRules::from($rules);
+        foreach ($references as [$table, $column, $ignore, $tableNode, $ignoreNode]) {
+            $connection = 'default';
+            if (str_contains($table, '.')) {
+                [$connection, $table] = explode('.', $table, 2);
+            }
+            // A class string can resolve a model table and connection at runtime.
+            if (str_contains($table, '\\')) {
                 continue;
             }
-            $context->report(
-                Level::Warning,
-                'laramago-unknown-validation-rule',
-                Issue::at(
-                    'Validation rule "'.$name.'" is absent from the explicitly complete effective rule-name catalog.',
-                    new SourceLocation(
-                        $context->source->path,
-                        new Span($literal->getStartFilePos(), $literal->getEndFilePos() + 1),
-                    ),
-                ),
-            );
+            if ($table === '' || $connection === '' || str_contains($table, '*')) {
+                continue;
+            }
+            if ($database->table($connection, $table) === false) {
+                $this->report(
+                    $context,
+                    'laramago-unknown-validation-table',
+                    'Validation table "'
+                    .$table
+                    .'" is absent from the explicitly complete "'
+                    .$connection
+                    .'" connection catalog.',
+                    $tableNode,
+                );
+                continue;
+            }
+            if (
+                $column !== ''
+                && $database->column($connection, $table, $column) === false
+                && ! $this->schemaColumn($connection, $table, $column)
+            ) {
+                $this->report(
+                    $context,
+                    'laramago-unknown-validation-column',
+                    'Validation column "'
+                    .$column
+                    .'" is absent from the explicitly complete "'
+                    .$table
+                    .'" table catalog.',
+                    $tableNode,
+                );
+            }
+            if (
+                $ignore !== null
+                && $database->column($connection, $table, $ignore) === false
+                && ! $this->schemaColumn($connection, $table, $ignore)
+            ) {
+                $this->report(
+                    $context,
+                    'laramago-unknown-validation-column',
+                    'Validation ignore column "'
+                    .$ignore
+                    .'" is absent from the explicitly complete "'
+                    .$table
+                    .'" table catalog.',
+                    $ignoreNode ?? $tableNode,
+                );
+            }
         }
+    }
+
+    private function schemaColumn(string $connection, string $table, string $column): bool
+    {
+        if ($connection !== 'default') {
+            return false;
+        }
+        if ($this->schema === null) {
+            $source = new PhpSource($this->root);
+            $this->schema = new SchemaIndex($source);
+            $this->schema->load();
+        }
+
+        return $this->schema->column($table, $column) !== null;
+    }
+
+    private function installedMethodSource(string $file, string $class): bool
+    {
+        $directory = ($this->builtins ??= new BuiltinValidationRuleCatalog($this->root))->sourcePath();
+        if ($directory === null) {
+            return false;
+        }
+        $name = substr($class, (int) strrpos($class, '\\') + 1);
+        $actual = str_replace('\\', '/', $file);
+        $expected = str_replace('\\', '/', $directory.'/'.$name.'.php');
+        $root = rtrim(str_replace('\\', '/', $this->root), '/');
+        $relative = str_starts_with($expected, $root.'/') ? substr($expected, strlen($root) + 1) : null;
+
+        return strcasecmp($actual, $expected) === 0 || $relative !== null && strcasecmp($actual, $relative) === 0;
+    }
+
+    private function report(NodeAnalysisContext $context, string $code, string $message, Node $node): void
+    {
+        $context->report(Level::Warning, $code, Issue::at($message, new SourceLocation(
+            $context->source->path,
+            new Span($node->getStartFilePos(), $node->getEndFilePos() + 1),
+        )));
     }
 
     private function call(NodeAnalysisContext $context): ?Node\Expr\MethodCall
