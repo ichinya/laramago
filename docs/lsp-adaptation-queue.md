@@ -176,7 +176,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 168 | Existing validated field shapes | already-covered; Verified validated field shapes, nested rules and dynamic/custom contract deferrals with focused suites. |
 | 169 | Additional validation declaration contexts | implemented; Syntax-only extraction covers proven native validation factory, validator, Request macro and controller trait arguments plus simple rules returns. Macro case and ambiguous argument forms defer; 35 focused and 50 existing real-Mago checks pass, source analysis clean. |
 | 170 | Versioned built-in validation rule catalog | implemented; Installed Laravel validation source provides positive rule-method metadata, parser aliases and package version. Case-insensitive methods, exact namespaces and ambiguous declarations are covered; null never proves an invalid rule. Focused tests and source analysis pass. |
-| 171 | Validation rule name diagnostics | queued |
+| 171 | Validation rule name diagnostics | implemented; Opt-in real Mago rule-name warnings require a complete effective builtin/custom catalog and full native method AST contracts. Last-write fields, dynamic overrides, custom receivers and changed source defer. Six portable pinned-source worker modes pass; source analysis clean. |
 | 172 | Validation rule parameter contracts | queued |
 | 173 | Validation regex delimiter parsing | queued |
 | 174 | Validation rule object contracts | queued |
