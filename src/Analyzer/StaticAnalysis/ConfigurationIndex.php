@@ -120,6 +120,12 @@ final class ConfigurationIndex
         return new ConfigurationKeyCatalog($keys, $complete);
     }
 
+    /** Return source evidence for a literal name, including an unavailable catalog. */
+    public function stringKeyConfidence(string $catalogKey, string $name): MetadataConfidence
+    {
+        return $this->stringKeys($catalogKey)?->confidence($name) ?? MetadataConfidence::Unknown;
+    }
+
     /** Match PHP's decimal string-to-integer array key conversion on the current platform. */
     private static function remainsStringKey(string $key): bool
     {

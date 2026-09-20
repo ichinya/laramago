@@ -6,6 +6,7 @@ namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ConfigurationIndex;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\MetadataConfidence;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeFacade;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Mago\Sdk\Analyzer\FileAnalysisRequirement;
@@ -105,8 +106,10 @@ final class StorageDiskContractsHook implements NodeAnalysisHook, Initialization
         if ($this->bindings()->configured('config') || $this->bindings()->configured('filesystem')) {
             return;
         }
-        $catalog = $this->configuration()->stringKeys('filesystems.disks');
-        if ($catalog === null || ! $catalog->sourceComplete || in_array($name->value, $catalog->keys, true)) {
+        if (
+            $this->configuration()->stringKeyConfidence('filesystems.disks', $name->value)
+            !== MetadataConfidence::CompleteAbsent
+        ) {
             return;
         }
         $context->report(

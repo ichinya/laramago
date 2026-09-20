@@ -6,6 +6,7 @@ namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ConfigurationIndex;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\MetadataConfidence;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ModelReflection;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeFacade;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
@@ -145,11 +146,9 @@ final class ConfigurationKeyContractsHook implements NodeAnalysisHook, Initializ
             return;
         }
         $name = array_pop($parts);
-        $catalog = $this->configuration()->stringKeys(implode('.', $parts));
         if (
-            $catalog === null
-            || ! $catalog->sourceComplete
-            || in_array($name, $catalog->keys, true)
+            $this->configuration()->stringKeyConfidence(implode('.', $parts), $name)
+            !== MetadataConfidence::CompleteAbsent
         ) {
             return;
         }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ConfigurationIndex;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ConfigurationKeyCatalog;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\MetadataConfidence;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 
 require dirname(__DIR__).'/vendor/autoload.php';
@@ -45,6 +46,7 @@ file_put_contents(
     "<?php return ['disks' => ['named' => [], '3' => [], '03' => [], '-0' => [], '9223372036854775808' => [], 3 => [], []]];",
 );
 file_put_contents($workspace.'/config/dynamic.php', '<?php return runtimeConfiguration();');
+file_put_contents($workspace.'/config/empty.php', '<?php return [];');
 file_put_contents($workspace.'/config/broken.php', '<?php return [;');
 
 $source = new PhpSource($workspace);
@@ -92,6 +94,23 @@ $assertCatalog(
     false,
     'non-string entries do not overstate a string-key catalog',
 );
+
+foreach ([
+    ['filesystems.disks', 'local',   MetadataConfidence::KnownPositive],
+    ['filesystems.disks', 'missing', MetadataConfidence::Unknown],
+    ['complete.disks',    'local',   MetadataConfidence::KnownPositive],
+    ['complete.disks',    'missing', MetadataConfidence::CompleteAbsent],
+    ['empty',             'missing', MetadataConfidence::CompleteAbsent],
+    ['overridden.disks',  'stale',   MetadataConfidence::Unknown],
+    ['dynamic.disks',     'missing', MetadataConfidence::Unknown],
+    ['broken.disks',      'missing', MetadataConfidence::Unknown],
+    ['missing.disks',     'missing', MetadataConfidence::Unknown],
+] as [$catalogKey, $name, $expected]) {
+    if ($index->stringKeyConfidence($catalogKey, $name) !== $expected) {
+        throw new RuntimeException($catalogKey.'.'.$name.' has incorrect source confidence.');
+    }
+}
+echo "PASS: source confidence distinguishes known, complete absence and unknown catalogs\n";
 
 foreach (['overridden.disks', 'dynamic.disks', 'broken.disks', 'missing.disks', 'complete.unknown'] as $key) {
     if ($index->stringKeys($key) !== null) {

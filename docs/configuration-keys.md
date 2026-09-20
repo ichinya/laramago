@@ -31,6 +31,12 @@ dynamic or numeric keys, and absent top-level namespaces defer because their
 absence is not proven. This source-completeness check is independent from the two
 explicit runtime assertions.
 
+For source consumers, `ConfigurationIndex::stringKeyConfidence()` returns
+`KnownPositive` for a literal key, `CompleteAbsent` only for a missing key in a
+source-complete array, and `Unknown` for partial, unreadable or unavailable
+catalogs. These states describe source evidence; `CompleteAbsent` alone does not
+authorize a runtime missing-key diagnostic.
+
 An absent literal produces `laramago-missing-configuration-key` for Laravel's
 installed global `config()` helper and native
 `Illuminate\Support\Facades\Config::get()`. Native facade `getMany()` calls also

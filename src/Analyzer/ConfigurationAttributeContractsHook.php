@@ -6,6 +6,7 @@ namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ConfigurationIndex;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\MetadataConfidence;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ModelReflection;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Mago\Sdk\Analyzer\FileAnalysisRequirement;
@@ -90,8 +91,10 @@ final class ConfigurationAttributeContractsHook implements NodeAnalysisHook, Ini
             return;
         }
         $name = array_pop($parts);
-        $catalog = $this->configuration()->stringKeys(implode('.', $parts));
-        if ($catalog === null || ! $catalog->sourceComplete || in_array($name, $catalog->keys, true)) {
+        if (
+            $this->configuration()->stringKeyConfidence(implode('.', $parts), $name)
+            !== MetadataConfidence::CompleteAbsent
+        ) {
             return;
         }
         $context->report(
