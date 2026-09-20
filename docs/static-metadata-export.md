@@ -32,6 +32,11 @@ accepted in watch mode, and invalid options exit with status 2. Watch mode only
 refreshes static configuration metadata; it does not run incremental Mago
 analysis or reuse the analyzer worker.
 
+Watch scans are limited to 512 configuration files, 4 MiB per file, and 32 MiB
+of source bytes per poll. Exceeding a limit emits an error snapshot with no
+metadata. Files are checked again after export to reject a snapshot changed
+during the read.
+
 The JSON object has `schemaVersion: 1`, an absolute `projectRoot`, a `scope`
 of `{"kind":"configuration","evidence":"source-only"}`, `catalogs`,
 `requests`, and `errors`. Each catalog has an `arrayKey`, nullable
@@ -49,6 +54,9 @@ later dynamic array entry may replace the literal declaration; the location is
 still a useful source candidate. A complete catalog refers only to its selected
 array expression. Parse/read failures appear in `errors` with a generic message
 and no source content. Unavailable catalogs and requested keys remain unknown.
+One-shot export exits with status 0 when it produces JSON, including partial
+results with `errors`; consumers must inspect that field. Invalid arguments,
+JSON encoding failures, and output write failures exit with status 2.
 
 Unfiltered traversal is bounded to 4,096 catalogs, 100,000 declarations, and
 32 nested array levels. `truncated` and `truncationReasons` disclose when a
