@@ -16,6 +16,8 @@ final class ConfigurationIndex
 {
     /** @var array<string, Node\Expr\Array_|null> */
     private array $files = [];
+    /** @var array<string, string> */
+    private array $filePaths = [];
 
     public function __construct(
         public readonly PhpSource $source,
@@ -40,7 +42,9 @@ final class ConfigurationIndex
                     break;
                 }
             }
-            $this->files[pathinfo($path, PATHINFO_FILENAME)] = $returned;
+            $name = pathinfo($path, PATHINFO_FILENAME);
+            $this->files[$name] = $returned;
+            $this->filePaths[$name] = $path;
         }
     }
 
@@ -84,8 +88,54 @@ final class ConfigurationIndex
      */
     public function stringKeys(string $key): ?ConfigurationKeyCatalog
     {
+        $catalog = $this->declarations($key);
+        if ($catalog === null) {
+            return null;
+        }
+
+        return new ConfigurationKeyCatalog(
+            array_map(static fn (ConfigurationDeclaration $entry): string => $entry->name, $catalog->declarations),
+            $catalog->sourceComplete,
+        );
+    }
+
+    /**
+     * Locate a positive literal key, including uncertain candidates after a dynamic entry.
+     * A namespace alone has no PHP key token to point at and returns null.
+     */
+    public function declaration(string $key): ?ConfigurationDeclaration
+    {
+        $separator = strrpos($key, '.');
+        if ($separator === false) {
+            return null;
+        }
+        $catalog = $this->declarations(substr($key, 0, $separator));
+        if ($catalog === null) {
+            return null;
+        }
+        foreach ($catalog->declarations as $entry) {
+            if ($entry->key === $key) {
+                return $entry;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Locate literal child keys in their parsed file. Duplicate keys point to the last
+     * declaration; a later dynamic entry makes prior literal selections uncertain.
+     * Runtime configuration replacement and mutation remain outside this source claim.
+     */
+    public function declarations(string $key): ?ConfigurationDeclarationCatalog
+    {
         $parts = explode('.', $key);
-        $node = $this->files[array_shift($parts)] ?? null;
+        $namespace = array_shift($parts);
+        $node = $this->files[$namespace] ?? null;
+        $file = $this->filePaths[$namespace] ?? null;
+        if ($file === null) {
+            return null;
+        }
         foreach ($parts as $part) {
             if (! $node instanceof Node\Expr\Array_) {
                 return null;
@@ -96,28 +146,65 @@ final class ConfigurationIndex
             return null;
         }
 
-        $keys = [];
+        $hash = $this->source->contentHash($file);
+        if ($hash === null) {
+            return null;
+        }
+        $declarations = [];
         $complete = true;
         foreach ($node->items as $item) {
             if ($item->unpack || $item->key === null) {
                 $complete = false;
+                if ($item->unpack) {
+                    foreach ($declarations as $name => $declaration) {
+                        $declarations[$name] = self::uncertain($declaration);
+                    }
+                }
                 continue;
             }
             $literal = PhpSource::value($item->key);
             if (! is_string($literal)) {
                 $complete = false;
+                if (! is_int($literal)) {
+                    foreach ($declarations as $name => $declaration) {
+                        $declarations[$name] = self::uncertain($declaration);
+                    }
+                }
                 continue;
             }
             if (! self::remainsStringKey($literal)) {
                 $complete = false;
                 continue;
             }
-            if (! in_array($literal, $keys, true)) {
-                $keys[] = $literal;
-            }
+            $declarations[$literal] = new ConfigurationDeclaration(
+                str_contains($literal, '.') ? null : $key.'.'.$literal,
+                $key,
+                $literal,
+                $file,
+                $item->key->getStartFilePos(),
+                $item->key->getEndFilePos() + 1,
+                $item->key->getStartLine(),
+                $hash,
+                true,
+            );
         }
 
-        return new ConfigurationKeyCatalog($keys, $complete);
+        return new ConfigurationDeclarationCatalog(array_values($declarations), $complete);
+    }
+
+    private static function uncertain(ConfigurationDeclaration $declaration): ConfigurationDeclaration
+    {
+        return new ConfigurationDeclaration(
+            $declaration->key,
+            $declaration->arrayKey,
+            $declaration->name,
+            $declaration->file,
+            $declaration->start,
+            $declaration->end,
+            $declaration->line,
+            $declaration->contentHash,
+            false,
+        );
     }
 
     /** Return source evidence for a literal name, including an unavailable catalog. */

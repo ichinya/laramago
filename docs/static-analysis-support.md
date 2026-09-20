@@ -87,6 +87,14 @@ sufficient by itself for missing-name diagnostics. The explicit
 [configuration key contract](configuration-keys.md) supplies the separate runtime
 assertions required for those warnings.
 
+`ConfigurationIndex::declarations()` and `declaration()` expose positive literal
+key locations from the parsed snapshot: absolute path, half-open byte span,
+line and SHA-256 hash. Duplicate keys point to the last declaration;
+`sourceSelected` is false when a later dynamic entry could replace it. These
+locations do not establish runtime repository state or an editor navigation
+hook. Raw child names are retained; names containing `.` have no traversable
+dotted `key`.
+
 `composer check` runs the real analyzer and worker against isolated synthetic
 fixtures. Tests cover both accepted code and diagnostics that must remain, with
 execution traps and workspaces containing spaces. Provider-disabled comparisons
