@@ -185,6 +185,7 @@ foreach ([
     'EnvironmentTemplateReferences',
     'EnvironmentTemplateDuplicates',
     'JsonTranslationMetadataExport',
+    'ViteEnvironmentReferences',
 ] as $class) {
     copy($package.'/src/Metadata/'.$class.'.php', $linkedPackage.'/src/Metadata/'.$class.'.php');
 }
@@ -237,6 +238,7 @@ file_put_contents(
     'SOURCE=private-value-must-not-export'."\n".'TARGET="${SOURCE}"'."\n".'SOURCE=PRIVATE_TEMPLATE_VALUE',
 );
 file_put_contents($fixture.'/translations.json', '{"Greeting":"private-value-must-not-export"}');
+file_put_contents($fixture.'/app.js', 'const name = import.meta.env.VITE_APP_NAME;');
 foreach ([$bin, $linkedProxy] as $entrypoint) {
     foreach ([
         'routes' => 'routes.php',
@@ -246,6 +248,7 @@ foreach ([$bin, $linkedProxy] as $entrypoint) {
         'environment-references' => '.env.example',
         'environment-duplicates' => '.env.example',
         'translations-json' => 'translations.json',
+        'vite-environment-references' => 'app.js',
     ] as $kind => $file) {
         [$exit, $stdout, $stderr] = $run([
             PHP_BINARY,
@@ -264,7 +267,7 @@ foreach ([$bin, $linkedProxy] as $entrypoint) {
             $exit !== 0
             || $stderr !== ''
             || $metadata['scope']['kind'] !== $kind
-            || ($metadata['declarations'] ?? $metadata['candidates']) === []
+            || ($metadata['declarations'] ?? $metadata['candidates'] ?? $metadata['references']) === []
             || $metadata['errors'] !== []
             || is_file($fixture.'/autoload-executed')
             || is_file($fixture.'/config-executed')

@@ -9,6 +9,7 @@ mkdir($fixture.'/routes');
 mkdir($fixture.'/lang');
 mkdir($fixture.'/vendor');
 file_put_contents($fixture.'/lang/en.json', '{"Greeting":"PRIVATE_TRANSLATED_VALUE"}');
+file_put_contents($fixture.'/app.js', 'const name = import.meta.env.VITE_APP_NAME;');
 file_put_contents(
     $fixture.'/.env.example',
     'SOURCE=PRIVATE_TEMPLATE_VALUE'."\n".'TARGET="${SOURCE}"'."\n".'SOURCE=PRIVATE_TEMPLATE_VALUE',
@@ -90,6 +91,17 @@ try {
         );
     }
     echo "PASS: advisory route duplicate CLI dispatch\n";
+    [$exit, $stdout, $stderr] = $run(['--kind', 'vite-environment-references', '--source', 'app.js']);
+    $vite = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+    if (
+        $exit !== 0
+        || $stderr !== ''
+        || array_column($vite['references'], 'name') !== ['VITE_APP_NAME']
+        || $vite['references'][0]['confidence'] !== 'completion-candidate'
+    ) {
+        throw new RuntimeException('Vite CLI must export completion candidates only.');
+    }
+    echo "PASS: Vite lexical candidate CLI dispatch\n";
     [$exit, $stdout, $stderr] = $run(['--kind', 'translation-placeholders', '--source', 'lang/messages.php']);
     $placeholders = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
     if (
@@ -150,6 +162,7 @@ try {
 } finally {
     foreach ([
         'routes/web.php',
+        'app.js',
         'lang/messages.php',
         'lang/en.json',
         'vendor/autoload.php',

@@ -13,6 +13,7 @@ use Ichinya\Laramago\Metadata\RouteNameDuplicateCandidates;
 use Ichinya\Laramago\Metadata\SelectedSourceWatch;
 use Ichinya\Laramago\Metadata\TranslationMetadataExport;
 use Ichinya\Laramago\Metadata\TranslationPlaceholderExport;
+use Ichinya\Laramago\Metadata\ViteEnvironmentReferences;
 
 // Composer's application autoloader may include application files. This command loads
 // only this package's syntax reader and the installed PHP parser dependency.
@@ -47,7 +48,7 @@ spl_autoload_register(static function (string $class) use ($packageRoot, $parser
     }
 });
 
-$usage = "Usage: laramago-metadata [--project-root DIR] [--kind configuration|routes|route-name-duplicates|translations|translations-json|translation-placeholders|environment-references|environment-duplicates] [--source FILE ...] [--config-array KEY ...] [--config-key KEY ...] [--output FILE] [--watch [--interval-ms 50..60000]]\n";
+$usage = "Usage: laramago-metadata [--project-root DIR] [--kind configuration|routes|route-name-duplicates|translations|translations-json|translation-placeholders|environment-references|environment-duplicates|vite-environment-references] [--source FILE ...] [--config-array KEY ...] [--config-key KEY ...] [--output FILE] [--watch [--interval-ms 50..60000]]\n";
 $root = getcwd() ?: '';
 $kind = 'configuration';
 $files = [];
@@ -130,6 +131,7 @@ if (! in_array(
         'translation-placeholders',
         'environment-references',
         'environment-duplicates',
+        'vite-environment-references',
         'translations-json',
     ],
     true,
@@ -175,6 +177,7 @@ $export = static fn (): array => match ($kind) {
     'translation-placeholders' => (new TranslationPlaceholderExport)->export($root, $files),
     'environment-references' => (new EnvironmentTemplateReferences)->export($root, $files),
     'environment-duplicates' => (new EnvironmentTemplateDuplicates)->export($root, $files),
+    'vite-environment-references' => (new ViteEnvironmentReferences)->export($root, $files),
     default => (new StaticMetadataExport)->configuration($root, $arrayKeys, $keys),
 };
 if ($watchMode) {

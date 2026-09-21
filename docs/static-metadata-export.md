@@ -205,3 +205,23 @@ source locations and group-name provenance. These are review candidates only:
 `activeRouteConflict` remains `unknown`, including when Laravel may replace an
 earlier route with the same method, domain and URI. The mode is non-exhaustive,
 retains source errors and truncation, and does not support watch.
+
+## Vite environment name candidates
+
+`laramago-metadata --kind vite-environment-references --source resources/js/app.js`
+exports lexical candidates for direct `import.meta.env.NAME` access. Each entry
+contains the name, original byte span, line, source hash and
+`completion-candidate` confidence. This is explicitly non-exhaustive lexical
+evidence, not a JavaScript AST index or proof that an environment name exists.
+
+Only explicit project-contained `.js`, `.mjs`, `.cjs`, `.ts`, `.mts` and `.cts`
+files are accepted. Strings, comments and property-chain lookalikes are excluded.
+Scanning stops with uncertainty at templates, ambiguous slash or angle syntax,
+escaped/non-ASCII identifiers and token limits. Computed and optional access
+remain unsupported. An unsupported identifier suffix cannot yield a truncated
+name. JSX/TSX and Vue files require a maintained frontend parser for future support.
+
+The exporter reads no dotenv values and executes no application code. Limits are
+256 files, 1 MiB per file, 8 MiB total, 200,000 tokens per file and 20,000 references.
+Consumers must retain errors, uncertainties and truncation; candidates must not
+drive missing-name diagnostics. This mode does not support watch.
