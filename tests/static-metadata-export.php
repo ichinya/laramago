@@ -180,6 +180,7 @@ copy($package.'/bin/laramago-metadata', $linkedPackage.'/bin/laramago-metadata')
 foreach ([
     'RouteMetadataExport',
     'ControllerRouteContractExport',
+    'TranslationPlaceholderConsistencyExport',
     'TranslationPluralBranchExport',
     'TranslationReplacementNameAdvisoryExport',
     'TranslationChoiceReferenceExport',
@@ -257,6 +258,8 @@ file_put_contents(
 file_put_contents($fixture.'/translations.json', '{"Greeting":"private-value-must-not-export"}');
 file_put_contents($fixture.'/app.js', 'const name = import.meta.env.VITE_APP_NAME;');
 file_put_contents($fixture.'/plural.php', '<?php return ["plural" => "[0}PRIVATE_ZERO|PRIVATE_OTHER"];');
+file_put_contents($fixture.'/locale-en.php', '<?php return ["welcome" => "PRIVATE EN :name"];');
+file_put_contents($fixture.'/locale-fr.php', '<?php return ["welcome" => "PRIVATE FR :nom"];');
 file_put_contents($fixture.'/controllers.php', <<<'PHP'
     <?php
     use Illuminate\Support\Facades\Route;
@@ -335,6 +338,34 @@ foreach ([$bin, $linkedProxy] as $entrypoint) {
         ) {
             throw new RuntimeException('Source export failed through the custom-vendor Composer proxy.');
         }
+    }
+    [$exit, $stdout, $stderr] = $run([
+        PHP_BINARY,
+        '-d',
+        'opcache.enable_cli=0',
+        $entrypoint,
+        '--project-root',
+        $fixture,
+        '--kind',
+        'translation-placeholder-consistency-candidates',
+        '--translation-source',
+        'en:messages:locale-en.php',
+        '--translation-source',
+        'fr:messages:locale-fr.php',
+    ], $fixture);
+    $consistency = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+    if (
+        $exit !== 0
+        || $stderr !== ''
+        || count($consistency['candidates']) !== 1
+        || $consistency['candidates'][0]['status'] !== 'placeholder-set-difference'
+        || $consistency['candidates'][0]['runtimeFailure'] !== false
+        || $consistency['errors'] !== []
+        || is_file($fixture.'/autoload-executed')
+        || str_contains($stdout, 'PRIVATE EN')
+        || str_contains($stdout, 'PRIVATE FR')
+    ) {
+        throw new RuntimeException('Explicit locale comparison failed through the Composer proxy.');
     }
 }
 

@@ -11,6 +11,8 @@ mkdir($fixture.'/vendor');
 file_put_contents($fixture.'/lang/en.json', '{"Greeting":"PRIVATE_TRANSLATED_VALUE"}');
 file_put_contents($fixture.'/app.js', 'const name = import.meta.env.VITE_APP_NAME;');
 file_put_contents($fixture.'/plural.php', '<?php return ["plural" => "[0}PRIVATE_ZERO|PRIVATE_OTHER"];');
+file_put_contents($fixture.'/locale-en.php', '<?php return ["welcome" => "PRIVATE EN :name"];');
+file_put_contents($fixture.'/locale-fr.php', '<?php return ["welcome" => "PRIVATE FR :nom"];');
 file_put_contents($fixture.'/controllers.php', <<<'PHP'
     <?php
     use Illuminate\Support\Facades\Route;
@@ -361,6 +363,28 @@ try {
         throw new RuntimeException('Plural branch CLI must retain permissive source shapes without message payloads.');
     }
     echo "PASS: plural branch source CLI dispatch\n";
+    [$exit, $stdout, $stderr] = $run([
+        '--kind',
+        'translation-placeholder-consistency-candidates',
+        '--translation-source',
+        'en:messages:locale-en.php',
+        '--translation-source',
+        'fr:messages:locale-fr.php',
+    ]);
+    $consistency = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+    if (
+        $exit !== 0
+        || $stderr !== ''
+        || count($consistency['candidates']) !== 1
+        || $consistency['candidates'][0]['status'] !== 'placeholder-set-difference'
+        || array_column($consistency['candidates'][0]['locations'], 'names') !== [['name'], ['nom']]
+        || $consistency['candidates'][0]['runtimeFailure'] !== false
+        || str_contains($stdout, 'PRIVATE EN')
+        || str_contains($stdout, 'PRIVATE FR')
+    ) {
+        throw new RuntimeException('Locale comparison requires explicit associations and private advisory output.');
+    }
+    echo "PASS: explicit locale placeholder comparison CLI dispatch\n";
     [$exit, $stdout, $stderr] = $run(['--kind', 'vite-environment-references', '--source', 'app.js']);
     $vite = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
     if (
@@ -422,6 +446,40 @@ try {
         ['--source', 'routes/web.php'],
         ['--kind', 'routes', '--source', 'routes/web.php', '--config-key', 'app.name'],
         ['--kind', 'translation-placeholders', '--source', 'lang/messages.php', '--watch'],
+        ['--kind', 'translation-placeholder-consistency-candidates'],
+        ['--kind', 'translation-placeholder-consistency-candidates', '--source', 'locale-en.php'],
+        ['--kind', 'translations', '--translation-source', 'en:messages:locale-en.php'],
+        ['--kind', 'translation-placeholder-consistency-candidates', '--translation-source', 'en:messages'],
+        ['--kind', 'translation-placeholder-consistency-candidates', '--translation-source', ':messages:locale-en.php'],
+        [
+            '--kind',
+            'translation-placeholder-consistency-candidates',
+            '--translation-source',
+            'en:messages:C:/absolute.php',
+        ],
+        [
+            '--kind',
+            'translation-placeholder-consistency-candidates',
+            '--translation-source',
+            'en:messages:locale-en.php',
+            '--source',
+            'locale-fr.php',
+        ],
+        [
+            '--kind',
+            'translation-placeholder-consistency-candidates',
+            '--translation-source',
+            'en:messages:locale-en.php',
+            '--watch',
+        ],
+        [
+            '--kind',
+            'translation-placeholder-consistency-candidates',
+            '--translation-source',
+            'en:messages:locale-en.php',
+            '--config-key',
+            'app.name',
+        ],
     ] as $options) {
         [$exit, $stdout, $stderr] = $run($options);
         if ($exit !== 2 || $stdout !== '' || $stderr === '') {
@@ -435,6 +493,8 @@ try {
         'app.js',
         'controllers.php',
         'plural.php',
+        'locale-en.php',
+        'locale-fr.php',
         'lang/messages.php',
         'lang/en.json',
         'vendor/autoload.php',

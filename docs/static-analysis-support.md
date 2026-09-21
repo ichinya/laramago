@@ -173,3 +173,5 @@ An optional [policy method declaration advisory](policy-method-declarations.md) 
 [Contextual binding declaration metadata](contextual-binding-metadata.md) preserves selected source syntax and uncertainty without changing inferred container types.
 
 [Permitted assertViewIs identities](assert-view-identity-policy.md) check literal expected identities against an explicit policy without claiming a finder lookup or missing view.
+
+[Cross-locale placeholder candidates](translation-placeholder-consistency-candidates.md) compare explicitly associated PHP/JSON declarations for optional review, preserving fallback and loader uncertainty.

@@ -27,6 +27,7 @@ use Ichinya\Laramago\Metadata\RouteViewReferenceExport;
 use Ichinya\Laramago\Metadata\SelectedSourceWatch;
 use Ichinya\Laramago\Metadata\TranslationChoiceReferenceExport;
 use Ichinya\Laramago\Metadata\TranslationMetadataExport;
+use Ichinya\Laramago\Metadata\TranslationPlaceholderConsistencyExport;
 use Ichinya\Laramago\Metadata\TranslationPlaceholderExport;
 use Ichinya\Laramago\Metadata\TranslationPluralBranchExport;
 use Ichinya\Laramago\Metadata\TranslationReplacementNameAdvisoryExport;
@@ -65,10 +66,11 @@ spl_autoload_register(static function (string $class) use ($packageRoot, $parser
     }
 });
 
-$usage = "Usage: laramago-metadata [--project-root DIR] [--kind configuration|translation-plural-branches|translation-replacement-name-advisories|translation-choice-reference-candidates|pagination-view-references|mail-content-reference-candidates|mail-message-view-reference-candidates|contextual-binding-declaration-candidates|route-view-references|container-injection-attribute-candidates|binding-compatibility-candidates|policy-discovery-boundaries|policy-additional-argument-contract-candidates|policy-class-selector-call-candidates|policy-model-argument-contract-candidates|middleware-parameters|controller-route-contract-candidates|routes|route-name-duplicates|route-parameters|translations|translations-json|translation-placeholders|environment-references|environment-duplicates|vite-environment-references] [--source FILE ...] [--config-array KEY ...] [--config-key KEY ...] [--output FILE] [--watch [--interval-ms 50..60000]]\n";
+$usage = "Usage: laramago-metadata [--project-root DIR] [--kind configuration|translation-placeholder-consistency-candidates|translation-plural-branches|translation-replacement-name-advisories|translation-choice-reference-candidates|pagination-view-references|mail-content-reference-candidates|mail-message-view-reference-candidates|contextual-binding-declaration-candidates|route-view-references|container-injection-attribute-candidates|binding-compatibility-candidates|policy-discovery-boundaries|policy-additional-argument-contract-candidates|policy-class-selector-call-candidates|policy-model-argument-contract-candidates|middleware-parameters|controller-route-contract-candidates|routes|route-name-duplicates|route-parameters|translations|translations-json|translation-placeholders|environment-references|environment-duplicates|vite-environment-references] [--source FILE ...] [--translation-source LOCALE:CATALOG:FILE ...] [--config-array KEY ...] [--config-key KEY ...] [--output FILE] [--watch [--interval-ms 50..60000]]\n";
 $root = getcwd() ?: '';
 $kind = 'configuration';
 $files = [];
+$translationSources = [];
 $arrayKeys = [];
 $keys = [];
 $output = null;
@@ -88,7 +90,16 @@ for ($i = 1; $i < count($argv); $i++) {
     }
     if (! in_array(
         $argument,
-        ['--project-root', '--kind', '--source', '--config-array', '--config-key', '--output', '--interval-ms'],
+        [
+            '--project-root',
+            '--kind',
+            '--source',
+            '--translation-source',
+            '--config-array',
+            '--config-key',
+            '--output',
+            '--interval-ms',
+        ],
         true,
     )) {
         $error = 'Unknown option: '.$argument;
@@ -105,6 +116,14 @@ for ($i = 1; $i < count($argv); $i++) {
             break;
         case '--source':
             $files[] = $value;
+            break;
+        case '--translation-source':
+            $parts = explode(':', $value, 3);
+            if (count($parts) !== 3 || in_array('', $parts, true) || str_contains($parts[2], ':')) {
+                $error = 'Translation sources require LOCALE:CATALOG:FILE with nonempty fields and no additional colons.';
+                break;
+            }
+            $translationSources[] = ['locale' => $parts[0], 'catalog' => $parts[1], 'file' => $parts[2]];
             break;
         case '--project-root':
             $root = $value;
@@ -138,6 +157,10 @@ if ($watchMode && $output !== null) {
 if (! $watchMode && $intervalSpecified) {
     $error = '--interval-ms requires --watch.';
 }
+$associationMode = $kind === 'translation-placeholder-consistency-candidates';
+if ($translationSources !== [] && ! $associationMode) {
+    $error = '--translation-source requires --kind translation-placeholder-consistency-candidates.';
+}
 if (! in_array(
     $kind,
     [
@@ -156,6 +179,7 @@ if (! in_array(
         'translation-choice-reference-candidates',
         'translation-replacement-name-advisories',
         'translation-plural-branches',
+        'translation-placeholder-consistency-candidates',
         'middleware-parameters',
         'controller-route-contract-candidates',
         'routes',
@@ -173,9 +197,13 @@ if (! in_array(
     $error = 'Unsupported metadata kind.';
 } elseif ($kind === 'configuration' && $files !== []) {
     $error = '--source requires a source metadata kind.';
+} elseif ($associationMode && $files !== []) {
+    $error = 'Placeholder consistency requires --translation-source associations instead of --source.';
 } elseif ($kind !== 'configuration') {
-    if ($files === []) {
-        $error = 'This metadata kind requires at least one --source file.';
+    if ($associationMode ? $translationSources === [] : $files === []) {
+        $error = $associationMode
+            ? 'Placeholder consistency requires at least one --translation-source association.'
+            : 'This metadata kind requires at least one --source file.';
     } elseif ($arrayKeys !== [] || $keys !== []) {
         $error = 'Configuration filters require --kind configuration.';
     } elseif ($watchMode && ! in_array($kind, ['routes', 'translations', 'translations-json'], true)) {
@@ -204,6 +232,10 @@ if ($root === false) {
 }
 
 $export = static fn (): array => match ($kind) {
+    'translation-placeholder-consistency-candidates' => (new TranslationPlaceholderConsistencyExport)->export(
+        $root,
+        $translationSources,
+    ),
     'policy-model-argument-contract-candidates' => (new PolicyModelArgumentContractExport)->export($root, $files),
     'policy-class-selector-call-candidates' => (new PolicyClassSelectorCallExport)->export($root, $files),
     'policy-additional-argument-contract-candidates' => (new PolicyAdditionalArgumentContractExport)->export(

@@ -257,7 +257,7 @@ final class TranslationPlaceholderExport
             if (! $item->value instanceof Node\Scalar\String_) {
                 continue;
             }
-            $names = self::candidateNames($item->value->value);
+            $names = self::placeholderNames($item->value->value);
             foreach ($names as $name) {
                 if (strlen($name) > self::MAX_CANDIDATE_NAME_BYTES) {
                     $reasons['candidate-name-limit'] = true;
@@ -307,8 +307,14 @@ final class TranslationPlaceholderExport
         }
     }
 
-    /** @return list<string> */
-    private static function candidateNames(string $message): array
+    /**
+     * Return the bounded colon-word subset shared by completion and advisory
+     * translation-quality metadata. This is not Laravel's full replacement
+     * grammar and callers must not treat absence as a runtime error.
+     *
+     * @return list<string>
+     */
+    public static function placeholderNames(string $message): array
     {
         $matches = [];
         if (! preg_match_all('/\:([A-Za-z0-9_]+)/', $message, $matches)) {

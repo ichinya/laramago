@@ -305,3 +305,21 @@ The `pagination-view-references` kind exports [pagination view candidates and de
 The `translation-choice-reference-candidates` kind exports [literal trans_choice source references](translation-choice-references.md), retaining actual fallback locale and catalog lookup as unknown.
 
 The `translation-plural-branches` kind exports [literal plural branch shapes](translation-plural-branch-candidates.md), omitting message payloads and leaving locale, selector and runtime selection unknown.
+
+## Explicit cross-locale placeholder comparison
+
+```sh
+vendor/bin/laramago-metadata --kind translation-placeholder-consistency-candidates --translation-source en:messages:lang/en/messages.php --translation-source fr:messages:lang/fr/messages.php
+```
+
+Each repeatable `--translation-source LOCALE:CATALOG:FILE` associates a locale
+and logical catalog with one contained project-relative PHP or JSON file.
+Fields must be nonempty and cannot contain colons. This mode requires these
+associations and rejects ordinary `--source`, configuration filters, and watch.
+Other modes reject `--translation-source`.
+
+[Comparison candidates](translation-placeholder-consistency-candidates.md)
+report differing source placeholder sets as optional review evidence. Missing
+messages, duplicate associations, plural branches, loader precedence, and
+fallback remain uncertain. Neither translated values nor JSON phrase keys are
+exported; phrase identity uses a hash. No runtime failure is claimed.
