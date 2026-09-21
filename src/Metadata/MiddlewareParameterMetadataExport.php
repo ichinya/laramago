@@ -206,6 +206,7 @@ final class MiddlewareParameterMetadataExport
         while ($receiver instanceof Node\Expr\MethodCall) {
             if (
                 ! $receiver->name instanceof Node\Identifier
+                || $receiver->isFirstClassCallable()
                 || ! in_array(strtolower($receiver->name->toString()), self::PIPELINE_CHAIN_METHODS, true)
             ) {
                 return false;

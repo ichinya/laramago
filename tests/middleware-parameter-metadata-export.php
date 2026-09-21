@@ -62,6 +62,7 @@ namespace {
         (new NativePipeline)->through(['known:y', $dynamic]);
         (new NativePipeline)->through(['key' => 'known:z']);
         (new NativePipeline)->custom()->through('unknown-chain:value');
+        (new NativePipeline)->send(...)->through('closure-receiver:value');
         (new Pipeline)->through('custom:value');
         $pipeline->through('variable:value');
         PHP;
