@@ -132,6 +132,10 @@ final class LaravelPlugin implements Plugin
         $registry->registerInitializationHook($filesystemFactories);
         $registry->registerMethodReturnTypeProvider(new TransactionProvider($this->projectRoot));
         $translations = new TranslationStringProvider($this->projectRoot);
+        $translationQuality = new TranslationSourceQualityHook($this->projectRoot);
+        if ($translationQuality->enabled()) {
+            $registry->registerAfterAnalysisHook($translationQuality);
+        }
         $registry->registerFunctionReturnTypeProvider($translations);
         $registry->registerInitializationHook($translations);
         $references = new ReferenceCatalogHook($this->projectRoot);
