@@ -22,6 +22,23 @@ $cases = [
     'simple where' => ['return BodyScopeRecord::active();', 'Builder<BodyScopeRecord>', []],
     'backed enum value' => ['return BodyScopeRecord::enumValue();', 'Builder<BodyScopeRecord>', []],
     'unit enum name' => ['return BodyScopeRecord::enumName();', 'Builder<BodyScopeRecord>', []],
+    'guarded backed enum' => [
+        'return BodyScopeRecord::byStatus(BodyScopeStatus::Active);',
+        'Builder<BodyScopeRecord>',
+        [],
+    ],
+    'guarded string fallback' => ['return BodyScopeRecord::byStatus("active");', 'Builder<BodyScopeRecord>', []],
+    'guarded unit enum' => ['return BodyScopeRecord::byFlag(BodyScopeFlag::Visible);', 'Builder<BodyScopeRecord>', []],
+    'guarded enum chain' => ['return BodyScopeRecord::byStatus("active")->findOrFail(1);', 'BodyScopeRecord', []],
+    'guarded wrong argument' => ['BodyScopeRecord::byStatus(42);', 'void', ['invalid-argument']],
+    'guarded wrong return' => ['return BodyScopeRecord::byStatus("active");', 'string', ['invalid-return-statement']],
+    'guarded unit value' => ['return BodyScopeRecord::badUnit("x");', 'Builder<BodyScopeRecord>', $unknown],
+    'scalar branch' => ['return BodyScopeRecord::scalarBranch("x");', 'Builder<BodyScopeRecord>', $unknown],
+    'scalar fallback' => ['return BodyScopeRecord::scalarFallback("x");', 'Builder<BodyScopeRecord>', $unknown],
+    'guard does not leak' => ['return BodyScopeRecord::leakedGuard("x");', 'Builder<BodyScopeRecord>', $unknown],
+    'branch mutation' => ['return BodyScopeRecord::mutatedBranch("x");', 'Builder<BodyScopeRecord>', $unknown],
+    'non enum guard' => ['return BodyScopeRecord::classGuard("x");', 'Builder<BodyScopeRecord>', $unknown],
+    'query is not a value parameter' => ['return BodyScopeRecord::queryGuard();', 'Builder<BodyScopeRecord>', $unknown],
     'enum scope chain' => ['return BodyScopeRecord::enumValue()->findOrFail(1);', 'BodyScopeRecord', []],
     'enum scope wrong result' => ['return BodyScopeRecord::enumValue();', 'string', ['invalid-return-statement']],
     'unknown enum case' => ['return BodyScopeRecord::missingCase();', 'Builder<BodyScopeRecord>', $unknown],
@@ -45,7 +62,14 @@ $cases = [
     'custom builder' => ['CustomBodyScopeRecord::active();', 'void', ['non-documented-method']],
 ];
 if ($changedBuilder) {
-    $cases = ['changed native return' => ['return BodyScopeRecord::active();', 'Builder<BodyScopeRecord>', $unknown]];
+    $cases = [
+        'changed native return' => ['return BodyScopeRecord::active();', 'Builder<BodyScopeRecord>', $unknown],
+        'changed guarded native return' => [
+            'return BodyScopeRecord::byStatus("active");',
+            'Builder<BodyScopeRecord>',
+            $unknown,
+        ],
+    ];
 }
 if ($disabled) {
     $cases = [

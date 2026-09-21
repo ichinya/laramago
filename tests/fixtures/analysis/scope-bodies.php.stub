@@ -11,6 +11,42 @@ class BodyScopeRecord extends Model {
     public function scopeActive($query) { return $query->where('active', true); }
     public function scopeEnumValue($query) { return $query->where('status', BodyScopeStatus::Active->value); }
     public function scopeEnumName($query) { return $query->where('flag', BodyScopeFlag::Visible->name); }
+    public function scopeByStatus($query, BodyScopeStatus|string $status) {
+        if ($status instanceof BodyScopeStatus) { return $query->where('status', $status->value); }
+        return $query->where('status', $status);
+    }
+    public function scopeByFlag($query, BodyScopeFlag|string $flag) {
+        if ($flag instanceof BodyScopeFlag) { return $query->where('flag', $flag->name); }
+        return $query->where('flag', $flag);
+    }
+    public function scopeBadUnit($query, $flag) {
+        if ($flag instanceof BodyScopeFlag) { return $query->where('flag', $flag->value); }
+        return $query;
+    }
+    public function scopeScalarBranch($query, $status) {
+        if ($status instanceof BodyScopeStatus) { return 42; }
+        return $query;
+    }
+    public function scopeScalarFallback($query, $status) {
+        if ($status instanceof BodyScopeStatus) { return $query; }
+        return 42;
+    }
+    public function scopeLeakedGuard($query, $status) {
+        if ($status instanceof BodyScopeStatus) { return $query; }
+        return $query->where('status', $status->value);
+    }
+    public function scopeMutatedBranch($query, $status) {
+        if ($status instanceof BodyScopeStatus) { $query = null; return $query; }
+        return $query;
+    }
+    public function scopeClassGuard($query, $status) {
+        if ($status instanceof BodyScopeMagic) { return $query->where('status', $status->value); }
+        return $query;
+    }
+    public function scopeQueryGuard($query) {
+        if ($query instanceof BodyScopeStatus) { return $query; }
+        return $query;
+    }
     public function scopeMissingCase($query) { return $query->where('status', BodyScopeStatus::Missing->value); }
     public function scopeUnitValue($query) { return $query->where('status', BodyScopeFlag::Visible->value); }
     public function scopeMagicValue($query) { return $query->where('status', BodyScopeMagic::Status->value); }

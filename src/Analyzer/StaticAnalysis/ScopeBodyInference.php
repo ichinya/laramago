@@ -9,7 +9,7 @@ use Mago\Sdk\Analyzer\Metadata\FunctionLikeMetadata;
 use Mago\Sdk\Analyzer\Type\NamedObjectType;
 use PhpParser\Node;
 
-/** Prove a single untyped scope return preserves its original query object. */
+/** Prove bounded untyped scope returns preserve their original query object. */
 final class ScopeBodyInference
 {
     private const BUILDER = 'Illuminate\\Database\\Eloquent\\Builder';
@@ -21,7 +21,50 @@ final class ScopeBodyInference
 
     public function preservesQuery(FunctionLikeMetadata $method): bool
     {
-        $expression = (new ModelReflection($this->codebase, $this->source))->returnExpression($method);
+        $statements = (new ModelReflection($this->codebase, $this->source))->methodNode($method)?->stmts ?? [];
+        if (count($statements) === 1 && $statements[0] instanceof Node\Stmt\Return_) {
+            return $this->preservesExpression($statements[0]->expr, $method);
+        }
+        // A guarded enum conversion followed by an unconditional fallback.
+        $branch = $statements[0] ?? null;
+        $fallback = $statements[1] ?? null;
+        if (
+            count($statements) !== 2
+            || ! $branch instanceof Node\Stmt\If_
+            || $branch->else !== null
+            || $branch->elseifs !== []
+            || count($branch->stmts) !== 1
+            || ! $branch->stmts[0] instanceof Node\Stmt\Return_
+            || ! $fallback instanceof Node\Stmt\Return_
+            || ! $branch->cond instanceof Node\Expr\Instanceof_
+            || ! $branch->cond->expr instanceof Node\Expr\Variable
+            || ! is_string($branch->cond->expr->name)
+            || ! $branch->cond->class instanceof Node\Name\FullyQualified
+            || ! $this->safeArgument($branch->cond->expr, $method, ltrim($method->parameters[0]->name, '$'))
+        ) {
+            return false;
+        }
+        $enum = $this->codebase->getEnum($branch->cond->class->toString());
+        if ($enum === null) {
+            return false;
+        }
+
+        return (
+            $this->preservesExpression(
+                $branch->stmts[0]->expr,
+                $method,
+                [$branch->cond->expr->name => $enum->enumType !== null],
+            )
+            && $this->preservesExpression($fallback->expr, $method)
+        );
+    }
+
+    /** @param array<string, bool> $guardedEnums Whether a guarded enum parameter is backed. */
+    private function preservesExpression(
+        ?Node\Expr $expression,
+        FunctionLikeMetadata $method,
+        array $guardedEnums = [],
+    ): bool {
         if ($expression === null) {
             return false;
         }
@@ -60,7 +103,7 @@ final class ScopeBodyInference
                     ! $argument instanceof Node\Arg
                     || $argument->unpack
                     || $argument->byRef
-                    || ! $this->safeArgument($argument->value, $method, $query)
+                    || ! $this->safeArgument($argument->value, $method, $query, $guardedEnums)
                 ) {
                     return false;
                 }
@@ -70,8 +113,27 @@ final class ScopeBodyInference
         return true;
     }
 
-    private function safeArgument(Node\Expr $value, FunctionLikeMetadata $method, string $query): bool
-    {
+    /** @param array<string, bool> $guardedEnums */
+    private function safeArgument(
+        Node\Expr $value,
+        FunctionLikeMetadata $method,
+        string $query,
+        array $guardedEnums = [],
+    ): bool {
+        if (
+            $value instanceof Node\Expr\PropertyFetch
+            && $value->name instanceof Node\Identifier
+            && $value->var instanceof Node\Expr\Variable
+            && is_string($value->var->name)
+            && array_key_exists($value->var->name, $guardedEnums)
+        ) {
+            return (
+                $value->name->toString() === 'name'
+                || $value->name->toString() === 'value'
+                && $guardedEnums[$value->var->name]
+            );
+        }
+
         // Enum case properties cannot invoke user code or replace the query.
         if (
             $value instanceof Node\Expr\PropertyFetch

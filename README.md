@@ -136,7 +136,12 @@ An untyped scope retains its builder only when its single return expression
 provably preserves the query: the query itself, or a native `where`/`orWhere`
 chain with safe arguments. These include literals, scope parameters, and known
 enum case `name` or backed enum case `value` properties. Other untyped scope
-results stay unknown. Generic scope methods and custom query or
+results stay unknown, except for a bounded enum conversion: an
+`if ($value instanceof SomeEnum)` containing one query-preserving return, followed by an
+unconditional query-preserving return. Within that branch, the enum parameter's
+`name` (or backed enum `value`) is safe; the guard does not apply to the fallback.
+Additional statements, side effects, and other branch layouts remain unknown.
+Generic scope methods and custom query or
 scope dispatchers defer to native analysis. Explicit methods and PHPDoc contracts
 retain priority. No scope body, model constructor or application bootstrap runs.
 
