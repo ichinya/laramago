@@ -262,3 +262,5 @@ The `container-injection-attribute-candidates` kind preserves [contextual attrib
 The `route-view-references` kind exports [literal route view declaration references](route-view-reference-candidates.md), preserving uncertainty about the name actually used at dispatch.
 
 The `contextual-binding-declaration-candidates` kind exports [literal contextual binding syntax](contextual-binding-metadata.md), without inferring the effective build stack or resolved type.
+
+The `mail-message-view-reference-candidates` kind exports [MailMessage view and Markdown source references](mail-message-view-references.md), with separate finder contexts and no mandatory lookup claim.

@@ -19,6 +19,7 @@ file_put_contents($fixture.'/controllers.php', <<<'PHP'
     function injected(#[Illuminate\Container\Attributes\Give('clock')] object $clock): void {}
     Route::view('/welcome', 'pages.welcome');
     \app()->when(ExampleController::class)->needs('clock')->give('clock.impl');
+    (new Illuminate\Notifications\Messages\MailMessage)->markdown('mail.receipt');
     class ExamplePolicy { public function view(object $user, ExampleController $model, int $level = 0): bool { return true; } }
     class ExampleAuthProvider extends Illuminate\Foundation\Support\Providers\AuthServiceProvider {
         protected $policies = [ExampleController::class => ExamplePolicy::class];
@@ -261,6 +262,25 @@ try {
         throw new RuntimeException('Contextual binding CLI must retain declaration-only scope.');
     }
     echo "PASS: contextual binding declaration CLI dispatch\n";
+    [$exit, $stdout, $stderr] = $run([
+        '--kind',
+        'mail-message-view-reference-candidates',
+        '--source',
+        'controllers.php',
+    ]);
+    $mail = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+    if (
+        $exit !== 0
+        || $stderr !== ''
+        || array_column($mail['references'], 'name') !== ['mail.receipt']
+        || $mail['references'][0]['referenceKind'] !== 'markdown'
+        || count($mail['references'][0]['finderContexts']) !== 2
+        || $mail['references'][0]['runtimeLookupProven'] !== false
+        || $mail['references'][0]['required'] !== false
+    ) {
+        throw new RuntimeException('MailMessage CLI must retain optional Markdown navigation references.');
+    }
+    echo "PASS: MailMessage view reference CLI dispatch\n";
     [$exit, $stdout, $stderr] = $run(['--kind', 'vite-environment-references', '--source', 'app.js']);
     $vite = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
     if (
