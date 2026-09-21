@@ -163,6 +163,11 @@ final class LaravelPlugin implements Plugin
         $registry->registerMethodCallAnalysisHook($translationReferences);
         $registry->registerInitializationHook($translationReferences);
         $viewReferences = new ViewFactoryReferencesHook($this->projectRoot);
+        $mailRender = new MailRenderReferencesHook($this->projectRoot);
+        if ($mailRender->enabled()) {
+            $registry->registerMethodCallAnalysisHook($mailRender);
+            $registry->registerInitializationHook($mailRender);
+        }
         $responseViews = new ResponseViewReferencesHook($this->projectRoot);
         $registry->registerNodeAnalysisHook($responseViews);
         $registry->registerInitializationHook($responseViews);
