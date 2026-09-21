@@ -21,7 +21,7 @@ use PhpParser\Node;
 use PhpParser\NodeFinder;
 use PhpParser\ParserFactory;
 
-/** Check required handle parameters under an explicit native dispatch contract. */
+/** Check native handle parameter contracts under an explicit dispatch contract. */
 final class MiddlewareParametersHook implements MethodCallAnalysisHook, InitializationHook
 {
     private const ROUTE = 'Illuminate\\Routing\\Route';
@@ -96,6 +96,34 @@ final class MiddlewareParametersHook implements MethodCallAnalysisHook, Initiali
                     }
                 }
                 $provided = 2 + $target['parameters'];
+                $parameterPosition = 0;
+                foreach ($node->params as $parameter) {
+                    $parameterPosition++;
+                    // Pipeline supplies literal strings after the request and next closure.
+                    // Extra arguments without a declared parameter are legal userland calls.
+                    if (
+                        $parameterPosition <= 2
+                        || $parameterPosition > $provided
+                        || ! $this->rejectsString($parameter->type)
+                    ) {
+                        continue;
+                    }
+                    $context->report(
+                        Level::Warning,
+                        'laramago-incompatible-middleware-parameter',
+                        Issue::at(
+                            'Under the configured native dispatch contract, middleware '
+                            .$target['class']
+                            .'::handle parameter '
+                            .$parameterPosition
+                            .' cannot accept the string supplied by native Pipeline dispatch.',
+                            new SourceLocation(
+                                $context->source->path,
+                                new Span($reference->getStartFilePos(), $reference->getEndFilePos() + 1),
+                            ),
+                        ),
+                    );
+                }
                 if ($provided >= $required) {
                     continue;
                 }
@@ -118,6 +146,29 @@ final class MiddlewareParametersHook implements MethodCallAnalysisHook, Initiali
                 );
             }
         }
+    }
+
+    /** Prove only native non-scalar rejection; weak scalar coercion stays with PHP. */
+    private function rejectsString(Node\Identifier|Node\Name|Node\ComplexType|null $type): bool
+    {
+        if ($type instanceof Node\NullableType) {
+            return $this->rejectsString($type->type);
+        }
+        if ($type instanceof Node\UnionType) {
+            foreach ($type->types as $member) {
+                if (! $this->rejectsString($member)) {
+                    return false;
+                }
+            }
+
+            return $type->types !== [];
+        }
+        if ($type instanceof Node\IntersectionType || $type instanceof Node\Name) {
+            return true;
+        }
+
+        return $type instanceof Node\Identifier
+        && in_array(strtolower($type->name), ['array', 'object', 'iterable', 'null'], true);
     }
 
     /** @return list<Node\Scalar\String_>|null */

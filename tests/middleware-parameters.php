@@ -59,6 +59,21 @@ file_put_contents($workspace.'/handlers.php', <<<'PHP'
     class OptionalRole { public function handle(mixed $request, mixed $next, string $role = 'guest'): void {} }
     class Many { public function handle(mixed $request, mixed $next, string ...$roles): void {} }
     class Invokable { public function __invoke(): void {} public function handle(mixed $request, mixed $next, string $role): void {} }
+    class ArrayParameter { public function handle(mixed $request, mixed $next, array $value): void {} }
+    class ObjectParameter { public function handle(mixed $request, mixed $next, object $value): void {} }
+    class NullableArray { public function handle(mixed $request, mixed $next, ?array $value = null): void {} }
+    class NonScalarUnion { public function handle(mixed $request, mixed $next, array|Role|null $value): void {} }
+    class StringUnion { public function handle(mixed $request, mixed $next, array|string $value): void {} }
+    class StringableUnion { public function handle(mixed $request, mixed $next, string|\Stringable $value): void {} }
+    class ScalarParameters { public function handle(mixed $request, mixed $next, int $integer, float $float, bool $boolean): void {} }
+    class CallableParameter { public function handle(mixed $request, mixed $next, callable $callback): void {} }
+    class MixedParameter { public function handle(mixed $request, mixed $next, mixed $value): void {} }
+    class VariadicArrays { public function handle(mixed $request, mixed $next, array ...$values): void {} }
+    class InheritedArray extends ArrayParameter {}
+    interface Left {}
+    interface Right {}
+    class IntersectionParameter { public function handle(mixed $request, mixed $next, Left&Right $value): void {} }
+    class IterableParameter { public function handle(mixed $request, mixed $next, iterable $value): void {} }
     PHP);
 if ($mode === 'malformed') {
     file_put_contents($workspace.'/groups.php', '<?php return dynamicGroups();');
@@ -73,7 +88,59 @@ file_put_contents($workspace.'/composer.json', json_encode([
     ],
 ], JSON_THROW_ON_ERROR));
 $warning = ['ichinya/laramago/laramago-missing-middleware-parameters'];
+$typeWarning = ['ichinya/laramago/laramago-incompatible-middleware-parameter'];
 $cases = [
+    'array rejects literal string' => [
+        '$route->middleware("App\\\\ArrayParameter:value");',
+        $typeWarning,
+        '"App\\\\ArrayParameter:value"',
+    ],
+    'object rejects literal string' => [
+        '$route->middleware("App\\\\ObjectParameter:value");',
+        $typeWarning,
+        '"App\\\\ObjectParameter:value"',
+    ],
+    'nullable array rejects empty string' => [
+        '$route->middleware("App\\\\NullableArray:");',
+        $typeWarning,
+        '"App\\\\NullableArray:"',
+    ],
+    'optional nullable omitted accepted' => ['$route->middleware("App\\\\NullableArray");', []],
+    'non scalar union rejects string' => [
+        '$route->middleware("App\\\\NonScalarUnion:value");',
+        $typeWarning,
+        '"App\\\\NonScalarUnion:value"',
+    ],
+    'union accepts string' => ['$route->middleware("App\\\\StringUnion:value");', []],
+    'stringable union accepts string' => ['$route->middleware("App\\\\StringableUnion:value");', []],
+    'weak scalar coercion accepted' => ['$route->middleware("App\\\\ScalarParameters:42,1.5,false");', []],
+    'uncertain scalar coercion deferred' => [
+        '$route->middleware("App\\\\ScalarParameters:unknown,unknown,unknown");',
+        [],
+    ],
+    'callable string resolution deferred' => ['$route->middleware("App\\\\CallableParameter:strlen");', []],
+    'mixed accepts string' => ['$route->middleware("App\\\\MixedParameter:value");', []],
+    'variadic array rejects first string' => [
+        '$route->middleware("App\\\\VariadicArrays:a,b");',
+        $typeWarning,
+        '"App\\\\VariadicArrays:a,b"',
+    ],
+    'empty variadic accepted' => ['$route->middleware("App\\\\VariadicArrays");', []],
+    'inherited array rejects string' => [
+        '$route->middleware("App\\\\InheritedArray:value");',
+        $typeWarning,
+        '"App\\\\InheritedArray:value"',
+    ],
+    'intersection rejects string' => [
+        '$route->middleware("App\\\\IntersectionParameter:value");',
+        $typeWarning,
+        '"App\\\\IntersectionParameter:value"',
+    ],
+    'iterable rejects string' => [
+        '$route->middleware("App\\\\IterableParameter:value");',
+        $typeWarning,
+        '"App\\\\IterableParameter:value"',
+    ],
     'missing alias parameter' => ['$route->middleware("role");', $warning, '"role"'],
     'supplied alias parameter' => ['$route->middleware("role:admin");', []],
     'empty suffix is one argument' => ['$route->middleware("role:");', []],
@@ -113,9 +180,9 @@ foreach ($cases as $label => $case) {
     $line = substr_count($source, "\n");
     $expected[$line] = [
         $label,
-        $mode === 'native' || $codes !== $warning ? $codes : [],
+        $mode === 'native' ? $codes : [],
     ];
-    if ($mode === 'native' && $codes === $warning) {
+    if ($mode === 'native' && $codes !== []) {
         $expectedSpans[$line] = [$span];
     }
 }
@@ -180,7 +247,7 @@ foreach ($report['issues'] ?? [] as $issue) {
     ))[0];
     $line = $primary['span']['start']['line'] + 1;
     $actual[$line][] = $issue['code'];
-    if ($issue['code'] === $warning[0]) {
+    if (in_array($issue['code'], [$warning[0], $typeWarning[0]], true)) {
         $spans[$line][] = substr(
             $source,
             $primary['span']['start']['offset'],
@@ -205,7 +272,7 @@ foreach ($expected as $line => [$label, $codes]) {
             .$workspace,
         );
     }
-    if ($codes === $warning && ($spans[$line] ?? []) !== $expectedSpans[$line]) {
+    if ($codes !== [] && ($spans[$line] ?? []) !== $expectedSpans[$line]) {
         throw new RuntimeException($mode.' '.$label.': wrong literal span; inspect '.$workspace);
     }
     unset($actual[$line]);
