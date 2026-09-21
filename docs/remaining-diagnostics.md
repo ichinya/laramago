@@ -15,4 +15,4 @@ conditional on the documented contracts; unknown behavior stays with native Mago
 | Translations | Optional Mago Notes compare explicitly associated locale placeholders and selected replacement-name conventions, using current analyzed source hashes. Plural selection and runtime loading remain unresolved. See [translation source quality](translation-source-quality-diagnostics.md). |
 | Vite | Pending independent implementation. |
 | Query-local aggregates | Still SDK-blocked on both 1.48.1 and 1.49.0. The durable collision probe detects future context-field additions; an [upstream API proposal](query-aggregate-sdk-proposal.md) defines source identity and safe fresh-chain acceptance criteria. No production type approximation was added. |
-| Pest closure context | Pending SDK boundary review. |
+| Pest closure context | Still SDK-blocked on both 1.48.1 and 1.49.0. A checked-in real-engine regression covers identical cross-file contexts and explicit closure wrappers, retaining invalid-method/static-closure errors. See [SDK boundary and workaround](sdk-pest-closure-context.md). |

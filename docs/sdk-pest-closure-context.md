@@ -122,7 +122,47 @@ The annotation is a uniform, explicit contract. It cannot express two different
 file-selected Pest contexts on one global helper declaration, which is why the
 source-aware provider API is still needed.
 
-## Upstream references
+## Reproducible regression and upstream acceptance test
+
+Run the checked-in real-engine fixture without installing Pest or Laravel:
+
+```console
+php tests/pest-closure-sdk-boundary.php
+```
+
+On 2026-09-21 all ten assertions passed with both the installed Mago 1.48.1
+and a separately downloaded Mago 1.49.0 binary with its matching SDK. The
+fixture accepts `MAGO_BINARY` and `MAGO_SDK_AUTOLOAD` for paired upstream
+verification; normal package checks use the installed dependency. This does
+not establish whole-package compatibility with a newer release.
+
+The fixture creates two byte-identical test files and a minimal global `it`
+declaration, starts one actual SDK worker, and records both pre-argument
+requests. It asserts identical public request data, null argument types, and
+native diagnostics in both files. Explicit field-shape assertions force this
+boundary to be reconsidered when the SDK adds context; matching records alone
+must not become a permanent justification to keep the feature disabled.
+
+The same fixture verifies a usable workaround with two separately annotated
+wrappers: each sees its own class, calling the other class's method remains an
+error, and a static closure still rejects `$this`. Annotations express a
+project-owned contract; they do not prove that Pest binds the matching class at
+runtime. The fixture never executes analyzed source or loads application code.
+
+For an upstream fix, retain the identical file contents and select different
+contexts by the newly exposed caller identity. Require the following results:
+
+- Both callbacks receive different call-site identities, matching scan sources.
+- Selecting AlphaCase and BetaCase yields independent closure scopes.
+- Wrong-case methods and static-closure `$this` still produce diagnostics.
+- Reversed input order and multiple workers preserve the same per-file result.
+- An explicit existing `@param-closure-this` contract remains authoritative.
+
+Only the current boundary and explicit workaround are executable today; the
+source-aware acceptance cases require the new API. This probe is suitable for
+an upstream issue attachment, but no issue has been submitted automatically.
+
+## Source links
 
 - [Mago 1.48.1 callable-signature context](https://github.com/carthage-software/mago/blob/1.48.1/composer/src/Sdk/Analyzer/CallableSignatureProviderContext.php)
 - [Mago 1.48.1 invocation](https://github.com/carthage-software/mago/blob/1.48.1/composer/src/Sdk/Analyzer/Invocation.php)

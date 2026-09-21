@@ -1,0 +1,79 @@
+<?php
+
+declare(strict_types=1);
+
+use Mago\Sdk\Analyzer\CallableSignatureOverride;
+use Mago\Sdk\Analyzer\CallableSignatureProviderContext;
+use Mago\Sdk\Analyzer\EffectiveCallableSignature;
+use Mago\Sdk\Analyzer\FunctionReturnTypeProvider;
+use Mago\Sdk\Analyzer\FunctionTarget;
+use Mago\Sdk\Analyzer\Plugin;
+use Mago\Sdk\Analyzer\PluginDefinition;
+use Mago\Sdk\Analyzer\PluginRegistry;
+use Mago\Sdk\Analyzer\ReturnTypeProviderContext;
+use Mago\Sdk\Analyzer\Type;
+use Mago\Sdk\Extension;
+use Mago\Sdk\Worker;
+
+require $argv[1];
+
+final class AuditProvider implements FunctionReturnTypeProvider, CallableSignatureOverride
+{
+    public function getTargets(): array
+    {
+        return [FunctionTarget::exact('it')];
+    }
+
+    public function getCallableSignature(CallableSignatureProviderContext $context): ?EffectiveCallableSignature
+    {
+        $invocation = $context->invocation;
+        $record = [
+            'contextFields' => array_keys(get_object_vars($context)),
+            'invocationFields' => array_keys(get_object_vars($invocation)),
+            'kind' => $invocation->kind->name,
+            'declaringClass' => $invocation->declaringClass,
+            'receiverType' => $invocation->receiverType === null ? null : (string) $invocation->receiverType,
+            'name' => $invocation->name,
+            'span' => [$invocation->span->start, $invocation->span->end],
+            'arguments' => array_map(
+                static fn ($argument): array => [
+                    'name' => $argument->name,
+                    'unpacked' => $argument->unpacked,
+                    'placeholder' => $argument->placeholder,
+                    'span' => [$argument->span->start, $argument->span->end],
+                    'expression' => $argument->expression,
+                    'type' => $argument->type === null ? null : (string) $argument->type,
+                ],
+                $invocation->arguments,
+            ),
+        ];
+        file_put_contents($GLOBALS['argv'][2], json_encode($record, JSON_THROW_ON_ERROR)."\n", FILE_APPEND | LOCK_EX);
+
+        return null;
+    }
+
+    public function getReturnType(ReturnTypeProviderContext $context): ?Type
+    {
+        return null;
+    }
+}
+
+final class AuditPlugin implements Plugin
+{
+    public function getDefinition(): PluginDefinition
+    {
+        return new PluginDefinition('pest-context-audit', 'Pest context audit', 'Records signature context.');
+    }
+
+    public function register(PluginRegistry $registry): void
+    {
+        $registry->registerFunctionReturnTypeProvider(new AuditProvider);
+    }
+}
+
+(new Worker(new Extension(
+    identifier: 'local/pest-context-audit',
+    name: 'Pest context audit',
+    version: '1.0.0',
+    analyzerPlugins: [new AuditPlugin],
+)))->run();
