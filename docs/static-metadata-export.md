@@ -34,7 +34,7 @@ snapshot and then when watched source state or error status changes. It polls
 `metadata`, or `status: "error"` with `metadata: null` and generic `errors`.
 Parse/read failures and truncated exports invalidate the prior ready snapshot.
 Stop the command with Ctrl+C or the host process interrupt. `--output` is not
-accepted in watch mode, and invalid options exit with status 2. Watch mode only
+accepted in watch mode, and invalid options exit with status 2. This default mode
 refreshes static configuration metadata; it does not run incremental Mago
 analysis or reuse the analyzer worker.
 
@@ -75,8 +75,9 @@ limit is reached. Consumers should check `schemaVersion`, source hashes, and
 require explicit, repeatable `--source` paths relative to the project root.
 Absolute paths, parent traversal and paths resolving outside the project are
 rejected in the JSON `errors` list. No application route files, locale or loader
-paths are discovered by running Laravel. Configuration filters and `--watch`
-cannot be combined with these kinds; invalid option combinations exit with status 2.
+paths are discovered by running Laravel. Configuration filters cannot be combined
+with these kinds; invalid option combinations exit with status 2. Route metadata
+supports selected-source watch as described below; translation watch is not enabled.
 
 Both kinds return `schemaVersion: 1`, `projectRoot`, `scope`, `declarations`,
 `errors`, `truncated` and `truncationReasons`. Each declaration identifies an
@@ -169,3 +170,17 @@ catalog. Requested and resolved sources must be project-contained JSON files.
 Malformed input produces generic errors without source excerpts. Limits are
 256 files, 1 MiB per file, 8 MiB total source bytes, 20,000 declarations, and JSON
 decode depth 512. Errors and truncation remain visible in the envelope.
+
+## Selected route source watch
+
+Run `laramago-metadata --kind routes --source routes/web.php --watch` to poll an
+explicit fixed selection of PHP route sources. Each JSONL event replaces the
+previous snapshot. Source edits, removal, read/parse errors, racing edits, and
+truncated exports invalidate stale metadata; recovery publishes fresh metadata.
+Unchanged ready or error states do not emit repeated events.
+
+The watcher checks requested and resolved extensions and project containment
+before reading, hashes exact bytes and canonical paths, and rescans after export.
+It does not discover files, execute application PHP, or perform incremental Mago
+analysis. Limits are 256 selected files, 1 MiB per file and 8 MiB total per scan.
+The existing interval and interrupt options apply. Restart to change the selection.

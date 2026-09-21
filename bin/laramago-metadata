@@ -9,6 +9,7 @@ use Ichinya\Laramago\Metadata\EnvironmentTemplateDuplicates;
 use Ichinya\Laramago\Metadata\EnvironmentTemplateReferences;
 use Ichinya\Laramago\Metadata\JsonTranslationMetadataExport;
 use Ichinya\Laramago\Metadata\RouteMetadataExport;
+use Ichinya\Laramago\Metadata\SelectedSourceWatch;
 use Ichinya\Laramago\Metadata\TranslationMetadataExport;
 use Ichinya\Laramago\Metadata\TranslationPlaceholderExport;
 
@@ -139,8 +140,8 @@ if (! in_array(
         $error = 'This metadata kind requires at least one --source file.';
     } elseif ($arrayKeys !== [] || $keys !== []) {
         $error = 'Configuration filters require --kind configuration.';
-    } elseif ($watchMode) {
-        $error = '--watch currently supports configuration metadata only.';
+    } elseif ($watchMode && $kind !== 'routes') {
+        $error = '--watch currently supports configuration and route metadata only.';
     }
 }
 foreach ($arrayKeys as $arrayKey) {
@@ -174,7 +175,9 @@ $export = static fn (): array => match ($kind) {
     default => (new StaticMetadataExport)->configuration($root, $arrayKeys, $keys),
 };
 if ($watchMode) {
-    $watch = new ConfigurationWatch($root);
+    $watch = $kind === 'routes'
+        ? new SelectedSourceWatch($root, $files, ['php'])
+        : new ConfigurationWatch($root);
     $watch->run(
         $export,
         static function (array $event): void {
