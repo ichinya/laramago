@@ -9,7 +9,7 @@ This follow-up revisits the 35 deferred research items and four remaining metada
 | 29 | Related model projection columns | pending |
 | 34 | Query-local aggregate result properties | pending |
 | 41 | Configuration push and prepend targets | pending |
-| 46 | Environment template interpolation references | pending |
+| 46 | Environment template interpolation references | implemented; Explicit dotenv-template CLI export provides declaration and interpolation-name spans without values or runtime resolution. Requested and resolved template filenames are enforced; 58 focused checks, CLI isolation and Composer proxy tests pass. |
 | 47 | Duplicate environment template declarations | pending |
 | 48 | Vite environment name references | pending |
 | 57 | Conflicting active route names | pending |

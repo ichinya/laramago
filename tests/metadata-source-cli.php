@@ -8,6 +8,8 @@ mkdir($fixture);
 mkdir($fixture.'/routes');
 mkdir($fixture.'/lang');
 mkdir($fixture.'/vendor');
+file_put_contents($fixture.'/.env.example', 'SOURCE=PRIVATE_TEMPLATE_VALUE'."\n".'TARGET="${SOURCE}"');
+file_put_contents($fixture.'/.env', 'SECRET=PRIVATE_ENV_VALUE');
 file_put_contents(
     $fixture.'/vendor/autoload.php',
     '<?php throw new RuntimeException("Application autoload executed");',
@@ -77,6 +79,24 @@ try {
         throw new RuntimeException('Placeholder mode must export partial candidates without message values.');
     }
     echo "PASS: placeholder CLI dispatch and value privacy\n";
+    [$exit, $stdout, $stderr] = $run(['--kind', 'environment-references', '--source', '.env.example']);
+    $environment = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+    if (
+        $exit !== 0
+        || $stderr !== ''
+        || $environment['scope']['kind'] !== 'environment-references'
+        || array_column($environment['references'], 'name') !== ['SOURCE']
+        || str_contains($stdout, 'PRIVATE_TEMPLATE_VALUE')
+        || str_contains($stdout, 'PRIVATE_ENV_VALUE')
+    ) {
+        throw new RuntimeException('Environment mode must expose names only from selected templates.');
+    }
+    [$exit, $stdout] = $run(['--kind', 'environment-references', '--source', '.env']);
+    $environment = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+    if ($exit !== 0 || $environment['errors'] === [] || $environment['declarations'] !== []) {
+        throw new RuntimeException('Environment reference mode must reject actual environment files.');
+    }
+    echo "PASS: environment CLI dispatch and template boundary\n";
     foreach ([
         ['--kind', 'unknown'],
         ['--kind', 'routes'],
@@ -91,7 +111,7 @@ try {
     }
     echo "PASS: incompatible metadata modes are rejected\n";
 } finally {
-    foreach (['routes/web.php', 'lang/messages.php', 'vendor/autoload.php'] as $file) {
+    foreach (['routes/web.php', 'lang/messages.php', 'vendor/autoload.php', '.env.example', '.env'] as $file) {
         unlink($fixture.'/'.$file);
     }
     foreach (['routes', 'lang', 'vendor'] as $directory) {

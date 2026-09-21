@@ -1,5 +1,9 @@
 # Static metadata JSON export
 
+The `environment-references` source mode additionally exports variable names and
+interpolation locations from explicit dotenv templates; see
+[environment template references](environment-template-references.md).
+
 `vendor/bin/laramago-metadata` exports configuration, route name and translation key declarations from PHP
 syntax without bootstrapping Laravel. It does not load the application's Composer
 autoload file, execute configuration expressions, read `.env`, or connect to a
