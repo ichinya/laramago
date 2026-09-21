@@ -132,19 +132,50 @@ if ($binding !== null) {
 file_put_contents($workspace.'/composer.json', json_encode([
     'extra' => [
         'laramago' => [
-            'named-routes' => ['complete' => true, 'missing-route-resolver' => false, 'names' => ['home']],
+            'named-routes' => [
+                'complete' => true,
+                'missing-route-resolver' => false,
+                'names' => ['home', 'account.show'],
+            ],
+            'named-route-parameters' => [
+                'native-url-generation' => true,
+                'url-defaults-complete' => true,
+                'routes' => ['account.show' => ['account']],
+            ],
             'binding-files' => $binding !== null ? ['bootstrap/bindings.php'] : [],
         ],
     ],
 ], JSON_THROW_ON_ERROR));
 $missing = ['ichinya/laramago/laramago-missing-named-route'];
+$parameterMissing = ['ichinya/laramago/laramago-missing-named-route-parameter'];
 $urlMissing = in_array($mode, ['', '--custom-doc', '--redirect-binding', '--changed-signed-signature'], true)
     ? $missing
     : [];
 $redirectMissing = in_array($mode, ['', '--custom-doc', '--changed-signed-signature'], true) ? $missing : [];
+$urlParameterMissing = in_array($mode, ['', '--custom-doc', '--redirect-binding', '--changed-signed-signature'], true)
+    ? $parameterMissing
+    : [];
+$redirectParameterMissing = in_array($mode, ['', '--custom-doc', '--changed-signed-signature'], true)
+    ? $parameterMissing
+    : [];
 $cases = [
     'known URL route' => ['NativeURL::route("home");', 'void', []],
     'known redirect route' => ['Redirect::route("home");', 'void', []],
+    'URL route required parameter omitted' => [
+        'NativeURL::route("account.show");',
+        'void',
+        $urlParameterMissing,
+    ],
+    'URL route required parameter supplied' => [
+        'NativeURL::route("account.show", ["account" => 7]);',
+        'void',
+        [],
+    ],
+    'redirect route required parameter omitted' => [
+        'Redirect::route("account.show");',
+        'void',
+        $redirectParameterMissing,
+    ],
     'imported URL alias missing' => ['NativeURL::route("typo");', 'void', $urlMissing],
     'fully qualified URL missing' => ['\\Illuminate\\Support\\Facades\\URL::route("typo");', 'void', $urlMissing],
     'group import redirect missing' => ['Redirect::route("typo");', 'void', $redirectMissing],
@@ -182,7 +213,39 @@ foreach (['signedRoute', 'temporarySignedRoute'] as $method) {
     )
         ? []
         : $missing;
+    $signedUrlParameterMissing = $mode === '--changed-signed-signature' ? [] : $urlParameterMissing;
+    $signedRedirectParameterMissing = $mode === '--changed-signed-signature' ? [] : $redirectParameterMissing;
+    $directUrlParameterMissing = in_array($mode, ['--custom-url-method', '--changed-signed-signature'], true)
+        ? []
+        : $parameterMissing;
+    $directRedirectParameterMissing = in_array(
+        $mode,
+        ['--custom-url-method', '--url-binding', '--url-contract-binding', '--changed-signed-signature'],
+        true,
+    )
+        ? []
+        : $parameterMissing;
     $cases[$method.' known URL'] = ['NativeURL::'.$method.'("home"'.$expiration.');', 'void', []];
+    $cases[$method.' URL required parameter omitted'] = [
+        'NativeURL::'.$method.'("account.show"'.$expiration.');',
+        'void',
+        $signedUrlParameterMissing,
+    ];
+    $cases[$method.' redirect required parameter omitted'] = [
+        'Redirect::'.$method.'("account.show"'.$expiration.');',
+        'void',
+        $signedRedirectParameterMissing,
+    ];
+    $cases[$method.' direct URL required parameter omitted'] = [
+        '$url->'.$method.'("account.show"'.$expiration.');',
+        'void',
+        $directUrlParameterMissing,
+    ];
+    $cases[$method.' direct redirect required parameter omitted'] = [
+        '$redirect->'.$method.'("account.show"'.$expiration.');',
+        'void',
+        $directRedirectParameterMissing,
+    ];
     $cases[$method.' URL literal'] = ['NativeURL::'.$method.'("typo"'.$expiration.');', 'void', $urlMissing];
     $cases[$method.' redirect literal'] = ['Redirect::'.$method.'("typo"'.$expiration.');', 'void', $redirectMissing];
     $cases[$method.' named URL'] = [
@@ -239,7 +302,7 @@ $lines = $spans = [];
 $nativeCodes = [];
 foreach ($cases as $name => [$body, $return, $codes]) {
     foreach ($codes as $code) {
-        if ($code !== $missing[0]) {
+        if (! in_array($code, [$missing[0], $parameterMissing[0]], true)) {
             $nativeCodes[] = $code;
         }
     }

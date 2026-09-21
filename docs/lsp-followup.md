@@ -13,7 +13,7 @@ This follow-up revisits the 35 deferred research items and four remaining metada
 | 47 | Duplicate environment template declarations | implemented; Advisory exact-case duplicate declarations within explicitly selected dotenv templates; names-only first and repeated source locations, errors and uncertainty preserved. Thirty focused checks plus CLI and installed Composer proxy checks pass. |
 | 48 | Vite environment name references | partial; Explicit JS/TS files export bounded direct import.meta.env lexical completion candidates with original name spans and uncertainty. Forty-one focused checks, CLI and installed proxy checks pass. Confirmed AST references, frontend diagnostics and unsupported syntax still require a maintained JS/TS parser. |
 | 57 | Conflicting active route names | partial; Advisory duplicate route-name metadata exports both source locations, group provenance and retained errors/limits. Twenty-one focused checks pass. Active conflict detection remains deferred because effective registration, replacement and final route state are not proven. |
-| 58 | Required named-route parameters | pending |
+| 58 | Required named-route parameters | implemented; Independent effective URL/default assertions check required URI keys in native named-route methods, helpers and facades. Null/empty missing, false/zero accepted; positional/dynamic/domain cases defer. Fifty-six route cases, sixty-six facade cases, independent-contract and custom-dispatch guards pass. |
 | 59 | Domain optional and default route parameters | pending |
 | 60 | Route declaration diagnostic locations | pending |
 | 68 | Controller parameter route and DI contracts | pending |

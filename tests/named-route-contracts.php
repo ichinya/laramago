@@ -13,6 +13,7 @@ $customUrlMethod = in_array('--custom-url-method', $argv, true);
 $customRedirectMethod = in_array('--custom-redirect-method', $argv, true);
 $customDoc = in_array('--custom-doc', $argv, true);
 $literalFiles = in_array('--literal-files', $argv, true);
+$parametersOnly = in_array('--parameters-only', $argv, true);
 $workspace = str_replace('\\', '/', sys_get_temp_dir()).'/laramago named route contracts '.bin2hex(random_bytes(8));
 mkdir($workspace);
 $framework = $workspace.'/vendor/laravel/framework/src/Illuminate/Routing';
@@ -76,23 +77,46 @@ if ($literalFiles) {
 file_put_contents($workspace.'/composer.json', json_encode([
     'extra' => [
         'laramago' => [
-            'named-routes' => [
-                'complete' => true,
-                'missing-route-resolver' => false,
-                'names' => $literalFiles ? ['provider.added'] : ['home', 'provider.added'],
-                ...($literalFiles ? ['files' => ['routes/web.php']] : []),
+            'named-routes' => $parametersOnly
+                ? null
+                : [
+                    'complete' => true,
+                    'missing-route-resolver' => false,
+                    'names' => $literalFiles
+                        ? ['provider.added', 'account.show']
+                        : ['home', 'provider.added', 'account.show'],
+                    ...($literalFiles ? ['files' => ['routes/web.php']] : []),
+                ],
+            'named-route-parameters' => [
+                'native-url-generation' => true,
+                'url-defaults-complete' => true,
+                'routes' => ['account.show' => ['account']],
             ],
             'binding-files' => $customUrlBinding ? ['bootstrap/bindings.php'] : [],
         ],
     ],
 ], JSON_THROW_ON_ERROR));
-$missing = ['ichinya/laramago/laramago-missing-named-route'];
+$missingCode = 'ichinya/laramago/laramago-missing-named-route';
+$missing = $parametersOnly ? [] : [$missingCode];
+$parameterMissing = ['ichinya/laramago/laramago-missing-named-route-parameter'];
 $urlMethodMissing = $customUrlMethod ? [] : $missing;
 $redirectMethodMissing = $customRedirectMethod ? [] : $missing;
+$urlMethodParameterMissing = $customUrlMethod ? [] : $parameterMissing;
+$redirectMethodParameterMissing = $customRedirectMethod || $customUrlMethod || $customUrlBinding
+    ? []
+    : $parameterMissing;
 $routeHelperMissing = $customApp || $customUrlBinding || $customUrlMethod ? [] : $missing;
 $redirectHelperMissing = $customApp || $customRedirect || $customUrlBinding || $customUrlMethod || $customRedirectMethod
     ? []
     : $missing;
+$routeHelperParameterMissing = $customApp || $customUrlBinding || $customUrlMethod ? [] : $parameterMissing;
+$redirectHelperParameterMissing = $customApp
+|| $customRedirect
+|| $customUrlBinding
+|| $customUrlMethod
+|| $customRedirectMethod
+    ? []
+    : $parameterMissing;
 $cases = [
     ...(
         $literalFiles
@@ -103,6 +127,40 @@ $cases = [
     ),
     'known route' => ['$url->route("home");', 'void', []],
     'provider route listed' => ['$url->route("provider.added");', 'void', []],
+    'required parameter omitted' => ['$url->route("account.show");', 'void', $urlMethodParameterMissing],
+    'required parameter supplied' => ['$url->route("account.show", ["account" => 7]);', 'void', []],
+    'required parameter named argument supplied' => [
+        '$url->route(parameters: ["account" => 7], name: "account.show");',
+        'void',
+        [],
+    ],
+    'required parameter null' => [
+        '$url->route("account.show", ["account" => null]);',
+        'void',
+        $urlMethodParameterMissing,
+    ],
+    'required parameter empty string' => [
+        '$url->route("account.show", ["account" => ""]);',
+        'void',
+        $urlMethodParameterMissing,
+    ],
+    'required parameter false supplied' => ['$url->route("account.show", ["account" => false]);', 'void', []],
+    'required parameter zero supplied' => ['$url->route("account.show", ["account" => 0]);', 'void', []],
+    'required parameter string zero supplied' => ['$url->route("account.show", ["account" => "0"]);', 'void', []],
+    'required parameter dynamic value deferred' => ['$url->route("account.show", ["account" => $name]);', 'void', []],
+    'required parameter absent from closed map' => [
+        '$url->route("account.show", ["query" => 7]);',
+        'void',
+        $urlMethodParameterMissing,
+    ],
+    'positional parameters deferred' => ['$url->route("account.show", [7]);', 'void', []],
+    'dynamic parameters deferred' => ['$url->route("account.show", $name);', 'void', []],
+    'numeric fallback deferred' => ['$url->route("account.show", ["account" => null, 0 => 7]);', 'void', []],
+    'redirect required parameter omitted' => [
+        '$redirect->route("account.show");',
+        'void',
+        $redirectMethodParameterMissing,
+    ],
     'missing URL route' => ['$url->route("typo");', 'void', $urlMethodMissing],
     'missing redirect route' => ['$redirect->route("typo");', 'void', $redirectMethodMissing],
     'named URL argument' => ['$url->route(name: "typo");', 'void', $urlMethodMissing],
@@ -114,10 +172,21 @@ $cases = [
     'subclass deferred' => ['(new \Illuminate\Routing\ExtendedUrlGenerator)->route("typo");', 'void', []],
     'redirect subclass deferred' => ['(new \Illuminate\Routing\ExtendedRedirector)->route("typo");', 'void', []],
     'known route helper' => ['route("home");', 'void', []],
+    'route helper required parameter omitted' => [
+        'route("account.show");',
+        'void',
+        $routeHelperParameterMissing,
+    ],
+    'route helper required parameter supplied' => ['route("account.show", ["account" => 7]);', 'void', []],
     'missing route helper' => ['route("typo");', 'void', $routeHelperMissing, true],
     'missing fully-qualified route helper' => ['\\route("typo");', 'void', $routeHelperMissing, true],
     'missing imported route helper' => ['named_route("typo");', 'void', $routeHelperMissing, true],
     'missing redirect helper' => ['to_route("typo");', 'void', $redirectHelperMissing, true],
+    'redirect helper required parameter omitted' => [
+        'to_route("account.show");',
+        'void',
+        $redirectHelperParameterMissing,
+    ],
     'named route helper argument' => ['route(name: "typo");', 'void', $routeHelperMissing, true],
     'named redirect helper argument' => ['to_route(route: "typo");', 'void', $redirectHelperMissing, true],
     'dynamic helper name deferred' => ['route($name);', 'void', []],
@@ -147,7 +216,7 @@ foreach ($cases as $name => $case) {
         'function scenario'.count($lines).'(UrlGenerator $url, Redirector $redirect, string $name) { '.$body.' }'."\n";
     $lines[substr_count($source, "\n")] = [$name, $codes];
     if (($case[3] ?? false) === true) {
-        $spans[substr_count($source, "\n")] = in_array($missing[0], $codes, true) ? ['"typo"'] : [];
+        $spans[substr_count($source, "\n")] = in_array($missingCode, $codes, true) ? ['"typo"'] : [];
     }
 }
 $source .= <<<'PHP'
@@ -218,7 +287,7 @@ foreach ($report['issues'] ?? [] as $issue) {
         static fn (array $a): bool => $a['kind'] === 'Primary',
     ))[0];
     $actual[$primary['span']['start']['line'] + 1][] = $issue['code'];
-    if ($issue['code'] === $missing[0]) {
+    if ($issue['code'] === $missingCode) {
         $actualSpans[$primary['span']['start']['line'] + 1][] = substr(
             $source,
             $primary['span']['start']['offset'],
@@ -253,31 +322,80 @@ if ($actual !== []) {
     throw new RuntimeException('Unexpected diagnostics outside named-route scenarios; inspect '.$workspace);
 }
 foreach ([
-    'no catalog' => null,
-    'incomplete catalog' => ['complete' => false, 'missing-route-resolver' => false, 'names' => []],
-    'fallback unspecified' => ['complete' => true, 'names' => []],
-    'fallback enabled' => ['complete' => true, 'missing-route-resolver' => true, 'names' => []],
-    'malformed names' => ['complete' => true, 'missing-route-resolver' => false, 'names' => ['home', false]],
+    'no catalog' => ['named-routes' => null],
+    'incomplete catalog' => [
+        'named-routes' => ['complete' => false, 'missing-route-resolver' => false, 'names' => []],
+    ],
+    'fallback unspecified' => ['named-routes' => ['complete' => true, 'names' => []]],
+    'fallback enabled' => [
+        'named-routes' => ['complete' => true, 'missing-route-resolver' => true, 'names' => []],
+    ],
+    'malformed names' => [
+        'named-routes' => [
+            'complete' => true,
+            'missing-route-resolver' => false,
+            'names' => ['home', false],
+        ],
+    ],
+    'required parameters native semantics unasserted' => [
+        'named-route-parameters' => [
+            'native-url-generation' => false,
+            'url-defaults-complete' => true,
+            'routes' => ['account.show' => ['account']],
+        ],
+    ],
+    'required parameters defaults incomplete' => [
+        'named-route-parameters' => [
+            'native-url-generation' => true,
+            'url-defaults-complete' => false,
+            'routes' => ['account.show' => ['account']],
+        ],
+    ],
+    'required parameters malformed route map' => [
+        'named-route-parameters' => [
+            'native-url-generation' => true,
+            'url-defaults-complete' => true,
+            'routes' => [['account']],
+        ],
+    ],
+    'required parameters duplicate key' => [
+        'named-route-parameters' => [
+            'native-url-generation' => true,
+            'url-defaults-complete' => true,
+            'routes' => ['account.show' => ['account', 'account']],
+        ],
+    ],
+    'required parameters numeric key' => [
+        'named-route-parameters' => [
+            'native-url-generation' => true,
+            'url-defaults-complete' => true,
+            'routes' => ['account.show' => ['0']],
+        ],
+    ],
     ...(
         $literalFiles
             ? [
                 'unreadable route source' => [
-                    'complete' => true,
-                    'missing-route-resolver' => false,
-                    'names' => [],
-                    'files' => ['missing.php'],
+                    'named-routes' => [
+                        'complete' => true,
+                        'missing-route-resolver' => false,
+                        'names' => [],
+                        'files' => ['missing.php'],
+                    ],
                 ],
                 'unsupported route source' => [
-                    'complete' => true,
-                    'missing-route-resolver' => false,
-                    'names' => [],
-                    'files' => ['routes/web.php', 'cases.php'],
+                    'named-routes' => [
+                        'complete' => true,
+                        'missing-route-resolver' => false,
+                        'names' => [],
+                        'files' => ['routes/web.php', 'cases.php'],
+                    ],
                 ],
             ] : []
     ),
-] as $label => $catalog) {
+] as $label => $options) {
     file_put_contents($workspace.'/composer.json', json_encode([
-        'extra' => ['laramago' => ['named-routes' => $catalog]],
+        'extra' => ['laramago' => $options],
     ], JSON_THROW_ON_ERROR));
     $process = proc_open(
         [...$command, '--workspace', $workspace, 'analyze', '--reporting-format=json'],

@@ -6,6 +6,7 @@ namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NamedRouteCatalog;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\NamedRouteParameterContract;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Mago\Sdk\Analyzer\FileAnalysisRequirement;
 use Mago\Sdk\Analyzer\NodeAnalysisContext;
@@ -25,6 +26,7 @@ use PhpParser\ParserFactory;
 final class NamedRouteHelperContractsHook implements NodeAnalysisHook
 {
     private readonly NamedRouteCatalog $catalog;
+    private readonly NamedRouteParameterContract $routeParameters;
     private readonly ContainerBindings $bindings;
     private readonly PhpSource $source;
     private ?string $sourceHash = null;
@@ -36,6 +38,7 @@ final class NamedRouteHelperContractsHook implements NodeAnalysisHook
     public function __construct(string $root = '.')
     {
         $this->catalog = new NamedRouteCatalog($root);
+        $this->routeParameters = new NamedRouteParameterContract($root);
         $this->bindings = new ContainerBindings($root);
         $this->source = new PhpSource($root);
     }
@@ -52,7 +55,7 @@ final class NamedRouteHelperContractsHook implements NodeAnalysisHook
 
     public function analyze(NodeAnalysisContext $context): void
     {
-        if (! $this->catalog->enabled()) {
+        if (! $this->catalog->enabled() && ! $this->routeParameters->enabled()) {
             return;
         }
         $call = $this->call($context);
@@ -73,21 +76,41 @@ final class NamedRouteHelperContractsHook implements NodeAnalysisHook
         $parameters = $helper === 'route'
             ? ['name', 'parameters', 'absolute']
             : ['route', 'parameters', 'status', 'headers'];
-        $name = $this->routeName($call, $parameters);
-        if (! $name instanceof Node\Scalar\String_ || ! $this->catalog->missing($name->value)) {
+        $arguments = $this->arguments($call, $parameters);
+        if ($arguments === null) {
             return;
         }
-        $context->report(
-            Level::Warning,
-            'laramago-missing-named-route',
-            Issue::at(
-                'Named route "'.$name->value.'" is absent from the explicitly complete named-routes catalog.',
-                new SourceLocation(
-                    $context->source->path,
-                    new Span($name->getStartFilePos(), $name->getEndFilePos() + 1),
+        $name = $arguments[$parameters[0]] ?? null;
+        if (! $name instanceof Node\Scalar\String_) {
+            return;
+        }
+        if ($this->catalog->missing($name->value)) {
+            $context->report(
+                Level::Warning,
+                'laramago-missing-named-route',
+                Issue::at(
+                    'Named route "'.$name->value.'" is absent from the explicitly complete named-routes catalog.',
+                    new SourceLocation(
+                        $context->source->path,
+                        new Span($name->getStartFilePos(), $name->getEndFilePos() + 1),
+                    ),
                 ),
-            ),
-        );
+            );
+        }
+        $missing = $this->routeParameters->missing($name->value, $arguments['parameters'] ?? null);
+        if ($missing !== null && $missing !== []) {
+            $context->report(
+                Level::Warning,
+                'laramago-missing-named-route-parameter',
+                Issue::at(
+                    'Named route "'.$name->value.'" is missing required URI '.self::keyMessage($missing).'.',
+                    new SourceLocation(
+                        $context->source->path,
+                        new Span($name->getStartFilePos(), $name->getEndFilePos() + 1),
+                    ),
+                ),
+            );
+        }
     }
 
     private function functionName(NodeAnalysisContext $context, Node\Expr\FuncCall $call): string
@@ -251,35 +274,45 @@ final class NamedRouteHelperContractsHook implements NodeAnalysisHook
         return true;
     }
 
-    /** @param list<string> $parameters */
-    private function routeName(Node\Expr\FuncCall $call, array $parameters): ?Node\Expr
+    /**
+     * @param  list<string>  $parameters
+     * @return array<string, Node\Expr>|null
+     */
+    private function arguments(Node\Expr\FuncCall $call, array $parameters): ?array
     {
         if (count($call->args) > count($parameters)) {
             return null;
         }
-        $name = null;
+        $arguments = [];
+        $named = false;
         foreach ($call->args as $offset => $argument) {
+            $parameter = $argument instanceof Node\Arg
+                ? $argument->name?->toString() ?? $parameters[$offset] ?? null
+                : null;
             if (
                 ! $argument instanceof Node\Arg
                 || $argument->unpack
-                || $argument->name !== null
-                && ! in_array($argument->name->toString(), $parameters, true)
+                || $parameter === null
+                || ! in_array($parameter, $parameters, true)
+                || array_key_exists($parameter, $arguments)
+                || $named
+                && $argument->name === null
             ) {
                 return null;
             }
-            if (
-                $argument->name === null
-                && $offset === 0
-                || $argument->name?->toString() === $parameters[0]
-            ) {
-                if ($name !== null) {
-                    return null;
-                }
-                $name = $argument->value;
-            }
+            $arguments[$parameter] = $argument->value;
+            $named = $argument->name !== null;
         }
 
-        return $name;
+        return $arguments;
+    }
+
+    /** @param list<string> $keys */
+    private static function keyMessage(array $keys): string
+    {
+        $quoted = array_map(static fn (string $key): string => '"'.$key.'"', $keys);
+
+        return (count($quoted) === 1 ? 'parameter ' : 'parameters ').implode(', ', $quoted);
     }
 
     private function call(NodeAnalysisContext $context): ?Node\Expr\FuncCall

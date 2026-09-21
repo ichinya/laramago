@@ -6,6 +6,7 @@ namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NamedRouteCatalog;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\NamedRouteParameterContract;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeFacade;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\SignedRouteMethods;
 use Mago\Sdk\Analyzer\FileAnalysisRequirement;
@@ -26,6 +27,7 @@ use PhpParser\ParserFactory;
 final class NamedRouteFacadeContractsHook implements NodeAnalysisHook
 {
     private readonly NamedRouteCatalog $catalog;
+    private readonly NamedRouteParameterContract $routeParameters;
     private readonly ContainerBindings $bindings;
     private readonly NativeFacade $facade;
     private readonly SignedRouteMethods $signed;
@@ -36,6 +38,7 @@ final class NamedRouteFacadeContractsHook implements NodeAnalysisHook
     public function __construct(string $root = '.')
     {
         $this->catalog = new NamedRouteCatalog($root);
+        $this->routeParameters = new NamedRouteParameterContract($root);
         $this->bindings = new ContainerBindings($root);
         $this->facade = new NativeFacade($root);
         $this->signed = new SignedRouteMethods($root);
@@ -53,7 +56,7 @@ final class NamedRouteFacadeContractsHook implements NodeAnalysisHook
 
     public function analyze(NodeAnalysisContext $context): void
     {
-        if (! $this->catalog->enabled()) {
+        if (! $this->catalog->enabled() && ! $this->routeParameters->enabled()) {
             return;
         }
         $call = $this->call($context);
@@ -130,20 +133,36 @@ final class NamedRouteFacadeContractsHook implements NodeAnalysisHook
             $arguments[$parameter] = $argument->value;
         }
         $name = $arguments[$parameters[0]] ?? null;
-        if (! $name instanceof Node\Scalar\String_ || ! $this->catalog->missing($name->value)) {
+        if (! $name instanceof Node\Scalar\String_) {
             return;
         }
-        $context->report(
-            Level::Warning,
-            'laramago-missing-named-route',
-            Issue::at(
-                'Named route "'.$name->value.'" is absent from the explicitly complete named-routes catalog.',
-                new SourceLocation(
-                    $context->source->path,
-                    new Span($name->getStartFilePos(), $name->getEndFilePos() + 1),
+        if ($this->catalog->missing($name->value)) {
+            $context->report(
+                Level::Warning,
+                'laramago-missing-named-route',
+                Issue::at(
+                    'Named route "'.$name->value.'" is absent from the explicitly complete named-routes catalog.',
+                    new SourceLocation(
+                        $context->source->path,
+                        new Span($name->getStartFilePos(), $name->getEndFilePos() + 1),
+                    ),
                 ),
-            ),
-        );
+            );
+        }
+        $missing = $this->routeParameters->missing($name->value, $arguments['parameters'] ?? null);
+        if ($missing !== null && $missing !== []) {
+            $context->report(
+                Level::Warning,
+                'laramago-missing-named-route-parameter',
+                Issue::at(
+                    'Named route "'.$name->value.'" is missing required URI '.self::keyMessage($missing).'.',
+                    new SourceLocation(
+                        $context->source->path,
+                        new Span($name->getStartFilePos(), $name->getEndFilePos() + 1),
+                    ),
+                ),
+            );
+        }
     }
 
     private function call(NodeAnalysisContext $context): ?Node\Expr\StaticCall
@@ -166,5 +185,13 @@ final class NamedRouteFacadeContractsHook implements NodeAnalysisHook
         }
 
         return $this->calls[$context->node->span->start.':'.$context->node->span->end] ?? null;
+    }
+
+    /** @param list<string> $keys */
+    private static function keyMessage(array $keys): string
+    {
+        $quoted = array_map(static fn (string $key): string => '"'.$key.'"', $keys);
+
+        return (count($quoted) === 1 ? 'parameter ' : 'parameters ').implode(', ', $quoted);
     }
 }

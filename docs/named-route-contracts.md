@@ -57,6 +57,58 @@ checks. An incomplete extraction never enables negative diagnostics, even when
 some names were extracted successfully. Duplicate names, resource expansion,
 route parameters and source-location catalogs are separate concerns.
 
+Required URI parameters use a separate, explicit effective URL-generation
+contract. They are never inferred from the names catalog or route declarations:
+
+```json
+{
+  "extra": {
+    "laramago": {
+      "named-route-parameters": {
+        "native-url-generation": true,
+        "url-defaults-complete": true,
+        "routes": {
+          "account.show": ["account"],
+          "home": []
+        }
+      }
+    }
+  }
+}
+```
+
+Each route entry is an exact list of required URI keys that remain immediately
+before the analyzed calls after all effective `UrlGenerator::defaults()` values
+and binding-field-qualified defaults have been considered. `native-url-generation:
+true` asserts that these calls use Laravel's native parameter mapping semantics;
+`url-defaults-complete: true` asserts that no unlisted effective URL default can
+satisfy a listed key. This is stronger than describing route declarations:
+`Route::defaults()` affects inbound route parameters and does not establish a URL
+generator default. Keep this contract synchronized with providers or middleware
+that call `URL::defaults()`. The contract is independent of `named-routes`; either
+diagnostic can be enabled without the other.
+
+The lists contain URI keys only. Required domain placeholders, optional
+placeholders and declaration/default extraction are outside this contract. A
+malformed route name, duplicate or numeric required key, duplicate list entry or
+missing assertion disables all required-parameter diagnostics.
+
+For literal route names, Laramago reports
+`laramago-missing-named-route-parameter` only when the native method, helper or
+URL/Redirect facade dispatch is proven and the `parameters` argument is omitted,
+`null`, or a closed associative array literal. Named `null` and empty-string
+values do not satisfy a required key. `false`, `0` and `"0"` do, matching Laravel's
+native `isset($parameters[$key]) && $parameters[$key] !== ''` substitution.
+Unknown values under a known key may be valid and are not warned.
+
+Numeric or positional entries can fill placeholders in domain/URI order, so any
+such entry defers the whole required-key check. Computed keys, unpacking, dynamic
+parameter containers and dynamic route names also defer. Extra named keys become
+query parameters and do not satisfy a different required key. The check covers
+native `route`, `signedRoute` and `temporarySignedRoute` method/facade calls plus
+the native `route()` and `to_route()` helpers. Response factories and route
+attributes currently retain only their named-route existence checks.
+
 For exact native `Illuminate\Routing\UrlGenerator::route()` and
 `Illuminate\Routing\Redirector::route()` receivers, absent literal string names
 produce `laramago-missing-named-route`. Positional arguments and their native
@@ -116,9 +168,9 @@ handlers, competing redirect attributes, request properties or traits, and
 configured URL or redirect services defer. Other attributes and older Laravel
 versions without this declaration retain native analysis.
 
-Dynamic values, concatenations, argument unpacking, subclasses, union receivers,
-custom facades, middleware aliases/groups, route parameters and runtime registry
-reconstruction are outside this subset. Keep the contract current when route
-providers change; omit it when a complete registry cannot be asserted. The
-extension reads JSON and PHP syntax only and does not bootstrap Laravel, execute
-route/provider files or query a database.
+Dynamic names, concatenations, argument unpacking, subclasses, union receivers,
+custom facades, middleware aliases/groups and runtime registry reconstruction are
+outside the name-checking subset. Keep each explicit contract current when route
+providers change and omit an assertion when it cannot be maintained. The extension
+reads JSON and PHP syntax only and does not bootstrap Laravel, execute route/provider
+files or query a database.
