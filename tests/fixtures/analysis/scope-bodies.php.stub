@@ -9,6 +9,15 @@ trait BodyScopeTrait {
 class BodyScopeRecord extends Model {
     use BodyScopeTrait;
     public function scopeActive($query) { return $query->where('active', true); }
+    public function scopeOrdered($query) { return $query->orderBy('rank')->orderByDesc('id'); }
+    public function scopeBetween($query, int $low, int $high) { return $query->whereBetween('rank', [$low, $high]); }
+    public function scopeListed($query) { return $query->whereIn('rank', [1, 2])->whereNull('deleted_at'); }
+    public function scopeDated($query, int $year) { return $query->whereYear('created_at', $year)->orWhereNotNull('published_at'); }
+    public function scopeColumns($query) { return $query->whereColumn('first', 'last')->whereNotIn('rank', [1, 2]); }
+    public function scopeArrayWhere($query) { return $query->where(['status' => BodyScopeStatus::Active->value]); }
+    public function scopeArrayEscape($query) { return $query->where(['status' => change($query)]); }
+    public function scopeArrayReference($query, $value) { return $query->where(['status' => &$value]); }
+    public function scopeArrayUnpack($query, $value) { return $query->where([...$value]); }
     public function scopeEnumValue($query) { return $query->where('status', BodyScopeStatus::Active->value); }
     public function scopeEnumName($query) { return $query->where('flag', BodyScopeFlag::Visible->name); }
     public function scopeByStatus($query, BodyScopeStatus|string $status) {
@@ -64,6 +73,14 @@ class BodyScopeRecord extends Model {
     public function scopeTyped($query): string { return 'explicit'; }
 }
 class ChildBodyScopeRecord extends BodyScopeRecord {}
+class ShadowedBodyScopeRecord extends BodyScopeRecord {
+    public function scopeOrderBy($query, $column) { return 42; }
+}
+class DirectShadowedBodyScopeRecord extends BodyScopeRecord {
+    public function orderBy($column) { return 42; }
+}
+/** @method static string orderBy(string $column) */
+class DocumentedForwardBodyScopeRecord extends BodyScopeRecord {}
 /** @method static string active() */
 class DocumentedBodyScopeRecord extends BodyScopeRecord {}
 class CustomBodyScopeRecord extends BodyScopeRecord {

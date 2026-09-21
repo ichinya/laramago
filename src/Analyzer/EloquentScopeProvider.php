@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ichinya\Laramago\Analyzer;
 
+use Ichinya\Laramago\Analyzer\StaticAnalysis\MacroIndex;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ScopeBodyInference;
 use Mago\Sdk\Analyzer\CallableSignatureProvider;
@@ -17,6 +18,7 @@ use Mago\Sdk\Analyzer\MethodTarget;
 use Mago\Sdk\Analyzer\ReturnTypeProviderContext;
 use Mago\Sdk\Analyzer\Type;
 use Mago\Sdk\Analyzer\Type\CallableParameter;
+use Mago\Sdk\Analyzer\Type\NamedObjectType;
 
 /** Reads local scope contracts without invoking models or scope bodies. */
 final class EloquentScopeProvider implements MethodReturnTypeProvider, CallableSignatureProvider, InitializationHook
@@ -25,6 +27,7 @@ final class EloquentScopeProvider implements MethodReturnTypeProvider, CallableS
     private const BUILDER = 'Illuminate\\Database\\Eloquent\\Builder';
 
     private ?PhpSource $source = null;
+    private ?MacroIndex $macros = null;
 
     public function __construct(
         private readonly string $root = '.',
@@ -33,6 +36,7 @@ final class EloquentScopeProvider implements MethodReturnTypeProvider, CallableS
     public function initialize(InitializationContext $context): void
     {
         $this->source = null;
+        $this->macros = null;
     }
 
     public function getTargets(): array
@@ -84,9 +88,16 @@ final class EloquentScopeProvider implements MethodReturnTypeProvider, CallableS
         [$method, $model] = $resolved;
         $return = $method->returnType->type ?? $method->declaredReturnType?->type;
         if ($return === null) {
+            $modelAtom = $model->atomicTypes[0];
+            if (! $modelAtom instanceof NamedObjectType) {
+                return null;
+            }
+
             return (new ScopeBodyInference(
                 $context->codebase,
                 $this->source ??= new PhpSource($this->root),
+                $modelAtom->name,
+                $this->macros ??= new MacroIndex($this->root),
             ))->preservesQuery($method)
                 ? Type::namedObject(self::BUILDER, $model)
                 : null;

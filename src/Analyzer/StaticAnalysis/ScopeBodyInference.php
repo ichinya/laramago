@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Ichinya\Laramago\Analyzer\StaticAnalysis;
 
+use Ichinya\Laramago\Analyzer\EloquentModelDispatch;
+use Ichinya\Laramago\Analyzer\EloquentQueryProvider;
 use Mago\Sdk\Analyzer\Codebase;
 use Mago\Sdk\Analyzer\Metadata\FunctionLikeMetadata;
 use Mago\Sdk\Analyzer\Type\NamedObjectType;
@@ -13,10 +15,13 @@ use PhpParser\Node;
 final class ScopeBodyInference
 {
     private const BUILDER = 'Illuminate\\Database\\Eloquent\\Builder';
+    private const QUERY = 'Illuminate\\Database\\Query\\Builder';
 
     public function __construct(
         private readonly Codebase $codebase,
         private readonly PhpSource $source,
+        private readonly string $modelClass,
+        private readonly MacroIndex $macros,
     ) {}
 
     public function preservesQuery(FunctionLikeMetadata $method): bool
@@ -78,23 +83,32 @@ final class ScopeBodyInference
                 return false;
             }
             $name = strtolower($call->name->toString());
-            if (! in_array($name, ['where', 'orwhere'], true)) {
+            $forwarded = in_array(
+                $name,
+                [...EloquentQueryProvider::predicateMethods(), 'orderby', 'orderbydesc'],
+                true,
+            );
+            if (! $forwarded && ! in_array($name, ['where', 'orwhere'], true)) {
                 return false;
             }
-            $native = $this->codebase->getMethod(self::BUILDER, $name) ?? $this->codebase->getDeclaringMethod(
-                self::BUILDER,
+            if ($forwarded && ! $this->canForward($name)) {
+                return false;
+            }
+            $owner = $forwarded ? self::QUERY : self::BUILDER;
+            $native = $this->codebase->getMethod($owner, $name) ?? $this->codebase->getDeclaringMethod(
+                $owner,
                 $name,
             );
             $return = $native?->returnType?->type;
             $atom = $return?->atomicTypes[0] ?? null;
             if (
                 $native === null
-                || strcasecmp($native->identifier->class ?? '', self::BUILDER) !== 0
+                || strcasecmp($native->identifier->class ?? '', $owner) !== 0
                 || $return === null
                 || count($return->atomicTypes) !== 1
                 || ! $atom instanceof NamedObjectType
                 || ! $atom->isThis
-                || ! in_array(strtolower($atom->name), ['$this', strtolower(self::BUILDER)], true)
+                || ! in_array(strtolower($atom->name), ['$this', strtolower($owner)], true)
             ) {
                 return false;
             }
@@ -113,6 +127,42 @@ final class ScopeBodyInference
         return true;
     }
 
+    private function canForward(string $name): bool
+    {
+        if (
+            $this->macros->hasUnknownRegistrations()
+            || $this->macros->mayRegister(self::BUILDER, $name)
+            || $this->macros->mayRegister(self::QUERY, $name)
+        ) {
+            return false;
+        }
+        foreach ([self::BUILDER, $this->modelClass] as $class) {
+            foreach ([$name, 'scope'.ucfirst($name)] as $method) {
+                if (
+                    $this->codebase->getMethod($class, $method) !== null
+                    || $this->codebase->getDeclaringMethod($class, $method) !== null
+                ) {
+                    return false;
+                }
+            }
+            foreach ($this->codebase->getMultipleClasses([
+                $class,
+                ...$this->codebase->getClassAncestors($class),
+            ]) as $metadata) {
+                if ($metadata === null) {
+                    return false;
+                }
+                foreach ([...$metadata->pseudoMethods, ...$metadata->staticPseudoMethods] as $method) {
+                    if (strcasecmp($method, $name) === 0) {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return (new EloquentModelDispatch)->supportsModel($this->codebase, $this->modelClass, $name);
+    }
+
     /** @param array<string, bool> $guardedEnums */
     private function safeArgument(
         Node\Expr $value,
@@ -120,6 +170,22 @@ final class ScopeBodyInference
         string $query,
         array $guardedEnums = [],
     ): bool {
+        if ($value instanceof Node\Expr\Array_) {
+            foreach ($value->items as $item) {
+                if (
+                    $item->byRef
+                    || $item->unpack
+                    || $item->key !== null
+                    && ! $this->safeArgument($item->key, $method, $query, $guardedEnums)
+                    || ! $this->safeArgument($item->value, $method, $query, $guardedEnums)
+                ) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         if (
             $value instanceof Node\Expr\PropertyFetch
             && $value->name instanceof Node\Identifier

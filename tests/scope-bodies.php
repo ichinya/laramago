@@ -17,9 +17,50 @@ if ($changedBuilder) {
     file_put_contents($workspace.'/framework.php', $framework);
 }
 $disabled = in_array('--disabled', $argv, true);
+$macroForwarding = in_array('--macro-forwarding', $argv, true);
+if ($macroForwarding) {
+    mkdir($workspace.'/app');
+    file_put_contents($workspace.'/app/macros.php', <<<'PHP'
+        <?php
+        Illuminate\Database\Eloquent\Builder::macro('orderBy', static fn (): string => 'custom');
+        PHP);
+    file_put_contents($workspace.'/composer.json', json_encode([
+        'extra' => ['laramago' => ['macro-files' => ['app/macros.php']]],
+    ], JSON_THROW_ON_ERROR));
+}
 $unknown = ['mixed-return-statement'];
 $cases = [
     'simple where' => ['return BodyScopeRecord::active();', 'Builder<BodyScopeRecord>', []],
+    'forwarded sorting' => ['return BodyScopeRecord::ordered();', 'Builder<BodyScopeRecord>', []],
+    'forwarded range' => ['return BodyScopeRecord::between(1, 3);', 'Builder<BodyScopeRecord>', []],
+    'forwarded predicates' => ['return BodyScopeRecord::listed();', 'Builder<BodyScopeRecord>', []],
+    'forwarded date predicates' => ['return BodyScopeRecord::dated(2026);', 'Builder<BodyScopeRecord>', []],
+    'forwarded column predicates' => ['return BodyScopeRecord::columns();', 'Builder<BodyScopeRecord>', []],
+    'safe array argument' => ['return BodyScopeRecord::arrayWhere();', 'Builder<BodyScopeRecord>', []],
+    'array call stays unknown' => ['return BodyScopeRecord::arrayEscape();', 'Builder<BodyScopeRecord>', $unknown],
+    'array reference stays unknown' => [
+        'return BodyScopeRecord::arrayReference(1);',
+        'Builder<BodyScopeRecord>',
+        $unknown,
+    ],
+    'array unpack stays unknown' => ['return BodyScopeRecord::arrayUnpack([]);', 'Builder<BodyScopeRecord>', $unknown],
+    'child scope shadows forwarding' => [
+        'return ShadowedBodyScopeRecord::ordered();',
+        'Builder<ShadowedBodyScopeRecord>',
+        $unknown,
+    ],
+    'child method shadows forwarding' => [
+        'return DirectShadowedBodyScopeRecord::ordered();',
+        'Builder<DirectShadowedBodyScopeRecord>',
+        $unknown,
+    ],
+    'PHPDoc shadows forwarding' => [
+        'return DocumentedForwardBodyScopeRecord::ordered();',
+        'Builder<DocumentedForwardBodyScopeRecord>',
+        $unknown,
+    ],
+    'inherited forwarding' => ['return ChildBodyScopeRecord::ordered();', 'Builder<ChildBodyScopeRecord>', []],
+    'forwarded result remains typed' => ['return BodyScopeRecord::listed();', 'string', ['invalid-return-statement']],
     'backed enum value' => ['return BodyScopeRecord::enumValue();', 'Builder<BodyScopeRecord>', []],
     'unit enum name' => ['return BodyScopeRecord::enumName();', 'Builder<BodyScopeRecord>', []],
     'guarded backed enum' => [
@@ -61,9 +102,26 @@ $cases = [
     'model PHPDoc' => ['return DocumentedBodyScopeRecord::active();', 'string', []],
     'custom builder' => ['CustomBodyScopeRecord::active();', 'void', ['non-documented-method']],
 ];
+if ($macroForwarding) {
+    $cases = [
+        'macro shadows forwarded sorting' => [
+            'return BodyScopeRecord::ordered();',
+            'Builder<BodyScopeRecord>',
+            $unknown,
+        ],
+        'macro leaves other forwarding intact' => [
+            'return BodyScopeRecord::between(1, 3);',
+            'Builder<BodyScopeRecord>',
+            [],
+        ],
+        'macro leaves native method intact' => ['return BodyScopeRecord::active();', 'Builder<BodyScopeRecord>', []],
+        'negative result control' => ['return BodyScopeRecord::active();', 'string', ['invalid-return-statement']],
+    ];
+}
 if ($changedBuilder) {
     $cases = [
         'changed native return' => ['return BodyScopeRecord::active();', 'Builder<BodyScopeRecord>', $unknown],
+        'changed forwarded return' => ['return BodyScopeRecord::ordered();', 'Builder<BodyScopeRecord>', $unknown],
         'changed guarded native return' => [
             'return BodyScopeRecord::byStatus("active");',
             'Builder<BodyScopeRecord>',
@@ -75,6 +133,16 @@ if ($disabled) {
     $cases = [
         'disabled scope body' => [
             'return BodyScopeRecord::active();',
+            'Builder<BodyScopeRecord>',
+            ['mixed-return-statement', 'non-documented-method'],
+        ],
+        'disabled forwarded body' => [
+            'return BodyScopeRecord::ordered();',
+            'Builder<BodyScopeRecord>',
+            ['mixed-return-statement', 'non-documented-method'],
+        ],
+        'disabled guarded body' => [
+            'return BodyScopeRecord::byStatus("active");',
             'Builder<BodyScopeRecord>',
             ['mixed-return-statement', 'non-documented-method'],
         ],
@@ -148,6 +216,10 @@ if ($actual !== []) {
     throw new RuntimeException('Unexpected diagnostics outside scope scenarios; inspect '.$workspace);
 }
 $resolvedWorkspace = realpath($workspace);
+if ($macroForwarding) {
+    unlink($workspace.'/app/macros.php');
+    rmdir($workspace.'/app');
+}
 foreach (glob($workspace.'/*') ?: [] as $file) {
     $resolvedFile = realpath($file);
     if (
@@ -160,3 +232,9 @@ foreach (glob($workspace.'/*') ?: [] as $file) {
     unlink($resolvedFile);
 }
 rmdir($workspace);
+if (! $disabled && ! $changedBuilder && ! $macroForwarding) {
+    $macroProcess = proc_open([PHP_BINARY, __FILE__, '--macro-forwarding'], [STDIN, STDOUT, STDERR], $macroPipes);
+    if (! is_resource($macroProcess) || proc_close($macroProcess) !== 0) {
+        throw new RuntimeException('Macro forwarding boundary scenarios failed.');
+    }
+}

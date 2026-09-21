@@ -134,7 +134,12 @@ Scopes returning `void` or `null` retain `Builder<YourModel>`. Other declared
 results are preserved; `int|null`, for example, becomes `int|Builder<YourModel>`.
 An untyped scope retains its builder only when its single return expression
 provably preserves the query: the query itself, or a native `where`/`orWhere`
-chain with safe arguments. These include literals, scope parameters, and known
+chain with safe arguments. Native Query Builder forwarding is also recognized
+for the supported column, membership, null, range, and date predicates, as well
+as `orderBy` and `orderByDesc`, provided
+the installed method returns itself and no model scope, declaration, or PHPDoc
+contract shadows the forwarded operation. Safe arguments include recursively
+checked arrays without references or unpacking, literals, scope parameters, and known
 enum case `name` or backed enum case `value` properties. Other untyped scope
 results stay unknown, except for a bounded enum conversion: an
 `if ($value instanceof SomeEnum)` containing one query-preserving return, followed by an
