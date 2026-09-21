@@ -234,3 +234,13 @@ fields, source provenance and declaration-default names without their values.
 It preserves native method order and distinguishes URI optional syntax from the
 question-mark marker in a domain. Runtime route survival, actual URL defaults and
 whether a caller may omit a parameter remain unknown. This mode has no watch.
+
+## Controller declaration candidates
+
+`laramago-metadata --kind controller-route-contract-candidates --source routes/web.php --source app/Http/Controllers/ReportController.php`
+links literal route actions to unique selected public controller declarations.
+[Candidate metadata](controller-route-contract-candidates.md) retains parameter
+positions, native type syntax, defaults and lexical placeholder matches. Runtime
+dispatch and dependency injection remain unvalidated; missing bindings and scalar
+name differences are not errors. Duplicate class declarations defer. No application
+autoloading or implicit source discovery occurs, and this mode has no watch.

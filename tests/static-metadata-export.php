@@ -179,6 +179,7 @@ mkdir($linkedPackage.'/src/Metadata', 0777, true);
 copy($package.'/bin/laramago-metadata', $linkedPackage.'/bin/laramago-metadata');
 foreach ([
     'RouteMetadataExport',
+    'ControllerRouteContractExport',
     'RouteNameDuplicateCandidates',
     'RouteParameterMetadataExport',
     'TranslationMetadataExport',
@@ -240,9 +241,16 @@ file_put_contents(
 );
 file_put_contents($fixture.'/translations.json', '{"Greeting":"private-value-must-not-export"}');
 file_put_contents($fixture.'/app.js', 'const name = import.meta.env.VITE_APP_NAME;');
+file_put_contents($fixture.'/controllers.php', <<<'PHP'
+    <?php
+    use Illuminate\Support\Facades\Route;
+    class ExampleController { public function show(string $id): void {} }
+    Route::get('/{id}', [ExampleController::class, 'show']);
+    PHP);
 foreach ([$bin, $linkedProxy] as $entrypoint) {
     foreach ([
         'routes' => 'routes.php',
+        'controller-route-contract-candidates' => 'controllers.php',
         'route-name-duplicates' => 'routes.php',
         'route-parameters' => 'routes.php',
         'translations' => 'config/app.php',
@@ -269,7 +277,11 @@ foreach ([$bin, $linkedProxy] as $entrypoint) {
             $exit !== 0
             || $stderr !== ''
             || $metadata['scope']['kind'] !== $kind
-            || ($metadata['declarations'] ?? $metadata['candidates'] ?? $metadata['references']) === []
+            || (
+                $metadata['declarations'] ?? $metadata['candidates'] ?? $metadata['references']
+                ?? $metadata['contracts']
+            )
+                === []
             || $metadata['errors'] !== []
             || is_file($fixture.'/autoload-executed')
             || is_file($fixture.'/config-executed')

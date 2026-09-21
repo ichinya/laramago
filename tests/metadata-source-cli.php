@@ -10,6 +10,12 @@ mkdir($fixture.'/lang');
 mkdir($fixture.'/vendor');
 file_put_contents($fixture.'/lang/en.json', '{"Greeting":"PRIVATE_TRANSLATED_VALUE"}');
 file_put_contents($fixture.'/app.js', 'const name = import.meta.env.VITE_APP_NAME;');
+file_put_contents($fixture.'/controllers.php', <<<'PHP'
+    <?php
+    use Illuminate\Support\Facades\Route;
+    class ExampleController { public function show(string $id): void {} }
+    Route::get('/{id}', [ExampleController::class, 'show']);
+    PHP);
 file_put_contents(
     $fixture.'/.env.example',
     'SOURCE=PRIVATE_TEMPLATE_VALUE'."\n".'TARGET="${SOURCE}"'."\n".'SOURCE=PRIVATE_TEMPLATE_VALUE',
@@ -102,6 +108,17 @@ try {
         throw new RuntimeException('Route parameter CLI must retain source-only declaration scope.');
     }
     echo "PASS: route parameter metadata CLI dispatch\n";
+    [$exit, $stdout, $stderr] = $run(['--kind', 'controller-route-contract-candidates', '--source', 'controllers.php']);
+    $controllers = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+    if (
+        $exit !== 0
+        || $stderr !== ''
+        || $controllers['scope']['runtimeDispatchValidated'] !== false
+        || $controllers['contracts'][0]['controller']['method'] !== 'show'
+    ) {
+        throw new RuntimeException('Controller metadata must link declarations without validating runtime dispatch.');
+    }
+    echo "PASS: controller declaration candidate CLI dispatch\n";
     [$exit, $stdout, $stderr] = $run(['--kind', 'vite-environment-references', '--source', 'app.js']);
     $vite = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
     if (
@@ -174,6 +191,7 @@ try {
     foreach ([
         'routes/web.php',
         'app.js',
+        'controllers.php',
         'lang/messages.php',
         'lang/en.json',
         'vendor/autoload.php',
