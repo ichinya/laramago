@@ -254,3 +254,5 @@ The `policy-class-selector-call-candidates` kind preserves [literal class-select
 The `policy-additional-argument-contract-candidates` kind exports [additional parameter declarations and separate Gate argument syntax](policy-additional-argument-contract-candidates.md). It composes with model parameter metadata without asserting effective dispatch or compatibility.
 
 The `policy-discovery-boundaries` kind describes [selected declarations and native resolver boundaries](policy-discovery-boundaries.md), retaining effective policy resolution as unknown.
+
+The `binding-compatibility-candidates` kind compares [selected binding declarations and type hierarchies](binding-compatibility-export.md). It does not prove receiver identity, effective container state or runtime failure.

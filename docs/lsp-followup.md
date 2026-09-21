@@ -26,7 +26,7 @@ This follow-up revisits the 35 deferred research items and four remaining metada
 | 89 | Class-level policy abilities | partial; Explicit-source Gate facade candidates preserve leading Model::class selector removal and remaining argument spans independently of ability names. Effective policy resolution and signature diagnostics remain unclaimed. Fifty-four focused checks, direct/installed metadata CLI and merged source analysis pass. |
 | 90 | Policy discovery resolver boundaries | partial; Bounded metadata preserves selected policy attributes, native resolver channel order, conditional guess probes and parent declarations while always leaving effective policy unknown. Forty focused checks, direct/installed CLI and merged source analysis pass. Runtime mappings, custom guessers, class existence and container policy objects remain unresolved. |
 | 95 | Container injection attributes | pending |
-| 97 | Binding interface compatibility | pending |
+| 97 | Binding interface compatibility | partial; Explicit-source binding metadata compares literal registration type names and selected hierarchies for optional declaration-quality advice. Unknown hierarchy completeness is retained even when identity proves compatibility. Thirty-five focused checks, direct/installed CLI and merged source analysis pass. Effective receiver/container state and runtime failures are not inferred. |
 | 100 | Contextual binding resolution | pending |
 | 104 | Route view references | pending |
 | 105 | MailMessage view and markdown references | pending |

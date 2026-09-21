@@ -180,6 +180,7 @@ copy($package.'/bin/laramago-metadata', $linkedPackage.'/bin/laramago-metadata')
 foreach ([
     'RouteMetadataExport',
     'ControllerRouteContractExport',
+    'BindingCompatibilityExport',
     'PolicyDiscoveryBoundaryExport',
     'PolicyAdditionalArgumentContractExport',
     'PolicyClassSelectorCallExport',
@@ -251,6 +252,7 @@ file_put_contents($fixture.'/controllers.php', <<<'PHP'
     use Illuminate\Support\Facades\Route;
     (new Illuminate\Pipeline\Pipeline)->through('auth:admin,editor');
     Illuminate\Support\Facades\Gate::allows('view', [ExampleController::class, 42]);
+    $app->bind(ExampleController::class, ExampleController::class);
     class ExamplePolicy { public function view(object $user, ExampleController $model, int $level = 0): bool { return true; } }
     class ExampleAuthProvider extends Illuminate\Foundation\Support\Providers\AuthServiceProvider {
         protected $policies = [ExampleController::class => ExamplePolicy::class];
@@ -263,6 +265,7 @@ foreach ([$bin, $linkedProxy] as $entrypoint) {
         'routes' => 'routes.php',
         'controller-route-contract-candidates' => 'controllers.php',
         'middleware-parameters' => 'controllers.php',
+        'binding-compatibility-candidates' => 'controllers.php',
         'policy-discovery-boundaries' => 'controllers.php',
         'policy-additional-argument-contract-candidates' => 'controllers.php',
         'policy-class-selector-call-candidates' => 'controllers.php',

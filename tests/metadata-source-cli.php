@@ -15,6 +15,7 @@ file_put_contents($fixture.'/controllers.php', <<<'PHP'
     use Illuminate\Support\Facades\Route;
     (new Illuminate\Pipeline\Pipeline)->through('auth:admin,editor');
     Illuminate\Support\Facades\Gate::allows('view', [ExampleController::class, 42]);
+    $app->bind(ExampleController::class, ExampleController::class);
     class ExamplePolicy { public function view(object $user, ExampleController $model, int $level = 0): bool { return true; } }
     class ExampleAuthProvider extends Illuminate\Foundation\Support\Providers\AuthServiceProvider {
         protected $policies = [ExampleController::class => ExamplePolicy::class];
@@ -198,6 +199,17 @@ try {
         throw new RuntimeException('Policy discovery CLI must preserve runtime resolution uncertainty.');
     }
     echo "PASS: policy discovery boundary CLI dispatch\n";
+    [$exit, $stdout, $stderr] = $run(['--kind', 'binding-compatibility-candidates', '--source', 'controllers.php']);
+    $bindings = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+    if (
+        $exit !== 0
+        || $stderr !== ''
+        || $bindings['candidates'][0]['compatibility']['status'] !== 'compatible'
+        || $bindings['scope']['runtimeFailureClaimed'] !== false
+    ) {
+        throw new RuntimeException('Binding CLI must retain declaration-only compatibility.');
+    }
+    echo "PASS: binding compatibility candidate CLI dispatch\n";
     [$exit, $stdout, $stderr] = $run(['--kind', 'vite-environment-references', '--source', 'app.js']);
     $vite = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
     if (
