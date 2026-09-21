@@ -148,6 +148,10 @@ final class LaravelPlugin implements Plugin
         $registry->registerInitializationHook($validationRuleNames);
         $registry->registerClassLikeAnalysisHook(new ModelFieldNamesHook($this->projectRoot));
         $registry->registerMethodCallAnalysisHook(new RouteParametersHook($this->projectRoot));
+        $routeNameDuplicates = new RouteNameDuplicateCandidatesHook($this->projectRoot);
+        if ($routeNameDuplicates->enabled()) {
+            $registry->registerAfterAnalysisHook($routeNameDuplicates);
+        }
         $registry->registerMethodCallAnalysisHook(new ControllerActionClassHook($this->projectRoot));
         $registry->registerMethodCallAnalysisHook(new NamedRouteContractsHook($this->projectRoot));
         $namedRouteAttributes = new NamedRouteAttributeContractsHook($this->projectRoot);

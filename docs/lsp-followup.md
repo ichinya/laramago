@@ -15,7 +15,7 @@ This follow-up revisits the 35 deferred research items and four remaining metada
 | 57 | Conflicting active route names | partial; Advisory duplicate route-name metadata exports both source locations, group provenance and retained errors/limits. Twenty-one focused checks pass. Active conflict detection remains deferred because effective registration, replacement and final route state are not proven. |
 | 58 | Required named-route parameters | implemented; Independent effective URL/default assertions check required URI keys in native named-route methods, helpers and facades. Null/empty missing, false/zero accepted; positional/dynamic/domain cases defer. Fifty-six route cases, sixty-six facade cases, independent-contract and custom-dispatch guards pass. |
 | 59 | Domain optional and default route parameters | pending |
-| 60 | Route declaration diagnostic locations | pending |
+| 60 | Route declaration diagnostic locations | implemented; Opt-in source-only duplicate-name notes now use genuine cross-file Mago primary/secondary annotations. Both declaration files must be indexed with matching source hashes; stale, unindexed and disabled cases defer. Active runtime route identity remains unknown. |
 | 68 | Controller parameter route and DI contracts | pending |
 | 71 | Middleware name references | pending |
 | 72 | Middleware parameter string parsing | pending |

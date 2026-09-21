@@ -39,3 +39,33 @@ An active-conflict diagnostic needs a separate explicit policy proving ordered
 method/domain/URI identities, final effective names, retained-route replacement,
 and the absence of unknown activation or later mutation. This source export does
 not supply that proof.
+
+## Optional analyzer notes
+
+Mago can show each source-only candidate at both selected declarations. Enable
+the policy with an explicit file list in `composer.json`:
+
+```json
+{
+  "extra": {
+    "laramago": {
+      "route-name-duplicate-candidates": {
+        "diagnose": true,
+        "files": ["routes/web.php", "routes/api.php"]
+      }
+    }
+  }
+}
+```
+
+The analyzer emits the `laramago-route-name-duplicate-candidate` note at the
+repeated literal and adds the first literal as a secondary location. Both files
+must be part of Mago's analyzed source set, and both exact analyzed snapshots
+must match the metadata hashes. Missing, unindexed, or changed snapshots defer
+the candidate instead of attaching a location to different source text.
+
+This diagnostic consumes the same bounded exporter described above. It does not
+make the selected list complete and does not assert activation, effective route
+identity, replacement order, or a runtime conflict. The named-route catalog's
+separate completeness and runtime assertions remain necessary for missing-name
+diagnostics and do not turn this note into active-route proof.

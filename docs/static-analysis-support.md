@@ -109,8 +109,10 @@ for that diagnostic's exact scope. Private application comparisons stay in ignor
 development artifacts and are not part of the package.
 
 [Route name duplicate candidates](route-name-duplicate-candidates.md) provide an
-ordered source-only review aid with both literal locations. They do not claim that
-the declarations survive native route replacement or conflict at runtime.
+ordered source-only review aid with both literal locations. An opt-in analyzer
+note links an indexed, hash-matched repeated literal to the first declaration.
+Neither form claims that the declarations survive native route replacement or
+conflict at runtime.
 
 [Relation name contracts](relation-names.md) enable missing-name warnings only for explicitly complete model catalogs. Higher-order collection predicates may produce empty results and do not narrow individual item properties.
 
