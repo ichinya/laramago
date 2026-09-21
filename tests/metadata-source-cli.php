@@ -20,6 +20,7 @@ file_put_contents($fixture.'/controllers.php', <<<'PHP'
     Route::view('/welcome', 'pages.welcome');
     \app()->when(ExampleController::class)->needs('clock')->give('clock.impl');
     (new Illuminate\Notifications\Messages\MailMessage)->markdown('mail.receipt');
+    new Illuminate\Mail\Mailables\Content(view: 'mail.receipt', htmlString: '<p>raw</p>');
     class ExamplePolicy { public function view(object $user, ExampleController $model, int $level = 0): bool { return true; } }
     class ExampleAuthProvider extends Illuminate\Foundation\Support\Providers\AuthServiceProvider {
         protected $policies = [ExampleController::class => ExamplePolicy::class];
@@ -281,6 +282,18 @@ try {
         throw new RuntimeException('MailMessage CLI must retain optional Markdown navigation references.');
     }
     echo "PASS: MailMessage view reference CLI dispatch\n";
+    [$exit, $stdout, $stderr] = $run(['--kind', 'mail-content-reference-candidates', '--source', 'controllers.php']);
+    $content = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+    if (
+        $exit !== 0
+        || $stderr !== ''
+        || array_column($content['references'], 'name') !== ['mail.receipt']
+        || $content['scope']['missingViewDiagnosticEligible'] !== false
+        || $content['references'][0]['runtimeLookup'] !== 'unknown'
+    ) {
+        throw new RuntimeException('Mail Content CLI must separate template references from raw HTML.');
+    }
+    echo "PASS: Mail Content reference CLI dispatch\n";
     [$exit, $stdout, $stderr] = $run(['--kind', 'vite-environment-references', '--source', 'app.js']);
     $vite = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
     if (
