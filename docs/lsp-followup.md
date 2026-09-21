@@ -38,7 +38,7 @@ This follow-up revisits the 35 deferred research items and four remaining metada
 | 120 | Suspicious replacement names | pending |
 | 122 | Cross-locale placeholder consistency | pending |
 | 123 | Pluralization syntax contracts | pending |
-| 180 | Pest closure this typing | pending |
+| 180 | Pest closure this typing | blocked; Real-Mago identical-file probe confirms missing pre-argument file identity; SDK 1.49.0 retains the boundary. Documented source-aware API prerequisite and verified explicit closure-this PHPDoc workaround; no unsafe provider added. |
 | 198 | Literal route groups and name prefixes in metadata | pending |
 | 199 | JSON translation declaration metadata | pending |
 | 200 | Route source metadata watch | pending |
