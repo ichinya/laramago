@@ -14,6 +14,7 @@ file_put_contents($fixture.'/controllers.php', <<<'PHP'
     <?php
     use Illuminate\Support\Facades\Route;
     (new Illuminate\Pipeline\Pipeline)->through('auth:admin,editor');
+    Illuminate\Support\Facades\Gate::allows('view', [ExampleController::class, 42]);
     class ExamplePolicy { public function view(object $user, ExampleController $model): bool { return true; } }
     class ExampleAuthProvider extends Illuminate\Foundation\Support\Providers\AuthServiceProvider {
         protected $policies = [ExampleController::class => ExamplePolicy::class];
@@ -151,6 +152,23 @@ try {
         throw new RuntimeException('Policy parameter CLI must preserve declaration-only compatibility.');
     }
     echo "PASS: policy model declaration contract CLI dispatch\n";
+    [$exit, $stdout, $stderr] = $run([
+        '--kind',
+        'policy-class-selector-call-candidates',
+        '--source',
+        'controllers.php',
+    ]);
+    $selectors = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+    if (
+        $exit !== 0
+        || $stderr !== ''
+        || $selectors['calls'][0]['selector']['class'] !== 'ExampleController'
+        || $selectors['calls'][0]['transformation']['policyArgumentCount'] !== 1
+        || $selectors['calls'][0]['runtimePolicyResolved'] !== false
+    ) {
+        throw new RuntimeException('Policy selector CLI must retain the conditional argument transformation.');
+    }
+    echo "PASS: policy class selector CLI dispatch\n";
     [$exit, $stdout, $stderr] = $run(['--kind', 'vite-environment-references', '--source', 'app.js']);
     $vite = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
     if (

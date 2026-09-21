@@ -248,3 +248,5 @@ autoloading or implicit source discovery occurs, and this mode has no watch.
 The `middleware-parameters` kind reads explicit PHP sources and exports [conditional native Pipeline parameter tokens](middleware-parameter-metadata.md). It does not resolve middleware targets or validate their signatures.
 
 The `policy-model-argument-contract-candidates` kind exports [selected mapping and policy parameter declarations](policy-model-argument-contract-candidates.md), with explicit uncertainty about effective Gate dispatch.
+
+The `policy-class-selector-call-candidates` kind preserves [literal class-selector transformations](policy-class-selector-call-candidates.md) without claiming that the policy call executes.

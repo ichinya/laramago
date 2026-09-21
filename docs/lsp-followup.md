@@ -23,7 +23,7 @@ This follow-up revisits the 35 deferred research items and four remaining metada
 | 84 | Gate ability name references | implemented; Default-off permitted Gate ability policy checks exact literal native Gate and facade references with native body and PHPDoc guards. It does not infer runtime unknown abilities from policy mappings or definitions. All 161 real-Mago assertions pass; merged analyzer and metadata source analysis reports no issues. |
 | 87 | Policy model argument compatibility | partial; Explicit-source export links literal provider policy mappings to direct public second-parameter declarations and preserves source provenance. Proven native compatibility is separated from weak-call and hierarchy uncertainty; effective Gate dispatch remains unvalidated. Forty-five focused checks, direct/installed metadata CLI and integrated source analysis pass. |
 | 88 | Additional policy arguments | pending |
-| 89 | Class-level policy abilities | pending |
+| 89 | Class-level policy abilities | partial; Explicit-source Gate facade candidates preserve leading Model::class selector removal and remaining argument spans independently of ability names. Effective policy resolution and signature diagnostics remain unclaimed. Fifty-four focused checks, direct/installed metadata CLI and merged source analysis pass. |
 | 90 | Policy discovery resolver boundaries | pending |
 | 95 | Container injection attributes | pending |
 | 97 | Binding interface compatibility | pending |
