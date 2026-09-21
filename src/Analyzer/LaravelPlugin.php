@@ -44,6 +44,9 @@ final class LaravelPlugin implements Plugin
         $searchAttributes = new SearchAttributeReferencesHook($this->projectRoot);
         $registry->registerMethodCallAnalysisHook($searchAttributes);
         $registry->registerInitializationHook($searchAttributes);
+        $relatedProjectionColumns = new RelatedProjectionColumnsHook($this->projectRoot);
+        $registry->registerMethodCallAnalysisHook($relatedProjectionColumns);
+        $registry->registerInitializationHook($relatedProjectionColumns);
         $relationMethods = new EloquentRelationMethodProvider($this->projectRoot);
         $registry->registerMethodReturnTypeProvider($relationMethods);
         $registry->registerInitializationHook($relationMethods);

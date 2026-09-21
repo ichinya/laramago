@@ -1,0 +1,149 @@
+<?php
+
+namespace RelatedProjectionFixtures;
+
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
+
+class Entry extends Model {}
+
+class EntryChild extends Entry {}
+
+class OtherEntry extends Model {}
+
+class IncompleteEntry extends Model {}
+
+class UnassertedEntry extends Model {}
+
+class MalformedEntry extends Model {}
+
+class DuplicateEntry extends Model {}
+
+class CustomQueryEntry extends Model
+{
+    /** @return Builder<static> */
+    public function newQuery()
+    {
+        throw new \RuntimeException('Models must never execute.');
+    }
+}
+
+class Owner extends Model
+{
+    public function entries(): HasMany
+    {
+        return $this->hasMany(Entry::class);
+    }
+
+    public function entry(): HasOne
+    {
+        return $this->hasOne(Entry::class);
+    }
+
+    public function parentEntry(): BelongsTo
+    {
+        return $this->belongsTo(Entry::class);
+    }
+
+    public function images(): MorphMany
+    {
+        return $this->morphMany(Entry::class, 'imageable');
+    }
+
+    public function image(): MorphOne
+    {
+        return $this->morphOne(Entry::class, 'imageable');
+    }
+
+    public function members(): BelongsToMany
+    {
+        return $this->belongsToMany(Entry::class);
+    }
+
+    public function distantEntries(): HasManyThrough
+    {
+        return $this->hasManyThrough(Entry::class, OtherEntry::class);
+    }
+
+    public function modified(): HasMany
+    {
+        return $this->hasMany(Entry::class)->where('active', true);
+    }
+
+    /** @return HasMany<OtherEntry, $this> */
+    public function documented(): HasMany
+    {
+        return $this->hasMany(Entry::class);
+    }
+
+    public function customQueryEntries(): HasMany
+    {
+        return $this->hasMany(CustomQueryEntry::class);
+    }
+
+    public function childEntries(): HasMany
+    {
+        return $this->hasMany(EntryChild::class);
+    }
+
+    public function mismatchedEntries(): HasMany
+    {
+        return $this->hasMany(Entry::class);
+    }
+
+    public function incompleteEntries(): HasMany
+    {
+        return $this->hasMany(IncompleteEntry::class);
+    }
+
+    public function unassertedEntries(): HasMany
+    {
+        return $this->hasMany(UnassertedEntry::class);
+    }
+
+    public function malformedEntries(): HasMany
+    {
+        return $this->hasMany(MalformedEntry::class);
+    }
+
+    public function duplicateEntries(): HasMany
+    {
+        return $this->hasMany(DuplicateEntry::class);
+    }
+}
+
+class ChildOwner extends Owner {}
+
+class CustomOwner extends Owner
+{
+    /** @return Builder<static> */
+    public function newQuery()
+    {
+        throw new \RuntimeException('Models must never execute.');
+    }
+}
+
+class NewInstanceOwner extends Owner
+{
+    public function newInstance($attributes = [], $exists = false)
+    {
+        throw new \RuntimeException('Models must never execute.');
+    }
+}
+
+class ResolverOwner extends Owner
+{
+    public function relationResolver($class, $key)
+    {
+        throw new \RuntimeException('Models must never execute.');
+    }
+}
+
+throw new \RuntimeException('Fixture source must never execute.');

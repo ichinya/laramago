@@ -1,6 +1,6 @@
 # Laravel LSP adaptation queue
 
-This tracks the 197 individually numbered research items. The review is complete: 133 items have bounded implementations, 35 were already covered (including overlap resolved during implementation), and 29 remain deferred with evidence below. Offline analysis and native contract priority apply throughout.
+This tracks the 197 individually numbered research items. The review is complete: 134 items have bounded implementations, 35 were already covered (including overlap resolved during implementation), and 28 remain deferred with evidence below. Offline analysis and native contract priority apply throughout.
 
 An implemented item may provide type inference, an explicitly enabled diagnostic, or source metadata for an external consumer. It does not imply complete Laravel runtime emulation or automatic removal of existing warnings. See the [support matrix](static-analysis-support.md) and individual contracts for exact prerequisites. The [metadata CLI](static-metadata-export.md) exports configuration, literal route name and PHP translation key declarations, and watches configuration sources; it is not an editor integration or incremental Mago analyzer.
 
@@ -36,7 +36,7 @@ Baseline: a67d3ee; previous package validation passed 3393 checks. No applicatio
 | 26 | Nested relation paths | already-covered; Verified nested relation traversal, callback typing and complete-name checks with focused suites. |
 | 27 | Mixed eager-load declaration arrays | implemented; Mixed eager-load arrays honor effective keys and Laravel numeric-string semantics; dynamic/negative uncertainty defers. |
 | 28 | Eager-load colon projection syntax | implemented; Eager-loading methods including withWhereHas accept colon projections; pure existence queries preserve full names. Real-Mago tests cover builder/static forwarding and native fallback. |
-| 29 | Related model projection columns | deferred; Missing projection columns require complete effective-query metadata or an explicit query-source contract; schema alone cannot exclude scopes, joins, from changes, and aliases. No diagnostic added. |
+| 29 | Related model projection columns | implemented; Closed native eager-load colon projections use an independent exact owner-relation source contract covering inherited connection and constraints. Forty genuine-Mago cases pass with both isolated hook and full plugin; mutable, pivot/through, dynamic and unasserted cases defer. |
 | 30 | Eager-loading callback parameter types | implemented; Direct Builder::with literal-path callbacks receive concrete Relation types under native broad contracts. Real-Mago/native comparisons pass; nested callback arrays remain SDK-deferred. |
 | 31 | Morph callbacks with explicit model classes | implemented; Four native Morph existence callbacks refine explicit fully qualified model targets under per-class runtime identity assertions; 45 morph and native trait callback regressions pass. Unknown morph maps/imports and custom dispatch defer. |
 | 32 | Relation aggregate references | implemented; Seven native Builder with-aggregate methods validate relation references under existing complete catalogs; four real-Mago modes pass. Model/Collection load aggregates defer pending standard collection selection proof; no SQL column/result-property claims. |

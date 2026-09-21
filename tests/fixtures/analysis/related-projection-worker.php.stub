@@ -1,0 +1,42 @@
+<?php
+
+declare(strict_types=1);
+
+use Ichinya\Laramago\Analyzer\RelatedProjectionColumnsHook;
+use Mago\Sdk\Analyzer\Plugin;
+use Mago\Sdk\Analyzer\PluginDefinition;
+use Mago\Sdk\Analyzer\PluginRegistry;
+use Mago\Sdk\Extension;
+use Mago\Sdk\Worker;
+
+$autoload = $argv[1] ?? null;
+$projectRoot = $argv[2] ?? null;
+if (! is_string($autoload) || ! is_file($autoload) || ! is_string($projectRoot) || ! is_dir($projectRoot)) {
+    exit(2);
+}
+require $autoload;
+
+$plugin = new class($projectRoot) implements Plugin {
+    public function __construct(
+        private readonly string $projectRoot,
+    ) {}
+
+    public function getDefinition(): PluginDefinition
+    {
+        return new PluginDefinition('ichinya/laramago', 'Test', 'Focused hook test.');
+    }
+
+    public function register(PluginRegistry $registry): void
+    {
+        $hook = new RelatedProjectionColumnsHook($this->projectRoot);
+        $registry->registerMethodCallAnalysisHook($hook);
+        $registry->registerInitializationHook($hook);
+    }
+};
+
+(new Worker(new Extension(
+    identifier: 'ichinya/laramago',
+    name: 'Laramago related projection test',
+    version: '1.0.0',
+    analyzerPlugins: [$plugin],
+)))->run();
