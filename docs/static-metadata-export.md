@@ -258,3 +258,5 @@ The `policy-discovery-boundaries` kind describes [selected declarations and nati
 The `binding-compatibility-candidates` kind compares [selected binding declarations and type hierarchies](binding-compatibility-export.md). It does not prove receiver identity, effective container state or runtime failure.
 
 The `container-injection-attribute-candidates` kind preserves [contextual attribute declarations](container-injection-attribute-candidates.md), including source types and arguments, without inferring runtime injected values.
+
+The `route-view-references` kind exports [literal route view declaration references](route-view-reference-candidates.md), preserving uncertainty about the name actually used at dispatch.

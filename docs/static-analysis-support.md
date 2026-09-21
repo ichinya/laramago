@@ -167,3 +167,5 @@ An optional [policy method declaration advisory](policy-method-declarations.md) 
 [Gate ability reference policy](gate-ability-policy.md) optionally checks exact literal abilities against a permitted list without claiming runtime authorization failure.
 
 [Binding compatibility candidates](binding-compatibility-export.md) provide optional declaration-quality metadata; valid unrelated Laravel bindings are not runtime errors.
+
+[Route view reference metadata](route-view-reference-candidates.md) supports explicit declaration policies; source names do not establish runtime lookup.

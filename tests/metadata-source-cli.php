@@ -17,6 +17,7 @@ file_put_contents($fixture.'/controllers.php', <<<'PHP'
     Illuminate\Support\Facades\Gate::allows('view', [ExampleController::class, 42]);
     $app->bind(ExampleController::class, ExampleController::class);
     function injected(#[Illuminate\Container\Attributes\Give('clock')] object $clock): void {}
+    Route::view('/welcome', 'pages.welcome');
     class ExamplePolicy { public function view(object $user, ExampleController $model, int $level = 0): bool { return true; } }
     class ExampleAuthProvider extends Illuminate\Foundation\Support\Providers\AuthServiceProvider {
         protected $policies = [ExampleController::class => ExamplePolicy::class];
@@ -228,6 +229,19 @@ try {
         throw new RuntimeException('Injection attribute CLI must not infer an effective value type.');
     }
     echo "PASS: injection attribute candidate CLI dispatch\n";
+    [$exit, $stdout, $stderr] = $run(['--kind', 'route-view-references', '--source', 'controllers.php']);
+    $routeViews = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+    if (
+        $exit !== 0
+        || $stderr !== ''
+        || array_column($routeViews['references'], 'name') !== ['pages.welcome']
+        || $routeViews['scope']['runtimeLookupValidated'] !== false
+    ) {
+        throw new RuntimeException(
+            'Route view CLI must preserve declaration references without runtime lookup claims.',
+        );
+    }
+    echo "PASS: route view reference CLI dispatch\n";
     [$exit, $stdout, $stderr] = $run(['--kind', 'vite-environment-references', '--source', 'app.js']);
     $vite = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
     if (

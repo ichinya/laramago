@@ -28,7 +28,7 @@ This follow-up revisits the 35 deferred research items and four remaining metada
 | 95 | Container injection attributes | partial; Explicit-source contextual attribute metadata preserves callable/native/PHPDoc type provenance, argument roles, spans and hashes without inferring effective injected types or contextual handlers. Fifty-four focused checks, direct/installed CLI and merged source analysis pass. Custom container behavior and runtime state remain unresolved. |
 | 97 | Binding interface compatibility | partial; Explicit-source binding metadata compares literal registration type names and selected hierarchies for optional declaration-quality advice. Unknown hierarchy completeness is retained even when identity proves compatibility. Thirty-five focused checks, direct/installed CLI and merged source analysis pass. Effective receiver/container state and runtime failures are not inferred. |
 | 100 | Contextual binding resolution | pending |
-| 104 | Route view references | pending |
+| 104 | Route view references | partial; Bounded explicit-source Route facade view references retain literal spans, hashes and unsupported-source uncertainties for optional declaration policies. Thirty-one focused checks, direct/installed CLI and merged source analysis pass. Effective route defaults, dispatch, view lookup and analyzer diagnostics remain unresolved. |
 | 105 | MailMessage view and markdown references | pending |
 | 106 | Declarative mail content references | pending |
 | 107 | assertViewIs references | pending |
