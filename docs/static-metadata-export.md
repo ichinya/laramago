@@ -225,3 +225,12 @@ The exporter reads no dotenv values and executes no application code. Limits are
 256 files, 1 MiB per file, 8 MiB total, 200,000 tokens per file and 20,000 references.
 Consumers must retain errors, uncertainties and truncation; candidates must not
 drive missing-name diagnostics. This mode does not support watch.
+
+## Route parameter declarations
+
+`laramago-metadata --kind route-parameters --source routes/web.php` exports
+[bounded URI/domain parameter declarations](route-parameter-metadata.md), binding
+fields, source provenance and declaration-default names without their values.
+It preserves native method order and distinguishes URI optional syntax from the
+question-mark marker in a domain. Runtime route survival, actual URL defaults and
+whether a caller may omit a parameter remain unknown. This mode has no watch.

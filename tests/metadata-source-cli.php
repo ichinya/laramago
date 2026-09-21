@@ -91,6 +91,17 @@ try {
         );
     }
     echo "PASS: advisory route duplicate CLI dispatch\n";
+    [$exit, $stdout, $stderr] = $run(['--kind', 'route-parameters', '--source', 'routes/web.php']);
+    $routeParameters = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+    if (
+        $exit !== 0
+        || $stderr !== ''
+        || $routeParameters['scope']['effectiveRuntime'] !== false
+        || $routeParameters['declarations'][0]['name'] !== 'profile.show'
+    ) {
+        throw new RuntimeException('Route parameter CLI must retain source-only declaration scope.');
+    }
+    echo "PASS: route parameter metadata CLI dispatch\n";
     [$exit, $stdout, $stderr] = $run(['--kind', 'vite-environment-references', '--source', 'app.js']);
     $vite = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
     if (

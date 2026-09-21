@@ -180,6 +180,7 @@ copy($package.'/bin/laramago-metadata', $linkedPackage.'/bin/laramago-metadata')
 foreach ([
     'RouteMetadataExport',
     'RouteNameDuplicateCandidates',
+    'RouteParameterMetadataExport',
     'TranslationMetadataExport',
     'TranslationPlaceholderExport',
     'EnvironmentTemplateReferences',
@@ -243,6 +244,7 @@ foreach ([$bin, $linkedProxy] as $entrypoint) {
     foreach ([
         'routes' => 'routes.php',
         'route-name-duplicates' => 'routes.php',
+        'route-parameters' => 'routes.php',
         'translations' => 'config/app.php',
         'translation-placeholders' => 'config/app.php',
         'environment-references' => '.env.example',
