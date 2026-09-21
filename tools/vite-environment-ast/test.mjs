@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { copyFileSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { exportReferences, loadParser } from './export.mjs';
+import { exportReferences, loadParser, diagnoseReferences, validateContract } from './export.mjs';
 
 const parse = await loadParser();
 function fixture(run) {
@@ -126,4 +127,69 @@ test('missing parser fails explicitly without silently falling back', () => fixt
   assert.equal(run.status, 1);
   assert.equal(run.stdout, '');
   assert.match(run.stderr, /^parser-unavailable:/);
+}));
+
+
+const contract = () => ({ schemaVersion: 1, mode: 'production', prefixes: ['PUBLIC_'],
+  availableNames: ['PUBLIC_PRESENT'], complete: true, nativeEnvironment: true });
+
+test('explicit final inventory produces located diagnostics and preserves native builtins', () => fixture(root => {
+  const source = 'const emoji = "😀"; import.meta.env.PUBLIC_PRESENT; import.meta.env.PUBLIC_MISSING; '
+    + 'import.meta.env.VITE_OTHER; import.meta.env.MODE; import.meta.env.BASE_URL; '
+    + 'import.meta.env.DEV; import.meta.env.PROD; import.meta.env.SSR; import.meta.env[key];';
+  writeFileSync(join(root, 'app.js'), source);
+  const result = diagnoseReferences(exportReferences(root, ['app.js'], parse), contract());
+  assert.deepEqual(result.diagnostics.map(d => d.name), ['PUBLIC_MISSING', 'VITE_OTHER']);
+  assert.deepEqual(result.diagnostics.map(d => d.reason), ['absent-from-inventory', 'outside-declared-prefixes']);
+  assert.equal(result.uncertainties.length, 1);
+  for (const d of result.diagnostics) {
+    assert.equal(source.slice(d.start, d.end), `import.meta.env.${d.name}`);
+    assert.equal(d.offsetEncoding, 'utf16-code-units');
+    assert.equal(d.sourceHash, createHash('sha256').update(source).digest('hex'));
+    assert.equal(d.runtimeFailure, false);
+  }
+  assert.equal(result.scope.applicationExecuted, false);
+  assert.equal(result.scope.environmentInventoryInferred, false);
+}));
+
+test('contracts reject partial, dynamic, oversized, duplicate and value-bearing inventories', () => {
+  for (const patch of [ { complete: false }, { nativeEnvironment: false }, { mode: '' },
+    { prefixes: [''] }, { prefixes: ['PUBLIC_', 'PUBLIC_'] }, { prefixes: Array(33).fill('X') },
+    { availableNames: ['OTHER'] }, { availableNames: ['PUBLIC_PRESENT', 'PUBLIC_PRESENT'] },
+    { availableNames: Array(10001).fill('PUBLIC_A') }, { availableNames: ['PUBLIC_\nSECRET'] },
+    { availableNames: [{ name: 'PUBLIC_A', value: 'SECRET' }] }, { values: {} },
+    { mode: 'x'.repeat(257) } ]) {
+    assert.throws(() => validateContract({ ...contract(), ...patch }), /invalid-environment-contract/);
+  }
+  assert.throws(() => validateContract(null), /invalid-environment-contract/);
+  assert.throws(() => validateContract([]), /invalid-environment-contract/);
+  assert.doesNotThrow(() => validateContract({ ...contract(), prefixes: ['PUBLIC_', 'APP_'], availableNames: [] }));
+});
+
+test('contract CLI reports findings, clean runs, incomplete sources, invalid contracts and caps', () => fixture(root => {
+  const entry = fileURLToPath(new URL('./export.mjs', import.meta.url));
+  const config = join(root, 'contract with spaces.json');
+  const run = (...files) => spawnSync(process.execPath, [entry, '--root', root, '--contract', config, ...files], { encoding: 'utf8' });
+  writeFileSync(config, JSON.stringify(contract()));
+  writeFileSync(join(root, '.env'), 'PRIVATE_SECRET=DO_NOT_READ');
+  writeFileSync(join(root, 'vite.config.js'), 'throw new Error("CONFIG EXECUTED")');
+  writeFileSync(join(root, 'app.js'), 'import.meta.env.PUBLIC_MISSING;');
+  let result = run('app.js');
+  assert.equal(result.status, 1, result.stderr);
+  assert.equal(JSON.parse(result.stdout).diagnostics.length, 1);
+  assert.ok(!result.stdout.includes('DO_NOT_READ'));
+  writeFileSync(join(root, 'app.js'), 'import.meta.env.PUBLIC_PRESENT;');
+  result = run('app.js');
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout).diagnostics, []);
+  result = run('missing.js');
+  assert.equal(result.status, 2);
+  assert.equal(JSON.parse(result.stdout).errors[0].code, 'unreadable-source');
+  for (const invalid of ['{"secret":"DO_NOT_LEAK"}', ' '.repeat(1048577), '{bad']) {
+    writeFileSync(config, invalid);
+    result = run('app.js');
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, '');
+    assert.equal(result.stderr.trim(), 'invalid-environment-contract');
+  }
 }));

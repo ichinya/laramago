@@ -125,14 +125,81 @@ export function exportReferences(root, files, parse) {
   return result;
 }
 
+// The contract is an independent user assertion, never inferred from dotenv templates.
+export function validateContract(contract) {
+  const fields = ['schemaVersion', 'mode', 'prefixes', 'availableNames', 'complete', 'nativeEnvironment'];
+  const validString = value => typeof value === 'string' && value.length > 0 && value.length <= 256
+    && !/[\u0000-\u001f\u007f]/u.test(value);
+  if (!contract || typeof contract !== 'object' || Array.isArray(contract)
+    || Object.keys(contract).length !== fields.length || fields.some(key => !Object.hasOwn(contract, key))
+    || contract.schemaVersion !== 1 || contract.complete !== true || contract.nativeEnvironment !== true
+    || !validString(contract.mode) || !Array.isArray(contract.prefixes) || !contract.prefixes.length
+    || contract.prefixes.length > 32 || !contract.prefixes.every(validString)
+    || new Set(contract.prefixes).size !== contract.prefixes.length
+    || !Array.isArray(contract.availableNames) || contract.availableNames.length > 10000
+    || !contract.availableNames.every(validString)
+    || new Set(contract.availableNames).size !== contract.availableNames.length
+    || contract.availableNames.some(name => !contract.prefixes.some(prefix => name.startsWith(prefix)))) {
+    throw new Error('invalid-environment-contract');
+  }
+  return contract;
+}
+
+export function diagnoseReferences(result, input) {
+  const contract = validateContract(input);
+  const available = new Set([...contract.availableNames, 'MODE', 'BASE_URL', 'DEV', 'PROD', 'SSR']);
+  return {
+    ...result,
+    scope: { ...result.scope, kind: 'vite-environment-contract-diagnostics',
+      evidence: 'babel-ast-and-explicit-contract', environmentInventoryInferred: false,
+      runtimeFailureClaimed: false, contractMode: contract.mode },
+    diagnostics: result.references.filter(reference => !available.has(reference.name)).map(reference => ({
+      code: 'environment-name-outside-contract', severity: 'warning', ...reference,
+      message: 'Environment name is absent from the explicitly asserted exposed-name inventory.',
+      reason: contract.prefixes.some(prefix => reference.name.startsWith(prefix))
+        ? 'absent-from-inventory' : 'outside-declared-prefixes',
+      conditionalOnContract: true, runtimeFailure: false,
+    })),
+  };
+}
+
+function readContract(file) {
+  if (!statSync(file).isFile()) throw new Error('invalid-environment-contract');
+  const descriptor = openSync(file, 'r');
+  try {
+    const buffer = Buffer.alloc(1048577);
+    let length = 0;
+    while (length < buffer.length) {
+      const count = readSync(descriptor, buffer, length, buffer.length - length, null);
+      if (!count) break;
+      length += count;
+    }
+    if (length > 1048576) throw new Error('invalid-environment-contract');
+    return validateContract(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(buffer.subarray(0, length))));
+  } finally { closeSync(descriptor); }
+}
+
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const args = process.argv.slice(2);
-    if (args.length < 3 || args[0] !== '--root') throw new Error('usage: node export.mjs --root PROJECT FILE...');
+    if (args.length < 3 || args[0] !== '--root') throw new Error('usage: node export.mjs --root PROJECT [--contract JSON] FILE...');
+    let files = args.slice(2), contract = null;
+    if (files[0] === '--contract') {
+      try { contract = readContract(files[1]); } catch { throw new Error('invalid-environment-contract'); }
+      files = files.slice(2);
+    }
+    if (!files.length || files.some(file => file.startsWith('--'))) {
+      throw new Error('usage: node export.mjs --root PROJECT [--contract JSON] FILE...');
+    }
     const parse = await loadParser();
-    process.stdout.write(`${JSON.stringify(exportReferences(args[1], args.slice(2), parse), null, 2)}\n`);
+    const references = exportReferences(args[1], files, parse);
+    const result = contract ? diagnoseReferences(references, contract) : references;
+    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    if (contract && (result.errors.length || result.truncated)) process.exitCode = 2;
+    else if (result.diagnostics?.length) process.exitCode = 1;
   } catch (error) {
     process.stderr.write(`${error.message.startsWith('parser-unavailable:') || error.message.startsWith('usage:')
+      || error.message === 'invalid-environment-contract'
       ? error.message : 'export-failed: check the project root and source paths'}\n`);
     process.exitCode = 1;
   }

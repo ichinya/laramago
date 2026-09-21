@@ -55,3 +55,53 @@ read dotenv files, resolve aliases/destructuring, infer build mode, validate
 languages are unsupported. JSX uses `.jsx`/`.tsx` extensions. TypeScript uses
 `.ts`/`.mts`/`.cts`/`.tsx`; decorators and other experimental parser plugins are
 not enabled. Runtime value types and existence remain unknown.
+
+## Diagnostics under an explicit environment contract
+
+The optional `--contract` mode compares literal references with an independently
+asserted final inventory. It never constructs that inventory from `.env`, examples,
+process variables, Vite configuration, or application execution.
+
+```json
+{
+  "schemaVersion": 1,
+  "mode": "production",
+  "prefixes": ["VITE_", "PUBLIC_"],
+  "availableNames": ["VITE_API_URL", "PUBLIC_TITLE"],
+  "complete": true,
+  "nativeEnvironment": true
+}
+```
+
+`complete` asserts that the names are the entire final set of custom exposed names
+for the selected build mode. `nativeEnvironment` asserts native `import.meta.env`
+behavior without plugins, `define` substitutions, mutation, or other overrides.
+These assertions must be established independently by the caller. The adapter
+cannot validate them; a configuration with overrides must not supply this contract.
+`mode` is an identifying label, not a configuration loader. Prefixes must be
+nonempty and every custom available name must match a prefix. Native builtins
+`MODE`, `BASE_URL`, `DEV`, `PROD`, and `SSR` are always accepted independently of
+prefixes and should not be listed. No values belong in the contract.
+
+```sh
+node tools/vite-environment-ast/export.mjs --root /path/to/application --contract /path/to/environment-contract.json resources/js/app.ts
+```
+
+`--contract` must appear directly after the root, before sources. Without it the
+existing metadata export is unchanged. Contract mode adds `diagnostics` containing
+`environment-name-outside-contract` warnings for literal names absent from the
+asserted inventory. Each warning retains the original source hash, UTF-16 span,
+name, and line/column. `reason` distinguishes unmatched prefixes from inventory
+omissions. Warnings describe a disagreement with the explicit contract; they do
+not claim that code executes or raises a runtime exception. Dynamic computed
+names remain uncertainties, and aliases/destructuring remain unsupported. A clean
+result does not establish exhaustive source coverage.
+
+Exit status is 0 for no findings, 1 for findings or invalid input, and 2 when source
+read/parse errors or bounds make a contract-mode scan incomplete. Incomplete scans
+still produce JSON with available diagnostics and errors. Invalid contract input
+produces only a generic error, with no contract payload. Contracts are limited to
+1 MiB, 10,000 unique names, 32 unique prefixes, and 256 characters per name/prefix
+or mode. Unknown fields, duplicate names/prefixes, control characters, non-string
+entries, and missing or false assertions are rejected. The optional adapter remains
+independent of PHP and is not automatically run by `vendor/bin/mago`.
