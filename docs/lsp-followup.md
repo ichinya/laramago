@@ -4,7 +4,7 @@ This follow-up revisits the 35 deferred research items and four remaining metada
 
 | Item | Scope | Status and evidence |
 | --- | --- | --- |
-| 21 | Literal query column references | pending |
+| 21 | Literal query column references | implemented; Opt-in exact-model query-source and native-column-semantics assertions check literal columns in fully visible Model::query terminal chains; joins, mutable builders, custom dispatch and unasserted semantics defer. Twenty-eight real-Mago cases pass. |
 | 23 | Search versus creation attribute arrays | pending |
 | 29 | Related model projection columns | pending |
 | 34 | Query-local aggregate result properties | pending |

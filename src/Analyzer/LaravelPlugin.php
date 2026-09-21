@@ -38,6 +38,9 @@ final class LaravelPlugin implements Plugin
         $registry->registerMethodCallAnalysisHook(new ContainerSelfAliasHook($this->projectRoot));
         $registry->registerMethodCallAnalysisHook(new ForceFillWriteContractHook);
         $registry->registerMethodCallAnalysisHook(new ForceFillFieldNamesHook($this->projectRoot));
+        $queryColumns = new QueryColumnReferencesHook($this->projectRoot);
+        $registry->registerMethodCallAnalysisHook($queryColumns);
+        $registry->registerInitializationHook($queryColumns);
         $relationMethods = new EloquentRelationMethodProvider($this->projectRoot);
         $registry->registerMethodReturnTypeProvider($relationMethods);
         $registry->registerInitializationHook($relationMethods);
