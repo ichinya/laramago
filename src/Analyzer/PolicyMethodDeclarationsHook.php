@@ -48,6 +48,7 @@ final class PolicyMethodDeclarationsHook implements NodeAnalysisHook, Initializa
     ];
 
     private ?bool $enabled = null;
+    private ?PolicyCallContracts $callContracts = null;
     private ?PolicyMappingCatalog $policies = null;
     private ?GateDefinitionCatalog $definitions = null;
     private ?ContainerBindings $bindings = null;
@@ -63,6 +64,7 @@ final class PolicyMethodDeclarationsHook implements NodeAnalysisHook, Initializa
     public function initialize(InitializationContext $context): void
     {
         $this->enabled = null;
+        $this->callContracts = null;
         $this->policies = null;
         $this->definitions = null;
         $this->bindings = null;
@@ -90,7 +92,8 @@ final class PolicyMethodDeclarationsHook implements NodeAnalysisHook, Initializa
         if ($this->enabled === null) {
             $this->enabled = $this->enabled();
         }
-        if (! $this->enabled) {
+        $contracts = $this->callContracts ??= new PolicyCallContracts($this->root);
+        if (! $this->enabled && ! $contracts->enabled()) {
             return;
         }
         $call = $this->call($context);
@@ -118,7 +121,10 @@ final class PolicyMethodDeclarationsHook implements NodeAnalysisHook, Initializa
         if ($model === null) {
             return;
         }
-        $policy = ($this->policies ??= new PolicyMappingCatalog($this->root))->policyForExactKey($model);
+        $contractPolicy = $contracts->policy($model);
+        $policy = $contractPolicy ?? ($this->policies ??= new PolicyMappingCatalog($this->root))->policyForExactKey(
+            $model,
+        );
         if ($policy === null || ($this->bindings ??= new ContainerBindings($this->root))->configured($policy)) {
             return;
         }
@@ -127,6 +133,16 @@ final class PolicyMethodDeclarationsHook implements NodeAnalysisHook, Initializa
             return;
         }
         $policyMethod = self::abilityMethod($ability->value);
+        if (
+            $contractPolicy !== null
+            && ! ($call instanceof Node\Expr\MethodCall
+            && $call->var instanceof Node\Expr\MethodCall)
+        ) {
+            $contracts->check($context, $policy, $policyMethod, $target['value']);
+        }
+        if (! $this->enabled) {
+            return;
+        }
         if (
             self::publicMethod($context, $policy, $policyMethod)
             || self::publicMethod($context, $policy, '__call')
