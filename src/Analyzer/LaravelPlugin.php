@@ -108,6 +108,9 @@ final class LaravelPlugin implements Plugin
         $policyMethods = new PolicyMethodDeclarationsHook($this->projectRoot);
         $registry->registerNodeAnalysisHook($policyMethods);
         $registry->registerInitializationHook($policyMethods);
+        $gateAbilities = new GateAbilityReferencesHook($this->projectRoot);
+        $registry->registerMethodCallAnalysisHook($gateAbilities);
+        $registry->registerInitializationHook($gateAbilities);
         $environmentNames = new EnvironmentHelperReferencesHook($this->projectRoot);
         $registry->registerNodeAnalysisHook($environmentNames);
         $registry->registerInitializationHook($environmentNames);

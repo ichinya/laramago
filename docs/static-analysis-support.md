@@ -163,3 +163,5 @@ Native conditional view rendering checks only literal selected branches and lite
 [Permitted middleware references](middleware-references.md) optionally check exact literal native Route middleware strings against an explicit source policy; this does not infer runtime resolution.
 
 An optional [policy method declaration advisory](policy-method-declarations.md) compares literal native Gate calls with selected policy mappings and Mago method metadata. Its notes describe declaration quality only and never prove a runtime authorization failure.
+
+[Gate ability reference policy](gate-ability-policy.md) optionally checks exact literal abilities against a permitted list without claiming runtime authorization failure.
