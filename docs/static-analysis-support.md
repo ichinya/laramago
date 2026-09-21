@@ -1,5 +1,8 @@
 # Static integration coverage
 
+For the latest opt-in route, middleware, policy, binding, template and translation
+diagnostics, see [remaining diagnostic integration](remaining-diagnostics.md).
+
 Laramago reads syntax and Mago metadata without bootstrapping Laravel, executing
 application code, or connecting to a database. Each feature below is a bounded
 implementation; it does not imply support for every dynamic Laravel behavior.

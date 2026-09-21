@@ -2,6 +2,9 @@
 
 This follow-up revisits the 35 deferred research items and four remaining metadata export capabilities. Each item is assigned to its own implementation agent. Results distinguish implemented static subsets, partial support, and verified SDK or runtime-state blockers. Optional advisory checks do not assert Laravel runtime failure.
 
+Subsequent analyzer integrations and their remaining boundaries are tracked in
+[remaining diagnostic integration](remaining-diagnostics.md).
+
 | Item | Scope | Status and evidence |
 | --- | --- | --- |
 | 21 | Literal query column references | implemented; Opt-in exact-model query-source and native-column-semantics assertions check literal columns in fully visible Model::query terminal chains; joins, mutable builders, custom dispatch and unasserted semantics defer. Twenty-eight real-Mago cases pass. |
