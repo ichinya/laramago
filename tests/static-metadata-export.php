@@ -180,6 +180,7 @@ copy($package.'/bin/laramago-metadata', $linkedPackage.'/bin/laramago-metadata')
 foreach ([
     'RouteMetadataExport',
     'ControllerRouteContractExport',
+    'PolicyAdditionalArgumentContractExport',
     'PolicyClassSelectorCallExport',
     'PolicyModelArgumentContractExport',
     'MiddlewareParameterMetadataExport',
@@ -249,7 +250,7 @@ file_put_contents($fixture.'/controllers.php', <<<'PHP'
     use Illuminate\Support\Facades\Route;
     (new Illuminate\Pipeline\Pipeline)->through('auth:admin,editor');
     Illuminate\Support\Facades\Gate::allows('view', [ExampleController::class, 42]);
-    class ExamplePolicy { public function view(object $user, ExampleController $model): bool { return true; } }
+    class ExamplePolicy { public function view(object $user, ExampleController $model, int $level = 0): bool { return true; } }
     class ExampleAuthProvider extends Illuminate\Foundation\Support\Providers\AuthServiceProvider {
         protected $policies = [ExampleController::class => ExamplePolicy::class];
     }
@@ -261,6 +262,7 @@ foreach ([$bin, $linkedProxy] as $entrypoint) {
         'routes' => 'routes.php',
         'controller-route-contract-candidates' => 'controllers.php',
         'middleware-parameters' => 'controllers.php',
+        'policy-additional-argument-contract-candidates' => 'controllers.php',
         'policy-class-selector-call-candidates' => 'controllers.php',
         'policy-model-argument-contract-candidates' => 'controllers.php',
         'route-name-duplicates' => 'routes.php',
@@ -290,7 +292,7 @@ foreach ([$bin, $linkedProxy] as $entrypoint) {
             || $stderr !== ''
             || $metadata['scope']['kind'] !== $kind
             || (
-                $metadata['declarations'] ?? $metadata['candidates'] ?? $metadata['references'] ?? $metadata['contracts']
+                $metadata['declarations'] ?? $metadata['candidates'] ?? $metadata['references'] ?? $metadata['contracts'] ?? $metadata['policyContracts']
                 ?? $metadata['calls']
             )
                 === []

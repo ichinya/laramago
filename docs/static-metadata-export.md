@@ -250,3 +250,5 @@ The `middleware-parameters` kind reads explicit PHP sources and exports [conditi
 The `policy-model-argument-contract-candidates` kind exports [selected mapping and policy parameter declarations](policy-model-argument-contract-candidates.md), with explicit uncertainty about effective Gate dispatch.
 
 The `policy-class-selector-call-candidates` kind preserves [literal class-selector transformations](policy-class-selector-call-candidates.md) without claiming that the policy call executes.
+
+The `policy-additional-argument-contract-candidates` kind exports [additional parameter declarations and separate Gate argument syntax](policy-additional-argument-contract-candidates.md). It composes with model parameter metadata without asserting effective dispatch or compatibility.

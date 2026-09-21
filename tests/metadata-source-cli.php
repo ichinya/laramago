@@ -15,7 +15,7 @@ file_put_contents($fixture.'/controllers.php', <<<'PHP'
     use Illuminate\Support\Facades\Route;
     (new Illuminate\Pipeline\Pipeline)->through('auth:admin,editor');
     Illuminate\Support\Facades\Gate::allows('view', [ExampleController::class, 42]);
-    class ExamplePolicy { public function view(object $user, ExampleController $model): bool { return true; } }
+    class ExamplePolicy { public function view(object $user, ExampleController $model, int $level = 0): bool { return true; } }
     class ExampleAuthProvider extends Illuminate\Foundation\Support\Providers\AuthServiceProvider {
         protected $policies = [ExampleController::class => ExamplePolicy::class];
     }
@@ -169,6 +169,23 @@ try {
         throw new RuntimeException('Policy selector CLI must retain the conditional argument transformation.');
     }
     echo "PASS: policy class selector CLI dispatch\n";
+    [$exit, $stdout, $stderr] = $run([
+        '--kind',
+        'policy-additional-argument-contract-candidates',
+        '--source',
+        'controllers.php',
+    ]);
+    $additional = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+    if (
+        $exit !== 0
+        || $stderr !== ''
+        || count($additional['policyContracts'][0]['additionalParameterCandidates']) !== 1
+        || count($additional['gateCalls']) !== 1
+        || $additional['scope']['runtimeDispatchValidated'] !== false
+    ) {
+        throw new RuntimeException('Policy additional argument CLI must keep declarations separate from calls.');
+    }
+    echo "PASS: policy additional argument CLI dispatch\n";
     [$exit, $stdout, $stderr] = $run(['--kind', 'vite-environment-references', '--source', 'app.js']);
     $vite = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
     if (
