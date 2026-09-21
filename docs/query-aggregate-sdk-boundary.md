@@ -48,3 +48,8 @@ joins and conservative invalidation on escapes, callbacks, scopes and unknown
 builder methods. The result provider must still defer to native declarations,
 PHPDoc, accessors and casts, and must preserve native unknown-property errors when
 the proof is absent.
+
+The [upstream capability proposal](query-aggregate-sdk-proposal.md) provides
+reproduction instructions, an isolated SDK override and acceptance cases for
+future source-aware support. The collision probe also rejects unexpected public
+SDK context fields so that this limitation is re-evaluated when the API changes.

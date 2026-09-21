@@ -26,6 +26,18 @@ final class AggregateInvocationProbe implements MethodReturnTypeProvider
     public function getReturnType(ReturnTypeProviderContext $context): ?Type
     {
         $invocation = $context->invocation;
+        // Fail the boundary proof when the SDK gains additional public context.
+        // Comparing only previously known fields could hide a new source identity.
+        $contextFields = array_keys(get_object_vars($context));
+        $invocationFields = array_keys(get_object_vars($invocation));
+        sort($contextFields);
+        sort($invocationFields);
+        if (
+            $contextFields !== ['cancellation', 'codebase', 'invocation', 'phpVersion', 'types']
+            || $invocationFields !== ['arguments', 'declaringClass', 'kind', 'name', 'receiverType', 'span']
+        ) {
+            throw new RuntimeException('SDK context changed; re-evaluate the aggregate source-identity boundary.');
+        }
         $record = [
             'kind' => $invocation->kind->name,
             'name' => $invocation->name,

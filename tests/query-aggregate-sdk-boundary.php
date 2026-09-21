@@ -31,7 +31,7 @@ file_put_contents($workspace.'/mago.json', json_encode([
                 '-d',
                 'opcache.enable_cli=0',
                 $package.'/tests/fixtures/analysis/query-aggregate-sdk-worker.php.stub',
-                $package.'/vendor/autoload.php',
+                getenv('MAGO_SDK_AUTOLOAD') ?: $package.'/vendor/autoload.php',
                 $audit,
             ],
             'workers' => 1,
