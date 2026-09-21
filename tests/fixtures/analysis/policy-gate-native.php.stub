@@ -1,0 +1,48 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Illuminate\Auth\Access;
+
+class Gate
+{
+    public function allows($ability, $arguments = []): bool
+    {
+        return false;
+    }
+
+    public function denies($ability, $arguments = []): bool
+    {
+        return false;
+    }
+
+    public function check($abilities, $arguments = []): bool
+    {
+        return false;
+    }
+
+    public function any($abilities, $arguments = []): bool
+    {
+        return false;
+    }
+
+    public function none($abilities, $arguments = []): bool
+    {
+        return false;
+    }
+
+    public function authorize($ability, $arguments = []): mixed
+    {
+        return null;
+    }
+
+    public function inspect($ability, $arguments = []): mixed
+    {
+        return null;
+    }
+
+    public function raw($ability, $arguments = []): mixed
+    {
+        return null;
+    }
+}

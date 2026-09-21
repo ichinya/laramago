@@ -105,6 +105,9 @@ final class LaravelPlugin implements Plugin
         $serviceIds = new ServiceIdReferencesHook($this->projectRoot);
         $registry->registerNodeAnalysisHook($serviceIds);
         $registry->registerInitializationHook($serviceIds);
+        $policyMethods = new PolicyMethodDeclarationsHook($this->projectRoot);
+        $registry->registerNodeAnalysisHook($policyMethods);
+        $registry->registerInitializationHook($policyMethods);
         $environmentNames = new EnvironmentHelperReferencesHook($this->projectRoot);
         $registry->registerNodeAnalysisHook($environmentNames);
         $registry->registerInitializationHook($environmentNames);

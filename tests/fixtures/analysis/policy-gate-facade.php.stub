@@ -1,0 +1,27 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Illuminate\Support\Facades;
+
+use Illuminate\Contracts\Auth\Access\Gate as GateContract;
+
+/**
+ * @method static bool allows(iterable|string $ability, mixed $arguments = [])
+ * @method static bool denies(iterable|string $ability, mixed $arguments = [])
+ * @method static bool check(iterable|string $abilities, mixed $arguments = [])
+ * @method static bool any(iterable|string $abilities, mixed $arguments = [])
+ * @method static bool none(iterable|string $abilities, mixed $arguments = [])
+ * @method static mixed authorize(string $ability, mixed $arguments = [])
+ * @method static mixed inspect(string $ability, mixed $arguments = [])
+ * @method static mixed raw(string $ability, mixed $arguments = [])
+ */
+class Gate extends Facade
+{
+    protected static function getFacadeAccessor(): string
+    {
+        return GateContract::class;
+    }
+}
+
+class CustomGate extends Gate {}
