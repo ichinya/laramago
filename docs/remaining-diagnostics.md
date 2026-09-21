@@ -1,5 +1,8 @@
 # Remaining diagnostic integration
 
+The next pass is documented in [diagnostic refinements](diagnostic-refinements.md),
+including the default dependency-index isolation fix and additional native checks.
+
 This pass follows the bounded metadata work in [the follow-up queue](lsp-followup.md).
 Each direction has an independent implementation agent. Source metadata is not
 treated as proof of effective Laravel runtime state. New diagnostics remain
