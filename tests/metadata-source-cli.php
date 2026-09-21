@@ -22,6 +22,7 @@ file_put_contents($fixture.'/controllers.php', <<<'PHP'
     (new Illuminate\Notifications\Messages\MailMessage)->markdown('mail.receipt');
     new Illuminate\Mail\Mailables\Content(view: 'mail.receipt', htmlString: '<p>raw</p>');
     $page->links('pagination.custom');
+    \trans_choice('messages.items', 2);
     class ExamplePolicy { public function view(object $user, ExampleController $model, int $level = 0): bool { return true; } }
     class ExampleAuthProvider extends Illuminate\Foundation\Support\Providers\AuthServiceProvider {
         protected $policies = [ExampleController::class => ExamplePolicy::class];
@@ -308,6 +309,23 @@ try {
         throw new RuntimeException('Pagination CLI must retain unresolved receiver and factory provenance.');
     }
     echo "PASS: pagination view candidate CLI dispatch\n";
+    [$exit, $stdout, $stderr] = $run([
+        '--kind',
+        'translation-choice-reference-candidates',
+        '--source',
+        'controllers.php',
+    ]);
+    $choices = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+    if (
+        $exit !== 0
+        || $stderr !== ''
+        || array_column($choices['references'], 'name') !== ['messages.items']
+        || $choices['references'][0]['actualLocale']['state'] !== 'unknown'
+        || $choices['references'][0]['missingNameDiagnostic'] !== false
+    ) {
+        throw new RuntimeException('Translation choice CLI must retain actual fallback locale uncertainty.');
+    }
+    echo "PASS: translation choice reference CLI dispatch\n";
     [$exit, $stdout, $stderr] = $run(['--kind', 'vite-environment-references', '--source', 'app.js']);
     $vite = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
     if (
