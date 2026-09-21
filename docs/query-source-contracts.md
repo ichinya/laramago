@@ -37,6 +37,14 @@ rewrites column names, omit this assertion. Both assertions are required; the
 analyzer does not derive them from a schema. Catalogs refresh at each analysis
 initialization and are loaded only when a relevant method is analyzed.
 
+The same assertions enable [search attribute checks](search-attribute-arrays.md)
+for direct fresh-query calls to `firstOrNew()`, `firstOrCreate()` and
+`updateOrCreate()`. Only literal nonnumeric string keys in the first
+`$attributes` argument are query-column references. The second `$values`
+argument has write semantics and is not checked by this read-only contract.
+`createOrFirst()` defers because its creation attempt precedes its optional
+fallback lookup.
+
 The analyzer reports `laramago-query-source-missing-column` only when the entire
 query is one visible expression rooted at a literal `Model::query()`, ends in a
 zero-argument `get()`, `first()`, `firstOrFail()` or `sole()`, and contains only
@@ -50,7 +58,8 @@ custom builder, query factory or magic dispatcher makes the whole chain unknown.
 Direct static magic calls such as `Article::where(...)` also defer because Mago
 1.48.1 does not expose those forwarded calls to the targeted lifecycle hook used
 by this check. Incomplete or absent contracts remain silent. Projection and
-aggregate column validation are separate concerns.
+aggregate column validation are separate concerns. Search attribute calls have
+their own stricter direct-call boundary described above.
 
 The contract is advisory static-analysis input. Laramago reads Composer JSON and
 source syntax only; it does not construct a model, apply a scope, boot Laravel or

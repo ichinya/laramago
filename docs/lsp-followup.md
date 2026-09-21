@@ -5,7 +5,7 @@ This follow-up revisits the 35 deferred research items and four remaining metada
 | Item | Scope | Status and evidence |
 | --- | --- | --- |
 | 21 | Literal query column references | implemented; Opt-in exact-model query-source and native-column-semantics assertions check literal columns in fully visible Model::query terminal chains; joins, mutable builders, custom dispatch and unasserted semantics defer. Twenty-eight real-Mago cases pass. |
-| 23 | Search versus creation attribute arrays | pending |
+| 23 | Search versus creation attribute arrays | implemented; Direct fresh-query firstOrNew, firstOrCreate and updateOrCreate check literal nonnumeric search keys against exact effective-source assertions; write values, creation-first createOrFirst, numeric tuple keys and mutable/custom builders defer. Thirty-five real-Mago cases and twenty-eight query-column regressions pass. |
 | 29 | Related model projection columns | pending |
 | 34 | Query-local aggregate result properties | pending |
 | 41 | Configuration push and prepend targets | pending |
