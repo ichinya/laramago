@@ -8,6 +8,7 @@ mkdir($fixture);
 mkdir($fixture.'/routes');
 mkdir($fixture.'/lang');
 mkdir($fixture.'/vendor');
+file_put_contents($fixture.'/lang/en.json', '{"Greeting":"PRIVATE_TRANSLATED_VALUE"}');
 file_put_contents(
     $fixture.'/.env.example',
     'SOURCE=PRIVATE_TEMPLATE_VALUE'."\n".'TARGET="${SOURCE}"'."\n".'SOURCE=PRIVATE_TEMPLATE_VALUE',
@@ -47,7 +48,11 @@ $run = static function (array $options) use ($package, $fixture): array {
 };
 
 try {
-    foreach (['routes' => 'routes/web.php', 'translations' => 'lang/messages.php'] as $kind => $file) {
+    foreach ([
+        'routes' => 'routes/web.php',
+        'translations' => 'lang/messages.php',
+        'translations-json' => 'lang/en.json',
+    ] as $kind => $file) {
         [$exit, $stdout, $stderr] = $run(['--kind', $kind, '--source', $file]);
         $data = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
         if (
@@ -127,7 +132,14 @@ try {
     }
     echo "PASS: incompatible metadata modes are rejected\n";
 } finally {
-    foreach (['routes/web.php', 'lang/messages.php', 'vendor/autoload.php', '.env.example', '.env'] as $file) {
+    foreach ([
+        'routes/web.php',
+        'lang/messages.php',
+        'lang/en.json',
+        'vendor/autoload.php',
+        '.env.example',
+        '.env',
+    ] as $file) {
         unlink($fixture.'/'.$file);
     }
     foreach (['routes', 'lang', 'vendor'] as $directory) {

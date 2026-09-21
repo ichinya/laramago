@@ -153,3 +153,19 @@ support watch. Limits are 256 files, 1 MiB per file, 8 MiB source bytes, depth 3
 20,000 candidates, 1,024 bytes per name and an 8 MiB estimated candidate-output
 budget. Repeated long parent-key provenance counts against the output budget.
 Reached limits are disclosed through `truncated` and `truncationReasons`.
+
+## JSON translation declarations
+
+Run `laramago-metadata --kind translations-json --source lang/en.json` to export
+root object keys from explicitly selected JSON translation files. The exporter
+validates the document and retains each original key literal's byte span, line,
+source hash, decoded name, and PHP associative-array key. Duplicate declarations
+remain visible; `sourceSelected` identifies the last occurrence within that file.
+Nested message content and translated values are omitted.
+
+This is source evidence for navigation and completion. It does not infer active
+locales, fallback, loader path precedence, or a complete runtime translation
+catalog. Requested and resolved sources must be project-contained JSON files.
+Malformed input produces generic errors without source excerpts. Limits are
+256 files, 1 MiB per file, 8 MiB total source bytes, 20,000 declarations, and JSON
+decode depth 512. Errors and truncation remain visible in the envelope.

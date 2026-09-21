@@ -183,6 +183,7 @@ foreach ([
     'TranslationPlaceholderExport',
     'EnvironmentTemplateReferences',
     'EnvironmentTemplateDuplicates',
+    'JsonTranslationMetadataExport',
 ] as $class) {
     copy($package.'/src/Metadata/'.$class.'.php', $linkedPackage.'/src/Metadata/'.$class.'.php');
 }
@@ -233,6 +234,7 @@ file_put_contents(
     $fixture.'/.env.example',
     'SOURCE=private-value-must-not-export'."\n".'TARGET="${SOURCE}"'."\n".'SOURCE=PRIVATE_TEMPLATE_VALUE',
 );
+file_put_contents($fixture.'/translations.json', '{"Greeting":"private-value-must-not-export"}');
 foreach ([$bin, $linkedProxy] as $entrypoint) {
     foreach ([
         'routes' => 'routes.php',
@@ -240,6 +242,7 @@ foreach ([$bin, $linkedProxy] as $entrypoint) {
         'translation-placeholders' => 'config/app.php',
         'environment-references' => '.env.example',
         'environment-duplicates' => '.env.example',
+        'translations-json' => 'translations.json',
     ] as $kind => $file) {
         [$exit, $stdout, $stderr] = $run([
             PHP_BINARY,

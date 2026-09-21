@@ -40,6 +40,6 @@ This follow-up revisits the 35 deferred research items and four remaining metada
 | 123 | Pluralization syntax contracts | pending |
 | 180 | Pest closure this typing | blocked; Real-Mago identical-file probe confirms missing pre-argument file identity; SDK 1.49.0 retains the boundary. Documented source-aware API prerequisite and verified explicit closure-this PHPDoc workaround; no unsafe provider added. |
 | 198 | Literal route groups and name prefixes in metadata | implemented; Route metadata composes bounded literal name groups and exact as-attribute groups, retaining raw leaf spans and ordered prefix-token provenance. Dynamic groups and incorrect magic-attribute casing defer; 74 checks and CLI regression pass. |
-| 199 | JSON translation declaration metadata | pending |
+| 199 | JSON translation declaration metadata | implemented; Explicit JSON translation source export preserves root key byte spans, duplicate selection and PHP key normalization without translated values. Forty-nine focused checks, PHP exporter regression, CLI and installed Composer proxy checks pass; symlink cases conditional on host support. |
 | 200 | Route source metadata watch | pending |
 | 201 | Translation source metadata watch | pending |
