@@ -196,3 +196,12 @@ Each mode accepts only its own source format, including after symlink resolution
 Malformed translations invalidate the previous snapshot and recovery publishes a
 fresh one. Source selection stays explicit; watching does not infer runtime locale,
 fallback, or loader precedence. Placeholder and environment modes do not support watch.
+
+## Duplicate route name advice
+
+`laramago-metadata --kind route-name-duplicates --source routes/web.php` exports
+[duplicate literal name candidates](route-name-duplicate-candidates.md) with both
+source locations and group-name provenance. These are review candidates only:
+`activeRouteConflict` remains `unknown`, including when Laravel may replace an
+earlier route with the same method, domain and URI. The mode is non-exhaustive,
+retains source errors and truncation, and does not support watch.

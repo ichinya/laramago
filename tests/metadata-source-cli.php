@@ -22,6 +22,7 @@ file_put_contents($fixture.'/routes/web.php', <<<'PHP'
     <?php
     use Illuminate\Support\Facades\Route;
     Route::get('/profile', 'ProfileController')->name('profile.show');
+    Route::get('/other-profile', 'ProfileController')->name('profile.show');
     throw new RuntimeException('Route source executed');
     PHP);
 file_put_contents($fixture.'/lang/messages.php', <<<'PHP'
@@ -74,6 +75,21 @@ try {
         }
         echo 'PASS: '.$kind." CLI dispatch and source errors\n";
     }
+    [$exit, $stdout, $stderr] = $run(['--kind', 'route-name-duplicates', '--source', 'routes/web.php']);
+    $duplicates = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+    if (
+        $exit !== 0
+        || $stderr !== ''
+        || $duplicates['scope']['exhaustive'] !== false
+        || array_column($duplicates['candidates'], 'name') !== ['profile.show']
+        || $duplicates['candidates'][0]['activeRouteConflict'] !== 'unknown'
+        || $duplicates['candidates'][0]['firstLocation']['start'] >= $duplicates['candidates'][0]['start']
+    ) {
+        throw new RuntimeException(
+            'Route duplicate candidates must preserve locations without claiming active conflicts.',
+        );
+    }
+    echo "PASS: advisory route duplicate CLI dispatch\n";
     [$exit, $stdout, $stderr] = $run(['--kind', 'translation-placeholders', '--source', 'lang/messages.php']);
     $placeholders = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
     if (

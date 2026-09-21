@@ -108,6 +108,10 @@ explicit runtime assumptions, and [route parameter validation](route-parameters.
 for that diagnostic's exact scope. Private application comparisons stay in ignored
 development artifacts and are not part of the package.
 
+[Route name duplicate candidates](route-name-duplicate-candidates.md) provide an
+ordered source-only review aid with both literal locations. They do not claim that
+the declarations survive native route replacement or conflict at runtime.
+
 [Relation name contracts](relation-names.md) enable missing-name warnings only for explicitly complete model catalogs. Higher-order collection predicates may produce empty results and do not narrow individual item properties.
 
 [Reference catalogs](reference-catalogs.md) and [named-route contracts](named-route-contracts.md) document the explicit completeness requirements for missing-reference warnings.

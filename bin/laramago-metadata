@@ -9,6 +9,7 @@ use Ichinya\Laramago\Metadata\EnvironmentTemplateDuplicates;
 use Ichinya\Laramago\Metadata\EnvironmentTemplateReferences;
 use Ichinya\Laramago\Metadata\JsonTranslationMetadataExport;
 use Ichinya\Laramago\Metadata\RouteMetadataExport;
+use Ichinya\Laramago\Metadata\RouteNameDuplicateCandidates;
 use Ichinya\Laramago\Metadata\SelectedSourceWatch;
 use Ichinya\Laramago\Metadata\TranslationMetadataExport;
 use Ichinya\Laramago\Metadata\TranslationPlaceholderExport;
@@ -46,7 +47,7 @@ spl_autoload_register(static function (string $class) use ($packageRoot, $parser
     }
 });
 
-$usage = "Usage: laramago-metadata [--project-root DIR] [--kind configuration|routes|translations|translations-json|translation-placeholders|environment-references|environment-duplicates] [--source FILE ...] [--config-array KEY ...] [--config-key KEY ...] [--output FILE] [--watch [--interval-ms 50..60000]]\n";
+$usage = "Usage: laramago-metadata [--project-root DIR] [--kind configuration|routes|route-name-duplicates|translations|translations-json|translation-placeholders|environment-references|environment-duplicates] [--source FILE ...] [--config-array KEY ...] [--config-key KEY ...] [--output FILE] [--watch [--interval-ms 50..60000]]\n";
 $root = getcwd() ?: '';
 $kind = 'configuration';
 $files = [];
@@ -124,6 +125,7 @@ if (! in_array(
     [
         'configuration',
         'routes',
+        'route-name-duplicates',
         'translations',
         'translation-placeholders',
         'environment-references',
@@ -167,6 +169,7 @@ if ($root === false) {
 
 $export = static fn (): array => match ($kind) {
     'routes' => (new RouteMetadataExport)->export($root, $files),
+    'route-name-duplicates' => (new RouteNameDuplicateCandidates)->export($root, $files),
     'translations' => (new TranslationMetadataExport)->export($root, $files),
     'translations-json' => (new JsonTranslationMetadataExport)->export($root, $files),
     'translation-placeholders' => (new TranslationPlaceholderExport)->export($root, $files),

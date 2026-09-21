@@ -179,6 +179,7 @@ mkdir($linkedPackage.'/src/Metadata', 0777, true);
 copy($package.'/bin/laramago-metadata', $linkedPackage.'/bin/laramago-metadata');
 foreach ([
     'RouteMetadataExport',
+    'RouteNameDuplicateCandidates',
     'TranslationMetadataExport',
     'TranslationPlaceholderExport',
     'EnvironmentTemplateReferences',
@@ -229,6 +230,7 @@ file_put_contents($fixture.'/routes.php', <<<'PHP'
     <?php
     use Illuminate\Support\Facades\Route;
     Route::get('/example', 'ExampleController')->name('example');
+    Route::get('/other', 'ExampleController')->name('example');
     PHP);
 file_put_contents(
     $fixture.'/.env.example',
@@ -238,6 +240,7 @@ file_put_contents($fixture.'/translations.json', '{"Greeting":"private-value-mus
 foreach ([$bin, $linkedProxy] as $entrypoint) {
     foreach ([
         'routes' => 'routes.php',
+        'route-name-duplicates' => 'routes.php',
         'translations' => 'config/app.php',
         'translation-placeholders' => 'config/app.php',
         'environment-references' => '.env.example',

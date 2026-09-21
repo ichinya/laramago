@@ -12,7 +12,7 @@ This follow-up revisits the 35 deferred research items and four remaining metada
 | 46 | Environment template interpolation references | implemented; Explicit dotenv-template CLI export provides declaration and interpolation-name spans without values or runtime resolution. Requested and resolved template filenames are enforced; 58 focused checks, CLI isolation and Composer proxy tests pass. |
 | 47 | Duplicate environment template declarations | implemented; Advisory exact-case duplicate declarations within explicitly selected dotenv templates; names-only first and repeated source locations, errors and uncertainty preserved. Thirty focused checks plus CLI and installed Composer proxy checks pass. |
 | 48 | Vite environment name references | pending |
-| 57 | Conflicting active route names | pending |
+| 57 | Conflicting active route names | partial; Advisory duplicate route-name metadata exports both source locations, group provenance and retained errors/limits. Twenty-one focused checks pass. Active conflict detection remains deferred because effective registration, replacement and final route state are not proven. |
 | 58 | Required named-route parameters | pending |
 | 59 | Domain optional and default route parameters | pending |
 | 60 | Route declaration diagnostic locations | pending |
