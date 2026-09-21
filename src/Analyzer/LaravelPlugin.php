@@ -67,6 +67,11 @@ final class LaravelPlugin implements Plugin
         }
         $registry->registerMethodReturnTypeProvider(new FacadeRootProvider($this->projectRoot));
         $bindings = new ContainerBindingProvider($this->projectRoot);
+        $injectionContracts = new ContextualInjectionContractsHook($this->projectRoot);
+        if ($injectionContracts->enabled()) {
+            $registry->registerNodeAnalysisHook($injectionContracts);
+            $registry->registerInitializationHook($injectionContracts);
+        }
         $bindingCandidates = new BindingCompatibilityCandidatesHook($this->projectRoot);
         if ($bindingCandidates->enabled()) {
             $registry->registerNodeAnalysisHook($bindingCandidates);
