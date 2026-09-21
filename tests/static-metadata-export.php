@@ -180,6 +180,7 @@ copy($package.'/bin/laramago-metadata', $linkedPackage.'/bin/laramago-metadata')
 foreach ([
     'RouteMetadataExport',
     'ControllerRouteContractExport',
+    'ContextualBindingMetadataExport',
     'RouteViewReferenceExport',
     'ContainerInjectionAttributeExport',
     'BindingCompatibilityExport',
@@ -257,6 +258,7 @@ file_put_contents($fixture.'/controllers.php', <<<'PHP'
     $app->bind(ExampleController::class, ExampleController::class);
     function injected(#[Illuminate\Container\Attributes\Give('clock')] object $clock): void {}
     Route::view('/welcome', 'pages.welcome');
+    \app()->when(ExampleController::class)->needs('clock')->give('clock.impl');
     class ExamplePolicy { public function view(object $user, ExampleController $model, int $level = 0): bool { return true; } }
     class ExampleAuthProvider extends Illuminate\Foundation\Support\Providers\AuthServiceProvider {
         protected $policies = [ExampleController::class => ExamplePolicy::class];
@@ -269,6 +271,7 @@ foreach ([$bin, $linkedProxy] as $entrypoint) {
         'routes' => 'routes.php',
         'controller-route-contract-candidates' => 'controllers.php',
         'middleware-parameters' => 'controllers.php',
+        'contextual-binding-declaration-candidates' => 'controllers.php',
         'route-view-references' => 'controllers.php',
         'container-injection-attribute-candidates' => 'controllers.php',
         'binding-compatibility-candidates' => 'controllers.php',

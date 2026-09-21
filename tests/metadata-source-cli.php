@@ -18,6 +18,7 @@ file_put_contents($fixture.'/controllers.php', <<<'PHP'
     $app->bind(ExampleController::class, ExampleController::class);
     function injected(#[Illuminate\Container\Attributes\Give('clock')] object $clock): void {}
     Route::view('/welcome', 'pages.welcome');
+    \app()->when(ExampleController::class)->needs('clock')->give('clock.impl');
     class ExamplePolicy { public function view(object $user, ExampleController $model, int $level = 0): bool { return true; } }
     class ExampleAuthProvider extends Illuminate\Foundation\Support\Providers\AuthServiceProvider {
         protected $policies = [ExampleController::class => ExamplePolicy::class];
@@ -242,6 +243,24 @@ try {
         );
     }
     echo "PASS: route view reference CLI dispatch\n";
+    [$exit, $stdout, $stderr] = $run([
+        '--kind',
+        'contextual-binding-declaration-candidates',
+        '--source',
+        'controllers.php',
+    ]);
+    $contextual = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+    if (
+        $exit !== 0
+        || $stderr !== ''
+        || count($contextual['declarations']) !== 1
+        || $contextual['scope']['receiverNativeValidated'] !== false
+        || $contextual['scope']['runtimeRegistrationValidated'] !== false
+        || $contextual['scope']['effectiveResolutionValidated'] !== false
+    ) {
+        throw new RuntimeException('Contextual binding CLI must retain declaration-only scope.');
+    }
+    echo "PASS: contextual binding declaration CLI dispatch\n";
     [$exit, $stdout, $stderr] = $run(['--kind', 'vite-environment-references', '--source', 'app.js']);
     $vite = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
     if (

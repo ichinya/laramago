@@ -7,6 +7,7 @@ use Ichinya\Laramago\Analyzer\StaticAnalysis\StaticMetadataExport;
 use Ichinya\Laramago\Metadata\BindingCompatibilityExport;
 use Ichinya\Laramago\Metadata\ConfigurationWatch;
 use Ichinya\Laramago\Metadata\ContainerInjectionAttributeExport;
+use Ichinya\Laramago\Metadata\ContextualBindingMetadataExport;
 use Ichinya\Laramago\Metadata\ControllerRouteContractExport;
 use Ichinya\Laramago\Metadata\EnvironmentTemplateDuplicates;
 use Ichinya\Laramago\Metadata\EnvironmentTemplateReferences;
@@ -58,7 +59,7 @@ spl_autoload_register(static function (string $class) use ($packageRoot, $parser
     }
 });
 
-$usage = "Usage: laramago-metadata [--project-root DIR] [--kind configuration|route-view-references|container-injection-attribute-candidates|binding-compatibility-candidates|policy-discovery-boundaries|policy-additional-argument-contract-candidates|policy-class-selector-call-candidates|policy-model-argument-contract-candidates|middleware-parameters|controller-route-contract-candidates|routes|route-name-duplicates|route-parameters|translations|translations-json|translation-placeholders|environment-references|environment-duplicates|vite-environment-references] [--source FILE ...] [--config-array KEY ...] [--config-key KEY ...] [--output FILE] [--watch [--interval-ms 50..60000]]\n";
+$usage = "Usage: laramago-metadata [--project-root DIR] [--kind configuration|contextual-binding-declaration-candidates|route-view-references|container-injection-attribute-candidates|binding-compatibility-candidates|policy-discovery-boundaries|policy-additional-argument-contract-candidates|policy-class-selector-call-candidates|policy-model-argument-contract-candidates|middleware-parameters|controller-route-contract-candidates|routes|route-name-duplicates|route-parameters|translations|translations-json|translation-placeholders|environment-references|environment-duplicates|vite-environment-references] [--source FILE ...] [--config-array KEY ...] [--config-key KEY ...] [--output FILE] [--watch [--interval-ms 50..60000]]\n";
 $root = getcwd() ?: '';
 $kind = 'configuration';
 $files = [];
@@ -142,6 +143,7 @@ if (! in_array(
         'binding-compatibility-candidates',
         'container-injection-attribute-candidates',
         'route-view-references',
+        'contextual-binding-declaration-candidates',
         'middleware-parameters',
         'controller-route-contract-candidates',
         'routes',
@@ -200,6 +202,7 @@ $export = static fn (): array => match ($kind) {
     'binding-compatibility-candidates' => (new BindingCompatibilityExport)->export($root, $files),
     'container-injection-attribute-candidates' => (new ContainerInjectionAttributeExport)->export($root, $files),
     'route-view-references' => (new RouteViewReferenceExport)->export($root, $files),
+    'contextual-binding-declaration-candidates' => (new ContextualBindingMetadataExport)->export($root, $files),
     'middleware-parameters' => (new MiddlewareParameterMetadataExport)->export($root, $files),
     'controller-route-contract-candidates' => (new ControllerRouteContractExport)->export($root, $files),
     'routes' => (new RouteMetadataExport)->export($root, $files),

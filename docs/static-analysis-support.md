@@ -169,3 +169,5 @@ An optional [policy method declaration advisory](policy-method-declarations.md) 
 [Binding compatibility candidates](binding-compatibility-export.md) provide optional declaration-quality metadata; valid unrelated Laravel bindings are not runtime errors.
 
 [Route view reference metadata](route-view-reference-candidates.md) supports explicit declaration policies; source names do not establish runtime lookup.
+
+[Contextual binding declaration metadata](contextual-binding-metadata.md) preserves selected source syntax and uncertainty without changing inferred container types.
