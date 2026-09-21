@@ -1022,3 +1022,5 @@ Standard service helpers such as `app('cache')` and `resolve('session')` use ins
 `str()` preserves the installed anonymous proxy and known `Str` method contracts; explicit `str(null)` returns `Stringable`. Standard `DB::transaction()` calls retain analyzed Closure results, including retry-aware nullability. Both are covered by [framework helper contracts](docs/framework-helpers.md).
 
 [Permitted middleware references](docs/middleware-references.md) provide an optional exact literal-reference policy for native Route middleware calls.
+
+[Permitted assertViewIs identities](docs/assert-view-identity-policy.md) provide an optional literal-reference policy for native stored-view identity assertions.

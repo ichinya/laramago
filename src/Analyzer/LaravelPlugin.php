@@ -87,6 +87,9 @@ final class LaravelPlugin implements Plugin
         $registry->registerMethodReturnTypeProvider($httpTests);
         $registry->registerInitializationHook($httpTests);
         $registry->registerMethodReturnTypeProvider(new LaratestoResponseCallbackProvider($httpTests));
+        $assertViewIdentities = new AssertViewIdentityReferencesHook($this->projectRoot);
+        $registry->registerMethodCallAnalysisHook($assertViewIdentities);
+        $registry->registerInitializationHook($assertViewIdentities);
         $configuration = new ConfigurationProvider($this->projectRoot);
         $registry->registerFunctionReturnTypeProvider($configuration);
         $registry->registerInitializationHook($configuration);

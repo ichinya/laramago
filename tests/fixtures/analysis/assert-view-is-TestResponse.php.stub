@@ -1,0 +1,51 @@
+<?php
+
+namespace Illuminate\Testing;
+
+use Illuminate\Contracts\View\View;
+use Illuminate\Testing\TestResponseAssert as PHPUnit;
+
+class TestResponse
+{
+    /** @var mixed */
+    public $original;
+
+    /**
+     * Assert that the response view equals the given value.
+     *
+     * @param  string  $value
+     * @return $this
+     */
+    public function assertViewIs($value)
+    {
+        $this->ensureResponseHasView();
+
+        PHPUnit::withResponse($this)->assertEquals($value, $this->original->name());
+
+        return $this;
+    }
+
+    /**
+     * Ensure that the response has a view as its original content.
+     *
+     * @return $this
+     */
+    protected function ensureResponseHasView()
+    {
+        if (! $this->responseHasView()) {
+            return PHPUnit::withResponse($this)->fail('The response is not a view.');
+        }
+
+        return $this;
+    }
+
+    /**
+     * Determine if the original response is a view.
+     *
+     * @return bool
+     */
+    protected function responseHasView()
+    {
+        return isset($this->original) && $this->original instanceof View;
+    }
+}

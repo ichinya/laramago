@@ -171,3 +171,5 @@ An optional [policy method declaration advisory](policy-method-declarations.md) 
 [Route view reference metadata](route-view-reference-candidates.md) supports explicit declaration policies; source names do not establish runtime lookup.
 
 [Contextual binding declaration metadata](contextual-binding-metadata.md) preserves selected source syntax and uncertainty without changing inferred container types.
+
+[Permitted assertViewIs identities](assert-view-identity-policy.md) check literal expected identities against an explicit policy without claiming a finder lookup or missing view.
