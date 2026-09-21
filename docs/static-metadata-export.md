@@ -105,3 +105,31 @@ total source bytes. Route exports stop at 10,000 declarations. Translation expor
 stop at 20,000 declarations or 32 nested key levels. Limits are disclosed through
 `truncated` and `truncationReasons`; consumers must also inspect `errors` on an
 otherwise successful one-shot invocation.
+
+## Translation placeholder candidates
+
+```sh
+vendor/bin/laramago-metadata --kind translation-placeholders --source lang/en/messages.php
+```
+
+This source-only mode exports ASCII colon-word completion candidates (`:name`,
+`:NAME`, `:count`) from literal PHP translation messages. Its `candidates` list
+does not contain translated values. `scope.semantics` is `completion-candidates`
+and `scope.exhaustive` is false: Laravel also accepts partial dictionaries,
+prefix substitutions, arbitrary keys and closure-based tag replacements.
+These candidates do not establish mandatory replacement arguments.
+
+Each candidate retains raw message-key `segments`, `messageName`, normalized
+`messagePhpKey`, source `file`, `contentHash` and `sourceSelected`. Key-token
+coordinates use `keyStart`, `keyEnd`, `keyLine`; message coordinates use
+`messageStart`, `messageEnd`, `messageLine`. `spanKind: message-literal` explicitly
+identifies the enclosing original string token, including when PHP escapes
+change its decoded contents. The export does not invent a source offset for
+the decoded placeholder. Candidate confidence is `completion-candidate`.
+
+Dynamic messages, JSON translations and runtime locale/fallback selection are
+not inferred. The mode requires explicit PHP `--source` paths and does not
+support watch. Limits are 256 files, 1 MiB per file, 8 MiB source bytes, depth 32,
+20,000 candidates, 1,024 bytes per name and an 8 MiB estimated candidate-output
+budget. Repeated long parent-key provenance counts against the output budget.
+Reached limits are disclosed through `truncated` and `truncationReasons`.

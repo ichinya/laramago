@@ -20,7 +20,7 @@ file_put_contents($fixture.'/routes/web.php', <<<'PHP'
     PHP);
 file_put_contents($fixture.'/lang/messages.php', <<<'PHP'
     <?php
-    return ['greeting' => 'PRIVATE_TRANSLATED_VALUE', 'nested' => ['title' => sideEffect()]];
+    return ['greeting' => 'PRIVATE_TRANSLATED_VALUE :person', 'nested' => ['title' => sideEffect()]];
     PHP);
 
 $run = static function (array $options) use ($package, $fixture): array {
@@ -64,6 +64,19 @@ try {
         }
         echo 'PASS: '.$kind." CLI dispatch and source errors\n";
     }
+    [$exit, $stdout, $stderr] = $run(['--kind', 'translation-placeholders', '--source', 'lang/messages.php']);
+    $placeholders = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+    if (
+        $exit !== 0
+        || $stderr !== ''
+        || $placeholders['scope']['kind'] !== 'translation-placeholders'
+        || $placeholders['scope']['exhaustive'] !== false
+        || array_column($placeholders['candidates'], 'name') !== ['person']
+        || str_contains($stdout, 'PRIVATE_TRANSLATED_VALUE')
+    ) {
+        throw new RuntimeException('Placeholder mode must export partial candidates without message values.');
+    }
+    echo "PASS: placeholder CLI dispatch and value privacy\n";
     foreach ([
         ['--kind', 'unknown'],
         ['--kind', 'routes'],

@@ -34,7 +34,7 @@ This follow-up revisits the 35 deferred research items and four remaining metada
 | 107 | assertViewIs references | pending |
 | 108 | Pagination view references | pending |
 | 116 | trans_choice references | pending |
-| 119 | Translation replacement placeholders | pending |
+| 119 | Translation replacement placeholders | implemented; Explicit PHP source export provides bounded colon-word completion candidates, source selection and original key/message token provenance. No translated values, runtime locale inference or mandatory replacement diagnostics; 77 focused checks and CLI integration pass. |
 | 120 | Suspicious replacement names | pending |
 | 122 | Cross-locale placeholder consistency | pending |
 | 123 | Pluralization syntax contracts | pending |

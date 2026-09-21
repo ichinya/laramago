@@ -7,6 +7,7 @@ use Ichinya\Laramago\Analyzer\StaticAnalysis\StaticMetadataExport;
 use Ichinya\Laramago\Metadata\ConfigurationWatch;
 use Ichinya\Laramago\Metadata\RouteMetadataExport;
 use Ichinya\Laramago\Metadata\TranslationMetadataExport;
+use Ichinya\Laramago\Metadata\TranslationPlaceholderExport;
 
 // Composer's application autoloader may include application files. This command loads
 // only this package's syntax reader and the installed PHP parser dependency.
@@ -41,7 +42,7 @@ spl_autoload_register(static function (string $class) use ($packageRoot, $parser
     }
 });
 
-$usage = "Usage: laramago-metadata [--project-root DIR] [--kind configuration|routes|translations] [--source FILE ...] [--config-array KEY ...] [--config-key KEY ...] [--output FILE] [--watch [--interval-ms 50..60000]]\n";
+$usage = "Usage: laramago-metadata [--project-root DIR] [--kind configuration|routes|translations|translation-placeholders] [--source FILE ...] [--config-array KEY ...] [--config-key KEY ...] [--output FILE] [--watch [--interval-ms 50..60000]]\n";
 $root = getcwd() ?: '';
 $kind = 'configuration';
 $files = [];
@@ -114,13 +115,13 @@ if ($watchMode && $output !== null) {
 if (! $watchMode && $intervalSpecified) {
     $error = '--interval-ms requires --watch.';
 }
-if (! in_array($kind, ['configuration', 'routes', 'translations'], true)) {
-    $error = 'Metadata kind must be configuration, routes, or translations.';
+if (! in_array($kind, ['configuration', 'routes', 'translations', 'translation-placeholders'], true)) {
+    $error = 'Unsupported metadata kind.';
 } elseif ($kind === 'configuration' && $files !== []) {
-    $error = '--source requires --kind routes or translations.';
+    $error = '--source requires a source metadata kind.';
 } elseif ($kind !== 'configuration') {
     if ($files === []) {
-        $error = 'Route and translation exports require at least one --source file.';
+        $error = 'This metadata kind requires at least one --source file.';
     } elseif ($arrayKeys !== [] || $keys !== []) {
         $error = 'Configuration filters require --kind configuration.';
     } elseif ($watchMode) {
@@ -151,6 +152,7 @@ if ($root === false) {
 $export = static fn (): array => match ($kind) {
     'routes' => (new RouteMetadataExport)->export($root, $files),
     'translations' => (new TranslationMetadataExport)->export($root, $files),
+    'translation-placeholders' => (new TranslationPlaceholderExport)->export($root, $files),
     default => (new StaticMetadataExport)->configuration($root, $arrayKeys, $keys),
 };
 if ($watchMode) {

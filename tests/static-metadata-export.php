@@ -11,6 +11,7 @@ file_put_contents($fixture.'/config/app.php', <<<'PHP'
     <?php
     return [
         'name' => 'private-value-must-not-export',
+        'greeting' => 'private-value-must-not-export :person',
         'nested' => ['leaf' => env('APP_LEAF')],
         'side_effect' => file_put_contents(__DIR__.'/../config-executed', 'yes'),
         'literal.dot' => 1,
@@ -176,7 +177,7 @@ mkdir($linkedPackage.'/bin', 0777, true);
 mkdir($linkedPackage.'/src/Analyzer/StaticAnalysis', 0777, true);
 mkdir($linkedPackage.'/src/Metadata', 0777, true);
 copy($package.'/bin/laramago-metadata', $linkedPackage.'/bin/laramago-metadata');
-foreach (['RouteMetadataExport', 'TranslationMetadataExport'] as $class) {
+foreach (['RouteMetadataExport', 'TranslationMetadataExport', 'TranslationPlaceholderExport'] as $class) {
     copy($package.'/src/Metadata/'.$class.'.php', $linkedPackage.'/src/Metadata/'.$class.'.php');
 }
 foreach ([
@@ -223,7 +224,11 @@ file_put_contents($fixture.'/routes.php', <<<'PHP'
     Route::get('/example', 'ExampleController')->name('example');
     PHP);
 foreach ([$bin, $linkedProxy] as $entrypoint) {
-    foreach (['routes' => 'routes.php', 'translations' => 'config/app.php'] as $kind => $file) {
+    foreach ([
+        'routes' => 'routes.php',
+        'translations' => 'config/app.php',
+        'translation-placeholders' => 'config/app.php',
+    ] as $kind => $file) {
         [$exit, $stdout, $stderr] = $run([
             PHP_BINARY,
             '-d',
@@ -241,7 +246,7 @@ foreach ([$bin, $linkedProxy] as $entrypoint) {
             $exit !== 0
             || $stderr !== ''
             || $metadata['scope']['kind'] !== $kind
-            || $metadata['declarations'] === []
+            || ($metadata['declarations'] ?? $metadata['candidates']) === []
             || $metadata['errors'] !== []
             || is_file($fixture.'/autoload-executed')
             || is_file($fixture.'/config-executed')
