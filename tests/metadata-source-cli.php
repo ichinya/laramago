@@ -8,7 +8,10 @@ mkdir($fixture);
 mkdir($fixture.'/routes');
 mkdir($fixture.'/lang');
 mkdir($fixture.'/vendor');
-file_put_contents($fixture.'/.env.example', 'SOURCE=PRIVATE_TEMPLATE_VALUE'."\n".'TARGET="${SOURCE}"');
+file_put_contents(
+    $fixture.'/.env.example',
+    'SOURCE=PRIVATE_TEMPLATE_VALUE'."\n".'TARGET="${SOURCE}"'."\n".'SOURCE=PRIVATE_TEMPLATE_VALUE',
+);
 file_put_contents($fixture.'/.env', 'SECRET=PRIVATE_ENV_VALUE');
 file_put_contents(
     $fixture.'/vendor/autoload.php',
@@ -91,6 +94,19 @@ try {
     ) {
         throw new RuntimeException('Environment mode must expose names only from selected templates.');
     }
+    [$exit, $stdout, $stderr] = $run(['--kind', 'environment-duplicates', '--source', '.env.example']);
+    $duplicates = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+    if (
+        $exit !== 0
+        || $stderr !== ''
+        || $duplicates['scope']['kind'] !== 'environment-duplicates'
+        || array_column($duplicates['candidates'], 'name') !== ['SOURCE']
+        || $duplicates['candidates'][0]['firstLocation']['start'] >= $duplicates['candidates'][0]['start']
+        || str_contains($stdout, 'PRIVATE_TEMPLATE_VALUE')
+    ) {
+        throw new RuntimeException('Duplicate mode must export ordered name locations without values.');
+    }
+    echo "PASS: duplicate template CLI dispatch and value privacy\n";
     [$exit, $stdout] = $run(['--kind', 'environment-references', '--source', '.env']);
     $environment = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
     if ($exit !== 0 || $environment['errors'] === [] || $environment['declarations'] !== []) {

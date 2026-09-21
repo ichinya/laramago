@@ -182,6 +182,7 @@ foreach ([
     'TranslationMetadataExport',
     'TranslationPlaceholderExport',
     'EnvironmentTemplateReferences',
+    'EnvironmentTemplateDuplicates',
 ] as $class) {
     copy($package.'/src/Metadata/'.$class.'.php', $linkedPackage.'/src/Metadata/'.$class.'.php');
 }
@@ -228,13 +229,17 @@ file_put_contents($fixture.'/routes.php', <<<'PHP'
     use Illuminate\Support\Facades\Route;
     Route::get('/example', 'ExampleController')->name('example');
     PHP);
-file_put_contents($fixture.'/.env.example', 'SOURCE=private-value-must-not-export'."\n".'TARGET="${SOURCE}"');
+file_put_contents(
+    $fixture.'/.env.example',
+    'SOURCE=private-value-must-not-export'."\n".'TARGET="${SOURCE}"'."\n".'SOURCE=PRIVATE_TEMPLATE_VALUE',
+);
 foreach ([$bin, $linkedProxy] as $entrypoint) {
     foreach ([
         'routes' => 'routes.php',
         'translations' => 'config/app.php',
         'translation-placeholders' => 'config/app.php',
         'environment-references' => '.env.example',
+        'environment-duplicates' => '.env.example',
     ] as $kind => $file) {
         [$exit, $stdout, $stderr] = $run([
             PHP_BINARY,

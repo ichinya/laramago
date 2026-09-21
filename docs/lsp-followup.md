@@ -10,7 +10,7 @@ This follow-up revisits the 35 deferred research items and four remaining metada
 | 34 | Query-local aggregate result properties | pending |
 | 41 | Configuration push and prepend targets | pending |
 | 46 | Environment template interpolation references | implemented; Explicit dotenv-template CLI export provides declaration and interpolation-name spans without values or runtime resolution. Requested and resolved template filenames are enforced; 58 focused checks, CLI isolation and Composer proxy tests pass. |
-| 47 | Duplicate environment template declarations | pending |
+| 47 | Duplicate environment template declarations | implemented; Advisory exact-case duplicate declarations within explicitly selected dotenv templates; names-only first and repeated source locations, errors and uncertainty preserved. Thirty focused checks plus CLI and installed Composer proxy checks pass. |
 | 48 | Vite environment name references | pending |
 | 57 | Conflicting active route names | pending |
 | 58 | Required named-route parameters | pending |

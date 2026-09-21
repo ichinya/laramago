@@ -54,3 +54,15 @@ Reads are limited to 256 explicit files, 1 MiB per file, 8 MiB total, and 20,000
 declarations or references. Limits and rejected inputs are reported in the
 envelope. The class never executes project PHP, loads the project's Composer
 autoload file, or mutates process environment state.
+
+## Duplicate declaration advice
+
+Use `laramago-metadata --kind environment-duplicates --source .env.example`
+to export repeated literal declarations within each selected template. Matching
+is exact-case and per file. Each candidate includes its name-only source location
+and `firstLocation` for the original declaration; assignment values are omitted.
+
+These are advisory source candidates, not runtime errors. The exporter does not
+infer loading order between files or interaction with process environment values.
+It carries the parser's errors, uncertainties, truncation flags, and read limits
+described above. Unsupported entries cannot establish complete duplicate coverage.
