@@ -180,6 +180,7 @@ copy($package.'/bin/laramago-metadata', $linkedPackage.'/bin/laramago-metadata')
 foreach ([
     'RouteMetadataExport',
     'ControllerRouteContractExport',
+    'TranslationReplacementNameAdvisoryExport',
     'TranslationChoiceReferenceExport',
     'PaginationViewReferenceExport',
     'MailContentReferenceExport',
@@ -267,6 +268,7 @@ file_put_contents($fixture.'/controllers.php', <<<'PHP'
     new Illuminate\Mail\Mailables\Content(view: 'mail.receipt', htmlString: '<p>raw</p>');
     $page->links('pagination.custom');
     \trans_choice('messages.items', 2);
+    \__('PRIVATE_TRANSLATED_TEXT', ['odd key' => 'PRIVATE_REPLACEMENT_VALUE', 7 => 'PRIVATE_NUMERIC_VALUE']);
     class ExamplePolicy { public function view(object $user, ExampleController $model, int $level = 0): bool { return true; } }
     class ExampleAuthProvider extends Illuminate\Foundation\Support\Providers\AuthServiceProvider {
         protected $policies = [ExampleController::class => ExamplePolicy::class];
@@ -279,6 +281,7 @@ foreach ([$bin, $linkedProxy] as $entrypoint) {
         'routes' => 'routes.php',
         'controller-route-contract-candidates' => 'controllers.php',
         'middleware-parameters' => 'controllers.php',
+        'translation-replacement-name-advisories' => 'controllers.php',
         'translation-choice-reference-candidates' => 'controllers.php',
         'pagination-view-references' => 'controllers.php',
         'mail-content-reference-candidates' => 'controllers.php',
@@ -318,7 +321,7 @@ foreach ([$bin, $linkedProxy] as $entrypoint) {
             || $stderr !== ''
             || $metadata['scope']['kind'] !== $kind
             || (
-                $metadata['declarations'] ?? $metadata['candidates'] ?? $metadata['references'] ?? $metadata['contracts'] ?? $metadata['policyContracts']
+                $metadata['declarations'] ?? $metadata['candidates'] ?? $metadata['references'] ?? $metadata['advisories'] ?? $metadata['contracts'] ?? $metadata['policyContracts']
                 ?? $metadata['calls']
             )
                 === []

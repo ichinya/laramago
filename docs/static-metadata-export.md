@@ -155,6 +155,39 @@ support watch. Limits are 256 files, 1 MiB per file, 8 MiB source bytes, depth 3
 budget. Repeated long parent-key provenance counts against the output budget.
 Reached limits are disclosed through `truncated` and `truncationReasons`.
 
+## Translation replacement name advice
+
+```sh
+vendor/bin/laramago-metadata --kind translation-replacement-name-advisories --source app/Example.php
+```
+
+This explicitly invoked source policy reviews literal replacement dictionary
+keys in direct `__`, `trans`, and `trans_choice` calls and explicitly imported
+`Illuminate\Support\Facades\Lang::get`, `string`, and `choice` calls. It reports
+keys outside the ASCII colon-word convention `[A-Za-z0-9_]+` as optional style
+review candidates. Numeric keys satisfy that convention. Empty, spaced,
+punctuated, colon-prefixed, dynamic, implicit, and unpacked keys are valid
+Laravel inputs; an advisory does not claim otherwise. Dynamic shapes appear as
+uncertainties rather than diagnostics.
+
+The export never includes the translation argument or replacement values. It
+retains only an unconventional literal replacement key, its PHP-normalized key,
+source span, source hash, call syntax, and conservative duplicate-selection
+state. `scope.runtimeValidityClaimed`, `scope.callIdentityValidated`, and
+`scope.effectiveTranslationValidated` are false. Helper shadowing, facade runtime
+bindings, locale/fallback selection, prefix replacement, case aliases, closure
+tag replacement, and unused object formatting remain unresolved.
+
+This call-site advice complements `translation-placeholders`: that mode exports
+completion candidates from explicitly selected translation message sources,
+while this mode reviews supplied dictionary keys under an optional naming
+convention. Neither mode establishes required or invalid replacement names.
+
+The exporter accepts at most 256 PHP files, 1 MiB per file and 8 MiB total,
+20,000 advisories, 20,000 uncertainties, and an 8 MiB estimated advisory-output
+budget. Limits and source errors remain explicit in the result envelope. The
+mode does not support watch.
+
 ## JSON translation declarations
 
 Run `laramago-metadata --kind translations-json --source lang/en.json` to export

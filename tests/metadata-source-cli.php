@@ -23,6 +23,7 @@ file_put_contents($fixture.'/controllers.php', <<<'PHP'
     new Illuminate\Mail\Mailables\Content(view: 'mail.receipt', htmlString: '<p>raw</p>');
     $page->links('pagination.custom');
     \trans_choice('messages.items', 2);
+    \__('PRIVATE_TRANSLATED_TEXT', ['odd key' => 'PRIVATE_REPLACEMENT_VALUE', 7 => 'PRIVATE_NUMERIC_VALUE']);
     class ExamplePolicy { public function view(object $user, ExampleController $model, int $level = 0): bool { return true; } }
     class ExampleAuthProvider extends Illuminate\Foundation\Support\Providers\AuthServiceProvider {
         protected $policies = [ExampleController::class => ExamplePolicy::class];
@@ -326,6 +327,25 @@ try {
         throw new RuntimeException('Translation choice CLI must retain actual fallback locale uncertainty.');
     }
     echo "PASS: translation choice reference CLI dispatch\n";
+    [$exit, $stdout, $stderr] = $run([
+        '--kind',
+        'translation-replacement-name-advisories',
+        '--source',
+        'controllers.php',
+    ]);
+    $replacementNames = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+    if (
+        $exit !== 0
+        || $stderr !== ''
+        || array_column($replacementNames['advisories'], 'name') !== ['odd key']
+        || $replacementNames['scope']['runtimeValidityClaimed'] !== false
+        || str_contains($stdout, 'PRIVATE_TRANSLATED_TEXT')
+        || str_contains($stdout, 'PRIVATE_REPLACEMENT_VALUE')
+        || str_contains($stdout, 'PRIVATE_NUMERIC_VALUE')
+    ) {
+        throw new RuntimeException('Replacement name advice must retain optional scope and omit message values.');
+    }
+    echo "PASS: translation replacement name advisory CLI dispatch\n";
     [$exit, $stdout, $stderr] = $run(['--kind', 'vite-environment-references', '--source', 'app.js']);
     $vite = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
     if (
