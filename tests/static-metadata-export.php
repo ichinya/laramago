@@ -180,6 +180,7 @@ copy($package.'/bin/laramago-metadata', $linkedPackage.'/bin/laramago-metadata')
 foreach ([
     'RouteMetadataExport',
     'ControllerRouteContractExport',
+    'MiddlewareParameterMetadataExport',
     'RouteNameDuplicateCandidates',
     'RouteParameterMetadataExport',
     'TranslationMetadataExport',
@@ -244,6 +245,7 @@ file_put_contents($fixture.'/app.js', 'const name = import.meta.env.VITE_APP_NAM
 file_put_contents($fixture.'/controllers.php', <<<'PHP'
     <?php
     use Illuminate\Support\Facades\Route;
+    (new Illuminate\Pipeline\Pipeline)->through('auth:admin,editor');
     class ExampleController { public function show(string $id): void {} }
     Route::get('/{id}', [ExampleController::class, 'show']);
     PHP);
@@ -251,6 +253,7 @@ foreach ([$bin, $linkedProxy] as $entrypoint) {
     foreach ([
         'routes' => 'routes.php',
         'controller-route-contract-candidates' => 'controllers.php',
+        'middleware-parameters' => 'controllers.php',
         'route-name-duplicates' => 'routes.php',
         'route-parameters' => 'routes.php',
         'translations' => 'config/app.php',

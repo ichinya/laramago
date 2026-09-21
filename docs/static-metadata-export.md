@@ -244,3 +244,5 @@ positions, native type syntax, defaults and lexical placeholder matches. Runtime
 dispatch and dependency injection remain unvalidated; missing bindings and scalar
 name differences are not errors. Duplicate class declarations defer. No application
 autoloading or implicit source discovery occurs, and this mode has no watch.
+
+The `middleware-parameters` kind reads explicit PHP sources and exports [conditional native Pipeline parameter tokens](middleware-parameter-metadata.md). It does not resolve middleware targets or validate their signatures.

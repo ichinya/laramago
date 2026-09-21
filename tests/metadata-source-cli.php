@@ -13,6 +13,7 @@ file_put_contents($fixture.'/app.js', 'const name = import.meta.env.VITE_APP_NAM
 file_put_contents($fixture.'/controllers.php', <<<'PHP'
     <?php
     use Illuminate\Support\Facades\Route;
+    (new Illuminate\Pipeline\Pipeline)->through('auth:admin,editor');
     class ExampleController { public function show(string $id): void {} }
     Route::get('/{id}', [ExampleController::class, 'show']);
     PHP);
@@ -119,6 +120,17 @@ try {
         throw new RuntimeException('Controller metadata must link declarations without validating runtime dispatch.');
     }
     echo "PASS: controller declaration candidate CLI dispatch\n";
+    [$exit, $stdout, $stderr] = $run(['--kind', 'middleware-parameters', '--source', 'controllers.php']);
+    $pipes = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+    if (
+        $exit !== 0
+        || $stderr !== ''
+        || $pipes['references'][0]['parameters'] !== ['admin', 'editor']
+        || $pipes['scope']['parseCondition'] !== 'pipe-is-not-callable'
+    ) {
+        throw new RuntimeException('Pipeline parameter CLI must preserve conditional native token parsing.');
+    }
+    echo "PASS: conditional Pipeline parameter CLI dispatch\n";
     [$exit, $stdout, $stderr] = $run(['--kind', 'vite-environment-references', '--source', 'app.js']);
     $vite = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
     if (
