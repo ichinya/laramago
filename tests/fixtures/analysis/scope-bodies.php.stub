@@ -1,11 +1,19 @@
 <?php
 use Illuminate\Database\Eloquent\Model;
+enum BodyScopeStatus: string { case Active = 'active'; }
+enum BodyScopeFlag { case Visible; }
+class BodyScopeMagic { public const Status = 'active'; }
 trait BodyScopeTrait {
     public function scopeVisible($query) { return $query->where('visible', true); }
 }
 class BodyScopeRecord extends Model {
     use BodyScopeTrait;
     public function scopeActive($query) { return $query->where('active', true); }
+    public function scopeEnumValue($query) { return $query->where('status', BodyScopeStatus::Active->value); }
+    public function scopeEnumName($query) { return $query->where('flag', BodyScopeFlag::Visible->name); }
+    public function scopeMissingCase($query) { return $query->where('status', BodyScopeStatus::Missing->value); }
+    public function scopeUnitValue($query) { return $query->where('status', BodyScopeFlag::Visible->value); }
+    public function scopeMagicValue($query) { return $query->where('status', BodyScopeMagic::Status->value); }
     public function scopeNamed($query, string $name) { return $query->where('name', $name)->orWhere('name', 'public'); }
     public function scopeIdentity($query) { return $query; }
     public function scopeScalar($query) { return 42; }

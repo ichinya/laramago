@@ -72,6 +72,23 @@ final class ScopeBodyInference
 
     private function safeArgument(Node\Expr $value, FunctionLikeMetadata $method, string $query): bool
     {
+        // Enum case properties cannot invoke user code or replace the query.
+        if (
+            $value instanceof Node\Expr\PropertyFetch
+            && $value->name instanceof Node\Identifier
+            && in_array($value->name->toString(), ['name', 'value'], true)
+            && $value->var instanceof Node\Expr\ClassConstFetch
+            && $value->var->class instanceof Node\Name\FullyQualified
+            && $value->var->name instanceof Node\Identifier
+        ) {
+            $case = $this->codebase->getEnumCase(
+                $value->var->class->toString(),
+                $value->var->name->toString(),
+            );
+
+            return $case !== null && ($value->name->toString() === 'name' || $case->valueType !== null);
+        }
+
         if ($value instanceof Node\Expr\Variable) {
             if (! is_string($value->name) || $value->name === $query) {
                 return false;

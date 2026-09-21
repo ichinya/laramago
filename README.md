@@ -132,7 +132,11 @@ User::query()->active();                   // Builder<User>
 
 Scopes returning `void` or `null` retain `Builder<YourModel>`. Other declared
 results are preserved; `int|null`, for example, becomes `int|Builder<YourModel>`.
-An untyped scope result stays unknown. Generic scope methods and custom query or
+An untyped scope retains its builder only when its single return expression
+provably preserves the query: the query itself, or a native `where`/`orWhere`
+chain with safe arguments. These include literals, scope parameters, and known
+enum case `name` or backed enum case `value` properties. Other untyped scope
+results stay unknown. Generic scope methods and custom query or
 scope dispatchers defer to native analysis. Explicit methods and PHPDoc contracts
 retain priority. No scope body, model constructor or application bootstrap runs.
 
