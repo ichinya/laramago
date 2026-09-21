@@ -232,7 +232,7 @@ echo "PASS: changed native writer bodies defer\n";
 file_put_contents($repositoryPath, $repositorySource);
 
 $facadePath = $framework.'/Support/Facades/Config.php';
-$facadeSource = file_get_contents($facadePath);
+$facadeSource = str_replace("\r\n", "\n", file_get_contents($facadePath));
 file_put_contents($facadePath, str_replace("return 'config'", "return 'custom.config'", $facadeSource));
 [$guardExit, $guardReport] = $analyze('custom-facade-accessor');
 if ($guardExit !== 0 || ($guardReport['issues'] ?? []) !== []) {
