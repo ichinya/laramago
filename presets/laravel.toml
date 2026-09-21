@@ -12,6 +12,9 @@ excludes = [
     ".phpstorm.meta.php",
     ".phpstorm.meta.php/**",
     "LaravelIdea/**",
+    # Package tests and local research snapshots can declare framework doubles.
+    "**/ichinya/laramago/tests/**",
+    "**/ichinya/laramago/var/**",
 ]
 
 [source.glob]
