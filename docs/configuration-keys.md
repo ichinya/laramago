@@ -71,8 +71,26 @@ also check literal keys under this contract. The constructor, resolver, containe
 contract and configuration repository must retain their native declarations.
 Cataloged contextual attribute handlers, service replacements and dynamic keys defer.
 
-Repository instances, `Config::get()` array forwarding, `push()`,
-`prepend()` and other configuration operations remain outside this contract.
+Native facade `Config::push()` and `Config::prepend()` calls additionally warn
+when their literal target is present, its containing source array is complete,
+and its asserted pre-call value is source-proven incompatible with that writer.
+Laravel's native repository reads these targets with an empty-array default, so
+absent targets are valid initialization and never receive this warning. Native
+`push()` also permits `null` to initialize an array. A literal `false` target
+defers because PHP permits its deprecated automatic array conversion. Dynamic values,
+incomplete containing arrays, dynamic keys, unpacking and repository instances
+defer. The native facade accessor, repository dispatch, `get()` body and writer
+body must retain Laravel's standard declarations and forwarding semantics.
+
+For this check, `runtime-configuration-unchanged: true` asserts that the
+repository still matches the static source value immediately before every
+checked writer call. If an earlier provider, test or writer can replace that
+value, omit the contract; Laramago does not infer execution order or mutation
+flow. The diagnostic is advisory because an incorrect assertion can disagree
+with the effective runtime value.
+
+`Config::get()` array forwarding and other configuration operations remain
+outside this contract.
 Existing native signatures, PHPDoc, argument diagnostics and return types retain
 priority. Laramago reads Composer JSON, PHP syntax and installed framework metadata
 only; it does not bootstrap Laravel or execute helpers, configuration files or

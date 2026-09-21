@@ -1,0 +1,69 @@
+<?php
+
+declare(strict_types=1);
+
+// Laravel excerpts: Copyright (c) Taylor Otwell. See configuration-LICENSE.md.
+
+namespace Illuminate\Config;
+
+use Illuminate\Support\Arr;
+
+class Repository
+{
+    /** @var array<string, mixed> */
+    protected array $items = [];
+
+    /** @param array|string $key */
+    public function get($key, $default = null)
+    {
+        if (is_array($key)) {
+            return $this->getMany($key);
+        }
+
+        return Arr::get($this->items, $key, $default);
+    }
+
+    /** @param array<string|int, mixed> $keys @return array<string, mixed> */
+    public function getMany($keys)
+    {
+        $config = [];
+
+        foreach ($keys as $key => $default) {
+            if (is_numeric($key)) {
+                [$key, $default] = [$default, null];
+            }
+
+            $config[$key] = Arr::get($this->items, $key, $default);
+        }
+
+        return $config;
+    }
+
+    /** @param array|string $key */
+    public function set($key, $value = null)
+    {
+        $keys = is_array($key) ? $key : [$key => $value];
+
+        foreach ($keys as $key => $value) {
+            Arr::set($this->items, $key, $value);
+        }
+    }
+
+    public function prepend($key, $value)
+    {
+        $array = $this->get($key, []);
+
+        array_unshift($array, $value);
+
+        $this->set($key, $array);
+    }
+
+    public function push($key, $value)
+    {
+        $array = $this->get($key, []);
+
+        $array[] = $value;
+
+        $this->set($key, $array);
+    }
+}

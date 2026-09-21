@@ -1,0 +1,17 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Illuminate\Support\Facades;
+
+/**
+ * @method static void prepend(string $key, mixed $value)
+ * @method static void push(string $key, mixed $value)
+ */
+final class Config extends Facade
+{
+    protected static function getFacadeAccessor(): string
+    {
+        return 'config';
+    }
+}

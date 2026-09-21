@@ -90,6 +90,9 @@ final class LaravelPlugin implements Plugin
         $configurationKeys = new ConfigurationKeyContractsHook($this->projectRoot);
         $registry->registerNodeAnalysisHook($configurationKeys);
         $registry->registerInitializationHook($configurationKeys);
+        $configurationWriters = new ConfigurationArrayWriterTargetsHook($this->projectRoot);
+        $registry->registerNodeAnalysisHook($configurationWriters);
+        $registry->registerInitializationHook($configurationWriters);
         $configurationAttributes = new ConfigurationAttributeContractsHook($this->projectRoot);
         $registry->registerNodeAnalysisHook($configurationAttributes);
         $registry->registerInitializationHook($configurationAttributes);
