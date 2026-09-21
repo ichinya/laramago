@@ -180,6 +180,7 @@ copy($package.'/bin/laramago-metadata', $linkedPackage.'/bin/laramago-metadata')
 foreach ([
     'RouteMetadataExport',
     'ControllerRouteContractExport',
+    'TranslationPluralBranchExport',
     'TranslationReplacementNameAdvisoryExport',
     'TranslationChoiceReferenceExport',
     'PaginationViewReferenceExport',
@@ -255,6 +256,7 @@ file_put_contents(
 );
 file_put_contents($fixture.'/translations.json', '{"Greeting":"private-value-must-not-export"}');
 file_put_contents($fixture.'/app.js', 'const name = import.meta.env.VITE_APP_NAME;');
+file_put_contents($fixture.'/plural.php', '<?php return ["plural" => "[0}PRIVATE_ZERO|PRIVATE_OTHER"];');
 file_put_contents($fixture.'/controllers.php', <<<'PHP'
     <?php
     use Illuminate\Support\Facades\Route;
@@ -281,6 +283,7 @@ foreach ([$bin, $linkedProxy] as $entrypoint) {
         'routes' => 'routes.php',
         'controller-route-contract-candidates' => 'controllers.php',
         'middleware-parameters' => 'controllers.php',
+        'translation-plural-branches' => 'plural.php',
         'translation-replacement-name-advisories' => 'controllers.php',
         'translation-choice-reference-candidates' => 'controllers.php',
         'pagination-view-references' => 'controllers.php',

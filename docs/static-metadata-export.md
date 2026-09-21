@@ -303,3 +303,5 @@ The `mail-content-reference-candidates` kind exports [Mailables Content construc
 The `pagination-view-references` kind exports [pagination view candidates and default declarations](pagination-view-reference-candidates.md); receiver identity, factory resolver and runtime lookup remain unvalidated.
 
 The `translation-choice-reference-candidates` kind exports [literal trans_choice source references](translation-choice-references.md), retaining actual fallback locale and catalog lookup as unknown.
+
+The `translation-plural-branches` kind exports [literal plural branch shapes](translation-plural-branch-candidates.md), omitting message payloads and leaving locale, selector and runtime selection unknown.

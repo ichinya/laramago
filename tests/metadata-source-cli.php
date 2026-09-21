@@ -10,6 +10,7 @@ mkdir($fixture.'/lang');
 mkdir($fixture.'/vendor');
 file_put_contents($fixture.'/lang/en.json', '{"Greeting":"PRIVATE_TRANSLATED_VALUE"}');
 file_put_contents($fixture.'/app.js', 'const name = import.meta.env.VITE_APP_NAME;');
+file_put_contents($fixture.'/plural.php', '<?php return ["plural" => "[0}PRIVATE_ZERO|PRIVATE_OTHER"];');
 file_put_contents($fixture.'/controllers.php', <<<'PHP'
     <?php
     use Illuminate\Support\Facades\Route;
@@ -346,6 +347,20 @@ try {
         throw new RuntimeException('Replacement name advice must retain optional scope and omit message values.');
     }
     echo "PASS: translation replacement name advisory CLI dispatch\n";
+    [$exit, $stdout, $stderr] = $run(['--kind', 'translation-plural-branches', '--source', 'plural.php']);
+    $plural = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+    if (
+        $exit !== 0
+        || $stderr !== ''
+        || $plural['candidates'][0]['messageName'] !== 'plural'
+        || $plural['candidates'][0]['branchCount'] !== 2
+        || $plural['candidates'][0]['branches'][0]['delimiterPair'] !== '[}'
+        || str_contains($stdout, 'PRIVATE_ZERO')
+        || str_contains($stdout, 'PRIVATE_OTHER')
+    ) {
+        throw new RuntimeException('Plural branch CLI must retain permissive source shapes without message payloads.');
+    }
+    echo "PASS: plural branch source CLI dispatch\n";
     [$exit, $stdout, $stderr] = $run(['--kind', 'vite-environment-references', '--source', 'app.js']);
     $vite = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
     if (
@@ -419,6 +434,7 @@ try {
         'routes/web.php',
         'app.js',
         'controllers.php',
+        'plural.php',
         'lang/messages.php',
         'lang/en.json',
         'vendor/autoload.php',
