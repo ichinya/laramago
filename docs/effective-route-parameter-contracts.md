@@ -56,8 +56,10 @@ domain and URI may represent replacement, while the same name on different
 surviving routes may be a conflict. Providers, conditional registration and
 cached routes can change this distinction. Selecting source files does not
 prove an effective collection; the note must not become an active-conflict
-error. A future effective collection manifest must explicitly establish route
-identity, replacement order, loaded sources and cache selection.
+error. The separate [effective route manifest](effective-route-name-conflicts.md)
+can now diagnose duplicate names when the user explicitly asserts the final
+surviving collection, native identity semantics and cache/source selection. It
+does not infer that final collection or resolve replacement order from source.
 
 Controller source contracts likewise do not establish runtime argument errors.
 For example, a controller `(Request $request, string $slug)` can receive the
