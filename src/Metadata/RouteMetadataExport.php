@@ -12,10 +12,10 @@ use PhpParser\ParserFactory;
 
 /**
  * Literal route declaration candidates, never a catalog of effective runtime names.
- * Only top-level/namespace Route::verb(literal URI, action)->name(literal string)
- * expression statements are supported, with positional arguments and exactly one
- * method call. Imports must resolve to Illuminate\Support\Facades\Route. Groups,
- * conditionals, functions, handler bodies, and other fluent chains are not traversed.
+ * Top-level/namespace Route::verb(literal URI, action)->name(literal string)
+ * expression statements and bounded literal Route::name(...)->group(closure)
+ * nesting are supported. Imports must resolve to Illuminate\Support\Facades\Route.
+ * Conditions, functions, handler bodies, and unsupported fluent chains are not traversed.
  */
 final class RouteMetadataExport
 {
@@ -23,6 +23,8 @@ final class RouteMetadataExport
     private const MAX_FILE_BYTES = 1024 * 1024;
     private const MAX_TOTAL_BYTES = 8 * 1024 * 1024;
     private const MAX_DECLARATIONS = 10000;
+    private const MAX_GROUP_DEPTH = 32;
+    private const MAX_COMPOSED_NAME_BYTES = 4096;
 
     /**
      * @param array<array-key, string> $files Project-relative PHP source list.
@@ -108,14 +110,15 @@ final class RouteMetadataExport
                 continue;
             }
             $hash = hash('sha256', $contents);
-            foreach (self::names($nodes) as $name) {
+            foreach (self::names($nodes, reasons: $reasons) as $candidate) {
                 if (count($declarations) >= self::MAX_DECLARATIONS) {
                     $truncated = true;
                     $reasons['declaration-limit'] = true;
                     break 2;
                 }
-                $declarations[] = [
-                    'name' => $name->value,
+                $name = $candidate['leaf'];
+                $declaration = [
+                    'name' => $candidate['name'],
                     'file' => $path,
                     'start' => $name->getStartFilePos(),
                     'end' => $name->getEndFilePos() + 1,
@@ -123,7 +126,22 @@ final class RouteMetadataExport
                     'contentHash' => $hash,
                     'confidence' => 'known-positive',
                 ];
+                if ($candidate['prefixes'] !== []) {
+                    $declaration['rawName'] = $name->value;
+                    $declaration['nameProvenance'] = [
+                        'kind' => 'literal-concatenation',
+                        'tokens' => [
+                            ...array_map(
+                                static fn (Node\Scalar\String_ $prefix): array => self::token($prefix, 'group-prefix'),
+                                $candidate['prefixes'],
+                            ),
+                            self::token($name, 'route-name'),
+                        ],
+                    ];
+                }
+                $declarations[] = $declaration;
             }
+            $truncated = $truncated || $reasons !== [];
         }
 
         return [
@@ -139,16 +157,47 @@ final class RouteMetadataExport
 
     /**
      * @param array<array-key, Node> $nodes
-     * @return \Generator<int, Node\Scalar\String_>
+     * @param list<Node\Scalar\String_> $prefixes
+     * @param array<string, true> $reasons
+     * @return \Generator<int, array{name: string, leaf: Node\Scalar\String_, prefixes: list<Node\Scalar\String_>}>
      */
-    private static function names(array $nodes): \Generator
-    {
+    private static function names(
+        array $nodes,
+        string $prefix = '',
+        array $prefixes = [],
+        int $depth = 0,
+        array &$reasons = [],
+    ): \Generator {
         foreach ($nodes as $node) {
             if ($node instanceof Node\Stmt\Namespace_) {
-                yield from self::names($node->stmts);
+                yield from self::names($node->stmts, $prefix, $prefixes, $depth, $reasons);
                 continue;
             }
-            if (! $node instanceof Node\Stmt\Expression || ! $node->expr instanceof Node\Expr\MethodCall) {
+            if (! $node instanceof Node\Stmt\Expression) {
+                continue;
+            }
+            $group = self::literalGroup($node->expr);
+            if ($group !== null) {
+                [$groupPrefix, $callback] = $group;
+                if ($depth >= self::MAX_GROUP_DEPTH) {
+                    $reasons['group-depth-limit'] = true;
+                    continue;
+                }
+                $composedPrefix = $prefix.$groupPrefix->value;
+                if (strlen($composedPrefix) > self::MAX_COMPOSED_NAME_BYTES) {
+                    $reasons['composed-name-byte-limit'] = true;
+                    continue;
+                }
+                yield from self::names(
+                    $callback->stmts,
+                    $composedPrefix,
+                    [...$prefixes, $groupPrefix],
+                    $depth + 1,
+                    $reasons,
+                );
+                continue;
+            }
+            if (! $node->expr instanceof Node\Expr\MethodCall) {
                 continue;
             }
             $call = $node->expr;
@@ -172,8 +221,89 @@ final class RouteMetadataExport
             ) {
                 continue;
             }
-            yield $call->args[0]->value;
+            $leaf = $call->args[0]->value;
+            $composed = $prefix.$leaf->value;
+            if ($prefixes !== [] && strlen($composed) > self::MAX_COMPOSED_NAME_BYTES) {
+                $reasons['composed-name-byte-limit'] = true;
+                continue;
+            }
+            yield ['name' => $composed, 'leaf' => $leaf, 'prefixes' => $prefixes];
         }
+    }
+
+    /** @return array{Node\Scalar\String_, Node\Expr\Closure}|null */
+    private static function literalGroup(Node\Expr $expression): ?array
+    {
+        $prefix = null;
+        $callback = null;
+        if (
+            $expression instanceof Node\Expr\MethodCall
+            && $expression->name instanceof Node\Identifier
+            && strtolower($expression->name->toString()) === 'group'
+            && self::positional($expression->args, 1)
+            && $expression->args[0]->value instanceof Node\Expr\Closure
+        ) {
+            $base = $expression->var;
+            if (
+                $base instanceof Node\Expr\StaticCall
+                && self::routeCall($base, 'name')
+                && self::positional($base->args, 1)
+                && $base->args[0]->value instanceof Node\Scalar\String_
+            ) {
+                $prefix = $base->args[0]->value;
+                $callback = $expression->args[0]->value;
+            }
+        } elseif (
+            $expression instanceof Node\Expr\StaticCall
+            && self::routeCall($expression, 'group')
+            && self::positional($expression->args, 2)
+            && $expression->args[0]->value instanceof Node\Expr\Array_
+            && count($expression->args[0]->value->items) === 1
+            && $expression->args[1]->value instanceof Node\Expr\Closure
+        ) {
+            $attribute = $expression->args[0]->value->items[0];
+            if (
+                ! $attribute->unpack
+                && ! $attribute->byRef
+                && $attribute->key instanceof Node\Scalar\String_
+                && $attribute->key->value === 'as'
+                && $attribute->value instanceof Node\Scalar\String_
+            ) {
+                $prefix = $attribute->value;
+                $callback = $expression->args[1]->value;
+            }
+        }
+        if ($prefix === null || $callback === null || $callback->params !== [] || $callback->uses !== []) {
+            return null;
+        }
+
+        return [$prefix, $callback];
+    }
+
+    private static function routeCall(Node\Expr\StaticCall $call, string $method): bool
+    {
+        return (
+            $call->class instanceof Node\Name\FullyQualified
+            && strtolower($call->class->toString()) === 'illuminate\support\facades\route'
+            && $call->name instanceof Node\Identifier
+            && (
+                $method === 'name'
+                    ? $call->name->toString() === 'name'
+                    : strtolower($call->name->toString()) === $method
+            )
+        );
+    }
+
+    /** @return array{role: string, value: string, start: int, end: int, line: int} */
+    private static function token(Node\Scalar\String_ $literal, string $role): array
+    {
+        return [
+            'role' => $role,
+            'value' => $literal->value,
+            'start' => $literal->getStartFilePos(),
+            'end' => $literal->getEndFilePos() + 1,
+            'line' => $literal->getStartLine(),
+        ];
     }
 
     /**

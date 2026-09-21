@@ -89,10 +89,25 @@ The route exporter recognizes top-level or namespace-level expression statements
 of the form `Route::get('/path', $action)->name('example')`, resolving imports of
 `Illuminate\Support\Facades\Route`. It also accepts `post`, `put`, `patch`,
 `delete`, `options` and `any`. URI and name must be literal strings; arguments
-must be positional. The exported `name` is the local literal, with its own source
-span. Groups, prefixes, conditions, extra fluent calls, repeated naming and
-handler bodies are not traversed. Duplicate names remain separate candidates.
-Even an earlier `throw` or a replaced router can prevent a candidate from running.
+must be positional. Literal `Route::name('admin.')->group(function () { ... })`
+and exact `Route::group(['as' => 'admin.'], function () { ... })` groups compose
+with supported declarations, including nested literal name groups. Attribute-array
+groups accept only the literal `as` entry; group closures have no parameters or
+captures. The magic `name` group attribute is case-sensitive.
+
+Ungrouped declarations retain their original shape. A grouped declaration's
+`name` is a composed source candidate; `rawName` is the leaf literal. Its primary
+`start`, `end` and `line` still identify that leaf. `nameProvenance` records
+`kind: literal-concatenation` and ordered `tokens`, each with its decoded `value`,
+`group-prefix` or `route-name` role, and original source span. No synthetic source
+span is claimed for the composed name.
+
+Dynamic prefixes, non-closure callbacks, captured or parameterized closures,
+extra group attributes, conditions, functions, unsupported fluent calls, repeated
+route naming and handler bodies are not traversed. Unsupported groups defer their
+subtrees; safe siblings remain eligible. Duplicate names remain separate candidates.
+An earlier `throw`, a macro or a replaced router can prevent any candidate from
+becoming an effective runtime route.
 
 The translation exporter reads PHP files that directly return one literal array.
 Nested declarations preserve raw `segments` so a dotted key is distinguishable
@@ -105,7 +120,8 @@ JSON translation files and executable top-level setup are not inferred. Unsuppor
 file forms produce errors; dynamic array entries can coexist with positive literals.
 
 Each source exporter accepts at most 256 input files, 1 MiB per file and 8 MiB
-total source bytes. Route exports stop at 10,000 declarations. Translation exports
+total source bytes. Route exports stop at 10,000 declarations, 32 literal name
+group levels and 4,096 bytes per composed name. Translation exports
 stop at 20,000 declarations or 32 nested key levels. Limits are disclosed through
 `truncated` and `truncationReasons`; consumers must also inspect `errors` on an
 otherwise successful one-shot invocation.

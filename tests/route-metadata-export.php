@@ -19,7 +19,7 @@ $source = <<<'PHP'
     <?php
     namespace Demo;
     use Illuminate\Support\Facades\Route as R;
-    // UTF-8 byte positions: café 日本語.
+    // UTF-8 byte positions: café.
     file_put_contents(__DIR__.'/../executed', 'source executed');
     R::get('/one', fn () => 'private-handler-content')->name('123');
     R::POST('/two', 'Controller@method')->name("café.show");
@@ -38,7 +38,7 @@ $source = <<<'PHP'
     $class::get('/dynamic-class', fn () => null)->name('class.hidden');
     $object->name('object.hidden');
     Route::get('/unimported', fn () => null)->name('unimported.hidden');
-    R::name('group.')->group(function () {
+    R::name($prefix)->group(function () {
         R::get('/group', fn () => null)->name('group.hidden');
     });
     if (true) { R::get('/conditional', fn () => null)->name('conditional.hidden'); }
@@ -47,11 +47,58 @@ $source = <<<'PHP'
     throw new \RuntimeException('Source must never execute.');
     PHP;
 file_put_contents($fixture.'/routes/web.php', $source);
+file_put_contents($fixture.'/routes/groups.php', <<<'PHP'
+    <?php
+    namespace Grouped;
+    use Illuminate\Support\Facades\Route as R;
+    R::name('admin.')->group(function () {
+        R::get('/users', fn () => null)->name('users');
+        R::name("nested.")->group(static function (): void {
+            R::post('/first', 'Controller@first')->name('show');
+            R::post('/second', 'Controller@second')->name('show');
+            R::get('/handler', function () {
+                R::get('/hidden', fn () => null)->name('handler.hidden');
+            })->name('handler.visible');
+        });
+        R::group(['as' => 'array.'], function () {
+            R::patch('/array', fn () => null)->name('leaf');
+        });
+        R::group(['as' => $dynamicPrefix], function () {
+            R::get('/dynamic-array', fn () => null)->name('array-dynamic.hidden');
+        });
+        R::group(['as' => 'extra.', 'prefix' => '/extra'], function () {
+            R::get('/extra', fn () => null)->name('array-extra.hidden');
+        });
+        R::name($dynamicPrefix)->group(function () {
+            R::get('/dynamic-prefix', fn () => null)->name('dynamic.hidden');
+        });
+        R::NAME('wrong-case.')->group(function () {
+            R::get('/wrong-case', fn () => null)->name('case.hidden');
+        });
+        R::name('captured.')->group(function () use ($capture) {
+            R::get('/captured', fn () => null)->name('captured.hidden');
+        });
+        R::name('parameter.')->group(function ($router) {
+            R::get('/parameter', fn () => null)->name('parameter.hidden');
+        });
+        R::name('callback.')->group($callback);
+        if (true) {
+            R::get('/conditional', fn () => null)->name('conditional.hidden');
+        }
+        function registerHidden(): void {
+            R::get('/function', fn () => null)->name('function.hidden');
+        }
+    });
+    R::get('/flat', fn () => null)->name('flat');
+    PHP);
 file_put_contents($fixture.'/routes/shadow.php', <<<'PHP'
     <?php
     namespace Other;
     use Application\Route;
     Route::get('/shadow', fn () => null)->name('shadow.hidden');
+    Route::name('shadow.')->group(function () {
+        Route::get('/group', fn () => null)->name('group.hidden');
+    });
     PHP);
 file_put_contents($fixture.'/routes/global.php', "<?php Route::get('/', fn () => null)->name('global.hidden');");
 file_put_contents($fixture.'/routes/broken.php', "<?php 'private-parse-content'; broken(");
@@ -66,6 +113,18 @@ try {
     $check(
         array_column($result['declarations'], 'name') === ['123', 'café.show', 'three'],
         'Only resolved direct literal candidates.',
+    );
+    $check(
+        array_keys($result['declarations'][0]) === [
+            'name',
+            'file',
+            'start',
+            'end',
+            'line',
+            'contentHash',
+            'confidence',
+        ],
+        'Flat candidate shape remains backward compatible.',
     );
     foreach ($result['declarations'] as $declaration) {
         $literal = substr($source, $declaration['start'], $declaration['end'] - $declaration['start']);
@@ -90,6 +149,70 @@ try {
     );
     $duplicate = $exporter->export($fixture, ['routes/web.php', 'routes/./web.php']);
     $check(count($duplicate['declarations']) === 3, 'Canonical duplicate sources read once.');
+    $groups = $exporter->export($fixture, ['routes/groups.php', 'routes/shadow.php']);
+    $check(
+        array_column($groups['declarations'], 'name') === [
+            'admin.users',
+            'admin.nested.show',
+            'admin.nested.show',
+            'admin.nested.handler.visible',
+            'admin.array.leaf',
+            'flat',
+        ],
+        'Literal prefixes compose in source order while duplicates remain candidates.',
+    );
+    $groupSource = file_get_contents($fixture.'/routes/groups.php');
+    foreach (array_slice($groups['declarations'], 0, 5) as $declaration) {
+        $check($declaration['rawName'] !== $declaration['name'], 'Composed candidates preserve the raw leaf name.');
+        $check(
+            substr($groupSource, $declaration['start'], $declaration['end'] - $declaration['start']) === substr(
+                $groupSource,
+                $declaration['nameProvenance']['tokens'][array_key_last(
+                    $declaration['nameProvenance']['tokens'],
+                )]['start'],
+                $declaration['nameProvenance']['tokens'][array_key_last(
+                    $declaration['nameProvenance']['tokens'],
+                )]['end']
+                - $declaration['nameProvenance']['tokens'][array_key_last(
+                    $declaration['nameProvenance']['tokens'],
+                )]['start'],
+            ),
+            'Primary source span is exactly the raw leaf token, not a synthetic composed span.',
+        );
+        $check(
+            implode('', array_column($declaration['nameProvenance']['tokens'], 'value')) === $declaration['name'],
+            'Composition provenance reconstructs the candidate from original literal tokens.',
+        );
+        $check(
+            array_column($declaration['nameProvenance']['tokens'], 'role')[array_key_last(
+                $declaration['nameProvenance']['tokens'],
+            )] === 'route-name',
+            'Composition provenance distinguishes the raw route name token.',
+        );
+        foreach ($declaration['nameProvenance']['tokens'] as $token) {
+            $check(
+                str_starts_with(substr($groupSource, $token['start'], $token['end'] - $token['start']), "'")
+                || str_starts_with(substr($groupSource, $token['start'], $token['end'] - $token['start']), '"'),
+                'Each composition token carries its own original source span.',
+            );
+        }
+    }
+    $check(
+        array_keys($groups['declarations'][5]) === [
+            'name',
+            'file',
+            'start',
+            'end',
+            'line',
+            'contentHash',
+            'confidence',
+        ],
+        'Ungrouped candidates stay flat when grouped candidates share a source.',
+    );
+    $check(
+        ! str_contains(json_encode($groups, JSON_THROW_ON_ERROR), '.hidden'),
+        'Dynamic groups, captured or parameterized callbacks, conditions, functions, handlers, and shadow facades defer.',
+    );
     $bad = $exporter->export($fixture, [
         'routes/broken.php',
         'routes/missing.php',
@@ -147,6 +270,33 @@ try {
     $check(
         count($many['declarations']) === 10000 && $many['truncationReasons'] === ['declaration-limit'],
         'Bounded declaration export.',
+    );
+    $depthSource =
+        "<?php use Illuminate\\Support\\Facades\\Route;\n"
+        .str_repeat("Route::name('d.')->group(function () {\n", 33)
+        ."Route::get('/', fn () => null)->name('inside');\n"
+        .str_repeat("});\n", 33)
+        ."Route::get('/outside', fn () => null)->name('outside');\n";
+    file_put_contents($fixture.'/routes/deep.php', $depthSource);
+    $deep = $exporter->export($fixture, ['routes/deep.php']);
+    $check(
+        array_column($deep['declarations'], 'name') === ['outside']
+        && $deep['truncated'] === true
+        && $deep['truncationReasons'] === ['group-depth-limit'],
+        'Group traversal depth is bounded without hiding safe sibling candidates.',
+    );
+    file_put_contents(
+        $fixture.'/routes/wide.php',
+        "<?php use Illuminate\\Support\\Facades\\Route; Route::name('"
+        .str_repeat('x', 5000)
+        ."')->group(function () { Route::get('/', fn () => null)->name('leaf'); });",
+    );
+    $wide = $exporter->export($fixture, ['routes/wide.php']);
+    $check(
+        $wide['declarations'] === []
+        && $wide['truncated'] === true
+        && $wide['truncationReasons'] === ['composed-name-byte-limit'],
+        'Composed name expansion is bounded and disclosed.',
     );
     $check(
         $exporter->export($fixture, array_fill(0, 257, 'routes/web.php'))['truncated'] === true,
