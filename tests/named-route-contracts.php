@@ -83,14 +83,28 @@ file_put_contents($workspace.'/composer.json', json_encode([
                     'complete' => true,
                     'missing-route-resolver' => false,
                     'names' => $literalFiles
-                        ? ['provider.added', 'account.show']
-                        : ['home', 'provider.added', 'account.show'],
+                        ? ['provider.added', 'account.show', 'tenant.show', 'tenant.default']
+                        : ['home', 'provider.added', 'account.show', 'tenant.show', 'tenant.default'],
                     ...($literalFiles ? ['files' => ['routes/web.php']] : []),
                 ],
             'named-route-parameters' => [
                 'native-url-generation' => true,
                 'url-defaults-complete' => true,
-                'routes' => ['account.show' => ['account']],
+                'routes' => [
+                    'account.show' => ['account'],
+                    'tenant.show' => [
+                        'domain' => ['tenant'],
+                        'uri' => ['account'],
+                        'optional-uri' => ['page'],
+                        'defaulted' => ['account'],
+                    ],
+                    'tenant.default' => [
+                        'domain' => ['tenant'],
+                        'uri' => [],
+                        'optional-uri' => ['page'],
+                        'defaulted' => ['tenant'],
+                    ],
+                ],
             ],
             'binding-files' => $customUrlBinding ? ['bootstrap/bindings.php'] : [],
         ],
@@ -118,6 +132,32 @@ $redirectHelperParameterMissing = $customApp
     ? []
     : $parameterMissing;
 $cases = [
+    'domain parameter omitted' => ['$url->route("tenant.show");', 'void', $urlMethodParameterMissing],
+    'domain supplied defaults and optional URI omitted' => [
+        '$url->route("tenant.show", ["tenant" => "acme"]);',
+        'void',
+        [],
+    ],
+    'domain null is missing' => ['$url->route("tenant.show", ["tenant" => null]);', 'void', $urlMethodParameterMissing],
+    'domain case sensitive' => [
+        '$url->route("tenant.show", ["Tenant" => "acme"]);',
+        'void',
+        $urlMethodParameterMissing,
+    ],
+    'domain default allows omission' => ['$url->route("tenant.default");', 'void', []],
+    'defaulted domain null does not invent missing parameter' => [
+        '$url->route("tenant.default", ["tenant" => null]);',
+        'void',
+        [],
+    ],
+    'defaulted domain empty does not invent missing parameter' => [
+        '$url->route("tenant.default", ["tenant" => ""]);',
+        'void',
+        [],
+    ],
+    'domain positional deferred' => ['$url->route("tenant.show", ["acme"]);', 'void', []],
+    'domain helper missing' => ['route("tenant.show");', 'void', $routeHelperParameterMissing],
+    'domain redirect missing' => ['$redirect->route("tenant.show");', 'void', $redirectMethodParameterMissing],
     ...(
         $literalFiles
             ? [
@@ -322,6 +362,52 @@ if ($actual !== []) {
     throw new RuntimeException('Unexpected diagnostics outside named-route scenarios; inspect '.$workspace);
 }
 foreach ([
+    ...array_map(static fn (array $descriptor): array => [
+        'named-route-parameters' => [
+            'native-url-generation' => true,
+            'url-defaults-complete' => true,
+            'routes' => ['tenant.show' => $descriptor],
+        ],
+    ], [
+        'descriptor missing category' => ['domain' => ['tenant'], 'uri' => [], 'defaulted' => []],
+        'descriptor overlapping domain and optional' => [
+            'domain' => ['tenant'],
+            'uri' => [],
+            'optional-uri' => ['tenant'],
+            'defaulted' => [],
+        ],
+        'descriptor unknown default' => [
+            'domain' => ['tenant'],
+            'uri' => [],
+            'optional-uri' => [],
+            'defaulted' => ['other'],
+        ],
+        'descriptor duplicate domain' => [
+            'domain' => ['tenant', 'tenant'],
+            'uri' => [],
+            'optional-uri' => [],
+            'defaulted' => [],
+        ],
+        'descriptor invalid optional' => [
+            'domain' => ['tenant'],
+            'uri' => [],
+            'optional-uri' => ['page?'],
+            'defaulted' => [],
+        ],
+        'descriptor default values rejected' => [
+            'domain' => ['tenant'],
+            'uri' => [],
+            'optional-uri' => [],
+            'defaulted' => ['tenant' => 'acme'],
+        ],
+        'descriptor unknown field' => [
+            'domain' => ['tenant'],
+            'uri' => [],
+            'optional-uri' => [],
+            'defaulted' => [],
+            'complete' => true,
+        ],
+    ]),
     'no catalog' => ['named-routes' => null],
     'incomplete catalog' => [
         'named-routes' => ['complete' => false, 'missing-route-resolver' => false, 'names' => []],

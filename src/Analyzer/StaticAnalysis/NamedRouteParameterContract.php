@@ -6,7 +6,7 @@ namespace Ichinya\Laramago\Analyzer\StaticAnalysis;
 
 use PhpParser\Node;
 
-/** Explicit effective required URI parameters for native named-route URL generation. */
+/** Explicit effective required domain and URI parameters for native URL generation. */
 final class NamedRouteParameterContract
 {
     /** @var array<string, list<string>>|null */
@@ -41,6 +41,9 @@ final class NamedRouteParameterContract
         $valid = [];
         /** @var mixed $required */
         foreach ($routes as $route => $required) {
+            if (is_array($required) && ! array_is_list($required)) {
+                $required = self::descriptor($required);
+            }
             if (! is_string($route) || $route === '' || ! is_array($required) || ! array_is_list($required)) {
                 return;
             }
@@ -65,6 +68,54 @@ final class NamedRouteParameterContract
     public function enabled(): bool
     {
         return $this->routes !== null;
+    }
+
+    /**
+     * The caller explicitly supplies effective parameter categories; declarations
+     * from route PHP do not establish runtime defaults or optionality.
+     *
+     * @param array<array-key, mixed> $definition
+     * @return list<string>|null
+     */
+    private static function descriptor(array $definition): ?array
+    {
+        $fields = ['domain', 'uri', 'optional-uri', 'defaulted'];
+        if (count($definition) !== count($fields)) {
+            return null;
+        }
+        $groups = [];
+        foreach ($fields as $field) {
+            /** @var mixed $values */
+            $values = $definition[$field] ?? null;
+            if (! is_array($values) || ! array_is_list($values)) {
+                return null;
+            }
+            $names = [];
+            /** @var mixed $value */
+            foreach ($values as $value) {
+                if (
+                    ! is_string($value)
+                    || preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/D', $value) !== 1
+                    || in_array($value, $names, true)
+                ) {
+                    return null;
+                }
+                $names[] = $value;
+            }
+            $groups[$field] = $names;
+        }
+        $parameters = array_merge($groups['domain'], $groups['uri'], $groups['optional-uri']);
+        if (
+            count(array_unique($parameters)) !== count($parameters)
+            || array_diff($groups['defaulted'], $parameters) !== []
+        ) {
+            return null;
+        }
+
+        return array_values(array_diff(
+            array_merge($groups['domain'], $groups['uri']),
+            $groups['defaulted'],
+        ));
     }
 
     /**
