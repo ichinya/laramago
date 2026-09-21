@@ -159,3 +159,5 @@ Complete view catalogs also check literal native View::make() and exact concrete
 Complete view catalogs check all-missing literal native View::first fallback lists at target PHP 8.4 or later; unknown or existing candidates defer.
 
 Native conditional view rendering checks only literal selected branches and literal-array iteration; unknown conditions and data defer.
+
+[Permitted middleware references](middleware-references.md) optionally check exact literal native Route middleware strings against an explicit source policy; this does not infer runtime resolution.

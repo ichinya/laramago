@@ -1,0 +1,36 @@
+<?php
+
+namespace Illuminate\Routing;
+
+class Route
+{
+    protected $action = [];
+
+    /**
+     * Get or set the middlewares attached to the route.
+     *
+     * @param  array|string|null  $middleware
+     * @return ($middleware is null ? array : $this)
+     */
+    public function middleware($middleware = null)
+    {
+        if (is_null($middleware)) {
+            return (array) ($this->action['middleware'] ?? []);
+        }
+
+        if (! is_array($middleware)) {
+            $middleware = func_get_args();
+        }
+
+        foreach ($middleware as $index => $value) {
+            $middleware[$index] = (string) $value;
+        }
+
+        $this->action['middleware'] = array_merge(
+            (array) ($this->action['middleware'] ?? []),
+            $middleware,
+        );
+
+        return $this;
+    }
+}

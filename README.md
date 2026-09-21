@@ -1020,3 +1020,5 @@ That check used Mago 1.48.1; a full Laravel CI run was not performed.
 Standard service helpers such as `app('cache')` and `resolve('session')` use installed framework aliases. See [framework helper contracts](docs/framework-helpers.md) for supported calls and override boundaries.
 
 `str()` preserves the installed anonymous proxy and known `Str` method contracts; explicit `str(null)` returns `Stringable`. Standard `DB::transaction()` calls retain analyzed Closure results, including retry-aware nullability. Both are covered by [framework helper contracts](docs/framework-helpers.md).
+
+[Permitted middleware references](docs/middleware-references.md) provide an optional exact literal-reference policy for native Route middleware calls.

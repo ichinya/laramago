@@ -32,6 +32,9 @@ final class LaravelPlugin implements Plugin
             $registry->registerNodeAnalysisHook($middlewareCycles);
             $registry->registerInitializationHook($middlewareCycles);
         }
+        $middlewareReferences = new MiddlewareReferencesHook($this->projectRoot);
+        $registry->registerMethodCallAnalysisHook($middlewareReferences);
+        $registry->registerInitializationHook($middlewareReferences);
         $properties = new EloquentPropertyProvider($this->projectRoot);
         $registry->registerMethodCallAnalysisHook(new PipelineDispatchHook($this->projectRoot));
         $registry->registerMethodCallAnalysisHook(new PipelineArityHook($this->projectRoot));
