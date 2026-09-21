@@ -14,6 +14,10 @@ file_put_contents($fixture.'/controllers.php', <<<'PHP'
     <?php
     use Illuminate\Support\Facades\Route;
     (new Illuminate\Pipeline\Pipeline)->through('auth:admin,editor');
+    class ExamplePolicy { public function view(object $user, ExampleController $model): bool { return true; } }
+    class ExampleAuthProvider extends Illuminate\Foundation\Support\Providers\AuthServiceProvider {
+        protected $policies = [ExampleController::class => ExamplePolicy::class];
+    }
     class ExampleController { public function show(string $id): void {} }
     Route::get('/{id}', [ExampleController::class, 'show']);
     PHP);
@@ -131,6 +135,22 @@ try {
         throw new RuntimeException('Pipeline parameter CLI must preserve conditional native token parsing.');
     }
     echo "PASS: conditional Pipeline parameter CLI dispatch\n";
+    [$exit, $stdout, $stderr] = $run([
+        '--kind',
+        'policy-model-argument-contract-candidates',
+        '--source',
+        'controllers.php',
+    ]);
+    $policyModels = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+    if (
+        $exit !== 0
+        || $stderr !== ''
+        || $policyModels['contracts'][0]['declarationCompatibility'] !== 'compatible'
+        || $policyModels['scope']['runtimeDispatchValidated'] !== false
+    ) {
+        throw new RuntimeException('Policy parameter CLI must preserve declaration-only compatibility.');
+    }
+    echo "PASS: policy model declaration contract CLI dispatch\n";
     [$exit, $stdout, $stderr] = $run(['--kind', 'vite-environment-references', '--source', 'app.js']);
     $vite = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
     if (

@@ -21,7 +21,7 @@ This follow-up revisits the 35 deferred research items and four remaining metada
 | 72 | Middleware parameter string parsing | partial; Explicit-source MiddlewareParameterMetadataExport exposes conditional native Pipeline string tokens and provenance without resolving runtime callable, aliases, groups or container targets. Fifty-seven checks compare tokenization to the attributed native parser; direct and installed Composer CLI tests pass. Route middleware signature resolution remains deferred. |
 | 83 | Policy method availability | implemented; Optional declaration-quality Notes compare literal native Gate calls to selected policy mappings and public Mago method metadata, preserving Laravel hyphen normalization. Magic dispatch, selected definitions or container replacements, incomplete metadata and custom calls defer; notes never claim authorization failure. Four real-Mago phases and integrated source analysis pass. |
 | 84 | Gate ability name references | pending |
-| 87 | Policy model argument compatibility | pending |
+| 87 | Policy model argument compatibility | partial; Explicit-source export links literal provider policy mappings to direct public second-parameter declarations and preserves source provenance. Proven native compatibility is separated from weak-call and hierarchy uncertainty; effective Gate dispatch remains unvalidated. Forty-five focused checks, direct/installed metadata CLI and integrated source analysis pass. |
 | 88 | Additional policy arguments | pending |
 | 89 | Class-level policy abilities | pending |
 | 90 | Policy discovery resolver boundaries | pending |

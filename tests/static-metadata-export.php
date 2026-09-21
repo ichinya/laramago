@@ -180,6 +180,7 @@ copy($package.'/bin/laramago-metadata', $linkedPackage.'/bin/laramago-metadata')
 foreach ([
     'RouteMetadataExport',
     'ControllerRouteContractExport',
+    'PolicyModelArgumentContractExport',
     'MiddlewareParameterMetadataExport',
     'RouteNameDuplicateCandidates',
     'RouteParameterMetadataExport',
@@ -246,6 +247,10 @@ file_put_contents($fixture.'/controllers.php', <<<'PHP'
     <?php
     use Illuminate\Support\Facades\Route;
     (new Illuminate\Pipeline\Pipeline)->through('auth:admin,editor');
+    class ExamplePolicy { public function view(object $user, ExampleController $model): bool { return true; } }
+    class ExampleAuthProvider extends Illuminate\Foundation\Support\Providers\AuthServiceProvider {
+        protected $policies = [ExampleController::class => ExamplePolicy::class];
+    }
     class ExampleController { public function show(string $id): void {} }
     Route::get('/{id}', [ExampleController::class, 'show']);
     PHP);
@@ -254,6 +259,7 @@ foreach ([$bin, $linkedProxy] as $entrypoint) {
         'routes' => 'routes.php',
         'controller-route-contract-candidates' => 'controllers.php',
         'middleware-parameters' => 'controllers.php',
+        'policy-model-argument-contract-candidates' => 'controllers.php',
         'route-name-duplicates' => 'routes.php',
         'route-parameters' => 'routes.php',
         'translations' => 'config/app.php',
