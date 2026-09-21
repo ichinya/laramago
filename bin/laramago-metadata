@@ -140,8 +140,8 @@ if (! in_array(
         $error = 'This metadata kind requires at least one --source file.';
     } elseif ($arrayKeys !== [] || $keys !== []) {
         $error = 'Configuration filters require --kind configuration.';
-    } elseif ($watchMode && $kind !== 'routes') {
-        $error = '--watch currently supports configuration and route metadata only.';
+    } elseif ($watchMode && ! in_array($kind, ['routes', 'translations', 'translations-json'], true)) {
+        $error = '--watch supports configuration, route, and translation source metadata only.';
     }
 }
 foreach ($arrayKeys as $arrayKey) {
@@ -175,9 +175,11 @@ $export = static fn (): array => match ($kind) {
     default => (new StaticMetadataExport)->configuration($root, $arrayKeys, $keys),
 };
 if ($watchMode) {
-    $watch = $kind === 'routes'
-        ? new SelectedSourceWatch($root, $files, ['php'])
-        : new ConfigurationWatch($root);
+    $watch = match ($kind) {
+        'routes', 'translations' => new SelectedSourceWatch($root, $files, ['php']),
+        'translations-json' => new SelectedSourceWatch($root, $files, ['json']),
+        default => new ConfigurationWatch($root),
+    };
     $watch->run(
         $export,
         static function (array $event): void {

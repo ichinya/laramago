@@ -123,7 +123,7 @@ try {
         ['--kind', 'routes'],
         ['--source', 'routes/web.php'],
         ['--kind', 'routes', '--source', 'routes/web.php', '--config-key', 'app.name'],
-        ['--kind', 'translations', '--source', 'lang/messages.php', '--watch'],
+        ['--kind', 'translation-placeholders', '--source', 'lang/messages.php', '--watch'],
     ] as $options) {
         [$exit, $stdout, $stderr] = $run($options);
         if ($exit !== 2 || $stdout !== '' || $stderr === '') {

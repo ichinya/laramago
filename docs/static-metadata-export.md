@@ -77,7 +77,7 @@ Absolute paths, parent traversal and paths resolving outside the project are
 rejected in the JSON `errors` list. No application route files, locale or loader
 paths are discovered by running Laravel. Configuration filters cannot be combined
 with these kinds; invalid option combinations exit with status 2. Route metadata
-supports selected-source watch as described below; translation watch is not enabled.
+and translation metadata support selected-source watch as described below.
 
 Both kinds return `schemaVersion: 1`, `projectRoot`, `scope`, `declarations`,
 `errors`, `truncated` and `truncationReasons`. Each declaration identifies an
@@ -184,3 +184,15 @@ before reading, hashes exact bytes and canonical paths, and rescans after export
 It does not discover files, execute application PHP, or perform incremental Mago
 analysis. Limits are 256 selected files, 1 MiB per file and 8 MiB total per scan.
 The existing interval and interrupt options apply. Restart to change the selection.
+
+PHP and JSON translation declarations use the same replacement protocol:
+
+```sh
+laramago-metadata --kind translations --source lang/en/messages.php --watch
+laramago-metadata --kind translations-json --source lang/en.json --watch
+```
+
+Each mode accepts only its own source format, including after symlink resolution.
+Malformed translations invalidate the previous snapshot and recovery publishes a
+fresh one. Source selection stays explicit; watching does not infer runtime locale,
+fallback, or loader precedence. Placeholder and environment modes do not support watch.
