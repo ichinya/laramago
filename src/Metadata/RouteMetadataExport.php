@@ -70,7 +70,7 @@ final class RouteMetadataExport
             $contained = PHP_OS_FAMILY === 'Windows'
                 ? str_starts_with(strtolower($path), strtolower($directory))
                 : str_starts_with($path, $directory);
-            if (! $contained) {
+            if (! $contained || ! str_ends_with($path, '.php')) {
                 $errors[] = self::error('invalid-source', $file);
                 continue;
             }

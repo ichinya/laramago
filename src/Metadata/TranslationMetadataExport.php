@@ -76,6 +76,8 @@ final class TranslationMetadataExport
                     : str_starts_with($path, $prefix);
                 if (! $inside) {
                     $code = 'invalid-source-path';
+                } elseif (strtolower(pathinfo($path, PATHINFO_EXTENSION)) !== 'php') {
+                    $code = 'unsupported-source-format';
                 } elseif (! is_file($path)) {
                     $code = 'unreadable-source';
                 }
