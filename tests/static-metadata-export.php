@@ -180,6 +180,7 @@ copy($package.'/bin/laramago-metadata', $linkedPackage.'/bin/laramago-metadata')
 foreach ([
     'RouteMetadataExport',
     'ControllerRouteContractExport',
+    'PolicyDiscoveryBoundaryExport',
     'PolicyAdditionalArgumentContractExport',
     'PolicyClassSelectorCallExport',
     'PolicyModelArgumentContractExport',
@@ -262,6 +263,7 @@ foreach ([$bin, $linkedProxy] as $entrypoint) {
         'routes' => 'routes.php',
         'controller-route-contract-candidates' => 'controllers.php',
         'middleware-parameters' => 'controllers.php',
+        'policy-discovery-boundaries' => 'controllers.php',
         'policy-additional-argument-contract-candidates' => 'controllers.php',
         'policy-class-selector-call-candidates' => 'controllers.php',
         'policy-model-argument-contract-candidates' => 'controllers.php',

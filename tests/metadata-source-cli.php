@@ -186,6 +186,18 @@ try {
         throw new RuntimeException('Policy additional argument CLI must keep declarations separate from calls.');
     }
     echo "PASS: policy additional argument CLI dispatch\n";
+    [$exit, $stdout, $stderr] = $run(['--kind', 'policy-discovery-boundaries', '--source', 'controllers.php']);
+    $discovery = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+    if (
+        $exit !== 0
+        || $stderr !== ''
+        || $discovery['subjects'] === []
+        || $discovery['scope']['effectivePolicyResolved'] !== false
+        || $discovery['subjects'][0]['effectivePolicy']['status'] !== 'unknown'
+    ) {
+        throw new RuntimeException('Policy discovery CLI must preserve runtime resolution uncertainty.');
+    }
+    echo "PASS: policy discovery boundary CLI dispatch\n";
     [$exit, $stdout, $stderr] = $run(['--kind', 'vite-environment-references', '--source', 'app.js']);
     $vite = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
     if (

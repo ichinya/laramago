@@ -12,6 +12,7 @@ use Ichinya\Laramago\Metadata\JsonTranslationMetadataExport;
 use Ichinya\Laramago\Metadata\MiddlewareParameterMetadataExport;
 use Ichinya\Laramago\Metadata\PolicyAdditionalArgumentContractExport;
 use Ichinya\Laramago\Metadata\PolicyClassSelectorCallExport;
+use Ichinya\Laramago\Metadata\PolicyDiscoveryBoundaryExport;
 use Ichinya\Laramago\Metadata\PolicyModelArgumentContractExport;
 use Ichinya\Laramago\Metadata\RouteMetadataExport;
 use Ichinya\Laramago\Metadata\RouteNameDuplicateCandidates;
@@ -54,7 +55,7 @@ spl_autoload_register(static function (string $class) use ($packageRoot, $parser
     }
 });
 
-$usage = "Usage: laramago-metadata [--project-root DIR] [--kind configuration|policy-additional-argument-contract-candidates|policy-class-selector-call-candidates|policy-model-argument-contract-candidates|middleware-parameters|controller-route-contract-candidates|routes|route-name-duplicates|route-parameters|translations|translations-json|translation-placeholders|environment-references|environment-duplicates|vite-environment-references] [--source FILE ...] [--config-array KEY ...] [--config-key KEY ...] [--output FILE] [--watch [--interval-ms 50..60000]]\n";
+$usage = "Usage: laramago-metadata [--project-root DIR] [--kind configuration|policy-discovery-boundaries|policy-additional-argument-contract-candidates|policy-class-selector-call-candidates|policy-model-argument-contract-candidates|middleware-parameters|controller-route-contract-candidates|routes|route-name-duplicates|route-parameters|translations|translations-json|translation-placeholders|environment-references|environment-duplicates|vite-environment-references] [--source FILE ...] [--config-array KEY ...] [--config-key KEY ...] [--output FILE] [--watch [--interval-ms 50..60000]]\n";
 $root = getcwd() ?: '';
 $kind = 'configuration';
 $files = [];
@@ -134,6 +135,7 @@ if (! in_array(
         'policy-model-argument-contract-candidates',
         'policy-class-selector-call-candidates',
         'policy-additional-argument-contract-candidates',
+        'policy-discovery-boundaries',
         'middleware-parameters',
         'controller-route-contract-candidates',
         'routes',
@@ -188,6 +190,7 @@ $export = static fn (): array => match ($kind) {
         $root,
         $files,
     ),
+    'policy-discovery-boundaries' => (new PolicyDiscoveryBoundaryExport)->export($root, $files),
     'middleware-parameters' => (new MiddlewareParameterMetadataExport)->export($root, $files),
     'controller-route-contract-candidates' => (new ControllerRouteContractExport)->export($root, $files),
     'routes' => (new RouteMetadataExport)->export($root, $files),
