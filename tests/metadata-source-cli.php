@@ -21,6 +21,7 @@ file_put_contents($fixture.'/controllers.php', <<<'PHP'
     \app()->when(ExampleController::class)->needs('clock')->give('clock.impl');
     (new Illuminate\Notifications\Messages\MailMessage)->markdown('mail.receipt');
     new Illuminate\Mail\Mailables\Content(view: 'mail.receipt', htmlString: '<p>raw</p>');
+    $page->links('pagination.custom');
     class ExamplePolicy { public function view(object $user, ExampleController $model, int $level = 0): bool { return true; } }
     class ExampleAuthProvider extends Illuminate\Foundation\Support\Providers\AuthServiceProvider {
         protected $policies = [ExampleController::class => ExamplePolicy::class];
@@ -294,6 +295,19 @@ try {
         throw new RuntimeException('Mail Content CLI must separate template references from raw HTML.');
     }
     echo "PASS: Mail Content reference CLI dispatch\n";
+    [$exit, $stdout, $stderr] = $run(['--kind', 'pagination-view-references', '--source', 'controllers.php']);
+    $pagination = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+    if (
+        $exit !== 0
+        || $stderr !== ''
+        || array_column($pagination['references'], 'name') !== ['pagination.custom']
+        || $pagination['scope']['paginatorReceiverValidated'] !== false
+        || $pagination['scope']['viewFactoryResolverValidated'] !== false
+        || $pagination['scope']['runtimeLookupValidated'] !== false
+    ) {
+        throw new RuntimeException('Pagination CLI must retain unresolved receiver and factory provenance.');
+    }
+    echo "PASS: pagination view candidate CLI dispatch\n";
     [$exit, $stdout, $stderr] = $run(['--kind', 'vite-environment-references', '--source', 'app.js']);
     $vite = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
     if (
