@@ -18,6 +18,8 @@ final class ReferenceCatalogs
     private readonly PhpSource $source;
     /** @var array<string, list<string>> */
     private array $locales = [];
+    /** @var array<string, list<string>> */
+    private array $choiceLocales = [];
     /** @var list<array{name: string, path: string, root: string, extension: string}>|null */
     private ?array $inertiaPages = null;
     /** @var array<array-key, mixed>|null */
@@ -110,6 +112,31 @@ final class ReferenceCatalogs
                 $valid[] = $fallback;
             }
             $this->locales[$locale] = $valid;
+        }
+        /** @var mixed $choices */
+        $choices = $translations['choice-locales'] ?? null;
+        if (is_array($choices)) {
+            /** @var mixed $effective */
+            foreach ($choices as $requested => $effective) {
+                if (
+                    ! is_string($requested)
+                    || ! isset($this->locales[$requested])
+                    || ! is_array($effective)
+                    || ! array_is_list($effective)
+                    || $effective === []
+                ) {
+                    continue;
+                }
+                $valid = [];
+                /** @var mixed $selected */
+                foreach ($effective as $selected) {
+                    if (! is_string($selected) || ! isset($this->locales[$selected])) {
+                        continue 2;
+                    }
+                    $valid[] = $selected;
+                }
+                $this->choiceLocales[$requested] = $valid;
+            }
         }
         $this->translations = $path;
         $this->translationNamespaces = new TranslationNamespaceCatalog(
@@ -360,6 +387,41 @@ final class ReferenceCatalogs
                 .$locale
                 .'. This describes the catalog contract, not an observed runtime fallback.',
         ];
+    }
+
+    /** Exhaustive effective choice locales are an explicit application contract. */
+    public function missingTranslationChoice(string $key, string $locale): bool
+    {
+        $selected = $this->choiceLocales[$locale] ?? [];
+        if ($selected === []) {
+            return false;
+        }
+        foreach ($selected as $effective) {
+            if (! $this->missingTranslation($key, $effective)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** @return list<string> */
+    public function translationChoiceNotes(string $locale): array
+    {
+        $selected = $this->choiceLocales[$locale] ?? [];
+
+        return (
+            $selected === []
+                ? []
+                : [
+                    'Explicit exhaustive effective choice locales: '
+                    .implode(', ', $selected)
+                    .'; declared at extra.laramago.reference-catalogs.translations.choice-locales.'
+                    .$locale
+                    .'. Each effective locale uses its configured JSON catalog and PHP fallback chain. '
+                    .'Plural selection and runtime missing-key callbacks are not evaluated.',
+                ]
+        );
     }
 
     public function missingTranslation(string $key, string $locale): bool

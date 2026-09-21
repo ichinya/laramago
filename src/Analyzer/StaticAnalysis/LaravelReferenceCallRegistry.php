@@ -14,6 +14,7 @@ final class LaravelReferenceCallRegistry
     public const VIEW_FIRST = 'view.first';
     public const RESPONSE_VIEW = 'response.view';
     public const TRANSLATION_GET = 'translation.get';
+    public const TRANSLATION_CHOICE = 'translation.choice';
 
     /** @var array<string, array{method: string, receivers: array{string, string}, parameters: list<string>, allowByRef: bool}> */
     private const CALLS = [
@@ -33,6 +34,12 @@ final class LaravelReferenceCallRegistry
             'method' => 'view',
             'receivers' => ['Illuminate\\Support\\Facades\\Response', 'Illuminate\\Routing\\ResponseFactory'],
             'parameters' => ['view', 'data', 'status', 'headers'],
+            'allowByRef' => false,
+        ],
+        self::TRANSLATION_CHOICE => [
+            'method' => 'choice',
+            'receivers' => ['Illuminate\\Support\\Facades\\Lang', 'Illuminate\\Translation\\Translator'],
+            'parameters' => ['key', 'number', 'replace', 'locale'],
             'allowByRef' => false,
         ],
         self::TRANSLATION_GET => [

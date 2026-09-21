@@ -25,7 +25,7 @@ use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\ParserFactory;
 
-/** Check literal keys on native Lang and concrete Translator get calls. */
+/** Check literal keys on native Lang and concrete Translator get and choice calls. */
 final class TranslationReferencesHook implements MethodCallAnalysisHook, InitializationHook
 {
     private const FACADE = 'Illuminate\\Support\\Facades\\Lang';
@@ -55,7 +55,10 @@ final class TranslationReferencesHook implements MethodCallAnalysisHook, Initial
 
     public function getTargets(): array
     {
-        return LaravelReferenceCallRegistry::targets(LaravelReferenceCallRegistry::TRANSLATION_GET);
+        return [
+            ...LaravelReferenceCallRegistry::targets(LaravelReferenceCallRegistry::TRANSLATION_GET),
+            ...LaravelReferenceCallRegistry::targets(LaravelReferenceCallRegistry::TRANSLATION_CHOICE),
+        ];
     }
 
     public function getRequirements(): array
@@ -69,15 +72,17 @@ final class TranslationReferencesHook implements MethodCallAnalysisHook, Initial
             return;
         }
         $call = $this->call($context);
-        if ($call === null || $call->isFirstClassCallable()) {
+        if ($call === null || ! $call->name instanceof Node\Identifier || $call->isFirstClassCallable()) {
             return;
         }
+        $choice = strtolower($call->name->toString()) === 'choice';
+        $method = $choice ? 'choice' : 'get';
         $receiver = $context->receiverType?->atomicTypes[0] ?? null;
         if ($call instanceof Node\Expr\StaticCall) {
             if (
                 ! $call->class instanceof Node\Name
                 || strcasecmp($call->class->toString(), self::FACADE) !== 0
-                || ! $this->nativeDispatch($context, self::FACADE)
+                || ! $this->nativeDispatch($context, self::FACADE, $method)
             ) {
                 return;
             }
@@ -86,11 +91,14 @@ final class TranslationReferencesHook implements MethodCallAnalysisHook, Initial
             || count($context->receiverType->atomicTypes) !== 1
             || ! $receiver instanceof NamedObjectType
             || $receiver->name !== self::FACTORY
-            || ! $this->nativeDispatch($context, self::FACTORY)
+            || ! $this->nativeDispatch($context, self::FACTORY, $method)
         ) {
             return;
         }
-        $arguments = LaravelReferenceCallRegistry::arguments(LaravelReferenceCallRegistry::TRANSLATION_GET, $call);
+        $arguments = LaravelReferenceCallRegistry::arguments(
+            $choice ? LaravelReferenceCallRegistry::TRANSLATION_CHOICE : LaravelReferenceCallRegistry::TRANSLATION_GET,
+            $call,
+        );
         if ($arguments === null) {
             return;
         }
@@ -103,7 +111,13 @@ final class TranslationReferencesHook implements MethodCallAnalysisHook, Initial
             || isset($arguments['fallback'])
             && (! $arguments['fallback'] instanceof Node\Expr\ConstFetch
             || strtolower($arguments['fallback']->name->toString()) !== 'true')
-            || ! $this->catalogs()->missingTranslation($key->value, $locale->value)
+            || $choice
+            && ! isset($arguments['number'])
+            || ! (
+                $choice
+                    ? $this->catalogs()->missingTranslationChoice($key->value, $locale->value)
+                    : $this->catalogs()->missingTranslation($key->value, $locale->value)
+            )
         ) {
             return;
         }
@@ -113,13 +127,15 @@ final class TranslationReferencesHook implements MethodCallAnalysisHook, Initial
             .'" is absent from the explicitly complete translations catalog.',
             new SourceLocation($context->source->path, $context->node->span),
         );
-        foreach ($this->catalogs()->translationLookupNotes($locale->value) as $note) {
+        foreach ($choice
+            ? $this->catalogs()->translationChoiceNotes($locale->value)
+            : $this->catalogs()->translationLookupNotes($locale->value) as $note) {
             $issue = $issue->withNote($note);
         }
         $context->report(Level::Warning, 'laramago-missing-translation', $issue);
     }
 
-    private function nativeDispatch(NodeAnalysisContext $context, string $receiver): bool
+    private function nativeDispatch(NodeAnalysisContext $context, string $receiver, string $method): bool
     {
         $this->contract ??= new NativeTranslationContract($this->root);
         if (! $this->contract->matches($context->codebase)) {
@@ -141,7 +157,7 @@ final class TranslationReferencesHook implements MethodCallAnalysisHook, Initial
         }
         $this->facade ??= new NativeFacade($this->root);
 
-        return $this->facade->dispatchesClass($context->codebase, self::FACADE, 'translator', self::FACTORY, 'get');
+        return $this->facade->dispatchesClass($context->codebase, self::FACADE, 'translator', self::FACTORY, $method);
     }
 
     private function call(NodeAnalysisContext $context): Node\Expr\MethodCall|Node\Expr\StaticCall|null
@@ -176,10 +192,7 @@ final class TranslationReferencesHook implements MethodCallAnalysisHook, Initial
             ! $call instanceof Node\Expr\MethodCall
             && ! $call instanceof Node\Expr\StaticCall
             || ! $call->name instanceof Node\Identifier
-            || strcasecmp(
-                $call->name->name,
-                LaravelReferenceCallRegistry::method(LaravelReferenceCallRegistry::TRANSLATION_GET),
-            ) !== 0
+            || ! in_array(strtolower($call->name->name), ['get', 'choice'], true)
         ) {
             return null;
         }
