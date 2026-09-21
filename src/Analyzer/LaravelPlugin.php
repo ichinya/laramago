@@ -35,6 +35,9 @@ final class LaravelPlugin implements Plugin
         $middlewareReferences = new MiddlewareReferencesHook($this->projectRoot);
         $registry->registerMethodCallAnalysisHook($middlewareReferences);
         $registry->registerInitializationHook($middlewareReferences);
+        $middlewareParameters = new MiddlewareParametersHook($this->projectRoot);
+        $registry->registerMethodCallAnalysisHook($middlewareParameters);
+        $registry->registerInitializationHook($middlewareParameters);
         $properties = new EloquentPropertyProvider($this->projectRoot);
         $registry->registerMethodCallAnalysisHook(new PipelineDispatchHook($this->projectRoot));
         $registry->registerMethodCallAnalysisHook(new PipelineArityHook($this->projectRoot));

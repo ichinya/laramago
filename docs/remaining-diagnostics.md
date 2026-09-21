@@ -8,7 +8,7 @@ conditional on the documented contracts; unknown behavior stays with native Mago
 | Direction | Result |
 | --- | --- |
 | Routes | Explicit domain, required URI, optional URI and defaulted parameter descriptors feed the existing real Mago missing-parameter check. Effective route conflicts and controller dependency resolution remain unproven. See [parameter contracts](effective-route-parameter-contracts.md). |
-| Middleware | In progress. |
+| Middleware | Opt-in real Mago warnings for missing required handle arguments resolve explicitly asserted alias/group maps, including nested groups and inherited declarations. Callable and uncertain dispatch defer. See [middleware parameters](middleware-parameters.md). |
 | Policies and Gate | In progress. |
 | Container | Pending independent implementation. |
 | Views, mail and pagination | Pending independent implementation. |
