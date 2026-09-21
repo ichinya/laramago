@@ -8,6 +8,8 @@ use Mago\Sdk\Analyzer\Metadata\MetadataFlags;
 use Mago\Sdk\Analyzer\NodeAnalysisContext;
 use Mago\Sdk\Analyzer\Type;
 use Mago\Sdk\Analyzer\Type\NamedObjectType;
+use Mago\Sdk\Analyzer\Type\SimpleAtomicType;
+use Mago\Sdk\Analyzer\Type\SimpleAtomicTypeKind;
 use Mago\Sdk\Analyzer\Type\Visibility;
 use Mago\Sdk\Reporting\Issue;
 use Mago\Sdk\Reporting\Level;
@@ -147,14 +149,8 @@ final class PolicyCallContracts
             if (
                 $expected === null
                 || $actual === null
-                || count($expected->atomicTypes) !== 1
-                || ! $expected->atomicTypes[0] instanceof NamedObjectType
+                || ! self::objectContract($context, $expected)
             ) {
-                continue;
-            }
-            $expectedName = $expected->atomicTypes[0]->name;
-            $expectedClass = $context->codebase->getClass($expectedName);
-            if ($expectedClass === null || $expectedClass->hasIncompleteHierarchy()) {
                 continue;
             }
             $actualObject = $actual->atomicTypes[0];
@@ -168,10 +164,31 @@ final class PolicyCallContracts
                 self::report(
                     $context,
                     $argument,
-                    'Selected policy '.$policy.'::'.$name.' expects '.$expectedName.' for '.$parameter->name.'.',
+                    'Selected policy '.$policy.'::'.$name.' expects '.(string) $expected.' for '.$parameter->name.'.',
                 );
             }
         }
+    }
+
+    /** Scalar alternatives require Laravel's weak-coercion rules and therefore defer. */
+    private static function objectContract(NodeAnalysisContext $context, Type $type): bool
+    {
+        $hasObject = false;
+        foreach ($type->atomicTypes as $atomic) {
+            if ($atomic instanceof SimpleAtomicType && $atomic->kind === SimpleAtomicTypeKind::Null) {
+                continue;
+            }
+            if (! $atomic instanceof NamedObjectType || $atomic->intersections !== null) {
+                return false;
+            }
+            $class = $context->codebase->getClassLike($atomic->name);
+            if ($class === null || $class->hasIncompleteHierarchy()) {
+                return false;
+            }
+            $hasObject = true;
+        }
+
+        return $hasObject;
     }
 
     private static function literalType(Node\Expr $expression): ?Type

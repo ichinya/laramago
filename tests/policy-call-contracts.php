@@ -22,11 +22,19 @@ file_put_contents($workspace.'/app/Policies/Policies.php', <<<'PHP'
     class Post {}
     class Other {}
     class ChildPost extends Post {}
-    class Team {}
+    interface TeamContract {}
+    class Team implements TeamContract {}
     class PostPolicy {
         public function update(?object $user, Post $post, Team $team): bool { return true; }
         public function create(?object $user, Team $team): bool { return true; }
         public function optional(?object $user, Post $post, ?Team $team = null): bool { return true; }
+        public function union(?object $user, Post $post, Team|Other $team): bool { return true; }
+        public function nullable(?object $user, Post $post, ?Team $team): bool { return true; }
+        public function nullableUnion(?object $user, Post $post, TeamContract|Other|null $team): bool { return true; }
+        public function intersection(?object $user, Post $post, Team&TeamContract $team): bool { return true; }
+        /** @param Team $team */
+        public function documentedNullable(?object $user, Post $post, ?Team $team): bool { return true; }
+        public function weakUnion(?object $user, Post $post, Team|int $team): bool { return true; }
         public function scalar(?object $user, Post $post, int $count): bool { return true; }
         public function variadic(?object $user, Post $post, Team ...$teams): bool { return true; }
         public function reference(?object $user, Post &$post): bool { return true; }
@@ -62,6 +70,24 @@ $source = <<<'PHP'
         Gate::allows('create', [Post::class, new Other()]);
         Gate::allows('create', [Post::class, 'wrong']);
         Gate::allows('optional', new Post());
+        Gate::allows('union', [new Post(), new Team()]);
+        Gate::allows('union', [new Post(), new Other()]);
+        Gate::allows('union', [new Post(), new Post()]);
+        Gate::allows('union', [new Post(), null]);
+        Gate::allows('union', [new Post(), 'bad-union']);
+        Gate::allows('nullable', [new Post(), new Team()]);
+        Gate::allows('nullable', [new Post(), null]);
+        Gate::allows('nullable', [new Post(), new Other()]);
+        Gate::allows('nullable', new Post());
+        Gate::allows('nullableUnion', [new Post(), new Team()]);
+        Gate::allows('nullableUnion', [new Post(), new Other()]);
+        Gate::allows('nullableUnion', [new Post(), null]);
+        Gate::allows('nullableUnion', [new Post(), new ChildPost()]);
+        Gate::allows('nullableUnion', [new Post(), $unknown]);
+        Gate::allows('intersection', [new Post(), new Other()]);
+        Gate::allows('documentedNullable', [new Post(), null]);
+        Gate::allows('weakUnion', [new Post(), '12']);
+        Gate::allows('weakUnion', [new Post(), new Other()]);
         Gate::allows('scalar', [new Post(), '12']);
         Gate::allows('scalar', [new Post(), $unknown]);
         Gate::allows('variadic', [new Post(), new Team()]);
@@ -173,6 +199,7 @@ $analyze = static function (string $name) use ($command, $workspace, $source): a
 
 $found = $analyze('enabled');
 $expected = ['new Other()', 'new Other()', 'new Post()', 'Post::class', 'Post::class', 'new Other()', "'wrong'"];
+$expected = [...$expected, 'new Post()', 'null', "'bad-union'", 'new Other()', 'new Post()', 'new ChildPost()'];
 $literals = array_column($found, 'literal');
 sort($expected);
 sort($literals);
@@ -180,7 +207,7 @@ if ($literals !== $expected) {
     throw new RuntimeException('Policy contract mismatch: '.json_encode($found).'; inspect '.$workspace);
 }
 echo
-    "PASS: native Gate model, additional argument, class selector, required parameter contracts and unknown/scalar suppression\n"
+    "PASS: native Gate model, additional argument, class selector, required parameters, object unions, nullable interfaces and unknown/scalar/intersection suppression\n"
 ;
 $composer(false);
 if ($analyze('disabled') !== []) {
