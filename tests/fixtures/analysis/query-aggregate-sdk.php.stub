@@ -1,0 +1,25 @@
+<?php
+
+class AggregateRecord {}
+
+/** @template TModel of AggregateRecord */
+class AggregateBuilder
+{
+    /** @return $this */
+    public function withCount(string $relation): static
+    {
+        return $this;
+    }
+
+    /** @return TModel */
+    public function firstOrFail(): AggregateRecord
+    {
+        return new AggregateRecord;
+    }
+}
+
+/** @return AggregateBuilder<AggregateRecord> */
+function freshQuery(): AggregateBuilder
+{
+    return new AggregateBuilder;
+}

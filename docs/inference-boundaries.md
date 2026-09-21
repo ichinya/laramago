@@ -17,7 +17,9 @@ class. Caching state by class name or globally matching byte offsets would leak
 information between unrelated queries or files. `NodeAnalysisContext` supplies
 source syntax after file analysis, too late to change that invocation's inferred
 return type. These features need suitable engine support for expression identity
-and state propagation before a provider can safely refine them.
+and state propagation before a provider can safely refine them. The
+[real-engine aggregate proof](query-aggregate-sdk-boundary.md) records the
+current synchronous SDK requirement and Laravel's alias invalidation behavior.
 
 Standard guards do not declare a user-model template. SDK 1.48.1 can carry extra
 named-object parameters through selection and unions, but these do not track

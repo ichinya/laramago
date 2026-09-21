@@ -1,0 +1,76 @@
+<?php
+
+declare(strict_types=1);
+
+require $argv[1];
+
+use Mago\Sdk\Analyzer\MethodReturnTypeProvider;
+use Mago\Sdk\Analyzer\MethodTarget;
+use Mago\Sdk\Analyzer\Plugin;
+use Mago\Sdk\Analyzer\PluginDefinition;
+use Mago\Sdk\Analyzer\PluginRegistry;
+use Mago\Sdk\Analyzer\ReturnTypeProviderContext;
+use Mago\Sdk\Analyzer\Type;
+
+final class AggregateInvocationProbe implements MethodReturnTypeProvider
+{
+    public function __construct(
+        private readonly string $audit,
+    ) {}
+
+    public function getTargets(): array
+    {
+        return [MethodTarget::exact('AggregateBuilder', 'withCount')];
+    }
+
+    public function getReturnType(ReturnTypeProviderContext $context): ?Type
+    {
+        $invocation = $context->invocation;
+        $record = [
+            'kind' => $invocation->kind->name,
+            'name' => $invocation->name,
+            'declaringClass' => $invocation->declaringClass,
+            'receiverType' => (string) $invocation->receiverType,
+            'span' => [$invocation->span->start, $invocation->span->end],
+            'arguments' => array_map(static fn ($argument): array => [
+                'name' => $argument->name,
+                'unpacked' => $argument->unpacked,
+                'placeholder' => $argument->placeholder,
+                'span' => [$argument->span->start, $argument->span->end],
+                'expression' => $argument->expression,
+                'type' => $argument->type === null ? null : (string) $argument->type,
+            ], $invocation->arguments),
+        ];
+        file_put_contents($this->audit, json_encode($record, JSON_THROW_ON_ERROR)."\n", FILE_APPEND | LOCK_EX);
+
+        return null;
+    }
+}
+
+final class AggregateInvocationProbePlugin implements Plugin
+{
+    public function __construct(
+        private readonly string $audit,
+    ) {}
+
+    public function getDefinition(): PluginDefinition
+    {
+        return new PluginDefinition(
+            'aggregate-invocation-probe',
+            'Aggregate invocation probe',
+            'Test-only SDK boundary.',
+        );
+    }
+
+    public function register(PluginRegistry $registry): void
+    {
+        $registry->registerMethodReturnTypeProvider(new AggregateInvocationProbe($this->audit));
+    }
+}
+
+(new Mago\Sdk\Worker(new Mago\Sdk\Extension(
+    identifier: 'aggregate-invocation-probe',
+    name: 'Aggregate invocation probe',
+    version: '1',
+    analyzerPlugins: [new AggregateInvocationProbePlugin($argv[2])],
+)))->run();
