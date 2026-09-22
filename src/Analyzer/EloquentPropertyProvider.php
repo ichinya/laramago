@@ -254,13 +254,23 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
             return null;
         }
         $related = $atom->parameters[0] ?? null;
-        // An unbound native relation template is not a concrete related model.
-        if (
-            $related !== null
-            && (count($related->atomicTypes) !== 1
-            || ! $related->atomicTypes[0] instanceof NamedObjectType)
-        ) {
-            $related = null;
+        // Preserve explicit model unions; unbound native templates need source inference.
+        foreach ($related?->atomicTypes ?? [] as $candidate) {
+            if (
+                ! $candidate instanceof NamedObjectType
+                || strcasecmp($candidate->name, ModelReflection::MODEL) !== 0
+                && ! in_array(
+                    strtolower(ModelReflection::MODEL),
+                    array_map(strtolower(...), $codebase->getClassAncestors($candidate->name)),
+                    true,
+                )
+            ) {
+                if ($method->returnType?->fromDocblock ?? false) {
+                    return null;
+                }
+                $related = null;
+                break;
+            }
         }
         $withDefault = false;
         $expression = $reflection->returnExpression($method);

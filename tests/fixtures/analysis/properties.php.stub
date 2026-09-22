@@ -38,6 +38,18 @@ class Person extends Model
 
     public function manager(): BelongsTo { return $this->belongsTo(Person::class); }
     public function members(): HasMany { return $this->hasMany(Person::class); }
+    /** @return HasOne<Person|UnknownRecord> */
+    public function unionParent(): HasOne { return $this->hasOne(Person::class); }
+    /** @return HasOne<Person|UnknownRecord> */
+    public function defaultUnionParent(): HasOne { return $this->hasOne(Person::class)->withDefault(); }
+    /** @return HasMany<Person|CollectionPerson> */
+    public function customUnionMembers(): HasMany { return $this->hasMany(Person::class); }
+    /** @return HasMany<Person|UnknownRecord> */
+    public function unionMembers(): HasMany { return $this->hasMany(Person::class); }
+    /** @return HasMany<Person|string> */
+    public function invalidUnionMembers(): HasMany { return $this->hasMany(Person::class); }
+    /** @return HasMany<string> */
+    public function invalidRelatedContract(): HasMany { return $this->hasMany(Person::class); }
     public function customMembers(): HasMany { return $this->hasMany(CollectionPerson::class); }
     public function inheritedCollectionMembers(): HasMany { return $this->hasMany(ChildCollectionPerson::class); }
     public function attributedCollectionMembers(): HasMany { return $this->hasMany(AttributeCollectionPerson::class); }

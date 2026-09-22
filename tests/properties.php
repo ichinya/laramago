@@ -43,6 +43,37 @@ file_put_contents($workspace.'/composer.json', json_encode([
     'extra' => ['laramago' => ['migration-paths' => ['extra migrations']]],
 ], JSON_THROW_ON_ERROR));
 $cases = [
+    'documented default model union' => [
+        'return $model->defaultUnionParent;',
+        'Example\Person|Example\UnknownRecord',
+        [],
+    ],
+    'documented union collection selection' => [
+        'return $model->customUnionMembers;',
+        'Illuminate\Database\Eloquent\Collection<int, Example\Person>|Example\PersonCollection',
+        [],
+    ],
+    'documented singular model union' => [
+        'return $model->unionParent;',
+        'Example\Person|Example\UnknownRecord|null',
+        [],
+    ],
+    'documented model union must not narrow' => [
+        'return $model->unionParent;',
+        'Example\Person|null',
+        ['invalid-return-statement'],
+    ],
+    'documented collection model union' => [
+        'return $model->unionMembers;',
+        'Illuminate\Database\Eloquent\Collection<int, Example\Person|Example\UnknownRecord>',
+        [],
+    ],
+    'invalid documented model union defers' => ['$model->invalidUnionMembers;', 'void', ['non-documented-property']],
+    'invalid documented related type defers' => [
+        '$model->invalidRelatedContract;',
+        'void',
+        ['non-documented-property'],
+    ],
     'primary key' => ['return $model->id;', 'int', []],
     'schema string' => ['return $model->name;', 'string', []],
     'nullable column' => ['return $model->nickname;', '?string', []],
@@ -203,6 +234,7 @@ $cases = [
 ];
 $source = "<?php\n";
 $lines = [];
+$schemaLine = 0;
 foreach ($cases as $name => [$body, $return, $codes]) {
     if ($codes === ['non-documented-property'] || $codes === ['non-existent-property']) {
         $codes[] = 'unused-statement';
@@ -210,6 +242,9 @@ foreach ($cases as $name => [$body, $return, $codes]) {
     $source .= '/** @return '.$return.' */'."\n";
     $source .= 'function scenario'.count($lines).'(Example\Person $model) { '.$body.' }'."\n";
     $lines[substr_count($source, "\n")] = [$name, $codes];
+    if ($name === 'schema string') {
+        $schemaLine = substr_count($source, "\n");
+    }
 }
 file_put_contents($workspace.'/cases.php', $source);
 $config = [
@@ -315,7 +350,7 @@ if (
     count(array_filter(
         $issues,
         static fn (array $issue): bool => str_contains($issue['message'], 'return')
-        && ($issue['annotations'][0]['span']['start']['line'] + 1) === 5,
+        && ($issue['annotations'][0]['span']['start']['line'] + 1) === $schemaLine,
     )) === 0
 ) {
     throw new RuntimeException('Changed migration was not reflected in analysis; inspect '.$workspace);
@@ -341,7 +376,7 @@ if (
     count(array_filter(
         $issues,
         static fn (array $issue): bool => $issue['code'] === 'non-documented-property'
-        && ($issue['annotations'][0]['span']['start']['line'] + 1) === 5,
+        && ($issue['annotations'][0]['span']['start']['line'] + 1) === $schemaLine,
     )) !== 1
 ) {
     throw new RuntimeException('Indirect migration execution must leave the schema uncertain; inspect '.$workspace);

@@ -520,6 +520,10 @@ static collection-class declarations. Unknown collection factories defer;
 explicit property PHPDoc retains priority.
 Source-derived targets also defer when a model overrides relationship factories,
 constructors or related-instance resolvers; explicit relation PHPDoc is preserved.
+Explicit unions such as `HasOne<FirstModel|SecondModel>` preserve every model
+branch in the property type. To-many unions resolve each model's collection
+contract. Invalid documented related types defer instead of being replaced by
+a model found in the method body.
 
 Application-trait declarations are supported, including nested imports, aliases
 and inheritance. A trait's `self::class` refers to its importing class, while
