@@ -274,6 +274,20 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
                 && $factory?->name instanceof Node\Identifier
                 && strcasecmp($factory->name->toString(), $expected) === 0
             ) {
+                if ($related === null) {
+                    $hooks = [$expected, 'new'.$kind, 'newRelatedInstance'];
+                    if (str_ends_with($kind, 'Through')) {
+                        $hooks[] = 'newRelatedThroughInstance';
+                    }
+                    if ($kind === 'BelongsToMany') {
+                        $hooks[] = 'joiningTable';
+                    }
+                    foreach ($hooks as $hook) {
+                        if ($reflection->customMethod($class, $hook) !== null) {
+                            return null;
+                        }
+                    }
+                }
                 $target = PhpSource::value(
                     PhpSource::argument($factory->args, 0, 'related'),
                     $method->identifier->class,

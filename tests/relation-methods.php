@@ -91,6 +91,36 @@ foreach ([
     $cases[$kind.' wrong result'] = ['return '.$call.'->firstOrFail();', 'OtherEntry', ['invalid-return-statement']];
 }
 $cases += [
+    'explicit relation PHPDoc survives custom factory' => [
+        'return (new FactoryOverride)->documented;',
+        'Collection<int, OtherEntry>',
+        [],
+    ],
+    'custom through resolver property defers' => [
+        'return (new \\RelationFixtures\\ThroughFactoryOverride)->distantEntries;',
+        'mixed',
+        ['non-documented-property'],
+    ],
+    'custom joining table property defers' => [
+        'return (new \\RelationFixtures\\JoiningTableOverride)->members;',
+        'mixed',
+        ['non-documented-property'],
+    ],
+    'typed custom factory property defers' => [
+        'return (new FactoryOverride)->entries;',
+        'mixed',
+        ['non-documented-property'],
+    ],
+    'typed custom constructor property defers' => [
+        'return (new ConstructorOverride)->entries;',
+        'mixed',
+        ['non-documented-property'],
+    ],
+    'typed custom related resolver property defers' => [
+        'return (new RelatedOverride)->entries;',
+        'mixed',
+        ['non-documented-property'],
+    ],
     'untyped default relation' => ['return $owner->defaultEntry();', 'HasOne<Entry, Owner>', []],
     'untyped default property' => ['return $owner->defaultEntry;', 'Entry', []],
     'untyped named attributes default' => ['return $owner->defaultParent;', 'Entry', []],

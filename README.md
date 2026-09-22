@@ -518,6 +518,8 @@ To-many relationship properties use the related model's collection contract,
 including explicit `newCollection()` return types, `CollectedBy` attributes and
 static collection-class declarations. Unknown collection factories defer;
 explicit property PHPDoc retains priority.
+Source-derived targets also defer when a model overrides relationship factories,
+constructors or related-instance resolvers; explicit relation PHPDoc is preserved.
 
 Application-trait declarations are supported, including nested imports, aliases
 and inheritance. A trait's `self::class` refers to its importing class, while
