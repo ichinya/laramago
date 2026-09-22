@@ -35,7 +35,7 @@ foreach ([false, true] as $enabled) {
                     'command' => [
                         PHP_BINARY,
                         $workspace.'/worker.php',
-                        $package.'/vendor/autoload.php',
+                        getenv('MAGO_SDK_AUTOLOAD') ?: $package.'/vendor/autoload.php',
                         $workspace.'/audit.jsonl',
                     ],
                     'workers' => 1,

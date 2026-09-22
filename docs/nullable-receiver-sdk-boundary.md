@@ -28,3 +28,10 @@ engine recovery to retain the successful branch type requires a Mago change.
 The test deliberately fails if engine behavior changes, so the boundary can be
 re-evaluated rather than retained as a permanent assumption. It runs through
 `composer check`, never bootstraps Laravel, and needs no database.
+
+Verified with matching Mago and PHP SDK versions 1.48.1 and 1.50.0. Set
+`MAGO_BINARY` and `MAGO_SDK_AUTOLOAD` to an isolated engine and SDK installation
+when testing a newer release; the package's installed dependency need not change.
+The existing aggregate and Pest context boundary tests also retain their results
+with engine and SDK 1.50.0. Upgrading to that release alone does not resolve these
+three integration limitations.
