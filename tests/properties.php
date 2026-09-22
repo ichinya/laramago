@@ -128,6 +128,11 @@ $cases = [
         'void',
         ['non-documented-property'],
     ],
+    'dynamic callable default result is not guessed' => [
+        '$model->dynamicCallableDefault;',
+        'void',
+        ['non-documented-property'],
+    ],
     'empty default preserves null' => [
         'return $model->emptyDefault;',
         'Example\Person',

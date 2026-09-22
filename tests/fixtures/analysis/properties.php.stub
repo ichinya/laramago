@@ -65,6 +65,8 @@ class Person extends Model
     public function restoredDefault(): HasOne { return $this->hasOne(Person::class)->withDefault([])->withDefault(); }
     public function callbackDefault(): HasOne { return $this->hasOne(Person::class)->withDefault(function () { return 'custom'; }); }
     public function callableArrayDefault(): HasOne { return $this->hasOne(Person::class)->withDefault([self::class, 'defaultFactory']); }
+    public function dynamicCallableDefault(): HasOne { return $this->hasOne(Person::class)->withDefault([self::class, $this->defaultMethod()]); }
+    public function defaultMethod(): string { return 'defaultFactory'; }
     public static function defaultFactory(): string { return 'custom'; }
     private function privateManager(): BelongsTo { return $this->belongsTo(Person::class); }
     protected function protectedManager(): BelongsTo { return $this->belongsTo(Person::class); }

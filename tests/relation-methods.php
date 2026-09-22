@@ -91,6 +91,11 @@ foreach ([
     $cases[$kind.' wrong result'] = ['return '.$call.'->firstOrFail();', 'OtherEntry', ['invalid-return-statement']];
 }
 $cases += [
+    'dynamic callable default method defers' => [
+        'return $owner->dynamicCallableDefault();',
+        'HasOne<Entry, Owner>',
+        ['mixed-return-statement'],
+    ],
     'explicit relation PHPDoc survives custom factory' => [
         'return (new FactoryOverride)->documented;',
         'Collection<int, OtherEntry>',

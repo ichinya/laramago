@@ -15,7 +15,13 @@ final class RelationDefaults
         if (! is_array($value)) {
             return null;
         }
-        if (count($value) === 2 && array_key_exists(0, $value) && array_key_exists(1, $value) && is_string($value[1])) {
+        if (
+            count($value) === 2
+            && array_key_exists(0, $value)
+            && array_key_exists(1, $value)
+            && (is_string($value[1])
+            || $value[1] === UnknownValue::Value)
+        ) {
             return null;
         }
 

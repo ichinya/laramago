@@ -48,6 +48,8 @@ file_put_contents($workspace.'/models.php', <<<'PHP'
         public function disabledDefault(): MorphTo { return $this->morphTo()->withDefault()->withDefault(false); }
         public function callbackDefault(): MorphTo { return $this->morphTo()->withDefault(fn () => 'custom'); }
         public function callableDefault(): MorphTo { return $this->morphTo()->withDefault([1 => 'make', 0 => self::class]); }
+        public function dynamicCallableDefault(): MorphTo { return $this->morphTo()->withDefault([self::class, $this->defaultMethod()]); }
+        public function defaultMethod(): string { throw new \LogicException('Never execute default factories.'); }
         public function attributesDefault(): MorphTo { return $this->morphTo()->withDefault(['name' => 'Guest', 'active' => true]); }
     }
     class FactoryOverride extends Owner { public function morphTo(): MorphTo {} }
@@ -120,6 +122,11 @@ check_relation_contracts(
         'callback default stays unknown' => ['return $owner->callbackDefault;', 'mixed', ['non-documented-property']],
         'callable array default stays unknown' => [
             'return $owner->callableDefault;',
+            'mixed',
+            ['non-documented-property'],
+        ],
+        'dynamic callable default stays unknown' => [
+            'return $owner->dynamicCallableDefault;',
             'mixed',
             ['non-documented-property'],
         ],
