@@ -87,6 +87,31 @@ $config = [
 ];
 file_put_contents($workspace.'/mago.json', json_encode($config, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
 $cases = [
+    'nested trait lexical self property' => [
+        'return (new \\RelationFixtures\\NestedOwner)->selfEntries;',
+        '\\Illuminate\\Database\\Eloquent\\Collection<int, \\RelationFixtures\\NestedOwner>',
+        [],
+    ],
+    'trait lexical self property' => [
+        'return (new TraitOwner)->selfEntries;',
+        '\\Illuminate\\Database\\Eloquent\\Collection<int, TraitOwner>',
+        [],
+    ],
+    'inherited trait lexical self property' => [
+        'return (new \\RelationFixtures\\TraitChild)->selfEntries;',
+        '\\Illuminate\\Database\\Eloquent\\Collection<int, TraitOwner>',
+        [],
+    ],
+    'reimported trait self property' => [
+        'return (new \\RelationFixtures\\ReimportedChild)->selfEntries;',
+        '\\Illuminate\\Database\\Eloquent\\Collection<int, \\RelationFixtures\\ReimportedChild>',
+        [],
+    ],
+    'trait late static property' => [
+        'return (new \\RelationFixtures\\TraitChild)->lateEntries;',
+        '\\Illuminate\\Database\\Eloquent\\Collection<int, \\RelationFixtures\\TraitChild>',
+        [],
+    ],
     'trait callback receives related builder' => [
         'TraitOwner::whereHas("entries", fn ($q) => acceptEntry($q->firstOrFail()));',
         'void',

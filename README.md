@@ -524,6 +524,8 @@ and inheritance. A trait's `self::class` refers to its importing class, while
 `static::class` follows the actual receiver. Native `using(Pivot::class)` and
 `as('accessor')` modifiers preserve explicit pivot/accessor arguments for verified
 four-template relation layouts. Morph relations require a MorphPivot subclass.
+The same lexical trait resolution applies to relationship properties, including
+inherited and reimported traits, while explicit return PHPDoc remains authoritative.
 
 Methods without a return declaration use the same bounded factory inference,
 including their relationship properties. Explicit native and PHPDoc return

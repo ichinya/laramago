@@ -229,8 +229,10 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
             }
         }
         $type = $method->returnType?->type ?? $method->declaredReturnType?->type;
-        if ($type === null) {
-            $type = (new RelationMethodInference($codebase, $this->source()))->infer($class, $method->originalName);
+        if (! ($method->returnType?->fromDocblock ?? false)) {
+            $type =
+                (new RelationMethodInference($codebase, $this->source()))->infer($class, $method->originalName)
+                ?? $type;
         }
         $atom = $type !== null && count($type->atomicTypes) === 1 ? $type->atomicTypes[0] : null;
         if (
