@@ -44,6 +44,8 @@ class Person extends Model
     public function populatedDefault(): HasOne { return $this->hasOne(Person::class)->withDefault(['name' => 'Guest']); }
     public function clearedDefault(): HasOne { return $this->hasOne(Person::class)->withDefault()->withDefault([]); }
     public function restoredDefault(): HasOne { return $this->hasOne(Person::class)->withDefault([])->withDefault(); }
+    private function privateManager(): BelongsTo { return $this->belongsTo(Person::class); }
+    protected function protectedManager(): BelongsTo { return $this->belongsTo(Person::class); }
 
     /** @return BelongsTo<Person> */
     public function documentedManager(): BelongsTo { throw new \LogicException; }
@@ -52,6 +54,9 @@ class Person extends Model
 class BaseRecord extends Model { protected $table = 'people'; }
 class InheritedRecord extends BaseRecord {}
 class InheritedPerson extends Person { protected $table = 'people'; }
+class CustomRelationValue extends Person { protected $table = 'people'; public function getRelationValue($key) { return 'custom'; } }
+class CustomRelationResult extends Person { protected function getRelationshipFromMethod($method) { return 'custom'; } }
+class CustomRelationDetection extends Person { public function isRelation($key) { return false; } }
 class SelfPerson extends Model
 {
     public function manager(): BelongsTo { return $this->belongsTo(self::class); }

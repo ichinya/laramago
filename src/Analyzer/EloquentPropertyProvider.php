@@ -23,6 +23,7 @@ use Mago\Sdk\Analyzer\PropertyTypeProvider;
 use Mago\Sdk\Analyzer\PropertyTypeProviderContext;
 use Mago\Sdk\Analyzer\Type;
 use Mago\Sdk\Analyzer\Type\NamedObjectType;
+use Mago\Sdk\Analyzer\Type\Visibility;
 use Mago\Sdk\Reporting\Issue;
 use Mago\Sdk\Reporting\Level;
 use PhpParser\Node;
@@ -218,8 +219,13 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
         string $class,
         FunctionLikeMetadata $method,
     ): ?PropertyType {
-        if ($method->static || $method->parameters !== []) {
+        if ($method->static || $method->parameters !== [] || $method->visibility === Visibility::Private) {
             return null;
+        }
+        foreach (['isRelation', 'getRelationValue', 'getRelationshipFromMethod'] as $name) {
+            if ($reflection->customMethod($class, $name) !== null) {
+                return null;
+            }
         }
         $type = $method->returnType?->type ?? $method->declaredReturnType?->type;
         if ($type === null) {

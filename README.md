@@ -504,6 +504,11 @@ supported Laravel contracts. Custom factories, relation constructors and related
 model resolvers defer. Native visibility and argument checks remain active, as do
 unknown-property, invalid-assignment and nullable-result diagnostics.
 
+Relationship properties also defer for private methods and custom
+`isRelation`, `getRelationValue` or `getRelationshipFromMethod` dispatch.
+Protected relation methods remain accessible to the base model. Empty
+`withDefault([])` attributes preserve nullability; the last default modifier wins.
+
 Application-trait declarations are supported, including nested imports, aliases
 and inheritance. A trait's `self::class` refers to its importing class, while
 `static::class` follows the actual receiver. Native `using(Pivot::class)` and

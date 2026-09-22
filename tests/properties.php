@@ -68,6 +68,28 @@ $cases = [
     'declared property wins' => ['return $model->declared;', 'string', []],
     'documented property wins' => ['return $model->documented;', 'string', []],
     'singular relation' => ['return $model->manager;', 'Example\Person|null', []],
+    'private relation method defers' => ['$model->privateManager;', 'void', ['non-documented-property']],
+    'protected relation method remains callable by Model' => [
+        'return $model->protectedManager;',
+        'Example\Person|null',
+        [],
+    ],
+    'custom relation value defers' => [
+        '(new Example\CustomRelationValue)->manager;',
+        'void',
+        ['non-documented-property'],
+    ],
+    'custom relation result defers' => [
+        '(new Example\CustomRelationResult)->manager;',
+        'void',
+        ['non-documented-property'],
+    ],
+    'custom relation detection defers' => [
+        '(new Example\CustomRelationDetection)->manager;',
+        'void',
+        ['non-documented-property'],
+    ],
+    'custom relation dispatch preserves columns' => ['return (new Example\CustomRelationValue)->name;', 'string', []],
     'relation with default' => ['return $model->profile;', 'Example\Person', []],
     'empty default preserves null' => [
         'return $model->emptyDefault;',
