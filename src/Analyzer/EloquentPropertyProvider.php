@@ -311,12 +311,13 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
         if ($related === null) {
             return null;
         }
+        if ($many) {
+            $collection = (new EloquentCollectionType)->resolve($codebase, $related);
 
-        return new PropertyType(
-            $many
-                ? Type::namedObject('Illuminate\\Database\\Eloquent\\Collection', Type::int(), $related)
-                : ($withDefault ? $related : Type::union($related, Type::null())),
-        );
+            return $collection === null ? null : new PropertyType($collection);
+        }
+
+        return new PropertyType($withDefault ? $related : Type::union($related, Type::null()));
     }
 
     private function morphTo(

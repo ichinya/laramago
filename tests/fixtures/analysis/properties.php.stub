@@ -38,6 +38,13 @@ class Person extends Model
 
     public function manager(): BelongsTo { return $this->belongsTo(Person::class); }
     public function members(): HasMany { return $this->hasMany(Person::class); }
+    public function customMembers(): HasMany { return $this->hasMany(CollectionPerson::class); }
+    public function inheritedCollectionMembers(): HasMany { return $this->hasMany(ChildCollectionPerson::class); }
+    public function attributedCollectionMembers(): HasMany { return $this->hasMany(AttributeCollectionPerson::class); }
+    public function propertyCollectionMembers(): HasMany { return $this->hasMany(PropertyCollectionPerson::class); }
+    public function genericCollectionMembers(): HasMany { return $this->hasMany(GenericCollectionPerson::class); }
+    public function unknownCollectionMembers(): HasMany { return $this->hasMany(UnknownCollectionPerson::class); }
+    public function unknownCollectionParent(): HasOne { return $this->hasOne(UnknownCollectionPerson::class); }
     public function profile(): HasOne { return $this->hasOne(Person::class)->withDefault(); }
     public function emptyDefault(): HasOne { return $this->hasOne(Person::class)->withDefault([]); }
     public function falseDefault(): HasOne { return $this->hasOne(Person::class)->withDefault(false); }
@@ -55,6 +62,23 @@ class Person extends Model
 }
 
 class BaseRecord extends Model { protected $table = 'people'; }
+/** @extends \Illuminate\Database\Eloquent\Collection<int, Person> */
+class PersonCollection extends \Illuminate\Database\Eloquent\Collection { public function summary(): string { throw new \LogicException('Never execute collections.'); } }
+class CollectionPerson extends Person { public function newCollection(array $models = []): PersonCollection { throw new \LogicException('Never execute collection factories.'); } }
+class ChildCollectionPerson extends CollectionPerson {}
+#[\Illuminate\Database\Eloquent\Attributes\CollectedBy(PersonCollection::class)]
+class AttributeCollectionPerson extends Person {}
+class PropertyCollectionPerson extends Person { protected static string $collectionClass = PersonCollection::class; }
+/** @template T of Model
+ * @extends \Illuminate\Database\Eloquent\Collection<int, T> */
+class GenericPersonCollection extends \Illuminate\Database\Eloquent\Collection {}
+class GenericCollectionPerson extends Person {
+    /** @return GenericPersonCollection<Person> */
+    public function newCollection(array $models = []): GenericPersonCollection { throw new \LogicException('Never execute collection factories.'); }
+}
+class UnknownCollectionPerson extends Person { public function newCollection(array $models = []) { throw new \LogicException('Never execute collection factories.'); } }
+/** @property-read string $customMembers */
+class DocumentedCollectionOwner extends Person {}
 class InheritedRecord extends BaseRecord {}
 class InheritedPerson extends Person { protected $table = 'people'; }
 class CustomRelationValue extends Person { protected $table = 'people'; public function getRelationValue($key) { return 'custom'; } }

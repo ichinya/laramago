@@ -514,6 +514,10 @@ Protected relation methods remain accessible to the base model. Empty
 `withDefault([])` attributes preserve nullability; the last default modifier wins.
 Callback defaults and potentially callable arrays defer because they can replace
 the related model with an arbitrary value.
+To-many relationship properties use the related model's collection contract,
+including explicit `newCollection()` return types, `CollectedBy` attributes and
+static collection-class declarations. Unknown collection factories defer;
+explicit property PHPDoc retains priority.
 
 Application-trait declarations are supported, including nested imports, aliases
 and inheritance. A trait's `self::class` refers to its importing class, while
