@@ -8,6 +8,7 @@ use Ichinya\Laramago\Analyzer\StaticAnalysis\AttributeTypes;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\CustomCastTypes;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ModelReflection;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\RelationMethodInference;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\SchemaIndex;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\UnknownValue;
 use Mago\Sdk\Analyzer\BeforeAnalysisContext;
@@ -221,6 +222,9 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
             return null;
         }
         $type = $method->returnType?->type ?? $method->declaredReturnType?->type;
+        if ($type === null) {
+            $type = (new RelationMethodInference($codebase, $this->source()))->infer($class, $method->originalName);
+        }
         $atom = $type !== null && count($type->atomicTypes) === 1 ? $type->atomicTypes[0] : null;
         if (
             ! $atom instanceof NamedObjectType

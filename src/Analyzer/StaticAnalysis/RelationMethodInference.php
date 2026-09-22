@@ -51,17 +51,23 @@ final class RelationMethodInference
         }
         $declared = $method->declaredReturnType?->type;
         $relation = $declared?->atomicTypes[0] ?? null;
-        if ($declared === null || count($declared->atomicTypes) !== 1 || ! $relation instanceof NamedObjectType) {
+        if ($declared !== null && count($declared->atomicTypes) !== 1) {
             return null;
         }
-        if (! in_array(
-            $relation->name,
-            array_map(
-                static fn (string $kind): string => 'Illuminate\\Database\\Eloquent\\Relations\\'.$kind,
-                self::RELATIONS,
-            ),
-            true,
-        )) {
+        if ($relation !== null && ! $relation instanceof NamedObjectType) {
+            return null;
+        }
+        if (
+            $relation !== null
+            && ! in_array(
+                $relation->name,
+                array_map(
+                    static fn (string $kind): string => 'Illuminate\\Database\\Eloquent\\Relations\\'.$kind,
+                    self::RELATIONS,
+                ),
+                true,
+            )
+        ) {
             return null;
         }
         $declaring = $this->declaringContext($owner, $method->identifier->class ?? '');
@@ -86,14 +92,18 @@ final class RelationMethodInference
         }
         $factory = strtolower($expression->name->toString());
         $kind = self::RELATIONS[$factory] ?? null;
-        if ($kind === null || $relation->name !== 'Illuminate\\Database\\Eloquent\\Relations\\'.$kind) {
+        if ($kind === null) {
+            return null;
+        }
+        $relationName = 'Illuminate\\Database\\Eloquent\\Relations\\'.$kind;
+        if ($relation !== null && $relation->name !== $relationName) {
             return null;
         }
         if (! $this->standardFactory($this->codebase, $reflection, $owner, $name, $factory)) {
             return null;
         }
         $arguments = $this->factoryArguments($expression, $factory);
-        if ($arguments === null || ! $this->nativeModifiers($reflection, $relation->name, $modifiers)) {
+        if ($arguments === null || ! $this->nativeModifiers($reflection, $relationName, $modifiers)) {
             return null;
         }
         $related = PhpSource::value($arguments['related'], $declaring, $owner);
@@ -110,7 +120,7 @@ final class RelationMethodInference
             array_splice($parameters, 1, 0, [Type::namedObject($through)]);
             array_splice($templates, 1, 0, ['TIntermediateModel']);
         }
-        $metadata = $this->codebase->getClass($relation->name);
+        $metadata = $this->codebase->getClass($relationName);
         if ($metadata === null) {
             return null;
         }
@@ -149,7 +159,7 @@ final class RelationMethodInference
             return null;
         }
 
-        return Type::namedObject($relation->name, ...$parameters);
+        return Type::namedObject($relationName, ...$parameters);
     }
 
     /** Resolve trait self::class to its lexical consuming class, not a later child. */

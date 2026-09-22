@@ -82,6 +82,67 @@ foreach ([
     $cases[$kind.' wrong result'] = ['return '.$call.'->firstOrFail();', 'OtherEntry', ['invalid-return-statement']];
 }
 $cases += [
+    'untyped relation method' => ['return $owner->untyped();', 'HasMany<Entry, Owner>', []],
+    'untyped relation property' => ['return $owner->untyped;', 'Collection<int, Entry>', []],
+    'untyped nullable parent property' => ['return $owner->untypedParent;', '?Entry', []],
+    'untyped inherited relation' => ['return (new ChildOwner)->untyped();', 'HasMany<Entry, ChildOwner>', []],
+    'untyped trait relation' => ['return (new TraitOwner)->untypedEntries();', 'HasMany<TraitOwner, TraitOwner>', []],
+    'untyped native modifier' => [
+        'return $owner->untypedMembers();',
+        "BelongsToMany<Entry, Owner, Pivot, 'pivot'>",
+        [],
+    ],
+    'untyped nullable property remains nullable' => [
+        'return $owner->untypedParent->title;',
+        '?string',
+        ['possibly-null-property-access'],
+    ],
+    'untyped collection property remains invalid' => [
+        'return $owner->untyped->title;',
+        'mixed',
+        ['non-existent-property'],
+    ],
+    'untyped custom factory property defers' => [
+        'return (new FactoryOverride)->untyped;',
+        'mixed',
+        ['non-documented-property'],
+    ],
+    'documented mixed property defers' => ['return $owner->documentedMixed;', 'mixed', ['non-documented-property']],
+    'untyped property typo' => [
+        'return $owner->untyped()->firstOrFail()->missing;',
+        'mixed',
+        ['non-documented-property'],
+    ],
+    'untyped invalid assignment' => [
+        '$owner->untyped()->firstOrFail()->title = 42;',
+        'void',
+        ['invalid-property-assignment-value'],
+    ],
+    'explicit mixed is preserved' => [
+        'return $owner->explicitMixed();',
+        'HasMany<Entry, Owner>',
+        ['mixed-return-statement'],
+    ],
+    'documented mixed is preserved' => [
+        'return $owner->documentedMixed();',
+        'HasMany<Entry, Owner>',
+        ['mixed-return-statement'],
+    ],
+    'dynamic untyped target defers' => [
+        'return $owner->untypedDynamic();',
+        'HasMany<Entry, Owner>',
+        ['mixed-return-statement'],
+    ],
+    'parameterized untyped relation defers' => [
+        'return $owner->untypedParameterized();',
+        'HasMany<Entry, Owner>',
+        ['mixed-return-statement'],
+    ],
+    'untyped custom factory defers' => [
+        'return (new FactoryOverride)->untyped();',
+        'HasMany<Entry, FactoryOverride>',
+        ['mixed-return-statement'],
+    ],
     'expanded PHPDoc wins' => ['return $owner->documentedMembers()->getRelated();', 'OtherEntry', []],
     'inverse morph factory' => [
         'return $owner->taggedEntries();',
@@ -326,6 +387,11 @@ check_relation_methods(
             ['less-specific-return-statement'],
         ],
         'native explicit contract works' => ['return $owner->documented()->getRelated();', 'OtherEntry', []],
+        'native untyped relation remains mixed' => [
+            'return $owner->untyped();',
+            'HasMany<Entry, Owner>',
+            ['mixed-return-statement'],
+        ],
     ],
     $command,
     $workspace,

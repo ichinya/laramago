@@ -62,6 +62,13 @@ class Owner extends Model {
     public function parameterized(bool $active = true): HasMany { return $this->hasMany(Item::class); }
     public function nullable(): ?HasMany { return $this->hasMany(Item::class); }
     public function untyped() { return $this->hasMany(Item::class); }
+    public function untypedParent() { return $this->belongsTo(Item::class); }
+    public function untypedMembers() { return $this->belongsToMany(Item::class)->withTimestamps(); }
+    public function explicitMixed(): mixed { return $this->hasMany(Item::class); }
+    /** @return mixed */
+    public function documentedMixed() { return $this->hasMany(Item::class); }
+    public function untypedDynamic() { return $this->hasMany($this->modelClass()); }
+    public function untypedParameterized(bool $active = true) { return $this->hasMany(Item::class); }
     public function unrelated(): HasMany { return $this->hasMany(\stdClass::class); }
     public function mismatched(): HasOne { return $this->hasMany(Item::class); }
     public function unpacked(): HasMany { return $this->hasMany(...[Item::class]); }
@@ -75,6 +82,7 @@ class Owner extends Model {
 }
 class ChildOwner extends Owner {}
 trait HasEntries {
+    public function untypedEntries() { return $this->hasMany(self::class); }
     public function entries(): HasMany { return $this->hasMany(Item::class); }
     public function selfEntries(): HasMany { return $this->hasMany(self::class); }
 }

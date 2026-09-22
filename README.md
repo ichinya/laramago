@@ -510,8 +510,12 @@ and inheritance. A trait's `self::class` refers to its importing class, while
 `as('accessor')` modifiers preserve explicit pivot/accessor arguments for verified
 four-template relation layouts. Morph relations require a MorphPivot subclass.
 
+Methods without a return declaration use the same bounded factory inference,
+including their relationship properties. Explicit native and PHPDoc return
+contracts retain priority, including `mixed`.
+
 Unresolved model/trait generics, dynamic targets or keys, branches, locals,
-arbitrary chained modifiers, untyped/nullable method declarations and dynamic
+arbitrary chained modifiers, nullable method declarations and dynamic
 `MorphTo` targets retain native types. Passing a custom pivot as the factory table
 argument is outside this inference. `php tests/relation-contracts.php` covers
 trait dispatch, pivot contracts and declaration-priority regressions.
