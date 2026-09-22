@@ -103,6 +103,26 @@ file_put_contents($workspace.'/composer.json', json_encode([
     'autoload' => ['files' => ['bootstrap.php']],
 ], JSON_THROW_ON_ERROR));
 $cases = [
+    'untyped relationship callback' => [
+        'CallbackInferred::whereHas("untypedPosts", fn ($q) => acceptPosts($q));',
+        'void',
+        [],
+    ],
+    'untyped relationship eager callback' => [
+        'CallbackInferred::query()->with("untypedPosts", fn ($q) => acceptRelation($q));',
+        'void',
+        [],
+    ],
+    'untyped callback wrong property type' => [
+        'CallbackInferred::whereHas("untypedPosts", fn ($q) => acceptInt($q->firstOrFail()->title));',
+        'void',
+        ['invalid-argument'],
+    ],
+    'untyped callback custom factory defers' => [
+        'CallbackCustomFactory::whereHas("untypedPosts", fn ($q) => acceptPosts($q));',
+        'void',
+        ['less-specific-argument'],
+    ],
     'syntax relation callback' => ['CallbackInferred::whereHas("posts", fn ($q) => acceptPosts($q));', 'void', []],
     'syntax inherited callback' => [
         'CallbackInferredChild::whereHas("posts", fn ($q) => acceptPosts($q));',

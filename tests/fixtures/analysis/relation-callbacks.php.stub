@@ -85,6 +85,7 @@ class CallbackInferred extends Model
     public function tags(): \Illuminate\Database\Eloquent\Relations\MorphToMany { return $this->morphToMany(CallbackPost::class, 'taggable'); }
     public function inverseTags(): \Illuminate\Database\Eloquent\Relations\MorphToMany { return $this->morphedByMany(CallbackPost::class, 'taggable'); }
     public function posts(): HasMany { return $this->hasMany(CallbackPost::class); }
+    public function untypedPosts() { return $this->hasMany(CallbackPost::class); }
     public function records(): HasMany { return $this->hasMany(CallbackRecord::class); }
     /** @return HasMany<CallbackRecord, $this> */
     public function documented(): HasMany { return $this->hasMany(CallbackPost::class); }
