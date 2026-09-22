@@ -39,6 +39,11 @@ class Person extends Model
     public function manager(): BelongsTo { return $this->belongsTo(Person::class); }
     public function members(): HasMany { return $this->hasMany(Person::class); }
     public function profile(): HasOne { return $this->hasOne(Person::class)->withDefault(); }
+    public function emptyDefault(): HasOne { return $this->hasOne(Person::class)->withDefault([]); }
+    public function falseDefault(): HasOne { return $this->hasOne(Person::class)->withDefault(false); }
+    public function populatedDefault(): HasOne { return $this->hasOne(Person::class)->withDefault(['name' => 'Guest']); }
+    public function clearedDefault(): HasOne { return $this->hasOne(Person::class)->withDefault()->withDefault([]); }
+    public function restoredDefault(): HasOne { return $this->hasOne(Person::class)->withDefault([])->withDefault(); }
 
     /** @return BelongsTo<Person> */
     public function documentedManager(): BelongsTo { throw new \LogicException; }

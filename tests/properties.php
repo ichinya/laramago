@@ -69,6 +69,23 @@ $cases = [
     'documented property wins' => ['return $model->documented;', 'string', []],
     'singular relation' => ['return $model->manager;', 'Example\Person|null', []],
     'relation with default' => ['return $model->profile;', 'Example\Person', []],
+    'empty default preserves null' => [
+        'return $model->emptyDefault;',
+        'Example\Person',
+        ['invalid-return-statement', 'nullable-return-statement'],
+    ],
+    'false default preserves null' => [
+        'return $model->falseDefault;',
+        'Example\Person',
+        ['invalid-return-statement', 'nullable-return-statement'],
+    ],
+    'populated default removes null' => ['return $model->populatedDefault;', 'Example\Person', []],
+    'last empty default preserves null' => [
+        'return $model->clearedDefault;',
+        'Example\Person',
+        ['invalid-return-statement', 'nullable-return-statement'],
+    ],
+    'last enabled default removes null' => ['return $model->restoredDefault;', 'Example\Person', []],
     'many relation' => ['return $model->members;', 'Illuminate\Database\Eloquent\Collection<int, Example\Person>', []],
     'documented relation' => ['return $model->documentedManager;', 'Example\Person|null', []],
     'inherited table' => ['return (new Example\InheritedRecord)->name;', 'string', []],

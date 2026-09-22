@@ -292,7 +292,10 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
                     ) {
                         $argument = PhpSource::argument($modifier->args, 0, 'callback');
                         $value = $argument === null ? true : PhpSource::value($argument, $class);
-                        $withDefault = $value === true || is_array($value) || $argument instanceof Node\Expr\Closure;
+                        $withDefault =
+                            $value === true
+                            || is_array($value) && $value !== []
+                            || $argument instanceof Node\Expr\Closure;
                     }
                 }
             }
