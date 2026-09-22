@@ -298,10 +298,11 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
                     ) {
                         $argument = PhpSource::argument($modifier->args, 0, 'callback');
                         $value = $argument === null ? true : PhpSource::value($argument, $class);
-                        $withDefault =
-                            $value === true
-                            || is_array($value) && $value !== []
-                            || $argument instanceof Node\Expr\Closure;
+                        $enabled = $this->defaultEnabled($value);
+                        if ($enabled === null) {
+                            return null;
+                        }
+                        $withDefault = $enabled;
                     }
                 }
             }
@@ -363,10 +364,11 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
             $value = $argument === null ? true : PhpSource::value($argument, $class);
             // A callback may replace the default with an arbitrary value. Empty
             // arrays disable defaults in Laravel's truthiness check.
-            if (! is_bool($value) && ! is_array($value)) {
+            $enabled = $this->defaultEnabled($value);
+            if ($enabled === null) {
                 return null;
             }
-            $withDefault = $value === true || is_array($value) && $value !== [];
+            $withDefault = $enabled;
         }
         $related = $atom->parameters[0] ?? null;
         $doc = $reflection->methodNode($method)?->getDocComment()?->getText() ?? '';
@@ -392,5 +394,21 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
         $related ??= Type::namedObject(ModelReflection::MODEL);
 
         return new PropertyType($withDefault ? $related : Type::union($related, Type::null()));
+    }
+
+    /** Callback defaults can replace the related model with an arbitrary value. */
+    private function defaultEnabled(mixed $value): ?bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+        if (! is_array($value)) {
+            return null;
+        }
+        if (count($value) === 2 && array_key_exists(0, $value) && array_key_exists(1, $value) && is_string($value[1])) {
+            return null;
+        }
+
+        return $value !== [];
     }
 }

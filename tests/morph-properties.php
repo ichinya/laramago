@@ -47,6 +47,8 @@ file_put_contents($workspace.'/models.php', <<<'PHP'
         public function emptyDefault(): MorphTo { return $this->morphTo()->withDefault([]); }
         public function disabledDefault(): MorphTo { return $this->morphTo()->withDefault()->withDefault(false); }
         public function callbackDefault(): MorphTo { return $this->morphTo()->withDefault(fn () => 'custom'); }
+        public function callableDefault(): MorphTo { return $this->morphTo()->withDefault([1 => 'make', 0 => self::class]); }
+        public function attributesDefault(): MorphTo { return $this->morphTo()->withDefault(['name' => 'Guest', 'active' => true]); }
     }
     class FactoryOverride extends Owner { public function morphTo(): MorphTo {} }
     class ResultOverride extends Owner { public function getRelationshipFromMethod($method): mixed {} }
@@ -116,6 +118,12 @@ check_relation_contracts(
             ['non-documented-property'],
         ],
         'callback default stays unknown' => ['return $owner->callbackDefault;', 'mixed', ['non-documented-property']],
+        'callable array default stays unknown' => [
+            'return $owner->callableDefault;',
+            'mixed',
+            ['non-documented-property'],
+        ],
+        'attribute array default preserves model' => ['return $owner->attributesDefault;', 'Model', []],
         'explicit property wins' => ['return (new \\RelationFixtures\\DocumentedOwner)->subject;', 'string', []],
     ],
     $command,

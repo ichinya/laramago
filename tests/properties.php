@@ -91,6 +91,12 @@ $cases = [
     ],
     'custom relation dispatch preserves columns' => ['return (new Example\CustomRelationValue)->name;', 'string', []],
     'relation with default' => ['return $model->profile;', 'Example\Person', []],
+    'callback default result is not guessed' => ['$model->callbackDefault;', 'void', ['non-documented-property']],
+    'callable array default result is not guessed' => [
+        '$model->callableArrayDefault;',
+        'void',
+        ['non-documented-property'],
+    ],
     'empty default preserves null' => [
         'return $model->emptyDefault;',
         'Example\Person',

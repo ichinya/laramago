@@ -508,6 +508,8 @@ Relationship properties also defer for private methods and custom
 `isRelation`, `getRelationValue` or `getRelationshipFromMethod` dispatch.
 Protected relation methods remain accessible to the base model. Empty
 `withDefault([])` attributes preserve nullability; the last default modifier wins.
+Callback defaults and potentially callable arrays defer because they can replace
+the related model with an arbitrary value.
 
 Application-trait declarations are supported, including nested imports, aliases
 and inheritance. A trait's `self::class` refers to its importing class, while
