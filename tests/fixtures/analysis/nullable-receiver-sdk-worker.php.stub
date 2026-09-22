@@ -1,0 +1,51 @@
+<?php
+
+declare(strict_types=1);
+
+require $argv[1];
+
+use Mago\Sdk\Analyzer\MethodReturnTypeProvider;
+use Mago\Sdk\Analyzer\MethodTarget;
+use Mago\Sdk\Analyzer\Plugin;
+use Mago\Sdk\Analyzer\PluginDefinition;
+use Mago\Sdk\Analyzer\PluginRegistry;
+use Mago\Sdk\Analyzer\ReturnTypeProviderContext;
+use Mago\Sdk\Analyzer\Type;
+
+final class NullableReceiverProbe implements Plugin, MethodReturnTypeProvider
+{
+    public function __construct(private readonly string $audit) {}
+
+    public function getDefinition(): PluginDefinition
+    {
+        return new PluginDefinition('nullable-receiver-probe', 'Nullable receiver probe', 'Test-only return inference boundary.');
+    }
+
+    public function register(PluginRegistry $registry): void
+    {
+        $registry->registerMethodReturnTypeProvider($this);
+    }
+
+    public function getTargets(): array
+    {
+        return [MethodTarget::exact('ProbeDate', 'start')];
+    }
+
+    public function getReturnType(ReturnTypeProviderContext $context): ?Type
+    {
+        file_put_contents($this->audit, json_encode([
+            'start' => $context->invocation->span->start,
+            'receiver' => (string) $context->invocation->receiverType,
+            'return' => 'ProbeDate',
+        ], JSON_THROW_ON_ERROR)."\n", FILE_APPEND | LOCK_EX);
+
+        return Type::namedObject('ProbeDate');
+    }
+}
+
+(new Mago\Sdk\Worker(new Mago\Sdk\Extension(
+    identifier: 'nullable-receiver-probe',
+    name: 'Nullable receiver probe',
+    version: '1',
+    analyzerPlugins: [new NullableReceiverProbe($argv[2])],
+)))->run();

@@ -67,4 +67,8 @@ is a false positive.
 
 ## Date properties after query projections
 
+Nullable method receivers can also cause mixed cascades even when an extension
+returns a concrete type. The [nullable receiver regression](nullable-receiver-sdk-boundary.md)
+proves the engine behavior and compares guarded and nullsafe calls.
+
 Carbon interface property declarations already provide native types. A date property reached through an unresolved model-or-collection lookup is a separate query-contract problem. [The projection regression](date-projection-limitations.md) records why a mixed plucked ID must retain both lookup branches.
