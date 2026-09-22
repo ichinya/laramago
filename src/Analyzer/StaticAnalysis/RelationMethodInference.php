@@ -472,6 +472,7 @@ final class RelationMethodInference
                 'using' => ['BelongsToMany', ['class']],
                 'as' => ['BelongsToMany', ['accessor']],
                 'withtrashedparents' => ['HasOneOrManyThrough', []],
+                'withdefault' => ['Concerns\\SupportsDefaultModels', ['callback']],
                 default => null,
             };
             if ($contract === null) {
@@ -493,6 +494,9 @@ final class RelationMethodInference
                 return false;
             }
             if (in_array($name, ['using', 'as'], true) && count($call->args) !== 1) {
+                return false;
+            }
+            if ($name === 'withdefault' && $method->parameters[0]->defaultType?->type->getLiteralBool() !== true) {
                 return false;
             }
             $seen = [];
@@ -529,6 +533,12 @@ final class RelationMethodInference
                     continue;
                 }
                 $value = PhpSource::value($argument->value);
+                if ($name === 'withdefault') {
+                    if (RelationDefaults::enabled($value) === null) {
+                        return false;
+                    }
+                    continue;
+                }
                 if ($name === 'as' && (! is_string($value) || $value === '')) {
                     return false;
                 }

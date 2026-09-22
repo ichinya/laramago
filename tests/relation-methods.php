@@ -30,6 +30,15 @@ foreach (['HasMany', 'HasOne', 'BelongsTo'] as $kind) {
     );
 }
 $framework .= substr(file_get_contents(__DIR__.'/fixtures/analysis/relation-methods-framework.php.stub'), 5);
+foreach (['HasOne', 'BelongsTo'] as $kind) {
+    $framework = str_replace(
+        'class '.$kind.' extends Relation {}',
+        'class '
+        .$kind
+        .' extends Relation { use \\Illuminate\\Database\\Eloquent\\Relations\\Concerns\\SupportsDefaultModels; }',
+        $framework,
+    );
+}
 $framework = str_replace("\r\n", "\n", $framework);
 file_put_contents($workspace.'/framework.php', $framework);
 copy(__DIR__.'/fixtures/analysis/relation-methods.php.stub', $workspace.'/models.php');
@@ -82,6 +91,39 @@ foreach ([
     $cases[$kind.' wrong result'] = ['return '.$call.'->firstOrFail();', 'OtherEntry', ['invalid-return-statement']];
 }
 $cases += [
+    'untyped default relation' => ['return $owner->defaultEntry();', 'HasOne<Entry, Owner>', []],
+    'untyped default property' => ['return $owner->defaultEntry;', 'Entry', []],
+    'untyped named attributes default' => ['return $owner->defaultParent;', 'Entry', []],
+    'empty default property remains nullable' => ['return $owner->emptyDefault;', '?Entry', []],
+    'disabled default property remains nullable' => ['return $owner->disabledDefault;', '?Entry', []],
+    'default property invalid return' => ['return $owner->defaultEntry;', 'OtherEntry', ['invalid-return-statement']],
+    'disabled default property cannot promise model' => [
+        'return $owner->disabledDefault;',
+        'Entry',
+        ['invalid-return-statement', 'nullable-return-statement'],
+    ],
+    'through default relation' => ['return $owner->defaultThrough();', 'HasOneThrough<Entry, Intermediate, Owner>', []],
+    'morph default relation' => ['return $owner->defaultImage();', 'MorphOne<Entry, Owner>', []],
+    'callback default method defers' => [
+        'return $owner->callbackDefault();',
+        'HasOne<Entry, Owner>',
+        ['mixed-return-statement'],
+    ],
+    'callable array default method defers' => [
+        'return $owner->callableDefault();',
+        'HasOne<Entry, Owner>',
+        ['mixed-return-statement'],
+    ],
+    'dynamic default method defers' => [
+        'return $owner->dynamicDefault();',
+        'HasOne<Entry, Owner>',
+        ['mixed-return-statement'],
+    ],
+    'unknown default argument name defers' => [
+        'return $owner->invalidDefault();',
+        'HasOne<Entry, Owner>',
+        ['mixed-return-statement'],
+    ],
     'untyped relation method' => ['return $owner->untyped();', 'HasMany<Entry, Owner>', []],
     'untyped relation property' => ['return $owner->untyped;', 'Collection<int, Entry>', []],
     'untyped nullable parent property' => ['return $owner->untypedParent;', '?Entry', []],
@@ -353,6 +395,24 @@ check_relation_methods(
     $command,
     $workspace,
 );
+file_put_contents($workspace.'/framework.php', $framework);
+
+foreach ([
+    'changed default value' => str_replace('$callback = true', '$callback = false', $framework),
+    'changed default argument name' => str_replace('$callback = true', '$value = true', $framework),
+    'overridden default method' => str_replace(
+        'class HasOne extends Relation {',
+        'class HasOne extends Relation { /** @return $this */ public function withDefault($callback = true) { return $this; }',
+        $framework,
+    ),
+] as $label => $alteredFramework) {
+    file_put_contents($workspace.'/framework.php', $alteredFramework);
+    check_relation_methods(
+        [$label.' defers' => ['return $owner->defaultEntry();', 'HasOne<Entry, Owner>', ['mixed-return-statement']]],
+        $command,
+        $workspace,
+    );
+}
 file_put_contents($workspace.'/framework.php', $framework);
 
 // A new worker run reads changed relationship bodies from the same workspace.

@@ -63,6 +63,16 @@ class Owner extends Model {
     public function nullable(): ?HasMany { return $this->hasMany(Item::class); }
     public function untyped() { return $this->hasMany(Item::class); }
     public function untypedParent() { return $this->belongsTo(Item::class); }
+    public function defaultEntry() { return $this->hasOne(Item::class)->withDefault(); }
+    public function defaultParent() { return $this->belongsTo(Item::class)->withDefault(callback: ['title' => 'Guest']); }
+    public function emptyDefault() { return $this->hasOne(Item::class)->withDefault([]); }
+    public function disabledDefault() { return $this->hasOne(Item::class)->withDefault()->withDefault(false); }
+    public function defaultThrough() { return $this->hasOneThrough(Item::class, Intermediate::class)->withDefault(true); }
+    public function defaultImage() { return $this->morphOne(Item::class, 'imageable')->withDefault(); }
+    public function callbackDefault() { return $this->hasOne(Item::class)->withDefault(fn () => 'custom'); }
+    public function callableDefault() { return $this->hasOne(Item::class)->withDefault([self::class, 'createDefault']); }
+    public function dynamicDefault() { return $this->hasOne(Item::class)->withDefault($this->modelClass()); }
+    public function invalidDefault() { return $this->hasOne(Item::class)->withDefault(unknown: true); }
     public function untypedMembers() { return $this->belongsToMany(Item::class)->withTimestamps(); }
     public function explicitMixed(): mixed { return $this->hasMany(Item::class); }
     /** @return mixed */

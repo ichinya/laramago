@@ -497,6 +497,10 @@ many-to-many template layouts retain their installed Pivot/MorphPivot defaults.
 Native `withTimestamps()` and `withTrashedParents()` chains are recognized after
 checking their installed declarations; timestamp names must be literal strings
 or null.
+Native `withDefault()` chains preserve relationship generics for boolean values
+and static attribute arrays, including methods without a return declaration.
+The installed `SupportsDefaultModels` declaration and its default argument must
+match the supported contract; callbacks and dynamic values defer.
 
 Explicit return PHPDoc keeps priority, including an intentionally broad contract.
 The installed relationship templates and factory declarations must match the

@@ -8,6 +8,7 @@ use Ichinya\Laramago\Analyzer\StaticAnalysis\AttributeTypes;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\CustomCastTypes;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ModelReflection;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\RelationDefaults;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\RelationMethodInference;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\SchemaIndex;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\UnknownValue;
@@ -298,7 +299,7 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
                     ) {
                         $argument = PhpSource::argument($modifier->args, 0, 'callback');
                         $value = $argument === null ? true : PhpSource::value($argument, $class);
-                        $enabled = $this->defaultEnabled($value);
+                        $enabled = RelationDefaults::enabled($value);
                         if ($enabled === null) {
                             return null;
                         }
@@ -364,7 +365,7 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
             $value = $argument === null ? true : PhpSource::value($argument, $class);
             // A callback may replace the default with an arbitrary value. Empty
             // arrays disable defaults in Laravel's truthiness check.
-            $enabled = $this->defaultEnabled($value);
+            $enabled = RelationDefaults::enabled($value);
             if ($enabled === null) {
                 return null;
             }
@@ -394,21 +395,5 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
         $related ??= Type::namedObject(ModelReflection::MODEL);
 
         return new PropertyType($withDefault ? $related : Type::union($related, Type::null()));
-    }
-
-    /** Callback defaults can replace the related model with an arbitrary value. */
-    private function defaultEnabled(mixed $value): ?bool
-    {
-        if (is_bool($value)) {
-            return $value;
-        }
-        if (! is_array($value)) {
-            return null;
-        }
-        if (count($value) === 2 && array_key_exists(0, $value) && array_key_exists(1, $value) && is_string($value[1])) {
-            return null;
-        }
-
-        return $value !== [];
     }
 }
