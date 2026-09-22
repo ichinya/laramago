@@ -1,5 +1,9 @@
 # Query-local aggregate result properties
 
+The real-engine collision regression was rerun on 2026-09-22 with matching
+Mago and SDK 1.50.0. Fresh and mutable calls still expose indistinguishable
+synchronous provider context, so the boundary below remains applicable.
+
 Laravel's `withCount`, `withSum`, `withAvg`, `withMin`, `withMax` and
 `withExists` methods add selected aliases to one mutable query builder. Those
 aliases are properties of models hydrated by that query, not properties of every

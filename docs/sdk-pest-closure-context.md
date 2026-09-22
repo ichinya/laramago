@@ -39,6 +39,9 @@ closure argument.
 
 ## Current SDK boundary
 
+The real-engine two-file regression was rerun on 2026-09-22 with matching
+Mago and SDK 1.50.0. The missing call-site file identity remains unchanged.
+
 The installed version verified on 2026-09-21 is Mago 1.48.1. Its
 `CallableSignatureProviderContext` contains `phpVersion`, `codebase`,
 `invocation`, `types`, and `cancellation`. `Invocation` contains the invocation
