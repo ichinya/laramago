@@ -1,0 +1,10 @@
+<?php
+
+namespace Illuminate\Http;
+
+class Request
+{
+    use \Illuminate\Support\Traits\InteractsWithData;
+
+    public function all(): array { return []; }
+}

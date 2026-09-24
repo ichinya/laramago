@@ -87,6 +87,36 @@ final class EloquentScopeProvider implements MethodReturnTypeProvider, CallableS
         }
         [$method, $model] = $resolved;
         $return = $method->returnType->type ?? $method->declaredReturnType?->type;
+        $native = $method->declaredReturnType?->type;
+        $rawBuilder = $return?->atomicTypes[0] ?? null;
+        $nativeBuilder = $native?->atomicTypes[0] ?? null;
+        if (
+            $return !== null
+            && count($return->atomicTypes) === 1
+            && $rawBuilder instanceof NamedObjectType
+            && strcasecmp($rawBuilder->name, self::BUILDER) === 0
+            && ($rawBuilder->parameters === null || $rawBuilder->parameters === [])
+            && $native !== null
+            && count($native->atomicTypes) === 1
+            && $nativeBuilder instanceof NamedObjectType
+            && strcasecmp($nativeBuilder->name, self::BUILDER) === 0
+            && ! ($method->returnType?->fromDocblock ?? false)
+        ) {
+            $builder = Type::namedObject(self::BUILDER, $model);
+            $modelAtom = $model->atomicTypes[0];
+            if (
+                $modelAtom instanceof NamedObjectType
+                && $context->types->isContainedBy($builder, $native)
+                && (new ScopeBodyInference(
+                    $context->codebase,
+                    $this->source ??= new PhpSource($this->root),
+                    $modelAtom->name,
+                    $this->macros ??= new MacroIndex($this->root),
+                ))->preservesQuery($method)
+            ) {
+                return $builder;
+            }
+        }
         if ($return === null) {
             $modelAtom = $model->atomicTypes[0];
             if (! $modelAtom instanceof NamedObjectType) {

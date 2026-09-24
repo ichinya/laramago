@@ -88,6 +88,31 @@ $cases = [
     'literal parameter chain' => ['return BodyScopeRecord::named("test");', 'Builder<BodyScopeRecord>', []],
     'builder chain' => ['return BodyScopeRecord::query()->active()->findOrFail(1);', 'BodyScopeRecord', []],
     'direct identity' => ['return BodyScopeRecord::identity();', 'Builder<BodyScopeRecord>', []],
+    'prepared typed scope preserves model' => [
+        'return BodyScopeRecord::query()->prepared("2026-01-01")->first();',
+        'BodyScopeRecord|null',
+        [],
+    ],
+    'prepared typed scope remains generic' => [
+        'return BodyScopeRecord::query()->prepared("2026-01-01");',
+        'Builder<BodyScopeRecord>',
+        [],
+    ],
+    'prepared query alias defers' => [
+        'return BodyScopeRecord::query()->preparedEscaped("2026-01-01");',
+        'Builder<BodyScopeRecord>',
+        ['less-specific-return-statement'],
+    ],
+    'prepared closure capture defers' => [
+        'return BodyScopeRecord::query()->preparedCaptured("2026-01-01");',
+        'Builder<BodyScopeRecord>',
+        ['less-specific-return-statement'],
+    ],
+    'typed scope PHPDoc wins' => [
+        'return BodyScopeRecord::query()->documented();',
+        'Builder<ChildBodyScopeRecord>',
+        [],
+    ],
     'inherited scope' => ['return ChildBodyScopeRecord::active();', 'Builder<ChildBodyScopeRecord>', []],
     'trait scope' => ['return BodyScopeRecord::visible();', 'Builder<BodyScopeRecord>', []],
     'untyped scalar' => ['return BodyScopeRecord::scalar();', 'Builder<BodyScopeRecord>', $unknown],
@@ -122,6 +147,11 @@ if ($changedBuilder) {
     $cases = [
         'changed native return' => ['return BodyScopeRecord::active();', 'Builder<BodyScopeRecord>', $unknown],
         'changed forwarded return' => ['return BodyScopeRecord::ordered();', 'Builder<BodyScopeRecord>', $unknown],
+        'changed typed scope return' => [
+            'return BodyScopeRecord::query()->prepared("2026-01-01");',
+            'Builder<BodyScopeRecord>',
+            ['less-specific-return-statement'],
+        ],
         'changed guarded native return' => [
             'return BodyScopeRecord::byStatus("active");',
             'Builder<BodyScopeRecord>',

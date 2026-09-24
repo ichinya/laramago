@@ -249,6 +249,8 @@ final class LaravelPlugin implements Plugin
         $validated = new ValidatedInputProvider($this->projectRoot);
         $registry->registerMethodReturnTypeProvider($validated);
         $registry->registerInitializationHook($validated);
+        $registry->registerMethodReturnTypeProvider(new RequestQueryAllProvider($this->projectRoot));
+        $registry->registerMethodReturnTypeProvider(new RequestOnlyVariadicProvider($this->projectRoot));
         $auth = new AuthUserProvider($this->projectRoot);
         $registry->registerMethodReturnTypeProvider($auth);
         $registry->registerInitializationHook($auth);

@@ -89,6 +89,13 @@ $cases = [
     'immutable date' => ['return $model->published_at;', 'Carbon\CarbonImmutable|null', []],
     'method casts' => ['return $model->score;', 'int', []],
     'automatic timestamp' => ['return $model->created_at;', 'Carbon\CarbonInterface|null', []],
+    'automatic timestamp method' => ['$model->created_at?->format("Y-m-d");', 'void', []],
+    'custom created timestamp' => ['return (new Example\CustomTimestampNames)->born_at;', 'Carbon\CarbonInterface|null', []],
+    'custom updated timestamp' => ['return (new Example\CustomTimestampNames)->changed_at;', 'Carbon\CarbonInterface|null', []],
+    'custom name leaves original physical column raw' => ['return (new Example\CustomTimestampNames)->created_at;', 'string|null', []],
+    'disabled timestamps leave physical column raw' => ['return (new Example\DisabledTimestamps)->created_at;', 'string|null', []],
+    'explicit model PHPDoc wins' => ['return (new Example\DocumentedTimestamp)->created_at;', 'string', []],
+    'custom getDates disables automatic inference' => ['return (new Example\CustomGetDates)->created_at;', 'string|null', []],
     'remember token' => ['return $model->remember_token;', '?string', []],
     'morph columns' => ['return $model->attachment_id;', '?string', []],
     'foreign key' => ['return $model->manager_id;', '?int', []],
@@ -340,6 +347,34 @@ foreach (['model-executed', 'database/migrations/migration-executed', '.env'] as
     }
 }
 echo "PASS: analysis without application execution or environment\n";
+
+// A new worker must honor a changed installed Eloquent constant instead of
+// reusing the prior timestamp interpretation from another process.
+$frameworkPath = $workspace.'/framework.php';
+$frameworkSource = file_get_contents($frameworkPath);
+if ($frameworkSource === false) {
+    throw new RuntimeException('Cannot read the framework fixture.');
+}
+$changedFramework = str_replace("public const CREATED_AT = 'created_at';", "public const CREATED_AT = 'stored_at';", $frameworkSource);
+if ($changedFramework === $frameworkSource) {
+    throw new RuntimeException('Framework timestamp source replacement did not match.');
+}
+file_put_contents($frameworkPath, $changedFramework);
+$timestampCase = array_search('automatic timestamp method', array_column($lines, 0), true);
+if ($timestampCase === false) {
+    throw new RuntimeException('Automatic timestamp method case is missing.');
+}
+$timestampLine = array_keys($lines)[$timestampCase];
+$issues = $run();
+if (count(array_filter(
+    $issues,
+    static fn (array $issue): bool => $issue['code'] === 'invalid-method-access'
+        && ($issue['annotations'][0]['span']['start']['line'] + 1) === $timestampLine,
+)) !== 1) {
+    throw new RuntimeException('Changed framework timestamp constant must leave the old column raw; inspect '.$workspace);
+}
+file_put_contents($frameworkPath, $frameworkSource);
+echo "PASS: installed Eloquent timestamp constant changes are visible on the next run\n";
 
 // A subsequent process must observe new migration bytes, not a stale persistent index.
 file_put_contents($workspace.'/database/migrations/004_change.php', <<<'PHP'

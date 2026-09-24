@@ -42,6 +42,10 @@ class Model
     protected $keyType = 'int';
     public $incrementing = true;
     public $timestamps = true;
+    /** @var string|null */
+    public const CREATED_AT = 'created_at';
+    /** @var string|null */
+    public const UPDATED_AT = 'updated_at';
 
     public function __get(string $key): mixed {}
     public function __set(string $key, mixed $value): void {}

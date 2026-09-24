@@ -1,0 +1,28 @@
+<?php
+
+namespace Illuminate\Http\Concerns {
+    use Symfony\Component\HttpFoundation\InputBag;
+
+    trait InteractsWithInput
+    {
+        /** @return string|array|null */
+        public function query($key = null, $default = null)
+        {
+            return $this->retrieveItem('query', $key, $default);
+        }
+
+        /** @return string|array|null */
+        protected function retrieveItem($source, $key, $default)
+        {
+            if (is_null($key)) {
+                return $this->$source->all();
+            }
+
+            if ($this->$source instanceof InputBag) {
+                return $this->$source->all()[$key] ?? $default;
+            }
+
+            return $this->$source->get($key, $default);
+        }
+    }
+}

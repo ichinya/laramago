@@ -1,0 +1,9 @@
+<?php
+
+namespace Symfony\Component\HttpFoundation {
+    class ParameterBag
+    {
+        public function all(?string $key = null): array { return []; }
+        public function get(string $key, mixed $default = null): mixed { return $default; }
+    }
+}

@@ -29,24 +29,36 @@ file_put_contents($framework.'/Support/Facades/DB.php', <<<'PHP'
         protected static function getFacadeAccessor() { return 'db'; }
     }
     PHP);
+file_put_contents($framework.'/Support/Facades/Facade.php', <<<'PHP'
+    <?php
+    namespace Illuminate\Support\Facades;
+    class Facade {
+        public static function getFacadeRoot() { return new \Illuminate\Database\DatabaseManager(); }
+        protected static function resolveFacadeInstance($name) {}
+        public static function __callStatic($method, $args) {
+            $instance = static::getFacadeRoot();
+            if (! $instance) { throw new \RuntimeException('A facade root has not been set.'); }
+            return $instance->$method(...$args);
+        }
+    }
+    PHP);
+mkdir($framework.'/Database', 0777, true);
+file_put_contents($framework.'/Database/DatabaseManager.php', <<<'PHP'
+    <?php
+    namespace Illuminate\Database;
+    class DatabaseManager {
+        public function connection() { return new Connection(); }
+        public function __call($method, $parameters) { return $this->connection()->$method(...$parameters); }
+    }
+    PHP);
 file_put_contents($workspace.'/framework.php', <<<'PHP'
     <?php
-    namespace Illuminate\Support\Facades {
-    class Facade {
-        public static function getFacadeRoot() {}
-        protected static function resolveFacadeInstance($name) {}
-        public static function __callStatic($method, $args) {}
-    }
-    }
-    namespace Illuminate\Database { class DatabaseManager {} }
-    namespace {
     class TransactionModel {
         public function fresh(): ?static { return random_int(0, 1) ? $this : null; }
         public function refresh(): static { return $this; }
     }
     class CustomDB extends \Illuminate\Support\Facades\DB {
         public static function transaction(\Closure $callback, int $attempts = 1): string { throw new \RuntimeException('Never execute'); }
-    }
     }
     PHP);
 mkdir($framework.'/Database/Concerns', 0777, true);
@@ -58,7 +70,10 @@ file_put_contents($framework.'/Database/Concerns/ManagesTransactions.php', <<<'P
          * @param \Closure(static): TReturn $callback
          * @return TReturn
          */
-        public function transaction(\Closure $callback, int $attempts = 1) { throw new \RuntimeException('Never execute'); }
+        public function transaction(\Closure $callback, int $attempts = 1) {
+            if ($attempts <= 0) { return null; }
+            return $callback($this);
+        }
     }
     PHP);
 file_put_contents($framework.'/Database/Connection.php', <<<'PHP'
@@ -99,14 +114,29 @@ $cases = $disabled
             'TransactionModel',
             [],
         ],
-        'contextual model result defers' => [
+        'native contextual model result' => [
             '$model = new TransactionModel(); return \\Illuminate\\Support\\Facades\\DB::transaction(function () use ($model): TransactionModel { return $model->refresh(); }, attempts: 3);',
+            'TransactionModel',
+            [],
+        ],
+        'nullable native contextual model result' => [
+            '$model = new TransactionModel(); return \\Illuminate\\Support\\Facades\\DB::transaction(function () use ($model): ?TransactionModel { return $model->fresh(); }, 3);',
+            '?TransactionModel',
+            [],
+        ],
+        'native contextual model result rejects wrong outer type' => [
+            '$model = new TransactionModel(); return \\Illuminate\\Support\\Facades\\DB::transaction(function () use ($model): TransactionModel { return $model->refresh(); });',
+            'string',
+            ['invalid-return-statement'],
+        ],
+        'untyped contextual result stays unresolved' => [
+            '$model = new TransactionModel(); return \\Illuminate\\Support\\Facades\\DB::transaction(function () use ($model) { return $model->refresh(); });',
             'TransactionModel',
             ['mixed-return-statement'],
         ],
-        'nullable contextual model result defers' => [
-            '$model = new TransactionModel(); return \\Illuminate\\Support\\Facades\\DB::transaction(function () use ($model): ?TransactionModel { return $model->fresh(); }, 3);',
-            '?TransactionModel',
+        'PHPDoc-only contextual result stays unresolved' => [
+            '$model = new TransactionModel(); /** @return TransactionModel */ $callback = function () use ($model) { return $model->refresh(); }; return \\Illuminate\\Support\\Facades\\DB::transaction($callback);',
+            'TransactionModel',
             ['mixed-return-statement'],
         ],
         'array with mixed elements' => [
@@ -159,6 +189,28 @@ $cases = $disabled
         ],
         'custom native result' => ['return CustomDB::transaction(fn (): int => 7);', 'string', []],
     ];
+foreach ([
+    '--changed-facade' => [$framework.'/Support/Facades/Facade.php', 'return $instance->$method(...$args);'],
+    '--changed-manager' => [$framework.'/Database/DatabaseManager.php', 'return $this->connection()->$method(...$parameters);'],
+    '--changed-connection' => [$framework.'/Database/DatabaseManager.php', 'return new Connection();'],
+    '--changed-transaction' => [$framework.'/Database/Concerns/ManagesTransactions.php', 'return $callback($this);'],
+] as $mode => [$path, $original]) {
+    if (! in_array($mode, $argv, true)) {
+        continue;
+    }
+    $source = file_get_contents($path);
+    if (substr_count($source, $original) !== 1) {
+        throw new RuntimeException('Cannot mutate the forwarding fixture.');
+    }
+    file_put_contents($path, str_replace($original, 'return null;', $source));
+    $cases = [
+        'changed forwarding defers' => [
+            '$model = new TransactionModel(); return \\Illuminate\\Support\\Facades\\DB::transaction(function () use ($model): TransactionModel { return $model->refresh(); });',
+            'TransactionModel',
+            ['mixed-return-statement'],
+        ],
+    ];
+}
 if (in_array('--custom-doc', $argv, true)) {
     $path = $framework.'/Support/Facades/DB.php';
     file_put_contents($path, str_replace(

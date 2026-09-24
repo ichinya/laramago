@@ -230,7 +230,7 @@ final class ModelReflection
                 $metadata = $this->codebase->getClassConstant($class, $constant);
                 $name = $metadata === null
                     ? $default
-                    : self::literal($metadata->type?->type ?? $metadata->inferredType);
+                    : self::constantLiteral($metadata->inferredType, $metadata->type?->type);
                 if ($property === $name) {
                     return true;
                 }
@@ -239,14 +239,23 @@ final class ModelReflection
         if ($this->codebase->methodExists($class, 'initializeSoftDeletes')) {
             $metadata = $this->codebase->getClassConstant($class, 'DELETED_AT');
 
-            return (
-                $property
-                === (
-                    $metadata === null ? 'deleted_at' : self::literal($metadata->type?->type ?? $metadata->inferredType)
-                )
+            return $property === (
+                $metadata === null
+                    ? 'deleted_at'
+                    : self::constantLiteral($metadata->inferredType, $metadata->type?->type)
             );
         }
 
         return false;
+    }
+
+    private static function constantLiteral(?Type $inferred, ?Type $documented): string|int|float|bool|array|UnknownValue|null
+    {
+        // A broad @var annotation describes allowed values, not the actual
+        // constant value. Laravel's timestamp constants are documented as
+        // string|null while their inferred values are literal names.
+        $literal = self::literal($inferred);
+
+        return $literal === UnknownValue::Value ? self::literal($documented) : $literal;
     }
 }

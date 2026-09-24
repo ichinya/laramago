@@ -10,8 +10,9 @@ use Mago\Sdk\Analyzer\Codebase;
 use Mago\Sdk\Analyzer\Metadata\FunctionLikeMetadata;
 use Mago\Sdk\Analyzer\Type\NamedObjectType;
 use PhpParser\Node;
+use PhpParser\NodeFinder;
 
-/** Prove bounded untyped scope returns preserve their original query object. */
+/** Prove bounded scope bodies return their original query object. */
 final class ScopeBodyInference
 {
     private const BUILDER = 'Illuminate\\Database\\Eloquent\\Builder';
@@ -29,6 +30,37 @@ final class ScopeBodyInference
         $statements = (new ModelReflection($this->codebase, $this->source))->methodNode($method)?->stmts ?? [];
         if (count($statements) === 1 && $statements[0] instanceof Node\Stmt\Return_) {
             return $this->preservesExpression($statements[0]->expr, $method);
+        }
+        $final = $statements[count($statements) - 1] ?? null;
+        if (
+            count($statements) > 1
+            && $statements[0] instanceof Node\Stmt\Expression
+            && $statements[0]->expr instanceof Node\Expr\Assign
+            && $final instanceof Node\Stmt\Return_
+        ) {
+            $locals = [];
+            $query = ltrim($method->parameters[0]->name, '$');
+            foreach (array_slice($statements, 0, -1) as $statement) {
+                if (! $statement instanceof Node\Stmt\Expression || ! $statement->expr instanceof Node\Expr\Assign) {
+                    return false;
+                }
+                $assignment = $statement->expr;
+                if (! $assignment->var instanceof Node\Expr\Variable) {
+                    return false;
+                }
+                $name = $assignment->var->name;
+                if (! is_string($name) || $name === $query || isset($locals[$name])) {
+                    return false;
+                }
+                foreach ((new NodeFinder)->findInstanceOf($assignment->expr, Node\Expr\Variable::class) as $variable) {
+                    if (! is_string($variable->name) || $variable->name === $query) {
+                        return false;
+                    }
+                }
+                $locals[$name] = true;
+            }
+
+            return $this->preservesExpression($final->expr, $method, [], array_keys($locals));
         }
         // A guarded enum conversion followed by an unconditional fallback.
         $branch = $statements[0] ?? null;
@@ -64,11 +96,15 @@ final class ScopeBodyInference
         );
     }
 
-    /** @param array<string, bool> $guardedEnums Whether a guarded enum parameter is backed. */
+    /**
+     * @param array<string, bool> $guardedEnums Whether a guarded enum parameter is backed.
+     * @param list<string> $locals Variables prepared without referring to the original query.
+     */
     private function preservesExpression(
         ?Node\Expr $expression,
         FunctionLikeMetadata $method,
         array $guardedEnums = [],
+        array $locals = [],
     ): bool {
         if ($expression === null) {
             return false;
@@ -117,7 +153,7 @@ final class ScopeBodyInference
                     ! $argument instanceof Node\Arg
                     || $argument->unpack
                     || $argument->byRef
-                    || ! $this->safeArgument($argument->value, $method, $query, $guardedEnums)
+                    || ! $this->safeArgument($argument->value, $method, $query, $guardedEnums, $locals)
                 ) {
                     return false;
                 }
@@ -163,12 +199,16 @@ final class ScopeBodyInference
         return (new EloquentModelDispatch)->supportsModel($this->codebase, $this->modelClass, $name);
     }
 
-    /** @param array<string, bool> $guardedEnums */
+    /**
+     * @param array<string, bool> $guardedEnums
+     * @param list<string> $locals
+     */
     private function safeArgument(
         Node\Expr $value,
         FunctionLikeMetadata $method,
         string $query,
         array $guardedEnums = [],
+        array $locals = [],
     ): bool {
         if ($value instanceof Node\Expr\Array_) {
             foreach ($value->items as $item) {
@@ -176,8 +216,8 @@ final class ScopeBodyInference
                     $item->byRef
                     || $item->unpack
                     || $item->key !== null
-                    && ! $this->safeArgument($item->key, $method, $query, $guardedEnums)
-                    || ! $this->safeArgument($item->value, $method, $query, $guardedEnums)
+                    && ! $this->safeArgument($item->key, $method, $query, $guardedEnums, $locals)
+                    || ! $this->safeArgument($item->value, $method, $query, $guardedEnums, $locals)
                 ) {
                     return false;
                 }
@@ -227,7 +267,22 @@ final class ScopeBodyInference
                 }
             }
 
-            return false;
+            return in_array($value->name, $locals, true);
+        }
+
+        if ($value instanceof Node\Expr\Closure) {
+            foreach ($value->uses as $use) {
+                if (
+                    $use->byRef
+                    || ! is_string($use->var->name)
+                    || $use->var->name === $query
+                    || ! $this->safeArgument($use->var, $method, $query, $guardedEnums, $locals)
+                ) {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         return (

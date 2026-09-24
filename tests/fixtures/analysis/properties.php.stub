@@ -95,6 +95,15 @@ class UnknownCollectionPerson extends Person { public function newCollection(arr
 class DocumentedCollectionOwner extends Person {}
 class InheritedRecord extends BaseRecord {}
 class InheritedPerson extends Person { protected $table = 'people'; }
+class DisabledTimestamps extends Person { protected $table = 'people'; public $timestamps = false; }
+class CustomTimestampNames extends Person {
+    protected $table = 'people';
+    public const CREATED_AT = 'born_at';
+    public const UPDATED_AT = 'changed_at';
+}
+/** @property string $created_at */
+class DocumentedTimestamp extends Person { protected $table = 'people'; }
+class CustomGetDates extends Person { protected $table = 'people'; public function getDates(): array { return []; } }
 class CustomRelationValue extends Person { protected $table = 'people'; public function getRelationValue($key) { return 'custom'; } }
 class CustomRelationResult extends Person { protected function getRelationshipFromMethod($method) { return 'custom'; } }
 class CustomRelationDetection extends Person { public function isRelation($key) { return false; } }

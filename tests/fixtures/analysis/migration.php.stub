@@ -32,6 +32,8 @@ return new class extends Migration
             $table->integer('changed');
             $table->foreignId('manager_id')->nullable()->constrained('people');
             $table->timestamps();
+            $table->timestamp('born_at')->nullable();
+            $table->timestamp('changed_at')->nullable();
             $table->rememberToken();
             $table->nullableUuidMorphs('attachment');
         });

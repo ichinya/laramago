@@ -1,5 +1,6 @@
 <?php
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 enum BodyScopeStatus: string { case Active = 'active'; }
 enum BodyScopeFlag { case Visible; }
 class BodyScopeMagic { public const Status = 'active'; }
@@ -61,6 +62,24 @@ class BodyScopeRecord extends Model {
     public function scopeMagicValue($query) { return $query->where('status', BodyScopeMagic::Status->value); }
     public function scopeNamed($query, string $name) { return $query->where('name', $name)->orWhere('name', 'public'); }
     public function scopeIdentity($query) { return $query; }
+    public function scopePrepared(Builder $query, string $date): Builder {
+        $normalized = $date;
+        return $query->where('date', '>=', $normalized)->where(function (Builder $nested) use ($date) {
+            $nested->where('date', $date);
+        });
+    }
+    public function scopePreparedEscaped(Builder $query, string $date): Builder {
+        $normalized = $query;
+        return $query->where('date', $date)->where('other', $normalized);
+    }
+    public function scopePreparedCaptured(Builder $query, string $date): Builder {
+        $normalized = $date;
+        return $query->where(function (Builder $nested) use (&$query, $normalized) {
+            $query = $nested;
+        });
+    }
+    /** @return Builder<ChildBodyScopeRecord> */
+    public function scopeDocumented(Builder $query): Builder { return $query; }
     public function scopeScalar($query) { return 42; }
     public function scopeUnknown($query) { return $query->custom(); }
     public function scopeMutated($query) { $query = new \stdClass; return $query->where('a', true); }
