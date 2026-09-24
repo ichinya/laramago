@@ -72,8 +72,10 @@ final class LaravelReferenceCallRegistry
      *
      * @return array<string, Node\Expr>|null
      */
-    public static function arguments(string $reference, Node\Expr\MethodCall|Node\Expr\StaticCall $call): ?array
-    {
+    public static function arguments(
+        string $reference,
+        Node\Expr\MethodCall|Node\Expr\StaticCall|Node\Expr\FuncCall $call,
+    ): ?array {
         if ($call->isFirstClassCallable()) {
             return null;
         }

@@ -72,6 +72,11 @@ final class LaravelPlugin implements Plugin
             $registry->registerNodeAnalysisHook($injectionContracts);
             $registry->registerInitializationHook($injectionContracts);
         }
+        $controllerCalls = new ControllerCallContractsHook($this->projectRoot);
+        if ($controllerCalls->enabled()) {
+            $registry->registerNodeAnalysisHook($controllerCalls);
+            $registry->registerInitializationHook($controllerCalls);
+        }
         $bindingCandidates = new BindingCompatibilityCandidatesHook($this->projectRoot);
         if ($bindingCandidates->enabled()) {
             $registry->registerNodeAnalysisHook($bindingCandidates);
@@ -100,6 +105,9 @@ final class LaravelPlugin implements Plugin
         $registry->registerMethodReturnTypeProvider($httpTests);
         $registry->registerInitializationHook($httpTests);
         $registry->registerMethodReturnTypeProvider(new LaratestoResponseCallbackProvider($httpTests));
+        $laratestoAssertions = new LaratestoAssertionProvider($this->projectRoot);
+        $registry->registerMethodAssertionProvider($laratestoAssertions);
+        $registry->registerInitializationHook($laratestoAssertions);
         $assertViewIdentities = new AssertViewIdentityReferencesHook($this->projectRoot);
         $registry->registerMethodCallAnalysisHook($assertViewIdentities);
         $registry->registerInitializationHook($assertViewIdentities);

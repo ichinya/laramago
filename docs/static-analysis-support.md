@@ -53,7 +53,7 @@ implementation; it does not imply support for every dynamic Laravel behavior.
 | Pest expectation forwarding | [Source-proven builtin results](pest-expectation-forwarding.md) retain the expectation or forwarding wrapper instead of exposing the internal mixin type | Native argument checks and custom/PHPDoc contracts retain priority; unknown extensions, value delegation and unsupported source contracts defer |
 | Validated request fields | Literal rules refine top-level/nested open shapes and dotted keys, explicit array ancestors, conservative wildcard arrays, literal Rule::in, source-proven zero-argument Rule::string()/numeric() objects, and supported date formats | Raw/magic request properties, dynamic/unknown or custom rule objects, fluent rule builders, overlapping wildcard paths, custom pipelines and callable defaults; no validation casts or cardinality guarantees |
 | Collection operations | Whole-value null filtering; higher-order filter/reject preserving items and keys; known model/required-shape property maps, model unions with zero-argument methods and literal-property min/max/sum | Custom subclasses, callback/key filtering, unsafe input branches, optional direct shape access and union method calls with arguments; aggregate null/overflow semantics are retained |
-| HTTP test assertions | Laravel and optional Laratesto Inertia/JSON callbacks, nested fluent scopes, native Inertia page envelopes and flash assertions | Arbitrary response macros/helpers, selected props and JSON value shapes; Laratesto envelope inference requires zero arguments |
+| HTTP test assertions | Laravel and optional Laratesto Inertia/JSON callbacks, nested fluent scopes, native Inertia page envelopes and flash assertions; source-verified Laratesto type assertions narrow simple local variables | Arbitrary response macros/helpers, selected props and JSON value shapes; Laratesto envelope inference requires zero arguments and type assertions do not narrow mutable property chains |
 | Advanced casts | Single-return literal Castable factories; ancestor/interface bindings with nested generics, lists, array maps/shapes and unions | Unsupported type syntax, trait/method templates, ambiguous bindings, conditional/anonymous factories and constructor arguments; generic constraints use native declaration validation |
 | Factory collections | Custom model collections for counted create/createQuietly/make | Dynamic collection resolution; Laravel's explicit Many methods correctly keep the base collection |
 | Container and facades | Concrete facade roots/public forwarding, installed core service aliases for facades, app/resolve and native Application make, plus opt-in static bind/singleton/scoped/alias catalogs with exactly typed literal factories, including Laravel's zero to two untyped required factory arguments, for helpers, native make and facade accessors | Uncataloged runtime bindings, conditional/contextual/mutating registrations, optional/typed/dynamic factories, generic/reference contracts and custom dispatch; explicit contracts retain priority |
@@ -175,6 +175,17 @@ An optional [policy method declaration advisory](policy-method-declarations.md) 
 
 [Contextual binding declaration metadata](contextual-binding-metadata.md) preserves selected source syntax and uncertainty without changing inferred container types.
 
+[Final controller call contracts](controller-call-contracts.md) check independently
+asserted ordered arguments after route binding and dependency resolution. They
+report missing positions and provably incompatible native types, preserving
+nullable, union, default and variadic semantics. Automatic route/DI discovery,
+weak scalar coercion and inherited actions remain outside this check.
+
 [Permitted assertViewIs identities](assert-view-identity-policy.md) check literal expected identities against an explicit policy without claiming a finder lookup or missing view.
 
 [Cross-locale placeholder candidates](translation-placeholder-consistency-candidates.md) compare explicitly associated PHP/JSON declarations for optional review, preserving fallback and loader uncertainty.
+
+[Native choice references](native-translation-choice-references.md) check literal
+`trans_choice()`, `Lang::choice()` and concrete Translator calls only under explicit
+complete effective-locale catalogs and verified native dispatch. Implicit locales,
+custom helpers/loaders and plural-selection verdicts remain deferred.

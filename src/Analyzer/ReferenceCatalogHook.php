@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Ichinya\Laramago\Analyzer;
 
+use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\LaravelReferenceCallRegistry;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\LiteralStringArgument;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\NativeTranslationContract;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ReferenceCatalogs;
 use Mago\Sdk\Analyzer\FileAnalysisRequirement;
 use Mago\Sdk\Analyzer\InitializationContext;
@@ -24,6 +28,8 @@ use PhpParser\ParserFactory;
 final class ReferenceCatalogHook implements NodeAnalysisHook, InitializationHook
 {
     private ?ReferenceCatalogs $catalogs = null;
+    private ?NativeTranslationContract $translationContract = null;
+    private ?ContainerBindings $bindings = null;
     private ?string $sourceHash = null;
     /** @var array<string, Node\Expr\FuncCall> */
     private array $calls = [];
@@ -31,6 +37,8 @@ final class ReferenceCatalogHook implements NodeAnalysisHook, InitializationHook
     public function initialize(InitializationContext $context): void
     {
         $this->catalogs = null;
+        $this->translationContract = null;
+        $this->bindings = null;
         $this->sourceHash = null;
         $this->calls = [];
     }
@@ -85,7 +93,7 @@ final class ReferenceCatalogHook implements NodeAnalysisHook, InitializationHook
         if ($namespaced instanceof Node\Name && $context->codebase->getFunction($namespaced->toString()) !== null) {
             $name = $namespaced->toString();
         }
-        if (! in_array(strtolower($name), ['view', 'trans', '__'], true)) {
+        if (! in_array(strtolower($name), ['view', 'trans', '__', 'trans_choice'], true)) {
             return;
         }
         $function = $context->codebase->getFunction($name);
@@ -94,6 +102,11 @@ final class ReferenceCatalogHook implements NodeAnalysisHook, InitializationHook
             return;
         }
         $name = strtolower($name);
+        if ($name === 'trans_choice') {
+            $this->analyzeChoice($context, $call);
+
+            return;
+        }
         $key = null;
         $locale = null;
         foreach ($call->getArgs() as $offset => $argument) {
@@ -145,5 +158,50 @@ final class ReferenceCatalogHook implements NodeAnalysisHook, InitializationHook
                 $issue,
             );
         }
+    }
+
+    private function analyzeChoice(NodeAnalysisContext $context, Node\Expr\FuncCall $call): void
+    {
+        $arguments = LaravelReferenceCallRegistry::arguments(LaravelReferenceCallRegistry::TRANSLATION_CHOICE, $call);
+        $key = LiteralStringArgument::from($arguments['key'] ?? null);
+        $locale = LiteralStringArgument::from($arguments['locale'] ?? null);
+        if (
+            $key === null
+            || $locale === null
+            || in_array($locale->value, ['', '0'], true)
+            || ! isset($arguments['number'])
+        ) {
+            return;
+        }
+        $contract = $this->translationContract ??= new NativeTranslationContract($this->root);
+        if (! $contract->choiceHelperMatches($context->codebase)) {
+            return;
+        }
+        $bindings = $this->bindings ??= new ContainerBindings($this->root);
+        foreach ([
+            'translator',
+            'Illuminate\\Translation\\Translator',
+            'Illuminate\\Contracts\\Translation\\Translator',
+            'translation.loader',
+            'Illuminate\\Contracts\\Translation\\Loader',
+        ] as $service) {
+            if ($bindings->configured($service)) {
+                return;
+            }
+        }
+        $catalogs = $this->catalogs ??= new ReferenceCatalogs($this->root);
+        if (! $catalogs->missingTranslationChoice($key->value, $locale->value)) {
+            return;
+        }
+        $issue = Issue::at(
+            'Literal translation reference "'
+            .$key->value
+            .'" is absent from the explicitly complete translations catalog.',
+            new SourceLocation($context->source->path, $context->node->span),
+        );
+        foreach ($catalogs->translationChoiceNotes($locale->value) as $note) {
+            $issue = $issue->withNote($note);
+        }
+        $context->report(Level::Warning, 'laramago-missing-translation', $issue);
     }
 }

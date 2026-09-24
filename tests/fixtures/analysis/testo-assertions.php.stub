@@ -1,0 +1,22 @@
+<?php
+
+namespace Testo {
+    use Testo\Assert\Internal\StaticState;
+
+    final class Assert
+    {
+        public static function true(mixed $actual, string $message = ''): void
+        {
+            $actual === true
+                ? StaticState::success($actual, 'true', $message)
+                : StaticState::fail(new \RuntimeException('Assertion failed.'));
+        }
+
+        public static function notSame(mixed $actual, mixed $expected, string $message = ''): void
+        {
+            $actual !== $expected
+                ? StaticState::success($actual, 'not same', $message)
+                : StaticState::fail(new \RuntimeException('Assertion failed.'));
+        }
+    }
+}

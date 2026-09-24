@@ -1,0 +1,38 @@
+<?php
+
+namespace Laratesto\Testing {
+    use Testo\Assert;
+
+    final class PhpUnitCompatibility
+    {
+        public static function assertIsArray(mixed $actual, string $message = ''): void
+        {
+            Assert::true(\is_array($actual), $message);
+        }
+
+        public static function assertIsString(mixed $actual, string $message = ''): void
+        {
+            Assert::true(\is_string($actual), $message);
+        }
+
+        public static function assertIsInt(mixed $actual, string $message = ''): void
+        {
+            Assert::true(\is_int($actual), $message);
+        }
+
+        public static function assertIsBool(mixed $actual, string $message = ''): void
+        {
+            Assert::true(\is_bool($actual), $message);
+        }
+
+        public static function assertIsObject(mixed $actual, string $message = ''): void
+        {
+            Assert::true(\is_object($actual), $message);
+        }
+
+        public static function assertNotFalse(mixed $actual, string $message = ''): void
+        {
+            Assert::notSame($actual, false, $message);
+        }
+    }
+}

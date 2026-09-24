@@ -3,8 +3,10 @@
 `ControllerRouteContractExport::export($root, $files)` links a bounded literal
 route action to a unique public controller method declared in the same explicit
 source selection. This source-only metadata is intended for navigation, review,
-and a future consumer with a separate complete runtime contract. It does not
-report controller dispatch errors.
+and a consumer with a separate complete runtime contract. It does not report
+controller dispatch errors. [Final controller call contracts](controller-call-contracts.md)
+provide a separate real-Mago check for independently asserted final argument lists;
+the exporter does not establish those assertions.
 
 The exporter accepts direct top-level or namespace-level `Route::get`, `post`,
 `put`, `patch`, `delete`, `options`, and `any` registrations. The route facade

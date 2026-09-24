@@ -14,6 +14,7 @@ final class NativeTranslationContract
 {
     private readonly PhpSource $source;
     private ?bool $matched = null;
+    private ?bool $choiceHelperMatched = null;
 
     public function __construct(string $root = '.')
     {
@@ -23,6 +24,47 @@ final class NativeTranslationContract
     public function matches(Codebase $codebase): bool
     {
         return $this->matched ??= $this->inspect($codebase);
+    }
+
+    public function choiceHelperMatches(Codebase $codebase): bool
+    {
+        return $this->choiceHelperMatched ??= $this->inspectChoiceHelper($codebase);
+    }
+
+    private function inspectChoiceHelper(Codebase $codebase): bool
+    {
+        if (! $this->matches($codebase)) {
+            return false;
+        }
+        // Include declarations, PHPDoc and forwarding bodies. Laravel helpers can
+        // be replaced before their function_exists guards, including app().
+        foreach ([
+            'trans_choice' => 'c91e25b4dbf5d3cd9d90e0a045bacf2e77e84627dd166584e0a70352c3c13138',
+            'app' => '367bb46d5732d1cbd0c71f4c0add05ec208f0eb107bf4ddaa3aa15d03b4ff597',
+        ] as $name => $hash) {
+            $path = $codebase->getFunction($name)?->location->file;
+            if (
+                $path === null
+                || ! str_ends_with(
+                    str_replace('\\', '/', $path),
+                    '/laravel/framework/src/Illuminate/Foundation/helpers.php',
+                )
+            ) {
+                return false;
+            }
+            $nodes = (new NodeFinder)->find(
+                $this->source->read($path) ?? [],
+                static fn (Node $node): bool => (
+                    $node instanceof Node\Stmt\Function_
+                    && $node->namespacedName?->toString() === $name
+                ),
+            );
+            if (count($nodes) !== 1 || self::fingerprint($nodes[0]) !== $hash) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function inspect(Codebase $codebase): bool

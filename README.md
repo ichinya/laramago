@@ -4,7 +4,7 @@ A Composer package with a Laravel preset for the native Mago CLI.
 
 ```sh
 composer config repositories.laramago vcs https://github.com/ichinya/laramago
-composer require --dev ichinya/laramago:0.0.12
+composer require --dev ichinya/laramago:0.0.13
 vendor/bin/mago lint
 ```
 
@@ -15,9 +15,11 @@ uses that executable directly, without a wrapper or Laravel service provider.
 For editor integrations, `vendor/bin/laramago-metadata` exports [source-only
 configuration, route and translation metadata](docs/static-metadata-export.md) as versioned JSON.
 
-Version `0.0.12` expands static Eloquent, request, collection, authentication and
-HTTP test support, with explicit catalogs for container bindings and macros.
-Native declarations and PHPDoc contracts retain priority.
+Version `0.0.13` adds source-verified Laratesto type assertions, native
+`trans_choice()` helper contracts and opt-in controller call contracts. It
+retains the Eloquent, request, collection, authentication, container and macro
+support introduced in `0.0.12`. Native declarations and PHPDoc contracts retain
+priority.
 The GitHub VCS repository shown above provides this version directly. For local
 package development, see the path repository instructions below.
 
@@ -458,10 +460,21 @@ argument is not interpreted as a field selector.
 Envelope refinement additionally checks the installed page source and property
 contracts. Incompatible implementations retain native types.
 
+Verified Laratesto `PhpUnitCompatibility::assertIsArray`, `assertIsString`,
+`assertIsInt`, `assertIsBool`, `assertIsObject` and `assertNotFalse` narrow a
+simple local variable after the assertion returns. Laramago checks the installed
+Laratesto and Testo implementations before applying this rule. Property chains
+and other expressions retain native analysis because their values can change.
+
 Omitted, null or falsy translation locales use only a literal `config/app.php`
 locale and one conventional language root. This models the configured initial
 locale; runtime locale changes and custom translation-loader paths require
 additional application contracts.
+
+Literal `trans_choice()` references can also receive missing-translation warnings
+under [complete effective-locale catalogs](docs/native-translation-choice-references.md).
+The helper and `app()` forwarding must match the installed native implementation;
+custom helpers, uncertain loaders and unasserted locales retain native behavior.
 
 Tests for these integrations run through `composer check`, including invalid
 arguments/results, nullable access and execution traps.
@@ -1063,5 +1076,11 @@ Standard service helpers such as `app('cache')` and `resolve('session')` use ins
 `str()` preserves the installed anonymous proxy and known `Str` method contracts; explicit `str(null)` returns `Stringable`. Standard `DB::transaction()` calls retain analyzed Closure results, including retry-aware nullability. Both are covered by [framework helper contracts](docs/framework-helpers.md).
 
 [Permitted middleware references](docs/middleware-references.md) provide an optional exact literal-reference policy for native Route middleware calls.
+
+[Final controller call contracts](docs/controller-call-contracts.md) optionally
+check missing arguments and incompatible native parameter types for independently
+asserted final controller calls after route binding and dependency resolution.
+They preserve positional, nullable, default and variadic semantics without
+bootstrapping Laravel or inferring effective routes and container state.
 
 [Permitted assertViewIs identities](docs/assert-view-identity-policy.md) provide an optional literal-reference policy for native stored-view identity assertions.

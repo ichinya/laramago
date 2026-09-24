@@ -1,0 +1,16 @@
+<?php
+
+namespace Testo\Assert\Internal {
+    final class StaticState
+    {
+        public static function success(mixed $value, string $assertion, string $message = ''): void
+        {
+            throw new \RuntimeException('Assertion bodies must not execute during analysis.');
+        }
+
+        public static function fail(\Throwable $failure): never
+        {
+            throw $failure;
+        }
+    }
+}

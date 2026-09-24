@@ -1,8 +1,10 @@
 # Remaining adaptation boundaries
 
 The 2026-09-22 reconciliation of the [197-item queue](lsp-adaptation-queue.md)
-found 156 bounded implementations, 35 already-covered items and six deferred
-items. Sixteen formerly deferred rows had been superseded by the executable
+initially found 156 bounded implementations, 35 already-covered items and six deferred
+items. Native `trans_choice()` helper diagnostics now cover item 116 under the
+same explicit effective-locale contracts as native methods, bringing the current
+counts to 157 implemented, 35 already covered and five deferred. Sixteen formerly deferred rows had been superseded by the executable
 checks in [diagnostic refinements](diagnostic-refinements.md). This is a status
 correction, not sixteen new features or a reduction in application diagnostics.
 
@@ -15,9 +17,8 @@ runtime state. Each row links its supported subset and remaining restrictions.
 | Item | Available now | Requirement for the remaining behavior |
 | --- | --- | --- |
 | 34: Query-local aggregate properties | Aggregate-name checks and a [real-engine SDK collision probe](query-aggregate-sdk-boundary.md) | Synchronous source-file identity and receiver syntax before return typing for closed fresh chains; engine-managed alias and mutation invalidation for mutable builders. Matching Mago/SDK 1.50.0 still lacks the required context. |
-| 68: Controller route/DI compatibility | [Controller signature and route source metadata](controller-route-contract-candidates.md); separate explicit constructor injection checks | Independently established native dispatcher, effective ordered route parameters, bindings and dependency resolution. URI/PHP parameter-name matching alone is insufficient; positional dispatch must be preserved. |
+| 68: Controller route/DI compatibility | [Controller signature and route source metadata](controller-route-contract-candidates.md), [final positional call checks](controller-call-contracts.md) under an independent post-resolution assertion, and separate constructor injection checks | Automatic effective call discovery still needs dispatcher selection, ordered route parameters, bindings and dependency resolution. The new call contract checks supplied final arguments; it does not infer them from URI/PHP parameter names or close automatic route/DI discovery. |
 | 90: Automatic policy discovery | [Resolver-channel metadata](policy-discovery-boundaries.md), explicit mappings and opt-in policy call checks | Effective runtime mappings, guesser, hierarchy and container-selected policy object. Source candidates and conventional class names alone cannot establish selection. |
-| 116: `trans_choice()` helper diagnostics | [Helper reference metadata](translation-choice-references.md); separately implemented [native Translator/Lang choice diagnostics](native-translation-choice-references.md) | Proven helper ownership/dispatch and every possible effective locale, catalog and loader contract. Native method coverage does not establish helper coverage. |
 | 123: Pluralization syntax verdicts | [Plural branch candidate metadata](translation-plural-branch-candidates.md) and placeholder source-quality Notes | Effective selector and locale semantics, including permissive native parsing and custom selectors. Branch metadata alone must not become an invalid-syntax verdict. |
 | 180: Automatic Pest closure `$this` | [Explicit closure PHPDoc workaround and SDK regression](sdk-pest-closure-context.md) | Source-file identity before closure argument typing. Matching Mago/SDK 1.50.0 still gives indistinguishable contexts for conflicting files. |
 

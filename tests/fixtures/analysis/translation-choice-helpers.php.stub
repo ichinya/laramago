@@ -1,0 +1,28 @@
+<?php
+
+/**
+ * Get the available container instance.
+ *
+ * @template TClass of object
+ *
+ * @param  string|class-string<TClass>|null  $abstract
+ * @return ($abstract is class-string<TClass> ? TClass : ($abstract is null ? \Illuminate\Foundation\Application : mixed))
+ */
+function app($abstract = \null, array $parameters = [])
+{
+    if (\is_null($abstract)) {
+        return \Illuminate\Container\Container::getInstance();
+    }
+    return \Illuminate\Container\Container::getInstance()->make($abstract, $parameters);
+}
+/**
+ * Translates the given message based on a count.
+ *
+ * @param  string  $key
+ * @param  \Countable|int|float|array  $number
+ * @param  string|null  $locale
+ */
+function trans_choice($key, $number, array $replace = [], $locale = \null): string
+{
+    return \app('translator')->choice($key, $number, $replace, $locale);
+}

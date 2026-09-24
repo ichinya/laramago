@@ -5,6 +5,11 @@ and exports literal keys from calls that PHP-Parser resolves lexically to the
 global `trans_choice` function. The result supports navigation, completion, and
 external indexing. It is not a missing-translation diagnostic.
 
+A separate [native helper diagnostic](native-translation-choice-references.md)
+can check explicit complete effective-locale catalogs after proving installed
+helper and translator dispatch through Mago metadata. That stronger analysis
+does not change this source-only exporter's uncertainty fields.
+
 ```php
 use Ichinya\Laramago\Metadata\TranslationChoiceReferenceExport;
 

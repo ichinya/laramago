@@ -23,6 +23,14 @@ foreach ([
     'unasserted-choice',
     'malformed-choice',
     'changed-choice',
+    'changed-helper',
+    'helper-doc',
+    'helper-signature',
+    'custom-helper',
+    'changed-app',
+    'app-doc',
+    'custom-app',
+    'custom-vendor',
 ] as $mode) {
     $workspace =
         str_replace('\\', '/', sys_get_temp_dir()).'/laramago translation choice references '.bin2hex(random_bytes(8));
@@ -36,10 +44,52 @@ foreach ([
         'vendor/laravel/framework/src/Illuminate/Translation',
         'vendor/laravel/framework/src/Illuminate/Support/Facades',
         'vendor/laravel/framework/src/Illuminate/Collections',
+        'vendor/laravel/framework/src/Illuminate/Foundation',
     ] as $directory) {
         mkdir($workspace.'/'.$directory, 0777, true);
     }
     $framework = $workspace.'/vendor/laravel/framework/src/Illuminate';
+    $helpers = $framework.'/Foundation/helpers.php';
+    copy(__DIR__.'/fixtures/analysis/translation-choice-helpers.php.stub', $helpers);
+    if ($mode === 'changed-helper') {
+        file_put_contents($helpers, str_replace(
+            '->choice($key, $number, $replace, $locale)',
+            '->get($key, $replace, $locale)',
+            file_get_contents($helpers),
+        ));
+    }
+    if ($mode === 'helper-doc') {
+        file_put_contents($helpers, str_replace(
+            '@param  string  $key',
+            '@param  non-empty-string  $key',
+            file_get_contents($helpers),
+        ));
+    }
+    if ($mode === 'helper-signature') {
+        file_put_contents($helpers, str_replace('$locale = \\null', '$locale = "en"', file_get_contents($helpers)));
+    }
+    if ($mode === 'changed-app') {
+        file_put_contents($helpers, str_replace(
+            '->make($abstract, $parameters)',
+            '->make("custom", $parameters)',
+            file_get_contents($helpers),
+        ));
+    }
+    if ($mode === 'app-doc') {
+        file_put_contents($helpers, str_replace(
+            '@template TClass of object',
+            '@template TClass of \\stdClass',
+            file_get_contents($helpers),
+        ));
+    }
+    if (in_array($mode, ['custom-helper', 'custom-app'], true)) {
+        $contents = file_get_contents($helpers);
+        $split = strpos($contents, '/**', strpos($contents, 'function app('));
+        $app = substr($contents, 0, $split);
+        $choice = substr($contents, $split);
+        file_put_contents($helpers, $mode === 'custom-app' ? "<?php\n".$choice : $app);
+        file_put_contents($workspace.'/custom-helpers.php', $mode === 'custom-app' ? $app : "<?php\n".$choice);
+    }
     foreach ([
         'Translator' => 'Translation',
         'NamespacedItemResolver' => 'Support',
@@ -59,6 +109,9 @@ foreach ([
         namespace Custom {
             class Translator extends \Illuminate\Translation\Translator {}
             class Lang extends \Illuminate\Support\Facades\Lang {}
+        }
+        namespace ChoiceShadow {
+            function trans_choice($key, $number, array $replace = [], $locale = null): string { return 'custom'; }
         }
         PHP);
     $translator = $framework.'/Translation/Translator.php';
@@ -152,7 +205,22 @@ foreach ([
         JSON_THROW_ON_ERROR,
     ));
     $missing = ['ichinya/laramago/laramago-missing-translation'];
-    $on = $mode === 'enabled';
+    $on = in_array(
+        $mode,
+        [
+            'enabled',
+            'custom-vendor',
+            'changed-helper',
+            'helper-doc',
+            'helper-signature',
+            'custom-helper',
+            'changed-app',
+            'app-doc',
+            'custom-app',
+        ],
+        true,
+    );
+    $helperOn = in_array($mode, ['enabled', 'custom-vendor'], true);
     $cases = [
         ['Lang::choice("messages.absent", 2, [], "en");', $on ? $missing : []],
         ['$translator->choice(locale: "en", number: 2, key: "messages.absent");', $on ? $missing : []],
@@ -175,8 +243,30 @@ foreach ([
         ['Lang::choice(...["messages.absent", 2, [], "en"]);', []],
         ['Lang::choice(...);', ['unused-statement']],
         ['$translator->get(42, [], "en");', ['invalid-argument']],
+        ['trans_choice("messages.absent", 2, [], "en");', $helperOn ? $missing : []],
+        ['\\trans_choice(locale: "en", number: 2, key: "messages.absent");', $helperOn ? $missing : []],
+        ['pluralize("billing::messages.absent", 2, locale: "en");', $helperOn ? $missing : []],
+        ['TRANS_CHOICE("messages.absent", 2, locale: "en");', $helperOn ? $missing : []],
+        ['trans_choice("messages.exists", 2, locale: "en");', []],
+        ['trans_choice("messages.json", 2, locale: "en");', []],
+        ['trans_choice("messages.fallback", 2, locale: "en");', []],
+        ['trans_choice("messages.fallbackjson", 2, locale: "en");', []],
+        ['trans_choice("billing::messages.fallback", 2, locale: "en");', []],
+        ['trans_choice("messages.plural", 2, locale: "en");', []],
+        ['trans_choice("dynamic.absent", 2, locale: "en");', []],
+        ['trans_choice("messages.absent", 2);', []],
+        ['trans_choice("messages.absent", 2, locale: null);', []],
+        ['trans_choice("messages.absent", 2, locale: "");', []],
+        ['trans_choice("messages.absent", 2, locale: "0");', []],
+        ['trans_choice("messages.absent", 2, locale: "de");', []],
+        ['trans_choice("messages.absent", 2, locale: $locale);', []],
+        ['trans_choice($key, 2, locale: "en");', $mode === 'helper-doc' ? ['possibly-invalid-argument'] : []],
+        ['trans_choice(...["messages.absent", 2, [], "en"]);', []],
+        ['trans_choice(...);', ['unused-statement']],
+        ['trans_choice(42, 2, locale: "en");', ['invalid-argument']],
+        ['\\ChoiceShadow\\trans_choice("messages.absent", 2, locale: "en");', []],
     ];
-    $source = "<?php\nuse Illuminate\\Support\\Facades\\Lang;\nuse Illuminate\\Translation\\Translator;\nuse Custom\\Lang as CustomLang;\nconst TRANSLATION_KEY = 'messages.absent';\n";
+    $source = "<?php\nnamespace {\nuse Illuminate\\Support\\Facades\\Lang;\nuse Illuminate\\Translation\\Translator;\nuse Custom\\Lang as CustomLang;\nuse function trans_choice as pluralize;\nconst TRANSLATION_KEY = 'messages.absent';\n";
     $lines = [];
     foreach ($cases as $index => [$body, $expected]) {
         $source .=
@@ -188,6 +278,21 @@ foreach ([
             ."\n";
         $lines[substr_count($source, "\n")] = [$body, $expected];
     }
+    $source .= "}\nnamespace ChoiceFallback {\n";
+    $source .= "function check(): void { trans_choice('messages.absent', 2, locale: 'en'); }\n";
+    $lines[substr_count($source, "\n")] = ['namespaced native fallback', $helperOn ? $missing : []];
+    $source .= "}\nnamespace ChoiceShadow {\n";
+    $source .= "function check(): void { trans_choice('messages.absent', 2, locale: 'en'); }\n";
+    $lines[substr_count($source, "\n")] = ['namespaced local helper', []];
+    $source .= "}\nnamespace ChoiceImported {\nuse function ChoiceShadow\\trans_choice as pluralize;\n";
+    $source .= "function check(): void { pluralize('messages.absent', 2, locale: 'en'); }\n";
+    $lines[substr_count($source, "\n")] = ['imported local helper', []];
+    $source .= "}\n";
+    $vendor = 'vendor';
+    if ($mode === 'custom-vendor') {
+        rename($workspace.'/vendor', $workspace.'/custom dependencies');
+        $vendor = 'custom dependencies';
+    }
     file_put_contents($workspace.'/cases.php', $source);
     $config = [
         'extends' => $package.'/presets/laravel.toml',
@@ -195,8 +300,9 @@ foreach ([
         'source' => [
             'paths' => ['cases.php'],
             'includes' => array_values(array_filter([
-                'vendor',
+                $vendor,
                 'dependencies.php',
+                in_array($mode, ['custom-helper', 'custom-app'], true) ? 'custom-helpers.php' : null,
                 $mode === 'custom' ? 'Translator.php' : null,
                 $mode === 'shadow' ? 'shadow.php' : null,
             ])),
