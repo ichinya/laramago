@@ -1,0 +1,12 @@
+<?php
+
+namespace Illuminate\Database\Eloquent;
+
+/** @mixin \Illuminate\Database\Query\Builder */
+class Builder
+{
+    public function __call(string $method, array $parameters): mixed
+    {
+        return (new \Illuminate\Database\Query\Builder)->{$method}(...$parameters);
+    }
+}

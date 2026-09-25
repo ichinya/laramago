@@ -14,6 +14,7 @@ $cases = [
     'legacy scope' => ['return ScopeRecord::active();', 'Builder<ScopeRecord>', []],
     'scope chain' => ['return ScopeRecord::active()->findOrFail(1);', 'ScopeRecord', []],
     'builder scope' => ['return ScopeRecord::query()->active();', 'Builder<ScopeRecord>', []],
+    'typed generic scope' => ['return ScopeRecord::query()->typed();', 'Builder<ScopeRecord>', []],
     'instance scope' => ['return (new ScopeRecord)->active();', 'Builder<ScopeRecord>', []],
     'inherited scope' => ['return ChildScopeRecord::active();', 'Builder<ChildScopeRecord>', []],
     'trait scope' => ['return TraitScopeRecord::visible();', 'Builder<TraitScopeRecord>', []],
@@ -73,6 +74,15 @@ foreach ($cases as $name => [$body, $return, $codes]) {
     $source .= 'function scenario'.count($lines).'() { '.$body.' }'."\n";
     $lines[substr_count($source, "\n")] = [$name, $codes];
 }
+$source .= <<<'PHP'
+    class InternalTypedScopeRecord extends \Illuminate\Database\Eloquent\Model
+    {
+        /** @param Builder<self> $query @return Builder<self> */
+        public function scopeTyped(Builder $query): Builder { return $query; }
+
+        public static function viaScope() { return self::query()->typed(); }
+    }
+    PHP;
 file_put_contents($workspace.'/cases.php', $source);
 file_put_contents($workspace.'/mago.json', json_encode([
     'extends' => $package.'/presets/laravel.toml',

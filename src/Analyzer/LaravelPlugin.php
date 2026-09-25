@@ -145,6 +145,7 @@ final class LaravelPlugin implements Plugin
         $registry->registerNodeAnalysisHook($environmentMethods);
         $registry->registerInitializationHook($environmentMethods);
         $registry->registerMethodReturnTypeProvider(new FacadeCallProvider($this->projectRoot));
+        $registry->registerMethodReturnTypeProvider(new ArtisanCommandProvider($this->projectRoot));
         $filesystemFactories = new FilesystemFactoryProvider($this->projectRoot);
         $registry->registerMethodReturnTypeProvider($filesystemFactories);
         $registry->registerInitializationHook($filesystemFactories);
@@ -243,6 +244,8 @@ final class LaravelPlugin implements Plugin
         $registry->registerMethodReturnTypeProvider($projections);
         $registry->registerInitializationHook($projections);
         $registry->registerMethodReturnTypeProvider(new EloquentQueryProvider);
+        $registry->registerMethodReturnTypeProvider(new QueryBuilderVariadicProvider($this->projectRoot));
+        $registry->registerMethodReturnTypeProvider(new ModelLoadVariadicProvider($this->projectRoot));
         $validationParameters = new ValidationRuleParametersHook($this->projectRoot);
         $registry->registerMethodCallAnalysisHook($validationParameters);
         $registry->registerInitializationHook($validationParameters);

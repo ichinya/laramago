@@ -1,0 +1,25 @@
+<?php
+
+namespace Illuminate\Database\Eloquent;
+
+class Model
+{
+    public function load($relations)
+    {
+        $query = $this->newQueryWithoutRelationships()->with(
+            is_string($relations) ? func_get_args() : $relations
+        );
+
+        $query->eagerLoadRelations([$this]);
+
+        return $this;
+    }
+
+    public function newQueryWithoutRelationships(): Builder { return new Builder; }
+}
+
+class Builder
+{
+    public function with(mixed $relations): self { return $this; }
+    public function eagerLoadRelations(array $models): void {}
+}

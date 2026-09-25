@@ -1,0 +1,44 @@
+<?php
+
+namespace Illuminate\Database\Query;
+
+class Builder
+{
+    public array $columns = [];
+    public array $bindings = ['select' => []];
+    public array|bool $distinct = false;
+
+    public function select($columns = ['*'])
+    {
+        $this->columns = [];
+        $this->bindings['select'] = [];
+
+        $columns = is_array($columns) ? $columns : func_get_args();
+
+        foreach ($columns as $as => $column) {
+            if (is_string($as) && $this->isQueryable($column)) {
+                $this->selectSub($column, $as);
+            } else {
+                $this->columns[] = $column;
+            }
+        }
+
+        return $this;
+    }
+
+    public function distinct()
+    {
+        $columns = func_get_args();
+
+        if ($columns !== []) {
+            $this->distinct = is_array($columns[0]) || is_bool($columns[0]) ? $columns[0] : $columns;
+        } else {
+            $this->distinct = true;
+        }
+
+        return $this;
+    }
+
+    public function isQueryable(mixed $column): bool { return false; }
+    public function selectSub(mixed $column, string $as): void {}
+}

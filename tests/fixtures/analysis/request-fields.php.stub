@@ -4,10 +4,30 @@
 namespace Illuminate\Contracts\Validation {
     interface Validator { /** @return array */ public function validated(); }
 }
+namespace Illuminate\Validation {
+    class Validator {
+        public function errors(): \Illuminate\Support\MessageBag { throw new \RuntimeException('Do not execute validation.'); }
+        public function setRules(array $rules): void { throw new \RuntimeException('Do not execute validation.'); }
+    }
+}
+namespace Illuminate\Support {
+    class MessageBag { public function add(string $key, string $message): void { throw new \RuntimeException('Do not execute validation.'); } }
+}
 namespace Illuminate\Http {
     class Request {
         public function __get(string $key): mixed {}
         public function input($key = null, $default = null): mixed {}
+        public function user(): ?object { return null; }
+        public function exists(string $key): bool { throw new \RuntimeException('Do not execute request checks.'); }
+        public function has(string $key): bool { throw new \RuntimeException('Do not execute request checks.'); }
+        public function all($keys = null): array { throw new \RuntimeException('Do not execute request checks.'); }
+        public function allFiles(): array { throw new \RuntimeException('Do not execute request checks.'); }
+        protected function convertUploadedFiles(array $files): array { throw new \RuntimeException('Do not execute request checks.'); }
+        protected function getInputSource(): object { throw new \RuntimeException('Do not execute request checks.'); }
+        public function isJson(): bool { throw new \RuntimeException('Do not execute request checks.'); }
+        public function json($key = null, $default = null): mixed { throw new \RuntimeException('Do not execute request checks.'); }
+        public function getRealMethod(): string { throw new \RuntimeException('Do not execute request checks.'); }
+        public function getContent(): string { throw new \RuntimeException('Do not execute request checks.'); }
     }
 }
 namespace Illuminate\Foundation\Http {
@@ -21,6 +41,8 @@ namespace Illuminate\Foundation\Http {
     }
 }
 namespace {
+    use Illuminate\Validation\Validator;
+
     class LiteralFieldsRequest extends \Illuminate\Foundation\Http\FormRequest {
         public function rules(): array {
             return [
@@ -51,6 +73,38 @@ namespace {
     class UnknownRuleFieldsRequest extends LiteralFieldsRequest {
         public function rules(): array { return ['title' => 'required|string|custom']; }
     }
+    class GuardedStringKeyFieldsRequest extends LiteralFieldsRequest {
+        public function rules(): array {
+            $user = $this->user();
+            if (! $user instanceof \stdClass) {
+                throw new \RuntimeException('Never execute guards.');
+            }
+
+            return ['title' => ['required', new \stdClass]];
+        }
+    }
+    class NullGuardedStringKeyFieldsRequest extends LiteralFieldsRequest {
+        public function rules(): array {
+            $user = $this->user();
+            if ($user === null) {
+                throw new \RuntimeException('Never execute guards.');
+            }
+
+            return ['title' => ['required', new \stdClass]];
+        }
+    }
+    class SideEffectRuleFieldsRequest extends LiteralFieldsRequest {
+        public function rules(): array {
+            $this->changeValidator();
+
+            return ['title' => 'required|string'];
+        }
+
+        private function changeValidator(): void {}
+    }
+    class NumericKeyFieldsRequest extends LiteralFieldsRequest {
+        public function rules(): array { return ['0' => 'required|string']; }
+    }
     class ExcludedFieldsRequest extends LiteralFieldsRequest {
         public function rules(): array { return ['title' => 'required|string|exclude']; }
     }
@@ -59,6 +113,43 @@ namespace {
     }
     class HookFieldsRequest extends LiteralFieldsRequest {
         public function withValidator($validator): void { throw new \RuntimeException('Never execute hooks.'); }
+    }
+    class ErrorOnlyAfterFieldsRequest extends LiteralFieldsRequest {
+        public function after(): array {
+            return [function (Validator $validator): void {
+                if ($this->exists('title') && $this->exists('nickname')) {
+                    $validator->errors()->add('title', 'Invalid title.');
+                }
+            }];
+        }
+    }
+    class OverriddenExistsAfterFieldsRequest extends ErrorOnlyAfterFieldsRequest {
+        public function exists(string $key): bool { throw new \RuntimeException('Application request checks are not inferred.'); }
+    }
+    class OverriddenHasAfterFieldsRequest extends ErrorOnlyAfterFieldsRequest {
+        public function has(string $key): bool { throw new \RuntimeException('Application request checks are not inferred.'); }
+    }
+    class OverriddenAllAfterFieldsRequest extends ErrorOnlyAfterFieldsRequest {
+        public function all($keys = null): array { throw new \RuntimeException('Application request checks are not inferred.'); }
+    }
+    class MutatingAfterFieldsRequest extends LiteralFieldsRequest {
+        public function after(): array {
+            return [function (\Illuminate\Validation\Validator $validator): void {
+                if ($this->exists('title')) {
+                    $validator->setRules(['count' => 'required|integer']);
+                }
+            }];
+        }
+    }
+    class UnknownConditionAfterFieldsRequest extends LiteralFieldsRequest {
+        public function after(): array {
+            return [function (\Illuminate\Validation\Validator $validator): void {
+                if ($this->customCondition()) {
+                    $validator->errors()->add('title', 'Invalid title.');
+                }
+            }];
+        }
+        private function customCondition(): bool { throw new \RuntimeException('Never execute hooks.'); }
     }
     class PreparedFieldsRequest extends LiteralFieldsRequest {
         protected function prepareForValidation(): void { throw new \RuntimeException('Never execute hooks.'); }

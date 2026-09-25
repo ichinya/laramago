@@ -101,8 +101,18 @@ final class ValidatedInputProvider implements MethodReturnTypeProvider, Initiali
             return $field->optional ? Type::union($field->type, $default?->type ?? Type::null()) : $field->type;
         }
 
+        // The installed Laravel validator builds top-level keys from rule names.
+        // Preserve Larastan's array<string, mixed> contract only when source
+        // analysis proves those names are strings; dynamic rules remain broad.
         return $fields === null
-            ? Type::array(Type::union(Type::int(), Type::string()), Type::mixed())
+            ? Type::array(
+                RequestRuleFields::hasLiteralStringKeys(
+                    $receiver->atomicTypes[0]->name,
+                    $context->codebase,
+                    $this->source ??= new PhpSource($this->root),
+                ) ? Type::string() : Type::union(Type::int(), Type::string()),
+                Type::mixed(),
+            )
             : RequestRuleFields::shape($fields);
     }
 

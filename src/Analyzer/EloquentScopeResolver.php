@@ -81,7 +81,12 @@ final class EloquentScopeResolver
             return null;
         }
         $queryType = $query->type->type ?? $query->declaredType?->type;
-        if ($queryType !== null && ! $types->isContainedBy(Type::namedObject(self::BUILDER, $model), $queryType)) {
+        // Receiver models may be SDK request references. Materialize their known class
+        // before embedding it in a generic comparison with a declared Builder<Model>.
+        if (
+            $queryType !== null
+            && ! $types->isContainedBy(Type::namedObject(self::BUILDER, Type::namedObject($class)), $queryType)
+        ) {
             return null;
         }
 

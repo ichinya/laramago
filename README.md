@@ -431,6 +431,7 @@ deferred portions of these integrations.
 | Collection operations | Standard collection null filtering, higher-order map/filter/reject, known model/shape/union items and literal-property aggregates | Custom subclasses, unsafe branches, callback/key filtering and union method calls with arguments defer; see the mapping contract below |
 | HTTP test assertions | Typed Laravel and optional Laratesto callbacks, nested fluent scopes, standard Inertia page envelopes and flash assertions | Known installed declarations required; custom contracts/macros win; selected prop and JSON values remain unknown |
 | Facades and container helpers | Concrete roots and public service signatures from class-string accessors, installed framework core service aliases or explicit static binding catalogs, including [literal typed factories](docs/container-bindings.md#literal-factory-closures) | Uncataloged aliases, runtime binding discovery, generic/reference contracts and custom dispatch defer; declared methods and PHPDoc win |
+| Console command closures | Native `Artisan::command()` callbacks receive `ClosureCommand` as `$this` when installed Laravel constructs and binds that command | Custom Kernel bindings, changed facade or callback binding, static closures and unrelated command methods retain native analysis |
 | Configuration | Literal helper and native Config reads from static configuration arrays, including shapes, known defaults, `getMany`, typed getters and exact native `#[Config]` injection attributes; missing literal keys under an [explicit complete runtime contract](docs/configuration-keys.md) | Arbitrary repository instances, environment evaluation, runtime mutations, package-merged defaults and unasserted missing-key warnings defer |
 | Storage disks | Literal native `Storage::disk` and `#[Storage]` names under an [explicit complete runtime contract](docs/storage-disks.md) | Dynamic names, custom facades/managers/attributes, adapters and unasserted runtime mutations defer |
 | Translation strings | Known PHP/JSON strings with explicit locales or literal `app.locale`, respecting JSON precedence | Missing literal views/translations can be checked with [complete catalogs](docs/reference-catalogs.md); dynamic locales/loaders defer; native `view()` typing is retained |
@@ -844,7 +845,14 @@ $request->validated('note', 'Untitled');  // string|null: present null stays nul
 ```
 
 Omitted keys and keys known to be `null` return the entire validated array.
-Without supported rules, this retains `array<array-key, mixed>`. Named arguments
+When `rules()` is a literal map of string field names but its rule values are
+unsupported, the complete result retains `array<string, mixed>`: the top-level
+keys are known to be strings, while their values remain unknown. Dynamic rules
+or mutating/unknown validation hooks retain `array<array-key, mixed>`. A literal map can
+follow a native `$this->user()` read and a throwing type or strict-null guard; those
+statements do not alter its field names. An `after()` hook that only checks
+literal fields through native request readers and adds a validation error also
+preserves the rule keys. Named arguments
 and inherited form requests are supported. Unknown selected fields and unpacked
 argument lists defer to native analysis. Native parameter checking remains active;
 first-class method references remain callable.

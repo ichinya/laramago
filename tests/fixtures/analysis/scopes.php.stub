@@ -9,6 +9,8 @@ class ScopeRecord extends Model
 {
     public function scopeActive(Builder $query, bool $enabled = true): void { throw new RuntimeException('Scope executed.'); }
     public function scopeNamed(Builder $query, string $name): void {}
+    /** @param Builder<ScopeRecord> $query @return Builder<ScopeRecord> */
+    public function scopeTyped(Builder $query): Builder { return $query; }
     public function scopeTags(Builder $query, string ...$tags): void {}
     public function scopeTotal(Builder $query): int { return 1; }
     public function scopeMaybe(Builder $query): ?int { return null; }

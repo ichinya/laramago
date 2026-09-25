@@ -33,6 +33,82 @@ file_put_contents($workspace.'/mago.json', json_encode([
 ], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
 $cases = [
     'required string entry' => ['return $request->validated()["title"];', 'string', []],
+    'validated top-level string keys' => ['acceptNamedFields($request->validated());', 'void', []],
+    'unsupported rules keep string keys' => [
+        'acceptNamedFields((new UnknownRuleFieldsRequest)->validated());',
+        'void',
+        [],
+    ],
+    'guarded literal rules keep string keys' => [
+        'acceptNamedFields((new GuardedStringKeyFieldsRequest)->validated());',
+        'void',
+        [],
+    ],
+    'null-guarded literal rules keep string keys' => [
+        'acceptNamedFields((new NullGuardedStringKeyFieldsRequest)->validated());',
+        'void',
+        [],
+    ],
+    'side effect before rules keeps key type uncertain' => [
+        'acceptNamedFields((new SideEffectRuleFieldsRequest)->validated());',
+        'void',
+        ['possibly-invalid-argument'],
+    ],
+    'dynamic rules keep key type uncertain' => [
+        'acceptNamedFields((new DynamicFieldsRequest)->validated());',
+        'void',
+        ['possibly-invalid-argument'],
+    ],
+    'custom validation hook keeps key type uncertain' => [
+        'acceptNamedFields((new HookFieldsRequest)->validated());',
+        'void',
+        ['possibly-invalid-argument'],
+    ],
+    'error-only after hook keeps string keys' => [
+        'acceptNamedFields((new ErrorOnlyAfterFieldsRequest)->validated());',
+        'void',
+        [],
+    ],
+    'error-only after hook keeps selected field type' => [
+        'acceptString((new ErrorOnlyAfterFieldsRequest)->validated("title"));',
+        'void',
+        [],
+    ],
+    'error-only after hook still detects wrong field type' => [
+        'acceptInt((new ErrorOnlyAfterFieldsRequest)->validated("title"));',
+        'void',
+        ['invalid-argument'],
+    ],
+    'overridden exists keeps key type uncertain' => [
+        'acceptNamedFields((new OverriddenExistsAfterFieldsRequest)->validated());',
+        'void',
+        ['possibly-invalid-argument'],
+    ],
+    'overridden has keeps key type uncertain' => [
+        'acceptNamedFields((new OverriddenHasAfterFieldsRequest)->validated());',
+        'void',
+        ['possibly-invalid-argument'],
+    ],
+    'overridden all keeps key type uncertain' => [
+        'acceptNamedFields((new OverriddenAllAfterFieldsRequest)->validated());',
+        'void',
+        ['possibly-invalid-argument'],
+    ],
+    'mutating after hook keeps key type uncertain' => [
+        'acceptNamedFields((new MutatingAfterFieldsRequest)->validated());',
+        'void',
+        ['possibly-invalid-argument'],
+    ],
+    'unknown after condition keeps key type uncertain' => [
+        'acceptNamedFields((new UnknownConditionAfterFieldsRequest)->validated());',
+        'void',
+        ['possibly-invalid-argument'],
+    ],
+    'numeric rule key keeps key type uncertain' => [
+        'acceptNamedFields((new NumericKeyFieldsRequest)->validated());',
+        'void',
+        ['possibly-invalid-argument'],
+    ],
     'common string constraints' => ['return $request->validated("email");', 'string', []],
     'invalid property assignment' => [
         '$target = new FieldTarget; $target->title = $request->validated("tags");',

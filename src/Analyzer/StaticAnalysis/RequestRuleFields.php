@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer\StaticAnalysis;
 
 use Mago\Sdk\Analyzer\Codebase;
+use Mago\Sdk\Analyzer\Metadata\FunctionLikeMetadata;
 use Mago\Sdk\Analyzer\Metadata\MetadataFlags;
 use Mago\Sdk\Analyzer\Type;
 use Mago\Sdk\Analyzer\Type\ArrayItem;
@@ -20,36 +21,8 @@ final class RequestRuleFields
     /** @return array<string, ArrayItem>|null */
     public static function resolve(string $class, Codebase $codebase, PhpSource $source): ?array
     {
-        // These hooks can replace rules, validators, or validated data. Their
-        // presence prevents assuming that rules() describes the returned values.
-        foreach ([
-            'getValidatorInstance',
-            'createDefaultValidator',
-            'validator',
-            'validationRules',
-            'withValidator',
-            'after',
-            'prepareForValidation',
-            'passedValidation',
-            'validationData',
-            'setValidator',
-            'validateResolved',
-        ] as $name) {
-            $method = $codebase->getMethod($class, $name) ?? $codebase->getDeclaringMethod($class, $name);
-            $owner = strtolower($method?->identifier->class ?? '');
-            if (
-                $method !== null
-                && ! in_array(
-                    $owner,
-                    [
-                        'illuminate\\foundation\\http\\formrequest',
-                        'illuminate\\validation\\validateswhenresolvedtrait',
-                    ],
-                    true,
-                )
-            ) {
-                return null;
-            }
+        if (! self::hasNativeValidation($class, $codebase, $source)) {
+            return null;
         }
         $method = $codebase->getMethod($class, 'rules') ?? $codebase->getDeclaringMethod($class, 'rules');
         if ($method === null || $method->abstract || $method->static) {
@@ -91,6 +64,270 @@ final class RequestRuleFields
         }
 
         return self::level($paths);
+    }
+
+    public static function hasLiteralStringKeys(string $class, Codebase $codebase, PhpSource $source): bool
+    {
+        if (! self::hasNativeValidation($class, $codebase, $source)) {
+            return false;
+        }
+        $method = $codebase->getMethod($class, 'rules') ?? $codebase->getDeclaringMethod($class, 'rules');
+        if ($method === null || $method->abstract || $method->static) {
+            return false;
+        }
+        $expression = self::guardedRulesArray($class, $method, $codebase, $source);
+        if (! $expression instanceof Node\Expr\Array_) {
+            return false;
+        }
+        foreach ($expression->items as $item) {
+            $key = PhpSource::value($item->key);
+            if (
+                $item->unpack
+                || $item->byRef
+                || ! is_string($key)
+                || ! preg_match('/^[A-Za-z_][A-Za-z0-9_]*(?:\.(?:[A-Za-z_][A-Za-z0-9_]*|\*))*$/D', $key)
+            ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static function guardedRulesArray(
+        string $class,
+        FunctionLikeMetadata $method,
+        Codebase $codebase,
+        PhpSource $source,
+    ): ?Node\Expr\Array_ {
+        $reflection = new ModelReflection($codebase, $source);
+        $simple = $reflection->returnExpression($method);
+        if ($simple instanceof Node\Expr\Array_) {
+            return $simple;
+        }
+        $statements = $reflection->methodNode($method)?->stmts ?? [];
+        if (
+            count($statements) !== 3
+            || ! $statements[0] instanceof Node\Stmt\Expression
+            || ! $statements[0]->expr instanceof Node\Expr\Assign
+            || ! $statements[0]->expr->var instanceof Node\Expr\Variable
+            || $statements[0]->expr->var->name !== 'user'
+            || ! $statements[0]->expr->expr instanceof Node\Expr\MethodCall
+            || ! $statements[0]->expr->expr->var instanceof Node\Expr\Variable
+            || $statements[0]->expr->expr->var->name !== 'this'
+            || ! $statements[0]->expr->expr->name instanceof Node\Identifier
+            || strcasecmp($statements[0]->expr->expr->name->toString(), 'user') !== 0
+            || $statements[0]->expr->expr->args !== []
+            || ! $statements[1] instanceof Node\Stmt\If_
+            || $statements[1]->elseifs !== []
+            || $statements[1]->else !== null
+            || count($statements[1]->stmts) !== 1
+            || ! $statements[1]->stmts[0] instanceof Node\Stmt\Expression
+            || ! $statements[1]->stmts[0]->expr instanceof Node\Expr\Throw_
+            || ! self::throwsForMissingUser($statements[1]->cond)
+            || ! $statements[2] instanceof Node\Stmt\Return_
+            || ! $statements[2]->expr instanceof Node\Expr\Array_
+        ) {
+            return null;
+        }
+        $user = $codebase->getMethod($class, 'user') ?? $codebase->getDeclaringMethod($class, 'user');
+        if (strcasecmp($user?->identifier->class ?? '', 'Illuminate\\Http\\Request') !== 0) {
+            return null;
+        }
+
+        return $statements[2]->expr;
+    }
+
+    private static function throwsForMissingUser(Node\Expr $condition): bool
+    {
+        if (
+            $condition instanceof Node\Expr\BooleanNot
+            && $condition->expr instanceof Node\Expr\Instanceof_
+            && $condition->expr->expr instanceof Node\Expr\Variable
+            && $condition->expr->expr->name === 'user'
+        ) {
+            return true;
+        }
+        if (! $condition instanceof Node\Expr\BinaryOp\Identical) {
+            return false;
+        }
+
+        return self::userVariable($condition->left) && self::nullLiteral($condition->right)
+            || self::nullLiteral($condition->left) && self::userVariable($condition->right);
+    }
+
+    private static function userVariable(Node\Expr $expression): bool
+    {
+        return $expression instanceof Node\Expr\Variable && $expression->name === 'user';
+    }
+
+    private static function nullLiteral(Node\Expr $expression): bool
+    {
+        return $expression instanceof Node\Expr\ConstFetch
+            && strcasecmp($expression->name->toString(), 'null') === 0;
+    }
+
+    private static function hasNativeValidation(string $class, Codebase $codebase, PhpSource $source): bool
+    {
+        // These hooks can replace rules, validators, or validated data. Their
+        // presence prevents assuming that rules() describes the returned values.
+        foreach ([
+            'getValidatorInstance',
+            'createDefaultValidator',
+            'validator',
+            'validationRules',
+            'withValidator',
+            'after',
+            'prepareForValidation',
+            'passedValidation',
+            'validationData',
+            'setValidator',
+            'validateResolved',
+        ] as $name) {
+            $method = $codebase->getMethod($class, $name) ?? $codebase->getDeclaringMethod($class, $name);
+            $owner = strtolower($method?->identifier->class ?? '');
+            if (
+                $method !== null
+                && ! in_array(
+                    $owner,
+                    [
+                        'illuminate\\foundation\\http\\formrequest',
+                        'illuminate\\validation\\validateswhenresolvedtrait',
+                    ],
+                    true,
+                )
+                && ($name !== 'after' || ! self::onlyAddsValidationErrors($class, $method, $codebase, $source))
+            ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static function onlyAddsValidationErrors(
+        string $class,
+        FunctionLikeMetadata $method,
+        Codebase $codebase,
+        PhpSource $source,
+    ): bool {
+        $returned = (new ModelReflection($codebase, $source))->returnExpression($method);
+        if (! $returned instanceof Node\Expr\Array_ || count($returned->items) !== 1) {
+            return false;
+        }
+        $item = $returned->items[0];
+        $callback = $item->value;
+        if (
+            $item->key !== null
+            || $item->unpack
+            || $item->byRef
+            || ! $callback instanceof Node\Expr\Closure
+            || $callback->static
+            || $callback->byRef
+            || $callback->uses !== []
+            || count($callback->params) !== 1
+            || count($callback->stmts) !== 1
+            || ! $callback->params[0]->var instanceof Node\Expr\Variable
+            || $callback->params[0]->var->name !== 'validator'
+            || $callback->params[0]->byRef
+            || $callback->params[0]->variadic
+            || $callback->params[0]->default !== null
+            || ! $callback->params[0]->type instanceof Node\Name
+            || strcasecmp(
+                ($callback->params[0]->type->getAttribute('resolvedName') instanceof Node\Name
+                    ? $callback->params[0]->type->getAttribute('resolvedName')
+                    : $callback->params[0]->type)->toString(),
+                'Illuminate\\Validation\\Validator',
+            ) !== 0
+            || ! $callback->returnType instanceof Node\Identifier
+            || strcasecmp($callback->returnType->toString(), 'void') !== 0
+            || ! $callback->stmts[0] instanceof Node\Stmt\If_
+        ) {
+            return false;
+        }
+        $if = $callback->stmts[0];
+        if (
+            $if->else !== null
+            || $if->elseifs !== []
+            || count($if->stmts) !== 1
+            || ! self::nativeExistsCondition($if->cond, $class, $codebase)
+            || ! $if->stmts[0] instanceof Node\Stmt\Expression
+        ) {
+            return false;
+        }
+        $add = $if->stmts[0]->expr;
+        if (
+            ! $add instanceof Node\Expr\MethodCall
+            || ! $add->name instanceof Node\Identifier
+            || strcasecmp($add->name->toString(), 'add') !== 0
+            || count($add->args) !== 2
+            || ! self::literalStringArgument($add->args[0])
+            || ! self::literalStringArgument($add->args[1])
+            || ! $add->var instanceof Node\Expr\MethodCall
+            || ! $add->var->name instanceof Node\Identifier
+            || strcasecmp($add->var->name->toString(), 'errors') !== 0
+            || $add->var->args !== []
+            || ! $add->var->var instanceof Node\Expr\Variable
+            || $add->var->var->name !== 'validator'
+        ) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static function nativeExistsCondition(Node\Expr $condition, string $class, Codebase $codebase): bool
+    {
+        if ($condition instanceof Node\Expr\BinaryOp\BooleanAnd) {
+            return self::nativeExistsCondition($condition->left, $class, $codebase)
+                && self::nativeExistsCondition($condition->right, $class, $codebase);
+        }
+        if (
+            ! $condition instanceof Node\Expr\MethodCall
+            || ! $condition->var instanceof Node\Expr\Variable
+            || $condition->var->name !== 'this'
+            || ! $condition->name instanceof Node\Identifier
+            || strcasecmp($condition->name->toString(), 'exists') !== 0
+            || count($condition->args) !== 1
+            || ! self::literalStringArgument($condition->args[0])
+        ) {
+            return false;
+        }
+        // exists() delegates through has(), all(), input() and the native
+        // request readers. A subclass override anywhere in that path can
+        // mutate the validator while evaluating the condition.
+        foreach ([
+            'exists', 'has', 'all', 'input', 'allFiles', 'convertUploadedFiles',
+            'getInputSource', 'isJson', 'json', 'getRealMethod', 'getContent',
+        ] as $name) {
+            $method = $codebase->getMethod($class, $name) ?? $codebase->getDeclaringMethod($class, $name);
+            $owner = strtolower($method?->identifier->class ?? '');
+            if (! in_array($owner, match ($name) {
+                'exists', 'has' => ['illuminate\\http\\request', 'illuminate\\support\\traits\\interactswithdata'],
+                'all', 'input', 'allFiles', 'convertUploadedFiles' => [
+                    'illuminate\\http\\request',
+                    'illuminate\\http\\concerns\\interactswithinput',
+                ],
+                'isJson' => ['illuminate\\http\\request', 'illuminate\\http\\concerns\\interactswithcontenttypes'],
+                'getRealMethod', 'getContent' => [
+                    'illuminate\\http\\request',
+                    'symfony\\component\\httpfoundation\\request',
+                ],
+                default => ['illuminate\\http\\request'],
+            }, true)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static function literalStringArgument(Node\Arg|Node\VariadicPlaceholder $argument): bool
+    {
+        return $argument instanceof Node\Arg
+            && $argument->name === null
+            && ! $argument->unpack
+            && $argument->value instanceof Node\Scalar\String_;
     }
 
     /**
@@ -187,7 +424,7 @@ final class RequestRuleFields
         return Type::fromAtomic(
             new KeyedArrayType(
                 array_values($fields),
-                Type::union(Type::int(), Type::string()),
+                Type::string(),
                 Type::mixed(),
                 $nonEmpty,
             ),
