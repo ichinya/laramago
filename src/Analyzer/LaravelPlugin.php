@@ -146,6 +146,19 @@ final class LaravelPlugin implements Plugin
         $registry->registerInitializationHook($environmentMethods);
         $registry->registerMethodReturnTypeProvider(new FacadeCallProvider($this->projectRoot));
         $registry->registerMethodReturnTypeProvider(new ArtisanCommandProvider($this->projectRoot));
+        $consoleOptions = new ConsoleOptionProvider($this->projectRoot);
+        $registry->registerMethodReturnTypeProvider($consoleOptions);
+        $registry->registerInitializationHook($consoleOptions);
+        $containerContracts = new ContainerContractProvider($this->projectRoot);
+        if ($containerContracts->hasTargets()) {
+            $registry->registerMethodReturnTypeProvider($containerContracts);
+            $registry->registerIssueFilterHook($containerContracts);
+            $registry->registerInitializationHook($containerContracts);
+        }
+        $classAliases = new ClassAliasFilter($this->projectRoot);
+        $registry->registerIssueFilterHook($classAliases);
+        $registry->registerInitializationHook($classAliases);
+        $registry->registerFunctionReturnTypeProvider(new JsonDecodeProvider);
         $filesystemFactories = new FilesystemFactoryProvider($this->projectRoot);
         $registry->registerMethodReturnTypeProvider($filesystemFactories);
         $registry->registerInitializationHook($filesystemFactories);
