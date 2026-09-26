@@ -16,6 +16,7 @@ final class PhpSource
 {
     private const SHARED_CACHE_BYTES = 8 * 1024 * 1024;
     private const SHARED_CACHE_ENTRIES = 32;
+    private const INSTANCE_CACHE_ENTRIES = 32;
 
     /** @var array<string, string> Serialized, resolved ASTs in least-recently-used order. */
     private static array $sharedFiles = [];
@@ -60,7 +61,10 @@ final class PhpSource
     {
         $path = $this->path($path);
         if (array_key_exists($path, $this->files)) {
-            return $this->files[$path];
+            $nodes = $this->files[$path];
+            unset($this->files[$path]);
+
+            return $this->files[$path] = $nodes;
         }
         $contents = @file_get_contents($path);
         if ($contents === false) {
@@ -78,7 +82,7 @@ final class PhpSource
             /** @var array<array-key, Node> $nodes The bytes were serialized by this process. */
             $nodes = unserialize($serialized, ['allowed_classes' => true]);
 
-            return $this->files[$path] = $nodes;
+            return $this->retain($path, $nodes);
         }
         try {
             $nodes = $this->parser->parse($contents) ?? [];
@@ -99,12 +103,30 @@ final class PhpSource
                 self::$sharedBytes += $size;
             }
 
-            return $this->files[$path] = $resolved;
+            return $this->retain($path, $resolved);
         } catch (Error $error) {
             $this->warnings[$path] = 'Cannot parse PHP source for static model metadata: '.$error->getMessage();
 
             return $this->files[$path] = null;
         }
+    }
+
+    /**
+     * Keep one parsed file in the per-instance cache under an LRU bound.
+     *
+     * Unbounded retention has exhausted the worker's memory budget on large
+     * applications: analysis runs parse hundreds of files across long-lived provider
+     * readers, so each reader evicts its least recently used snapshots.
+     *
+     * @param array<array-key, Node>|null $nodes
+     */
+    private function retain(string $path, ?array $nodes): ?array
+    {
+        while (count($this->files) >= self::INSTANCE_CACHE_ENTRIES) {
+            unset($this->files[array_key_first($this->files)]);
+        }
+
+        return $this->files[$path] = $nodes;
     }
 
     /**
