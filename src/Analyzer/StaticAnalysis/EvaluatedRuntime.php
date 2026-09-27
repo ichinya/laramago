@@ -5,17 +5,18 @@ declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer\StaticAnalysis;
 
 /**
- * Opt-in evaluation of the analyzed application's authentication configuration.
+ * Opt-in evaluation of the analyzed application's authentication configuration
+ * and resolved configuration/environment values.
  *
  * Trust model: values come from the local environment of the machine running
  * the analysis — the same trade-off Larastan makes when it boots the whole
- * application. Only literal string config entries are kept, and the load is
- * limited to requiring `bootstrap/app.php` plus the LoadEnvironmentVariables,
- * LoadConfiguration and RegisterFacades bootstrappers, so no application
- * service provider is ever registered or booted: no database, no queues, no
- * sessions and no cache stores are touched. The only executed pieces are the
- * project's `config/*.php` files and `.env`, and every failure is swallowed
- * into a cached null result.
+ * application. Only literal string config entries are kept for auth, and the
+ * load is limited to requiring `bootstrap/app.php` plus the
+ * LoadEnvironmentVariables, LoadConfiguration and RegisterFacades
+ * bootstrappers, so no application service provider is ever registered or
+ * booted: no database, no queues, no sessions and no cache stores are touched.
+ * The only executed pieces are the project's `config/*.php` files and `.env`,
+ * and every failure is swallowed into a cached null result.
  */
 final class EvaluatedRuntime
 {
@@ -27,7 +28,7 @@ final class EvaluatedRuntime
         'Illuminate\\Foundation\\Bootstrap\\RegisterFacades',
     ];
 
-    /** @var array<string, ?array<string, mixed>> */
+    /** @var array<string, ?array{auth: ?array<string, mixed>, config: ?array<array-key, mixed>}> */
     private static array $cache = [];
     private static bool $loading = false;
 
@@ -51,6 +52,94 @@ final class EvaluatedRuntime
      */
     public static function auth(string $root): ?array
     {
+        $runtime = self::runtime($root);
+
+        return $runtime === null ? null : $runtime['auth'];
+    }
+
+    /**
+     * The analyzed application's fully resolved configuration tree, or null
+     * when the gate is off or the minimal load failed. Values are whatever the
+     * configuration files produced during the boot.
+     *
+     * @return ?array<array-key, mixed>
+     */
+    public static function config(string $root): ?array
+    {
+        $runtime = self::runtime($root);
+
+        return $runtime === null ? null : $runtime['config'];
+    }
+
+    /**
+     * One resolved environment entry, replicating Laravel's env lookup order
+     * (`$_ENV`, then `$_SERVER`, then `getenv`) and the exact value conversion
+     * of `Illuminate\Support\Env::getOption` at decision time. A variable that
+     * is not present, or present with a null value, reads as absent, exactly
+     * like the framework's option handling. Answers only after a successful
+     * minimal boot in this process; per-key lookups avoid retaining machine
+     * secrets in a cached map.
+     *
+     * @return ?array{found: bool, value: mixed}
+     */
+    public static function envEntry(string $root, string $key): ?array
+    {
+        if (self::runtime($root) === null) {
+            return null;
+        }
+        $raw = null;
+        $found = false;
+        foreach ([$_ENV, $_SERVER] as $store) {
+            if (is_array($store) && array_key_exists($key, $store)) {
+                $raw = $store[$key];
+                $found = $raw !== null;
+                break;
+            }
+        }
+        if (! $found) {
+            $value = getenv($key);
+            if ($value !== false) {
+                $raw = $value;
+                $found = true;
+            }
+        }
+        if (! $found) {
+            return ['found' => false, 'value' => null];
+        }
+
+        return ['found' => true, 'value' => self::adaptEnvValue($raw)];
+    }
+
+    /** The value conversion of `Illuminate\Support\Env::getOption`. */
+    private static function adaptEnvValue(mixed $value): mixed
+    {
+        if (! is_string($value)) {
+            return $value;
+        }
+        switch (strtolower($value)) {
+            case 'true':
+            case '(true)':
+                return true;
+            case 'false':
+            case '(false)':
+                return false;
+            case 'empty':
+            case '(empty)':
+                return '';
+            case 'null':
+            case '(null)':
+                return null;
+        }
+        if (preg_match("/\A(['\"])(.*)\\1\\z/", $value, $matches) === 1) {
+            return $matches[2];
+        }
+
+        return $value;
+    }
+
+    /** @return ?array{auth: ?array<string, mixed>, config: ?array<array-key, mixed>} */
+    private static function runtime(string $root): ?array
+    {
         if (! self::enabled()) {
             return null;
         }
@@ -69,37 +158,65 @@ final class EvaluatedRuntime
         }
     }
 
+    /** @return ?array{auth: ?array<string, mixed>, config: ?array<array-key, mixed>} */
     private static function load(string $root): ?array
     {
-        try {
-            return self::loadAuth($root);
-        } catch (\Throwable) {
-            return null;
-        }
-    }
-
-    private static function loadAuth(string $root): ?array
-    {
         $app = null;
-        $config = null;
         try {
             $app = self::boot($root);
             if ($app === null) {
-                return null;
+                return ['auth' => null, 'config' => null];
             }
-            $config = self::section($app, 'config');
-            if ($config === null) {
-                return null;
+            $repository = self::section($app, 'config');
+            if ($repository === null) {
+                return ['auth' => null, 'config' => null];
+            }
+            $configuration = self::all($repository);
+            if ($configuration === null) {
+                return ['auth' => null, 'config' => null];
             }
 
-            return self::extract(self::section($config, 'auth'));
+            return [
+                'auth' => self::extract($configuration['auth'] ?? null),
+                'config' => $configuration,
+            ];
+        } catch (\Throwable) {
+            return ['auth' => null, 'config' => null];
         } finally {
-            // Nothing but the small plain-array result may outlive this call.
+            // Nothing but the small plain-array results may outlive this call.
             // RegisterFacades has pinned the application into facade statics,
             // so those references are released explicitly as well.
             self::discard($app);
-            unset($app, $config);
+            unset($app);
         }
+    }
+
+    /** @return ?array<array-key, mixed> */
+    private static function all(object $repository): ?array
+    {
+        try {
+            if (method_exists($repository, 'all')) {
+                $all = $repository->all();
+
+                return is_array($all) ? $all : null;
+            }
+        } catch (\Throwable) {
+            return null;
+        }
+        if ($repository instanceof \ArrayAccess || is_iterable($repository)) {
+            $all = [];
+            try {
+                foreach ($repository as $key => $value) {
+                    $all[$key] = $value;
+                }
+            } catch (\Throwable) {
+                return null;
+            }
+
+            return $all;
+        }
+
+        return null;
     }
 
     private static function discard(?object $app): void

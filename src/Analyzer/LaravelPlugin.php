@@ -117,6 +117,7 @@ final class LaravelPlugin implements Plugin
         $registry->registerBeforeAnalysisHook($configuration);
         $configurationFacade = new ConfigurationFacadeProvider($this->projectRoot, $configuration);
         $registry->registerMethodReturnTypeProvider($configurationFacade);
+        $registry->registerFunctionReturnTypeProvider(new EnvironmentValueProvider($this->projectRoot));
         $configurationKeys = new ConfigurationKeyContractsHook($this->projectRoot);
         $registry->registerNodeAnalysisHook($configurationKeys);
         $registry->registerInitializationHook($configurationKeys);

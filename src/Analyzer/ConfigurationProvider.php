@@ -6,6 +6,7 @@ namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ConfigurationIndex;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\EvaluatedRuntime;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Mago\Sdk\Analyzer\BeforeAnalysisContext;
 use Mago\Sdk\Analyzer\BeforeAnalysisHook;
@@ -17,6 +18,7 @@ use Mago\Sdk\Analyzer\InitializationHook;
 use Mago\Sdk\Analyzer\Metadata\FunctionLikeMetadata;
 use Mago\Sdk\Analyzer\ReturnTypeProviderContext;
 use Mago\Sdk\Analyzer\Type;
+use Mago\Sdk\Analyzer\Type\ConditionalType;
 use Mago\Sdk\Analyzer\Type\KeyedArrayType;
 use Mago\Sdk\Analyzer\Type\ListType;
 use Mago\Sdk\Analyzer\Type\MixedType;
@@ -69,7 +71,15 @@ final class ConfigurationProvider implements FunctionReturnTypeProvider, Initial
     {
         $return = $this->frameworkHelper($context->codebase)?->returnType?->type;
         // A concrete application declaration always wins over the framework helper.
-        if ($return === null || count($return->atomicTypes) !== 1 || ! $return->atomicTypes[0] instanceof MixedType) {
+        // The installed helper's inferred type is conditional on its arguments, so
+        // the permissive gate accepts mixed or a conditional type and rejects
+        // everything precise.
+        $atom = $return?->atomicTypes[0] ?? null;
+        if (
+            $return === null
+            || count($return->atomicTypes) !== 1
+            || (! $atom instanceof MixedType && ! $atom instanceof ConditionalType)
+        ) {
             return null;
         }
 
@@ -109,7 +119,44 @@ final class ConfigurationProvider implements FunctionReturnTypeProvider, Initial
             }
         }
 
-        return $index->lookup($key, $defaultType);
+        $static = $index->lookup($key, $defaultType);
+        if ($static !== null) {
+            return $static;
+        }
+
+        return $this->evaluatedRead($key);
+    }
+
+    /**
+     * The resolved value from the opt-in evaluated runtime as the last source,
+     * after explicit contracts and the static source. Only general scalar and
+     * array types are produced: machine-dependent literals would make
+     * diagnostics non-reproducible, and runtime configuration mutations stay
+     * a documented deferral.
+     */
+    private function evaluatedRead(string $key): ?Type
+    {
+        $configuration = EvaluatedRuntime::config($this->root);
+        if ($configuration === null) {
+            return null;
+        }
+        $value = $configuration;
+        foreach (explode('.', $key) as $segment) {
+            if (! is_array($value) || ! array_key_exists($segment, $value)) {
+                return null;
+            }
+            $value = $value[$segment];
+        }
+
+        return match (true) {
+            is_string($value) => Type::string(),
+            is_int($value) => Type::int(),
+            is_float($value) => Type::float(),
+            is_bool($value) => Type::bool(),
+            $value === null => Type::null(),
+            is_array($value) => Type::array(Type::union(Type::int(), Type::string()), Type::mixed()),
+            default => null,
+        };
     }
 
     private function frameworkHelper(Codebase $codebase): ?FunctionLikeMetadata

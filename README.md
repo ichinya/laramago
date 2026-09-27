@@ -620,17 +620,21 @@ command = ["php", "-d", "display_errors=stderr", "vendor/ichinya/laramago/bin/la
 When enabled, the worker loads the analyzed application once with only the three
 configuration bootstrapstrappers: environment variables, configuration files and
 facade registration. Service providers never run, the database is never touched,
-and the loaded application is discarded immediately after the auth values are
-extracted. Only literal string entries survive: the default guard, each guard's
-provider and driver, and each provider's driver and model, validated against the
-live autoloader. Explicit `composer.json` contracts keep priority, any load or
-extraction failure defers to the flag-off behavior, and the resolved values
-describe the machine running the analysis — the same trade-off Larastan makes
-when it boots the application. The local run must therefore match the
+and the loaded application is discarded immediately after the values are
+extracted. Authentication keeps only literal string entries: the default guard,
+each guard's provider and driver, and each provider's driver and model,
+validated against the live autoloader. Literal `config()`, `Config::get()` and
+`env()` reads additionally resolve to the machine's actual values — the general
+scalar or array type, never a machine-dependent literal — after the static
+source, with unchanged missing-key semantics and the exact framework
+`env()` value conversion. Explicit `composer.json` contracts keep priority, any
+load or extraction failure defers to the flag-off behavior, and the resolved
+values describe the machine running the analysis — the same trade-off Larastan
+makes when it boots the application. The local run must therefore match the
 environment you want analyzed.
 
-`php tests/evaluated-runtime.php` covers the flag semantics, deferral paths and
-contract priority.
+`php tests/evaluated-runtime.php` and `php tests/evaluated-config.php` cover
+the flag semantics, deferral paths and contract priority.
 
 ### Selected query fields
 

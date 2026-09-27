@@ -108,6 +108,7 @@ file_put_contents($framework.'/Config/Repository.php', <<<'PHP'
             }
             return $value;
         }
+        public function all(): array { return $this->items; }
         public function offsetExists(mixed $offset): bool { return $this->get($offset) !== null; }
         public function offsetGet(mixed $offset): mixed { return $this->get($offset); }
         public function offsetSet(mixed $offset, mixed $value): void {}
