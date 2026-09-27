@@ -5,13 +5,18 @@ declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\EvaluatedRuntime;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Mago\Sdk\Analyzer\Invocation;
 use Mago\Sdk\Analyzer\ReturnTypeProviderContext;
 use Mago\Sdk\Analyzer\Type;
 use PhpParser\Node;
 
-/** Literal authentication metadata only; environment helpers are never evaluated. */
+/**
+ * Contract metadata and literal config first; the opt-in evaluated runtime is
+ * only consulted as the last fallback, so projects whose `config/auth.php` is
+ * fully literal never trigger it.
+ */
 final class AuthConfiguration
 {
     private readonly PhpSource $source;
@@ -45,7 +50,12 @@ final class AuthConfiguration
             return $this->string($metadata->{'default-guard'});
         }
 
-        return $this->literal($this->entry($this->entry($this->configuration(), 'defaults'), 'guard'));
+        $guard = $this->literal($this->entry($this->entry($this->configuration(), 'defaults'), 'guard'));
+        if ($guard !== null) {
+            return $guard;
+        }
+
+        return EvaluatedRuntime::auth($this->root)['defaults']['guard'] ?? null;
     }
 
     public function guardClass(?string $guard, ReturnTypeProviderContext $context): ?string
@@ -68,11 +78,10 @@ final class AuthConfiguration
         }
         $config = $this->entry($this->entry($this->configuration(), 'guards'), $guard);
 
-        return match ($this->literal($this->entry($config, 'driver'))) {
-            'session' => 'Illuminate\\Auth\\SessionGuard',
-            'token' => 'Illuminate\\Auth\\TokenGuard',
-            default => null,
-        };
+        return $this->standardGuardClass($this->literal($this->entry($config, 'driver')))
+            ?? $this->standardGuardClass(
+                EvaluatedRuntime::auth($this->root)['guards'][$guard]['driver'] ?? null,
+            );
     }
 
     public function userType(?string $guard, ReturnTypeProviderContext $context): ?Type
@@ -106,15 +115,27 @@ final class AuthConfiguration
         $config = $this->configuration();
         $guardConfig = $this->entry($this->entry($config, 'guards'), $guard);
         $providerName = $this->literal($this->entry($guardConfig, 'provider'));
-        if ($providerName === null) {
+        if ($providerName !== null) {
+            $provider = $this->entry($this->entry($config, 'providers'), $providerName);
+            if ($this->literal($this->entry($provider, 'driver')) === 'eloquent') {
+                $type = $this->modelType($this->literal($this->entry($provider, 'model')), $context);
+                if ($type !== null) {
+                    return $type;
+                }
+            }
+        }
+        $evaluated = EvaluatedRuntime::auth($this->root);
+        $providerName = $evaluated['guards'][$guard]['provider'] ?? null;
+        if (! is_string($providerName) || $providerName === '') {
             return null;
         }
-        $provider = $this->entry($this->entry($config, 'providers'), $providerName);
-        if ($this->literal($this->entry($provider, 'driver')) !== 'eloquent') {
+        $provider = $evaluated['providers'][$providerName] ?? null;
+        if (! is_array($provider) || ($provider['driver'] ?? null) !== 'eloquent') {
             return null;
         }
+        $model = $provider['model'] ?? null;
 
-        return $this->modelType($this->literal($this->entry($provider, 'model')), $context);
+        return $this->modelType(is_string($model) && $model !== '' ? $model : null, $context);
     }
 
     public function hasCustomFactory(): bool
@@ -122,6 +143,15 @@ final class AuthConfiguration
         $bindings = $this->bindings ??= new ContainerBindings($this->root);
 
         return $bindings->configured('auth') || $bindings->configured('Illuminate\\Contracts\\Auth\\Factory');
+    }
+
+    private function standardGuardClass(?string $driver): ?string
+    {
+        return match ($driver) {
+            'session' => 'Illuminate\\Auth\\SessionGuard',
+            'token' => 'Illuminate\\Auth\\TokenGuard',
+            default => null,
+        };
     }
 
     private function modelType(?string $model, ReturnTypeProviderContext $context): ?Type

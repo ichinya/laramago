@@ -14,6 +14,21 @@ if ($autoload === null || ! is_file($autoload)) {
 
 require $autoload;
 
+// Long analysis runs accumulate parsed syntax beyond PHP's conservative CLI
+// default; raise the worker's own ceiling unless the operator already chose a
+// larger (or unlimited) one.
+$limit = ini_get('memory_limit');
+if (is_string($limit) && $limit !== '-1') {
+    $unit = strtolower(substr($limit, -1));
+    $bytes = (int) $limit;
+    if (in_array($unit, ['k', 'm', 'g'], true)) {
+        $bytes *= ['k' => 1024, 'm' => 1048576, 'g' => 1073741824][$unit];
+    }
+    if ($bytes < 512 * 1048576) {
+        ini_set('memory_limit', '512M');
+    }
+}
+
 $projectRoot = $argv[2] ?? Composer\InstalledVersions::getRootPackage()['install_path'] ?? getcwd();
 if (! is_string($projectRoot) || ! is_dir($projectRoot)) {
     fwrite(STDERR, "Cannot locate the application root for static model metadata.\n");

@@ -427,7 +427,7 @@ deferred portions of these integrations.
 | Relationship callbacks | Literal dotted paths for the four `whereHas`/`whereDoesntHave` variants receive `Builder<Related>`; `withWhereHas` receives a Builder/Relation union | Uses authoritative PHPDoc or supported relation bodies; dynamic paths and custom dispatch defer |
 | Relation validation | Warns when a referenced existing method explicitly returns a known non-relation class, including nested paths | Missing names are checked only with explicit [complete model contracts](docs/relation-names.md) |
 | Model field-list validation | Warns for missing literal names in directly declared `$fillable`, `$guarded`, `$hidden`, `$visible` and `$appends` arrays and their native Laravel class attributes, distinguishing filterable relationship keys from appendable legacy/`Attribute` accessor and class-cast keys | Requires explicit complete exact-model [field, serialization-key and appendable-key catalogs](docs/model-field-catalogs.md); schema-only, inherited, older/custom attribute, runtime-discovered and custom-dispatch definitions defer |
-| Authentication | Nullable default models from literal config or explicit Composer auth contracts; standard guards and explicitly declared custom guard classes | Environment values are never evaluated; standard selected guard users retain native `Authenticatable|null`; custom guards retain their own user contracts |
+| Authentication | Nullable default models from literal config, explicit Composer auth contracts, or — under the opt-in [runtime evaluation](#runtime-evaluation) below — the local application's resolved auth configuration; standard guards and explicitly declared custom guard classes | Without the opt-in flag environment values are never evaluated and standard selected guard users retain native `Authenticatable|null`; custom guards retain their own user contracts |
 | Collection operations | Standard collection null filtering, higher-order map/filter/reject, known model/shape/union items and literal-property aggregates | Custom subclasses, unsafe branches, callback/key filtering and union method calls with arguments defer; see the mapping contract below |
 | HTTP test assertions | Typed Laravel and optional Laratesto callbacks, nested fluent scopes, standard Inertia page envelopes and flash assertions | Known installed declarations required; custom contracts/macros win; selected prop and JSON values remain unknown |
 | Facades and container helpers | Concrete roots and public service signatures from class-string accessors, installed framework core service aliases or explicit static binding catalogs, including [literal typed factories](docs/container-bindings.md#literal-factory-closures) | Uncataloged aliases, runtime binding discovery, generic/reference contracts and custom dispatch defer; declared methods and PHPDoc win |
@@ -602,6 +602,35 @@ Custom guard chains use that class's own `user()` contract. Standard framework
 guards are not generic, so selecting one does not carry a model argument into
 later `user()` calls. Missing or invalid metadata remains conservative.
 `php tests/auth-contracts.php` covers these declarations and their negative cases.
+
+### Runtime evaluation
+
+Instead of declaring contracts by hand, an application can let Laramago read its
+resolved authentication configuration from a local application load. The mode is
+strictly opt-in: set `LARAMAGO_EVALUATE_RUNTIME=1` in the environment or add
+`--evaluate-runtime` to the worker command in `extension-hosts`. Without the flag
+nothing changes — environment values are never evaluated, exactly as documented
+above.
+
+```toml
+[extension-hosts.laramago]
+command = ["php", "-d", "display_errors=stderr", "vendor/ichinya/laramago/bin/laramago-worker.php", "vendor/autoload.php", "--evaluate-runtime"]
+```
+
+When enabled, the worker loads the analyzed application once with only the three
+configuration bootstrapstrappers: environment variables, configuration files and
+facade registration. Service providers never run, the database is never touched,
+and the loaded application is discarded immediately after the auth values are
+extracted. Only literal string entries survive: the default guard, each guard's
+provider and driver, and each provider's driver and model, validated against the
+live autoloader. Explicit `composer.json` contracts keep priority, any load or
+extraction failure defers to the flag-off behavior, and the resolved values
+describe the machine running the analysis — the same trade-off Larastan makes
+when it boots the application. The local run must therefore match the
+environment you want analyzed.
+
+`php tests/evaluated-runtime.php` covers the flag semantics, deferral paths and
+contract priority.
 
 ### Selected query fields
 
