@@ -19,6 +19,10 @@ final class EloquentCollectionType
 
     public function resolve(Codebase $codebase, Type $model): ?Type
     {
+        // A `static`/`$this`-flavored element is reported as the concrete class:
+        // Mago cannot verify such atoms inside the invariant collection generic,
+        // and the named class always remains a sound bound for its static bound.
+        $model = self::concrete($model);
         $result = null;
         $standard = true;
         foreach ($model->atomicTypes as $atom) {
@@ -43,6 +47,34 @@ final class EloquentCollectionType
         }
 
         return $standard ? Type::namedObject(self::COLLECTION, Type::int(), $model) : $result;
+    }
+
+    /** Report a `static`/`$this`-flavored model as its concrete class. */
+    private static function concrete(Type $model): Type
+    {
+        $atoms = [];
+        $changed = false;
+        foreach ($model->atomicTypes as $atom) {
+            if ($atom instanceof NamedObjectType && ($atom->static || $atom->isThis)) {
+                $atom = new NamedObjectType(
+                    $atom->name,
+                    $atom->parameters,
+                    $atom->variances,
+                    false,
+                    false,
+                    $atom->intersections,
+                    $atom->remappedParameters,
+                );
+                $changed = true;
+            }
+            $atoms[] = Type::fromAtomic($atom);
+        }
+        if (! $changed) {
+            return $model;
+        }
+        $first = array_shift($atoms);
+
+        return array_reduce($atoms, static fn (Type $a, Type $b): Type => Type::union($a, $b), $first);
     }
 
     private function collectionClass(Codebase $codebase, string $model): Type|string|null
