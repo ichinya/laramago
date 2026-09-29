@@ -73,7 +73,7 @@ final class AuthHelperProvider implements FunctionReturnTypeProvider, Initializa
         if ($argument === null || (string) $argument->type === 'null') {
             $class = 'Illuminate\\Auth\\AuthManager';
         } else {
-            $class = $configuration->guardClass($configuration->guardName($call, 'guard'), $context);
+            $class = $configuration->guardClass($configuration->guardName($call, 'guard', $context), $context);
         }
 
         return $class !== null && $context->codebase->getClass($class) !== null ? Type::namedObject($class) : null;

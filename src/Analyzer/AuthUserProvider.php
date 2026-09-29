@@ -118,6 +118,6 @@ final class AuthUserProvider implements MethodReturnTypeProvider, Initialization
         }
         $configuration = $this->configuration ??= new AuthConfiguration($this->root);
 
-        return $configuration->userType($configuration->guardName($call, 'guard'), $context);
+        return $configuration->userType($configuration->guardName($call, 'guard', $context), $context);
     }
 }

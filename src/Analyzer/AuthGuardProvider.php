@@ -66,7 +66,7 @@ final class AuthGuardProvider implements MethodReturnTypeProvider, Initializatio
             return null;
         }
         $configuration = $this->configuration ??= new AuthConfiguration($this->root);
-        $guard = $configuration->guardClass($configuration->guardName($context->invocation, 'name'), $context);
+        $guard = $configuration->guardClass($configuration->guardName($context->invocation, 'name', $context), $context);
 
         return $guard !== null && $context->codebase->getClass($guard) !== null ? Type::namedObject($guard) : null;
     }

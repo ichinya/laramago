@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ichinya\Laramago\Analyzer\StaticAnalysis;
 
+use Ichinya\Laramago\Analyzer\EnvironmentValueProvider;
 use Mago\Sdk\Analyzer\Type;
 use Mago\Sdk\Analyzer\Type\ArrayItem;
 use Mago\Sdk\Analyzer\Type\ArrayKey;
@@ -49,7 +50,7 @@ final class ConfigurationIndex
     }
 
     /** Unknown namespaces and dynamic branches defer, including their defaults. */
-    public function lookup(string $key, ?Type $default): ?Type
+    public function lookup(string $key, ?Type $default, bool $nativeEnvironment = false): ?Type
     {
         $parts = explode('.', $key, 2);
         $node = $this->files[$parts[0]] ?? null;
@@ -57,7 +58,7 @@ final class ConfigurationIndex
             return null;
         }
         if (! isset($parts[1])) {
-            return $this->type($node);
+            return $this->type($node, $nativeEnvironment);
         }
         $remaining = $parts[1];
         while (true) {
@@ -74,7 +75,7 @@ final class ConfigurationIndex
             }
             $node = $items[$parts[0]];
             if (! isset($parts[1])) {
-                return $this->type($node);
+                return $this->type($node, $nativeEnvironment);
             }
             $remaining = $parts[1];
         }
@@ -277,8 +278,11 @@ final class ConfigurationIndex
         return $items;
     }
 
-    private function type(Node\Expr $node): ?Type
+    private function type(Node\Expr $node, bool $nativeEnvironment): ?Type
     {
+        if ($nativeEnvironment && $node instanceof Node\Expr\FuncCall) {
+            return $this->environmentType($node);
+        }
         if ($node instanceof Node\Expr\Array_) {
             $items = $this->items($node);
             if ($items === null) {
@@ -286,7 +290,7 @@ final class ConfigurationIndex
             }
             $shape = [];
             foreach ($items as $key => $value) {
-                $type = $this->type($value);
+                $type = $this->type($value, $nativeEnvironment);
                 if ($type === null) {
                     return null;
                 }
@@ -310,5 +314,37 @@ final class ConfigurationIndex
             $value === null => Type::null(),
             default => null,
         };
+    }
+
+    /** Parse only literal calls to the proven native env helper. */
+    private function environmentType(Node\Expr\FuncCall $call): ?Type
+    {
+        if (
+            ! $call->name instanceof Node\Name
+            || strcasecmp(ltrim($call->name->toString(), '\\'), 'env') !== 0
+            || $call->isFirstClassCallable()
+            || count($call->args) < 1
+            || count($call->args) > 2
+        ) {
+            return null;
+        }
+        $arguments = [];
+        foreach ($call->args as $index => $argument) {
+            if (! $argument instanceof Node\Arg || $argument->unpack) {
+                return null;
+            }
+            $name = $argument->name?->toString() ?? (['key', 'default'][$index] ?? '');
+            if (! in_array($name, ['key', 'default'], true) || isset($arguments[$name])) {
+                return null;
+            }
+            $arguments[$name] = $argument->value;
+        }
+        $key = PhpSource::value($arguments['key'] ?? null);
+        if (! is_string($key) || $key === '') {
+            return null;
+        }
+        $default = isset($arguments['default']) ? $this->type($arguments['default'], true) : Type::null();
+
+        return $default === null ? null : EnvironmentValueProvider::staticType($default);
     }
 }

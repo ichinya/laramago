@@ -111,9 +111,11 @@ argument count, argument type, and named argument checks remain active.
 Declared methods keep their native behavior. Custom query factories and magic
 dispatchers defer when their behavior is not statically known. Explicit custom
 builders, local scopes, and additional bounded integrations are described below.
-The package does not generate overlays or
-replace Larastan. `examples/compatibility.toml` is an optional fragment with
-targeted suppressions for your `[analyzer]` section.
+Laravel contracts and [PHPStan-compatible analysis policies](docs/phpstan-compatibility.md)
+run directly on Mago. PHPStan and Larastan are used to compare behavior; they are
+not required by the extension. No source overlays are generated.
+`examples/compatibility.toml` remains an optional fragment with targeted
+suppressions for your `[analyzer]` section.
 
 The worker uses Mago's bundled PHP SDK and the application's Composer autoloader.
 It does not bootstrap Laravel or connect to a database. The `php` executable must
@@ -175,6 +177,9 @@ Supported information includes:
   calls, column types, nullability, timestamps, foreign IDs, morph columns,
   column/table renames, drops, and `change()`. `down()` methods are ignored.
 - Explicit or inherited `$table`, conventional English table names, and model keys.
+- Native `Model::getKey()` reads a proven primary-key attribute without becoming
+  `mixed`; the result conservatively retains `int|string|null` for unsaved
+  models and driver differences. Custom key readers and unknown attributes defer.
 - `$casts` and literal `casts()` arrays, including inherited and trait methods:
   scalar, decimal, array/JSON, collection, object, date, immutable date, and enum casts.
 - Custom `CastsAttributes` classes with concrete native/PHPDoc contracts on
@@ -436,7 +441,7 @@ deferred portions of these integrations.
 | JSON decoding | `json_decode(..., true)` with a literal `true` assoc argument yields `list<mixed>&#124;array<string,mixed>&#124;bool&#124;int&#124;float&#124;string&#124;null`, matching the PHPStan/Larastan value space | Absent, false, null, dynamic or truthy-int assoc arguments retain native `mixed`; depth and flags are ignored because `json_decode` never returns `false` and `null` stays reachable |
 | Container contract methods | Method calls on receivers typed exactly as an `Illuminate\Contracts\*` interface bound by the installed framework's core alias table resolve to the root concrete class: a false `non-existent-method` is not reported and declared concrete return types apply | Methods missing on both the contract and the concrete keep their diagnostics; unmapped or foreign interfaces, union/generic receivers and methods the contract declares retain native analysis |
 | Class aliases | Global-namespace calls through Laravel's boot aliases (e.g. `\Str::random()`) no longer report a false `non-existent-method` when the literal boot chain — `Facade::defaultAliases()` merged by the framework base config, without project overrides or colliding package aliases — maps the name to a class declaring the method | A project `config/app.php` with any `aliases` key, `dontMergeFrameworkConfiguration()`, unresolvable chain shapes and alias names claimed by installed packages disable the map; a declared global class of the same name and methods the target lacks keep their diagnostics; the call expression itself remains `mixed` |
-| Configuration | Literal helper and native Config reads from static configuration arrays, including shapes, known defaults, `getMany`, typed getters and exact native `#[Config]` injection attributes; missing literal keys under an [explicit complete runtime contract](docs/configuration-keys.md) | Arbitrary repository instances, environment evaluation, runtime mutations, package-merged defaults and unasserted missing-key warnings defer |
+| Configuration | Literal helper and native Config reads from static configuration arrays, including shapes, known defaults, `getMany`, typed getters and exact native `#[Config]` injection attributes; native literal `env()` reads use `string|bool|null` plus a safe default when installed Laravel source is verified; missing literal keys under an [explicit complete runtime contract](docs/configuration-keys.md) | Arbitrary repository instances, dynamic env calls/defaults, machine-specific values without runtime opt-in, runtime mutations, package-merged defaults and unasserted missing-key warnings defer |
 | Storage disks | Literal native `Storage::disk` and `#[Storage]` names under an [explicit complete runtime contract](docs/storage-disks.md) | Dynamic names, custom facades/managers/attributes, adapters and unasserted runtime mutations defer |
 | Translation strings | Known PHP/JSON strings with explicit locales or literal `app.locale`, respecting JSON precedence | Missing literal views/translations can be checked with [complete catalogs](docs/reference-catalogs.md); dynamic locales/loaders defer; native `view()` typing is retained |
 | Route parameters | Duplicate placeholders in literal native Router, lexically resolved native Route facade and Route `setUri()` calls; missing required URI keys for closed named URL-parameter arrays under an explicit effective-default contract | [Complete named-route contracts](docs/named-route-contracts.md) check native URL/redirect generators; positional/domain parameters, runtime aliases, middleware and dynamic routing defer |
@@ -608,9 +613,9 @@ later `user()` calls. Missing or invalid metadata remains conservative.
 Instead of declaring contracts by hand, an application can let Laramago read its
 resolved authentication configuration from a local application load. The mode is
 strictly opt-in: set `LARAMAGO_EVALUATE_RUNTIME=1` in the environment or add
-`--evaluate-runtime` to the worker command in `extension-hosts`. Without the flag
-nothing changes — environment values are never evaluated, exactly as documented
-above.
+`--evaluate-runtime` to the worker command in `extension-hosts`. Without the flag,
+application code is not executed: only the verified native `env()` type union
+can refine static environment reads.
 
 ```toml
 [extension-hosts.laramago]

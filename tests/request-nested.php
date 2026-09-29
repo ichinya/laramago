@@ -98,7 +98,7 @@ $cases = [
     'wildcard integer not cast' => [
         'foreach ($request->validated("codes", []) as $code) { acceptInt($code); }',
         'void',
-        ['mixed-argument', 'mixed-assignment'],
+        ['mixed-argument'],
     ],
     'wildcard empty result not nonempty' => [
         'acceptNonEmpty($request->validated("rows", []));',

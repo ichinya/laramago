@@ -10,6 +10,7 @@ mkdir($workspace);
 mkdir($workspace.'/config');
 mkdir($workspace.'/bootstrap');
 $helpers = 'dependencies with spaces/laravel/framework/src/Illuminate/Foundation/helpers.php';
+$envHelpers = 'dependencies with spaces/laravel/framework/src/Illuminate/Support/helpers.php';
 mkdir(dirname($workspace.'/'.$helpers), 0777, true);
 $framework = $workspace.'/dependencies with spaces/laravel/framework/src/Illuminate';
 mkdir($framework.'/Support/Facades', 0777, true);
@@ -22,6 +23,83 @@ file_put_contents(
     $workspace.'/'.$helpers,
     '<?php function config(?string $key = null, mixed $default = null): mixed { throw new RuntimeException("Helper executed."); }',
 );
+file_put_contents($workspace.'/'.$envHelpers, <<<'PHP'
+    <?php
+    use Illuminate\Support\Env;
+    if (! function_exists('env')) {
+        /** @return mixed */
+        function env($key, $default = null)
+        {
+            return Env::get($key, $default);
+        }
+    }
+    PHP);
+file_put_contents($framework.'/Support/Env.php', <<<'PHP'
+    <?php
+    namespace Illuminate\Support;
+
+    use Dotenv\Repository\Adapter\PutenvAdapter;
+    use Dotenv\Repository\RepositoryBuilder;
+    use PhpOption\Option;
+
+    class Env
+    {
+        protected static $putenv = true;
+        protected static $repository;
+        protected static $customAdapters = [];
+
+        public static function getRepository()
+        {
+            if (static::$repository === null) {
+                $builder = RepositoryBuilder::createWithDefaultAdapters();
+
+                if (static::$putenv) {
+                    $builder = $builder->addAdapter(PutenvAdapter::class);
+                }
+
+                foreach (static::$customAdapters as $adapter) {
+                    $builder = $builder->addAdapter($adapter());
+                }
+
+                static::$repository = $builder->immutable()->make();
+            }
+
+            return static::$repository;
+        }
+
+        public static function get($key, $default = null)
+        {
+            return self::getOption($key)->getOrCall(fn () => value($default));
+        }
+
+        protected static function getOption($key)
+        {
+            return Option::fromValue(static::getRepository()->get($key))
+                ->map(function ($value) {
+                    switch (strtolower($value)) {
+                        case 'true':
+                        case '(true)':
+                            return true;
+                        case 'false':
+                        case '(false)':
+                            return false;
+                        case 'empty':
+                        case '(empty)':
+                            return '';
+                        case 'null':
+                        case '(null)':
+                            return;
+                    }
+
+                    if (preg_match('/\A([\'"])(.*)\1\z/', $value, $matches)) {
+                        return $matches[2];
+                    }
+
+                    return $value;
+                });
+        }
+    }
+    PHP);
 file_put_contents($workspace.'/config/example.php', <<<'PHP'
     <?php
     return [
@@ -33,6 +111,9 @@ file_put_contents($workspace.'/config/example.php', <<<'PHP'
         'with.dot' => 'direct',
         'items' => ['first', 'second'],
         'dynamic' => env('EXAMPLE', 'fallback'),
+        'nullable_env' => env('MISSING'),
+        'env_array' => ['value' => env('EXAMPLE', 'fallback')],
+        'unsafe_env_default' => env('EXAMPLE', fn (): int => 42),
         'computed' => throw new RuntimeException('Configuration executed.'),
         'open' => [...dynamicConfiguration()],
         'class' => stdClass::class,
@@ -62,7 +143,13 @@ $cases = [
     'missing complete key null' => ["return config('example.absent');", 'null', []],
     'null ignores default' => ["return config('example.optional', 42);", 'null', []],
     'native mismatch preserved' => ["return config('example.count');", 'string', ['invalid-return-statement']],
-    'environment deferred' => ["return config('example.dynamic', 'fallback');", 'string', ['mixed-return-statement']],
+    'environment has safe union' => ["return config('example.dynamic', 'fallback');", 'string', ['invalid-return-statement', 'nullable-return-statement']],
+    'environment assignment is typed' => ["\$value = config('example.dynamic');", 'void', []],
+    'environment missing is nullable' => ["return config('example.nullable_env');", 'string', ['invalid-return-statement', 'nullable-return-statement']],
+    'environment nested array' => ["\$value = config('example.env_array');", 'void', []],
+    'unsafe environment default deferred' => ["return config('example.unsafe_env_default');", 'string', ['mixed-return-statement']],
+    'direct environment helper typed' => ["\$value = env('EXAMPLE');", 'void', []],
+    'direct environment preserves nullable' => ["return env('EXAMPLE', 'fallback');", 'string', ['invalid-return-statement', 'nullable-return-statement']],
     'throw never executed' => ["return config('example.computed');", 'string', ['mixed-return-statement']],
     'unpack missing key deferred' => ["return config('example.open.missing', 42);", 'int', ['mixed-return-statement']],
     'unknown namespace deferred' => ["return config('unknown.missing', 42);", 'int', ['mixed-return-statement']],
@@ -105,6 +192,8 @@ file_put_contents($workspace.'/mago.json', json_encode([
         'paths' => ['cases.php'],
         'includes' => [
             $helpers,
+            $envHelpers,
+            'dependencies with spaces/laravel/framework/src/Illuminate/Support/Env.php',
             'dependencies with spaces/laravel/framework/src/Illuminate/Support/Facades/Facade.php',
             'dependencies with spaces/laravel/framework/src/Illuminate/Support/Facades/Config.php',
             'dependencies with spaces/laravel/framework/src/Illuminate/Config/Repository.php',
@@ -212,6 +301,84 @@ $repositorySource = file_get_contents($repositoryPath);
 file_put_contents($repositoryPath, str_replace('@return mixed', '@return string', $repositorySource));
 $assertAlteredContractWins('altered repository contract priority', ['mixed-return-statement']);
 file_put_contents($repositoryPath, $repositorySource);
+
+$assertEnvironmentDefers = static function (string $name) use ($command, $workspace): void {
+    file_put_contents(
+        $workspace.'/cases.php',
+        '<?php function configEnv(): string { return config("example.dynamic"); } '
+        .'function directEnv(): string { return env("EXAMPLE"); }',
+    );
+    $process = proc_open(
+        [...$command, '--workspace', $workspace, 'analyze', '--reporting-format=json'],
+        [
+            0 => ['pipe', 'r'],
+            1 => ['file', $workspace.'/altered-env.json', 'w'],
+            2 => ['file', $workspace.'/altered-env.log', 'w'],
+        ],
+        $pipes,
+    );
+    if (! is_resource($process)) {
+        throw new RuntimeException('Cannot start Mago.');
+    }
+    fclose($pipes[0]);
+    $exit = proc_close($process);
+    $report = json_decode(file_get_contents($workspace.'/altered-env.json'), true, flags: JSON_THROW_ON_ERROR);
+    $codes = array_column($report['issues'] ?? [], 'code');
+    if (
+        $exit !== 1
+        || $codes !== ['mixed-return-statement', 'mixed-return-statement']
+        || preg_match(
+            '/External analyzer provider failed|extension worker .*rejected request/i',
+            file_get_contents($workspace.'/altered-env.log'),
+        )
+    ) {
+        throw new RuntimeException($name.' must defer to native mixed; inspect '.$workspace);
+    }
+    echo 'PASS: '.$name."\n";
+};
+$envPath = $framework.'/Support/Env.php';
+$envSource = file_get_contents($envPath);
+file_put_contents($envPath, str_replace(
+    'return self::getOption($key)->getOrCall(fn () => value($default));',
+    'return [];',
+    $envSource,
+));
+$assertEnvironmentDefers('changed Env::get body');
+file_put_contents($envPath, $envSource);
+$envHelperPath = $workspace.'/'.$envHelpers;
+$envHelperSource = file_get_contents($envHelperPath);
+file_put_contents($envHelperPath, str_replace('return Env::get($key, $default);', 'return [];', $envHelperSource));
+$assertEnvironmentDefers('changed native env helper body');
+file_put_contents($envHelperPath, $envHelperSource);
+file_put_contents(
+    $envPath,
+    $envSource."\nclass AlternativeEnv { public static function get(\$key, \$default = null): mixed { return []; } }\n",
+);
+file_put_contents(
+    $envHelperPath,
+    str_replace('use Illuminate\\Support\\Env;', 'use Illuminate\\Support\\AlternativeEnv as Env;', $envHelperSource),
+);
+$assertEnvironmentDefers('changed native env helper import');
+file_put_contents($envHelperPath, $envHelperSource);
+file_put_contents($envPath, $envSource);
+file_put_contents(
+    $workspace.'/custom-env.php',
+    '<?php function env($key, $default = null): mixed { return []; }',
+);
+$configuration = json_decode(file_get_contents($workspace.'/mago.json'), true, flags: JSON_THROW_ON_ERROR);
+$configuration['source']['includes'] = array_values(array_filter(
+    $configuration['source']['includes'],
+    static fn (string $path): bool => $path !== $envHelpers,
+));
+$configuration['source']['includes'][] = 'custom-env.php';
+file_put_contents($workspace.'/mago.json', json_encode($configuration, JSON_THROW_ON_ERROR));
+$assertEnvironmentDefers('custom env helper takes priority');
+$configuration['source']['includes'] = array_values(array_filter(
+    $configuration['source']['includes'],
+    static fn (string $path): bool => $path !== 'custom-env.php',
+));
+$configuration['source']['includes'][] = $envHelpers;
+file_put_contents($workspace.'/mago.json', json_encode($configuration, JSON_THROW_ON_ERROR));
 
 file_put_contents(
     $workspace.'/'.$helpers,

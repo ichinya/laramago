@@ -32,6 +32,7 @@ final class ConfigurationProvider implements FunctionReturnTypeProvider, Initial
 {
     private ?ConfigurationIndex $index = null;
     private ?ContainerBindings $bindings = null;
+    private ?bool $nativeEnvironment = null;
 
     public function __construct(
         private readonly string $root,
@@ -41,6 +42,7 @@ final class ConfigurationProvider implements FunctionReturnTypeProvider, Initial
     {
         $this->index = null;
         $this->bindings = null;
+        $this->nativeEnvironment = null;
     }
 
     public function getTargets(): array
@@ -119,7 +121,10 @@ final class ConfigurationProvider implements FunctionReturnTypeProvider, Initial
             }
         }
 
-        $static = $index->lookup($key, $defaultType);
+        if ($this->nativeEnvironment === null) {
+            $this->nativeEnvironment = EnvironmentValueProvider::nativeSource($context->codebase, $index->source);
+        }
+        $static = $index->lookup($key, $defaultType, $this->nativeEnvironment);
         if ($static !== null) {
             return $static;
         }

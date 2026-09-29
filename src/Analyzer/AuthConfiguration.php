@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ichinya\Laramago\Analyzer;
 
+use Ichinya\Laramago\Analyzer\StaticAnalysis\AuthEnvironment;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\EvaluatedRuntime;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
@@ -23,6 +24,7 @@ final class AuthConfiguration
     private ?\stdClass $metadata = null;
     private bool $metadataLoaded = false;
     private ?ContainerBindings $bindings = null;
+    private ?AuthEnvironment $environment = null;
 
     public function __construct(
         private readonly string $root,
@@ -30,7 +32,7 @@ final class AuthConfiguration
         $this->source = new PhpSource($root);
     }
 
-    public function guardName(Invocation $call, string $parameter): ?string
+    public function guardName(Invocation $call, string $parameter, ReturnTypeProviderContext $context): ?string
     {
         foreach ($call->arguments as $argument) {
             if ($argument->unpacked || $argument->placeholder) {
@@ -50,7 +52,10 @@ final class AuthConfiguration
             return $this->string($metadata->{'default-guard'});
         }
 
-        $guard = $this->literal($this->entry($this->entry($this->configuration(), 'defaults'), 'guard'));
+        $guard = $this->environmentString(
+            $this->entry($this->entry($this->configuration(), 'defaults'), 'guard'),
+            $context,
+        );
         if ($guard !== null) {
             return $guard;
         }
@@ -118,7 +123,10 @@ final class AuthConfiguration
         if ($providerName !== null) {
             $provider = $this->entry($this->entry($config, 'providers'), $providerName);
             if ($this->literal($this->entry($provider, 'driver')) === 'eloquent') {
-                $type = $this->modelType($this->literal($this->entry($provider, 'model')), $context);
+                $type = $this->modelType(
+                    $this->environmentString($this->entry($provider, 'model'), $context),
+                    $context,
+                );
                 if ($type !== null) {
                     return $type;
                 }
@@ -255,5 +263,11 @@ final class AuthConfiguration
         $value = PhpSource::value($node);
 
         return is_string($value) ? $value : null;
+    }
+
+    private function environmentString(?Node $node, ReturnTypeProviderContext $context): ?string
+    {
+        return $this->literal($node)
+            ?? ($this->environment ??= new AuthEnvironment($this->root, $this->source))->string($node, $context);
     }
 }

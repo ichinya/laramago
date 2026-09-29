@@ -5,7 +5,7 @@ declare(strict_types=1);
 // Opt-in evaluated runtime: the worker must boot the analyzed application's
 // configuration through exactly the three configuration bootstrappers when
 // the gate is enabled, and must do zero work when it is not. The flag-off
-// adapted run must stay byte-identical to the pre-existing adapted behavior;
+// adapted run retains native diagnostics beyond plain local assignments;
 // the only lines where that differs from the extension-less native run are
 // the pre-existing helper/facade resolutions that never consult the gate.
 $package = str_replace('\\', '/', dirname(__DIR__));
@@ -378,24 +378,24 @@ foreach ($sourceLines as $sourceLine) {
 }
 file_put_contents($workspace.'/cases.php', implode("\n", $source)."\n");
 
-// Diagnostics when the gate is off: the extension defers wherever the literal
-// config path fails, exactly as before this feature existed.
+// When evaluation is off, auth typing defers. Plain local mixed assignments
+// follow PHPStan and are filtered; unsafe property access remains visible.
 $deferred = [
-    'default-user' => ['mixed-assignment'],
-    'default-property' => ['mixed-assignment', 'mixed-property-access'],
-    'default-email' => ['mixed-assignment', 'mixed-property-access'],
-    'default-unknown' => ['mixed-assignment', 'mixed-property-access'],
+    'default-user' => [],
+    'default-property' => ['mixed-property-access'],
+    'default-email' => ['mixed-property-access'],
+    'default-unknown' => ['mixed-property-access'],
     'guard-factory' => [],
     'guard-user' => [],
-    'guard-property' => ['mixed-assignment', 'non-existent-property'],
-    'explicit-user' => ['mixed-assignment'],
-    'explicit-property' => ['mixed-assignment', 'mixed-property-access'],
+    'guard-property' => ['non-existent-property'],
+    'explicit-user' => [],
+    'explicit-property' => ['mixed-property-access'],
     'facade-user' => [],
-    'facade-property' => ['mixed-assignment', 'non-existent-property'],
+    'facade-property' => ['non-existent-property'],
     // auth() resolves to the manager through pre-existing behavior that never
     // consults the evaluated runtime, so user() stays ?Authenticatable here.
     'helper-user' => [],
-    'helper-property' => ['mixed-assignment', 'non-existent-property'],
+    'helper-property' => ['non-existent-property'],
 ];
 // Diagnostics when the evaluated runtime resolves the default guard to the
 // users provider and the explicit admin guard to the admins provider.
@@ -403,10 +403,10 @@ $resolved = [
     'default-user' => [],
     'default-property' => ['possibly-null-property-access'],
     'default-email' => [],
-    'default-unknown' => ['mixed-assignment', 'non-existent-property'],
+    'default-unknown' => ['non-existent-property'],
     'guard-factory' => [],
     'guard-user' => [],
-    'guard-property' => ['mixed-assignment', 'non-existent-property'],
+    'guard-property' => ['non-existent-property'],
     'explicit-user' => [],
     'explicit-property' => [],
     'facade-user' => [],
@@ -499,15 +499,26 @@ $expectLine = static function (string $message, string $name, array $actual, arr
 
 $native = $summarize($run(false, false));
 
-// Flag off: the adapted run must be byte-identical to the extension-less
-// native baseline except for the two pre-existing helper resolutions that
-// never consult the evaluated runtime, and must match the deferred state.
+// Flag off retains every native diagnostic except the proved local assignment
+// warning and the two pre-existing helper resolutions.
 $off = $summarize($run(true, false));
 foreach ($lines as $name => ['line' => $line]) {
     if (in_array($name, ['helper-user', 'helper-property'], true)) {
         continue;
     }
-    if (($off[$line] ?? []) !== ($native[$line] ?? [])) {
+    $expected = $native[$line] ?? [];
+    if (in_array($name, [
+        'default-user', 'default-property', 'default-email', 'default-unknown',
+        'guard-property', 'explicit-user', 'explicit-property', 'facade-property',
+    ], true)) {
+        $position = array_search('mixed-assignment', $expected, true);
+        if ($position === false) {
+            throw new RuntimeException('Expected native local assignment on '.$name.'; inspect '.$workspace);
+        }
+        unset($expected[$position]);
+        $expected = array_values($expected);
+    }
+    if (($off[$line] ?? []) !== $expected) {
         throw new RuntimeException(
             'flag off must retain native diagnostics on '.$name.' (line '.$line.'): native '
             .json_encode($native[$line] ?? []).'; adapted '.json_encode($off[$line] ?? []).'; inspect '.$workspace,
@@ -518,7 +529,7 @@ $expectState('flag off must defer like the pre-existing behavior', $off, $deferr
 if (is_file($workspace.'/bootstrap/executed.txt')) {
     throw new RuntimeException('Flag-off must not require the application; inspect '.$workspace);
 }
-echo "PASS: flag off is identical to the pre-existing behavior\n";
+echo "PASS: flag off retains native diagnostics beyond local assignments\n";
 
 // Flag on without .env: the literal defaults in config/auth.php resolve.
 $on = $summarize($run(true, true));

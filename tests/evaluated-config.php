@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 // Opt-in evaluated configuration: literal config()/Config::get()/env() reads
 // resolve through the same minimal boot as the auth feature. The flag-off
-// adapted run must stay byte-identical to the native baseline on every case
-// line; the flag-on runs pin the resolved types, the static-source precedence
+// adapted run retains native diagnostics beyond plain local assignments;
+// the flag-on runs pin the resolved types, the static-source precedence
 // and the unchanged missing-key semantics.
 $package = str_replace('\\', '/', dirname(__DIR__));
 $workspace = str_replace('\\', '/', sys_get_temp_dir()).'/laramago evaluated config '.bin2hex(random_bytes(8));
@@ -144,16 +144,19 @@ file_put_contents($framework.'/Foundation/Bootstrap/RegisterFacades.php', <<<'PH
     PHP);
 file_put_contents($framework.'/Foundation/helpers.php', <<<'PHP'
     <?php
+    /** @return mixed */
+    function config($key, $default = null)
+    {
+        throw new LogicException;
+    }
+    PHP);
+file_put_contents($framework.'/Support/helpers.php', <<<'PHP'
+    <?php
     use Illuminate\Foundation\EnvironmentStore;
     /** @return mixed */
     function env($key, $default = null)
     {
         return EnvironmentStore::get($key, $default);
-    }
-    /** @return mixed */
-    function config($key, $default = null)
-    {
-        throw new LogicException;
     }
     PHP);
 file_put_contents($framework.'/Support/Facades/Facade.php', <<<'PHP'
@@ -209,6 +212,7 @@ file_put_contents($workspace.'/bootstrap/app.php', <<<'PHP'
     require_once $illuminate.'/Foundation/Bootstrap/LoadConfiguration.php';
     require_once $illuminate.'/Foundation/Bootstrap/RegisterFacades.php';
     require_once $illuminate.'/Foundation/helpers.php';
+    require_once $illuminate.'/Support/helpers.php';
     require_once $illuminate.'/Support/Facades/Facade.php';
     require_once $illuminate.'/Support/Facades/Config.php';
     return new Illuminate\Foundation\Application(dirname(__DIR__));
@@ -257,20 +261,21 @@ foreach ($sourceLines as $sourceLine) {
 }
 file_put_contents($workspace.'/cases.php', implode("\n", $source)."\n");
 
-// Diagnostics when the gate is off: every env-backed read stays native mixed.
+// Without evaluation, env-backed values stay mixed. Plain local assignment
+// warnings are filtered without changing those expression types.
 $deferred = [
-    'env-key' => ['mixed-assignment'],
-    'env-debug' => ['mixed-assignment'],
-    'env-default' => ['mixed-assignment'],
-    'env-nested' => ['mixed-assignment'],
-    'segment' => ['mixed-assignment'],
-    'facade' => ['mixed-assignment'],
+    'env-key' => [],
+    'env-debug' => [],
+    'env-default' => [],
+    'env-nested' => [],
+    'segment' => [],
+    'facade' => [],
     // the static literal already wins without the flag: typed as the literal.
     'static-literal' => [],
     'missing-default' => [],
-    'env-present' => ['mixed-assignment'],
-    'env-absent' => ['mixed-assignment'],
-    'env-missing' => ['mixed-assignment'],
+    'env-present' => [],
+    'env-absent' => [],
+    'env-missing' => [],
 ];
 // Diagnostics when the evaluated runtime resolves the values: the assignments
 // stop being mixed, the null default of app.key stays nullable without a
@@ -367,7 +372,16 @@ foreach ($lines as $name => ['line' => $line]) {
     if (in_array($name, ['static-literal', 'missing-default'], true)) {
         continue;
     }
-    if (($off[$line] ?? []) !== ($native[$line] ?? [])) {
+    $expected = $native[$line] ?? [];
+    if ($lines[$name]['group'] === 'MIX' || $name === 'env-missing') {
+        $position = array_search('mixed-assignment', $expected, true);
+        if ($position === false) {
+            throw new RuntimeException('Expected native local assignment on '.$name.'; inspect '.$workspace);
+        }
+        unset($expected[$position]);
+        $expected = array_values($expected);
+    }
+    if (($off[$line] ?? []) !== $expected) {
         throw new RuntimeException(
             'flag off must retain native diagnostics on '.$name.' (line '.$line.'): native '
             .json_encode($native[$line] ?? []).'; adapted '.json_encode($off[$line] ?? []).'; inspect '.$workspace,
@@ -378,7 +392,7 @@ $expectState('flag off must defer like the native behavior', $off, $deferred);
 if (is_file($workspace.'/bootstrap/executed.txt')) {
     throw new RuntimeException('Flag-off must not require the application; inspect '.$workspace);
 }
-echo "PASS: flag off is identical to the native behavior\n";
+echo "PASS: flag off retains native diagnostics beyond local assignments\n";
 
 // Flag on without .env: config defaults resolve through the evaluated values,
 // env(APP_DEBUG) resolves to its false default and the absent env key keeps

@@ -214,7 +214,7 @@ $expected = [
     'array-cast-unchanged' => [],
     'float-cast-unchanged' => [],
     'string-cast-unchanged' => [],
-    'float-cast-on-string-cast' => ['invalid-type-cast'],
+    'float-cast-on-string-cast' => [],
 ];
 foreach ($lines as $name => $line) {
     $actual = $adapted[$line] ?? [];
