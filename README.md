@@ -483,6 +483,26 @@ Consecutive verified array assertions additionally support literal nested offset
 when each prefix is proven to be a PHP array. Assignments, opaque calls, dynamic
 keys and ArrayAccess receivers break this proof.
 
+Native `class_uses()` returns an array with string keys and `trait-string` values
+for an object, or an unconditionally declared class name with autoloading enabled.
+Unknown names, conditional or incomplete declarations and class names with
+uncertain autoloading retain the possible `false` result.
+
+A documented `array<string, string>` return can also be verified from a direct
+`return self::MAP` and its literal class constant initializer. Explicit keys must
+resolve to nonnumeric strings, and values must be string literals. Dynamic maps,
+spreads, duplicate keys, incompatible declarations and late binding defer.
+
+An immediate `is_int($value)` guard after a fresh local `filter_var()` assignment
+preserves literal `FILTER_VALIDATE_INT` minimum and maximum bounds. Only the
+successful integer branch gains the range. Defaults, dynamic options, references,
+intervening statements and unsupported flags retain native analysis.
+
+Inside a direct positive `instanceof` branch, HTTP and console kernel unions use
+the selected native interface's argument and return contracts. This avoids
+combining a console status code with an HTTP response. Calls outside such branches
+and changed framework contracts retain native analysis.
+
 Omitted, null or falsy translation locales use only a literal `config/app.php`
 locale and one conventional language root. This models the configured initial
 locale; runtime locale changes and custom translation-loader paths require

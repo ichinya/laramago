@@ -39,6 +39,9 @@ final class LaravelPlugin implements Plugin
         $openShapes = new OpenArrayShapeReturnFilter;
         $registry->registerIssueFilterHook($openShapes);
         $registry->registerInitializationHook($openShapes);
+        $constantMaps = new ClassConstantStringMapReturnFilter;
+        $registry->registerIssueFilterHook($constantMaps);
+        $registry->registerInitializationHook($constantMaps);
         $arrayContracts = new StructuralArrayContractFilter;
         $registry->registerIssueFilterHook($arrayContracts);
         $registry->registerInitializationHook($arrayContracts);
@@ -219,6 +222,9 @@ final class LaravelPlugin implements Plugin
         $registry->registerIssueFilterHook($classAliases);
         $registry->registerInitializationHook($classAliases);
         $registry->registerFunctionReturnTypeProvider(new JsonDecodeProvider);
+        $classTraits = new ClassUsesReturnTypeProvider($this->projectRoot);
+        $registry->registerFunctionReturnTypeProvider($classTraits);
+        $registry->registerInitializationHook($classTraits);
         $registry->registerFunctionReturnTypeProvider(new ArrayReplaceProvider);
         $collectionHelper = new CollectionHelperProvider($this->projectRoot);
         $registry->registerFunctionReturnTypeProvider($collectionHelper);
