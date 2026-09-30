@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Ichinya\Laramago\Analyzer\LaravelPlugin;
 use Ichinya\Laramago\Analyzer\AggregateProjectionPlugin;
+use Ichinya\Laramago\Analyzer\ArrayAssertionPlugin;
 use Mago\Sdk\Extension;
 use Mago\Sdk\Worker;
 
@@ -39,6 +40,6 @@ if (! is_string($projectRoot) || ! is_dir($projectRoot)) {
 (new Worker(new Extension(
     identifier: 'ichinya/laramago',
     name: 'Laramago',
-    version: '0.0.19',
-    analyzerPlugins: [new AggregateProjectionPlugin($projectRoot), new LaravelPlugin($projectRoot)],
+    version: '0.0.20',
+    analyzerPlugins: [new AggregateProjectionPlugin($projectRoot), new ArrayAssertionPlugin($projectRoot), new LaravelPlugin($projectRoot)],
 )))->run();

@@ -414,6 +414,10 @@ Collection subclasses can declare a fixed element type with `@extends`; Laramago
 does not invent template arguments from their names or parameter count. This
 support also covers counted factory results as described above.
 
+Calling the verified native `newCollection()` with no arguments or an empty
+array also preserves the receiver model's collection contract and integer keys.
+Populated arguments and custom factory implementations retain native analysis.
+
 ### Additional static integrations
 
 These integrations inspect declarations and syntax without booting the application.
@@ -475,6 +479,9 @@ Verified Laratesto `PhpUnitCompatibility::assertIsArray`, `assertIsString`,
 simple local variable after the assertion returns. Laramago checks the installed
 Laratesto and Testo implementations before applying this rule. Property chains
 and other expressions retain native analysis because their values can change.
+Consecutive verified array assertions additionally support literal nested offsets
+when each prefix is proven to be a PHP array. Assignments, opaque calls, dynamic
+keys and ArrayAccess receivers break this proof.
 
 Omitted, null or falsy translation locales use only a literal `config/app.php`
 locale and one conventional language root. This models the configured initial

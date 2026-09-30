@@ -67,6 +67,16 @@ Custom or stronger assertion contracts, properties, superglobals, unpacked
 arguments and first-class callables defer. This rule does not change keys of
 arbitrary iterators or collections.
 
+Consecutive verified array assertions can also narrow literal nested offsets.
+Each prefix must already be proven to be a native PHP array by the preceding
+assertions. Readonly native `hasKeys()` and `doesNotHaveKeys()` checks may occur
+in the chain. ArrayAccess objects, dynamic keys, intervening assignments or
+opaque calls, control-flow boundaries and ambiguous cross-file call spans defer.
+Reference escapes and unverified successful assertion logging also defer.
+Native logging, record constructors and readonly key inspections are checked
+for callbacks, hooks and destructors before they can preserve an earlier fact.
+The index uses analyzed source snapshots, without executing test or application code.
+
 ## Array records and XML children
 
 Documented return records may contain additional string keys when every
@@ -165,6 +175,21 @@ Stringable objects passed to native plain string parameters are accepted at
 weakly typed call sites, following PHP's implicit conversion. A strict call
 site, a nullable value, a non-Stringable object or a narrower PHPDoc constraint
 continues to produce its original diagnostics.
+
+Weakly typed return contracts also accept concrete Stringable values, including
+values nested in validation-rule arrays, matching PHPStan's return comparison.
+Every value and key is checked against the complete documented return type and
+the native return declaration. The native object types are preserved: array
+elements are not converted at runtime. Strict files, nullable or mixed values,
+invalid keys, missing fields and narrower string constraints retain diagnostics.
+Closures, reference returns and unsupported type syntax defer.
+
+Native Eloquent `newCollection()` with no arguments or an explicit empty array
+returns the receiver model's collection with integer keys. Verified custom
+collection classes retain their declared type. Populated arrays, custom factories,
+modified collection resolvers and unknown cache declarations retain native analysis.
+Custom trait reuse, template constraints, defaults and model PHPDoc mappings
+also keep their original contracts.
 
 The focused compatibility tests run the real Mago executable with and without
 the extension and retain negative cases. The package's `composer check` includes

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ichinya\Laramago\Analyzer;
 
+use Ichinya\Laramago\Analyzer\StaticAnalysis\ParenthesizedExpressionSpans;
 use Mago\Sdk\Analyzer\InitializationContext;
 use Mago\Sdk\Analyzer\InitializationHook;
 use Mago\Sdk\Analyzer\IssueFilterContext;
@@ -72,7 +73,8 @@ final class ScalarOperandCompatibilityFilter implements IssueFilterHook, Initial
         $key = hash('sha256', $context->file."\0".$context->contents);
         if (! isset($this->cache[$key])) {
             try {
-                $nodes = (new ParserFactory)->createForNewestSupportedVersion()->parse($context->contents) ?? [];
+                $parser = (new ParserFactory)->createForNewestSupportedVersion();
+                $nodes = $parser->parse($context->contents) ?? [];
             } catch (Error) {
                 return IssueFilterDecision::Keep;
             }
@@ -104,7 +106,9 @@ final class ScalarOperandCompatibilityFilter implements IssueFilterHook, Initial
                     continue;
                 }
                 foreach ([$node->left, $node->right] as $operand) {
-                    $spans[$kind][$operand->getStartFilePos().':'.($operand->getEndFilePos() + 1)] = true;
+                    foreach (ParenthesizedExpressionSpans::collect($operand, $node, $parser->getTokens()) as $span) {
+                        $spans[$kind][$span] = true;
+                    }
                 }
             }
             if (count($this->cache) >= 16) {

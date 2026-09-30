@@ -23,6 +23,14 @@ $cases = [
     'invalid object to float' => 'function objectFloating(object $value): float { return (float) $value; }',
     'nested boolean invalid cast' => 'function nestedBoolean(object $value): bool { return (bool) (string) $value; }',
     'mixed arithmetic' => 'function mixedArithmetic(mixed $value): int { return $value + 1; }',
+    'parenthesized boolean cast' => 'function groupedBoolean(array $data): bool { return (bool) ($data["confirmed"] ?? false); }',
+    'nested parenthesized boolean cast' => 'function nestedGroupedBoolean(mixed $value): bool { return (bool) (($value)); }',
+    'commented boolean cast' => 'function commentedBoolean(mixed $value): bool { return (bool) (/* before */ ($value) /* after */); }',
+    'commented numeric cast' => 'function commentedFloat(string $value): float { return (float) (/* number */ $value); }',
+    'parenthesized invalid string cast' => 'function groupedInvalidString(object $value): string { return (string) (($value)); }',
+    'parenthesized nested invalid cast' => 'function groupedNestedInvalidString(object $value): bool { return (bool) ((string) ($value)); }',
+    'parenthesized nested argument' => 'function groupedNestedArgument(mixed $value): bool { return (bool) (strlen($value)); }',
+    'parenthesized nested arithmetic' => 'function groupedNestedArithmetic(mixed $value): bool { return (bool) ($value + 1); }',
 ];
 file_put_contents($workspace.'/cases.php', "<?php\n".implode("\n", $cases)."\n");
 foreach (['disabled', 'enabled'] as $mode) {
@@ -63,12 +71,12 @@ foreach (['disabled', 'enabled'] as $mode) {
             }
         }
     }
-    foreach ([5 => 'invalid-type-cast', 6 => 'array-to-string-conversion', 7 => 'invalid-return-statement', 8 => 'mixed-return-statement', 9 => 'invalid-type-cast', 10 => 'invalid-type-cast', 14 => 'invalid-type-cast', 15 => 'invalid-type-cast', 16 => 'mixed-operand'] as $line => $code) {
+    foreach ([5 => 'invalid-type-cast', 6 => 'array-to-string-conversion', 7 => 'invalid-return-statement', 8 => 'mixed-return-statement', 9 => 'invalid-type-cast', 10 => 'invalid-type-cast', 14 => 'invalid-type-cast', 15 => 'invalid-type-cast', 16 => 'mixed-operand', 21 => 'invalid-type-cast', 22 => 'invalid-type-cast', 23 => 'mixed-argument', 24 => 'mixed-operand'] as $line => $code) {
         if (! in_array($code, $codes[$line] ?? [], true)) {
             throw new RuntimeException($mode.' lost '.$code.': '.json_encode($codes).' '.$workspace);
         }
     }
-    foreach ([0, 1, 2, 4, 11, 12] as $line) {
+    foreach ([0, 1, 2, 4, 11, 12, 17, 18, 19, 20] as $line) {
         $advisories = array_intersect(['invalid-type-cast', 'redundant-cast', 'mixed-operand'], $codes[$line] ?? []);
         if (($advisories === []) !== ($mode === 'enabled')) {
             throw new RuntimeException($mode.' wrong safe cast policy: '.json_encode($codes).' '.$workspace);

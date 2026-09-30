@@ -51,6 +51,9 @@ final class LaravelPlugin implements Plugin
         $stringableArguments = new WeakStringableArgumentFilter;
         $registry->registerIssueFilterHook($stringableArguments);
         $registry->registerInitializationHook($stringableArguments);
+        $stringableReturns = new WeakStringableReturnFilter;
+        $registry->registerIssueFilterHook($stringableReturns);
+        $registry->registerInitializationHook($stringableReturns);
         $outputParameters = new OutputParameterInitializationFilter;
         $registry->registerIssueFilterHook($outputParameters);
         $registry->registerInitializationHook($outputParameters);
@@ -314,6 +317,9 @@ final class LaravelPlugin implements Plugin
         $registry->registerMethodReturnTypeProvider(new EloquentWhereProvider);
         $registry->registerMethodReturnTypeProvider(new EloquentFindProvider);
         $registry->registerMethodReturnTypeProvider(new EloquentCreateProvider);
+        $newCollections = new EloquentNewCollectionProvider($this->projectRoot);
+        $registry->registerMethodReturnTypeProvider($newCollections);
+        $registry->registerInitializationHook($newCollections);
         $keys = new EloquentKeyProvider($this->projectRoot, $properties);
         $registry->registerMethodReturnTypeProvider($keys);
         $registry->registerInitializationHook($keys);

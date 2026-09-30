@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ichinya\Laramago\Analyzer;
 
+use Ichinya\Laramago\Analyzer\StaticAnalysis\ParenthesizedExpressionSpans;
 use Mago\Sdk\Analyzer\InitializationContext;
 use Mago\Sdk\Analyzer\InitializationHook;
 use Mago\Sdk\Analyzer\IssueFilterContext;
@@ -67,7 +68,8 @@ final class CastCompatibilityFilter implements IssueFilterHook, InitializationHo
         $key = hash('sha256', $context->file."\0".$context->contents);
         if (! isset($this->cache[$key])) {
             try {
-                $nodes = (new ParserFactory)->createForNewestSupportedVersion()->parse($context->contents) ?? [];
+                $parser = (new ParserFactory)->createForNewestSupportedVersion();
+                $nodes = $parser->parse($context->contents) ?? [];
             } catch (Error) {
                 return IssueFilterDecision::Keep;
             }
@@ -81,9 +83,10 @@ final class CastCompatibilityFilter implements IssueFilterHook, InitializationHo
                     default => 'all',
                 };
                 foreach ([$cast, $cast->expr] as $node) {
-                    $span = $node->getStartFilePos().':'.($node->getEndFilePos() + 1);
-                    $spans['all'][$span] = true;
-                    $spans[$kind][$span] = true;
+                    foreach (ParenthesizedExpressionSpans::collect($node, $cast, $parser->getTokens()) as $span) {
+                        $spans['all'][$span] = true;
+                        $spans[$kind][$span] = true;
+                    }
                 }
             }
             if (count($this->cache) >= 16) {

@@ -304,7 +304,7 @@ final class DiagnosticArrayTypes
     }
 
     /** @return list<string>|null */
-    private static function split(string $expression, string $delimiter): ?array
+    public static function split(string $expression, string $delimiter): ?array
     {
         $parts = [];
         $stack = [];
