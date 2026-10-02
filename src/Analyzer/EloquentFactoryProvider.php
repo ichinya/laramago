@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\FactoryReflection;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\FactoryResultContract;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ModelReflection;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Mago\Sdk\Analyzer\InitializationContext;
@@ -46,8 +47,7 @@ final class EloquentFactoryProvider implements MethodReturnTypeProvider, Initial
     ];
 
     private ?PhpSource $source = null;
-    /** @var array<string, bool> */
-    private array $standardFactories = [];
+    private ?FactoryResultContract $contracts = null;
 
     public function __construct(
         private readonly string $root,
@@ -56,7 +56,7 @@ final class EloquentFactoryProvider implements MethodReturnTypeProvider, Initial
     public function initialize(InitializationContext $context): void
     {
         $this->source = null;
-        $this->standardFactories = [];
+        $this->contracts = null;
     }
 
     public function getTargets(): array
@@ -82,7 +82,7 @@ final class EloquentFactoryProvider implements MethodReturnTypeProvider, Initial
         $name = strtolower($call->name);
         if ($name === 'factory' && $reflection->inherits($atom->name, ModelReflection::MODEL)) {
             $factory = $reflection->modelFactory($atom->name);
-            if ($factory === null || ! $this->standardCore($reflection, $factory)) {
+            if ($factory === null || ! ($this->contracts ??= new FactoryResultContract($this->root))->standardCore($reflection, $factory)) {
                 return null;
             }
             $model = $reflection->factoryModel($factory);
@@ -113,7 +113,7 @@ final class EloquentFactoryProvider implements MethodReturnTypeProvider, Initial
         }
         if (
             ! $reflection->inherits($atom->name, FactoryReflection::FACTORY)
-            || ! $this->standardCore($reflection, $atom->name)
+            || ! ($this->contracts ??= new FactoryResultContract($this->root))->standardCore($reflection, $atom->name)
         ) {
             return null;
         }
@@ -186,33 +186,6 @@ final class EloquentFactoryProvider implements MethodReturnTypeProvider, Initial
         }
 
         return null;
-    }
-
-    private function standardCore(FactoryReflection $reflection, string $factory): bool
-    {
-        if (array_key_exists($factory, $this->standardFactories)) {
-            return $this->standardFactories[$factory];
-        }
-        foreach ([
-            '__construct',
-            'new',
-            'newInstance',
-            'newModel',
-            'modelName',
-            'create',
-            'make',
-            'makeInstance',
-            'count',
-            'state',
-        ] as $name) {
-            $method = $reflection->method($factory, $name);
-            if ($method !== null && strcasecmp($method->identifier->class ?? '', FactoryReflection::FACTORY) !== 0) {
-                return $this->standardFactories[$factory] = false;
-            }
-        }
-
-        // Publish only complete metadata; concurrent SDK requests can interleave in a worker.
-        return $this->standardFactories[$factory] = ! $reflection->hasStateMutation($factory);
     }
 
     private function countState(?Type $type, bool $acceptState = false): ?Type

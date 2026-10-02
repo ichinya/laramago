@@ -1,0 +1,46 @@
+<?php
+
+namespace Illuminate\Database\Eloquent\Concerns;
+
+trait GuardsAttributes
+{
+    /**
+     * Disable all mass assignable restrictions.
+     *
+     * @param  bool  $state
+     * @return void
+     */
+    public static function unguard($state = true)
+    {
+        static::$unguarded = $state;
+    }
+    /**
+     * Enable the mass assignment restrictions.
+     *
+     * @return void
+     */
+    public static function reguard()
+    {
+        static::$unguarded = false;
+    }
+    /**
+     * Run the given callable while being unguarded.
+     *
+     * @template TReturn
+     *
+     * @param  callable(): TReturn  $callback
+     * @return TReturn
+     */
+    public static function unguarded(callable $callback)
+    {
+        if (static::$unguarded) {
+            return $callback();
+        }
+        static::unguard();
+        try {
+            return $callback();
+        } finally {
+            static::reguard();
+        }
+    }
+}

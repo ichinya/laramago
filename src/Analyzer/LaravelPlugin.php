@@ -45,6 +45,10 @@ final class LaravelPlugin implements Plugin
         $validatedForeach = new ValidatedForeachReturnFilter;
         $registry->registerIssueFilterHook($validatedForeach);
         $registry->registerInitializationHook($validatedForeach);
+        $literalSelections = new LiteralForeachSelectionReturnFilter($this->projectRoot);
+        $registry->registerIssueFilterHook($literalSelections);
+        $registry->registerInitializationHook($literalSelections);
+        $registry->registerCodebaseScanHook($literalSelections);
         $arrayContracts = new StructuralArrayContractFilter;
         $registry->registerIssueFilterHook($arrayContracts);
         $registry->registerInitializationHook($arrayContracts);

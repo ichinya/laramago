@@ -500,6 +500,17 @@ by-value parameter. Array/list guards preserve key constraints; empty arrays do
 not establish a non-empty return. References, callbacks, mutations, early exits
 and user-defined predicate functions retain native diagnostics.
 
+A local result initialized to `null` can also be proven nonnullable after an
+exhaustive `foreach` over a literal list. The selector must occur with the same
+scalar type and value, and its branch must assign a fresh producer result.
+Supported producers have a verified native nonnullable object return or use the
+standard uncounted model factory contract. References, early exits, mutable locals,
+nullable producers and changed factory implementations retain diagnostics.
+Factory proofs verify installed native methods and reject custom result-mapping
+changes. Available analyzed-file snapshots must match the source read from disk.
+The SDK does not supply snapshots for `source.includes`; those dependencies are
+verified against their installed files.
+
 Native Eloquent `fresh()` and `refresh()` preserve the exact callable-owned model
 template when called without arguments directly in the first statement of a named
 function or method. The receiver must be its original by-value parameter with a
