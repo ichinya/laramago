@@ -7,6 +7,7 @@ use Ichinya\Laramago\Analyzer\AggregateProjectionPlugin;
 use Ichinya\Laramago\Analyzer\ArrayAssertionPlugin;
 use Ichinya\Laramago\Analyzer\IntegerValidationPlugin;
 use Ichinya\Laramago\Analyzer\KernelIntersectionPlugin;
+use Ichinya\Laramago\Analyzer\ModelRefreshPlugin;
 use Mago\Sdk\Extension;
 use Mago\Sdk\Worker;
 
@@ -42,12 +43,13 @@ if (! is_string($projectRoot) || ! is_dir($projectRoot)) {
 (new Worker(new Extension(
     identifier: 'ichinya/laramago',
     name: 'Laramago',
-    version: '0.0.21',
+    version: '0.0.22',
     analyzerPlugins: [
         new AggregateProjectionPlugin($projectRoot),
         new ArrayAssertionPlugin($projectRoot),
         new IntegerValidationPlugin,
         new KernelIntersectionPlugin($projectRoot),
+        new ModelRefreshPlugin($projectRoot),
         new LaravelPlugin($projectRoot),
     ],
 )))->run();

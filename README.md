@@ -493,6 +493,25 @@ A documented `array<string, string>` return can also be verified from a direct
 resolve to nonnumeric strings, and values must be string literals. Dynamic maps,
 spreads, duplicate keys, incompatible declarations and late binding defer.
 
+A direct array return can retain its element contract after every element passes
+a native `is_string()`, `is_int()`, `is_float()` or `is_bool()` check in `foreach`.
+The supported loop throws on rejection and immediately returns the unchanged
+by-value parameter. Array/list guards preserve key constraints; empty arrays do
+not establish a non-empty return. References, callbacks, mutations, early exits
+and user-defined predicate functions retain native diagnostics.
+
+Native Eloquent `fresh()` and `refresh()` preserve the exact callable-owned model
+template when called without arguments directly in the first statement of a named
+function or method. The receiver must be its original by-value parameter with a
+template bounded by `Model`. `fresh()` remains nullable. Aliases, captures, later
+calls, different bounds and changed native contracts defer.
+
+The installed `Internal\Container\Container::get()` and `make()` contracts accept
+unions of class strings while retaining their corresponding object union. Bounded
+and generic class strings preserve their return contract. Unknown class strings
+do not establish a particular service type, and invalid selectors or constructor
+argument arrays retain diagnostics. Changed interface contracts defer.
+
 An immediate `is_int($value)` guard after a fresh local `filter_var()` assignment
 preserves literal `FILTER_VALIDATE_INT` minimum and maximum bounds. Only the
 successful integer branch gains the range. Defaults, dynamic options, references,

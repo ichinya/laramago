@@ -42,6 +42,9 @@ final class LaravelPlugin implements Plugin
         $constantMaps = new ClassConstantStringMapReturnFilter;
         $registry->registerIssueFilterHook($constantMaps);
         $registry->registerInitializationHook($constantMaps);
+        $validatedForeach = new ValidatedForeachReturnFilter;
+        $registry->registerIssueFilterHook($validatedForeach);
+        $registry->registerInitializationHook($validatedForeach);
         $arrayContracts = new StructuralArrayContractFilter;
         $registry->registerIssueFilterHook($arrayContracts);
         $registry->registerInitializationHook($arrayContracts);
@@ -109,6 +112,7 @@ final class LaravelPlugin implements Plugin
         $registry->registerMethodReturnTypeProvider($relationMethods);
         $registry->registerInitializationHook($relationMethods);
         $registry->registerMethodReturnTypeProvider(new HigherOrderMapProvider);
+        $registry->registerMethodReturnTypeProvider(new InternalContainerProvider);
         $registry->registerMethodReturnTypeProvider(new EloquentNestedWhereCallbackProvider);
         $chunkCallbacks = new EloquentChunkCallbackProvider($this->projectRoot);
         $registry->registerMethodReturnTypeProvider($chunkCallbacks);
