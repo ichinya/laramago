@@ -4,7 +4,7 @@ A Composer package with a Laravel preset for the native Mago CLI.
 
 ```sh
 composer config repositories.laramago vcs https://github.com/ichinya/laramago
-composer require --dev ichinya/laramago:0.0.13
+composer require --dev ichinya/laramago:0.0.24
 vendor/bin/mago lint
 ```
 
@@ -15,11 +15,11 @@ uses that executable directly, without a wrapper or Laravel service provider.
 For editor integrations, `vendor/bin/laramago-metadata` exports [source-only
 configuration, route and translation metadata](docs/static-metadata-export.md) as versioned JSON.
 
-Version `0.0.13` adds source-verified Laratesto type assertions, native
-`trans_choice()` helper contracts and opt-in controller call contracts. It
-retains the Eloquent, request, collection, authentication, container and macro
-support introduced in `0.0.12`. Native declarations and PHPDoc contracts retain
-priority.
+Version `0.0.24` adds source-verified SimpleXML provenance, nonempty branches for
+fresh native collections and conditional nested-array guards. It retains the
+Eloquent, request, collection, authentication, container, macro and assertion
+support from earlier releases. Native declarations and PHPDoc contracts retain
+priority; unproven control flow keeps its diagnostics.
 The GitHub VCS repository shown above provides this version directly. For local
 package development, see the path repository instructions below.
 
@@ -483,6 +483,17 @@ Consecutive verified array assertions additionally support literal nested offset
 when each prefix is proven to be a PHP array. Assignments, opaque calls, dynamic
 keys and ArrayAccess receivers break this proof.
 
+A native throwing guard for an optional string key can also preserve a nested
+array fact in the immediately following matching ternary branch. This requires
+fresh associative JSON, a native root-array check, and checks for the literal
+field's presence, array type and key. Laramago verifies the source, native helper
+metadata and current file bytes before correcting only the proven access.
+Named function locals must have no references or hidden access to local variables;
+intervening assignments must have fresh or known nonobject values. At top level,
+the final root-array check must follow all assignments: replacing an older global
+object could invoke a destructor that changes the root. Unsupported control flow,
+opaque calls, dynamic consumers and incompatible annotations retain diagnostics.
+
 Native `class_uses()` returns an array with string keys and `trait-string` values
 for an object, or an unconditionally declared class name with autoloading enabled.
 Unknown names, conditional or incomplete declarations and class names with
@@ -510,6 +521,26 @@ Factory proofs verify installed native methods and reject custom result-mapping
 changes. Available analyzed-file snapshots must match the source read from disk.
 The SDK does not supply snapshots for `source.includes`; those dependencies are
 verified against their installed files.
+
+Fresh native `SimpleXMLElement` roots and guarded, literal element-only XPath
+results can establish the parent of a child read. A missing first-level child is
+an empty element proxy; a further read through an unproven empty proxy remains
+nullable. A throwing `count($element->child) !== 1` guard establishes an actual
+child for subsequent reads. Unguarded parse failures, opaque XML parameters,
+custom classes, writes, unsupported aliases, references and escaped nodes
+retain native analysis. Proven XML construction uses omitted options, `0` or
+the native `LIBXML_NONET` constant. Other options and constructor URL mode defer.
+
+Mago's PHP SDK cannot restore child types after its native count reconciliation
+has replaced them with `mixed`. Laramago therefore also corrects exact native
+cardinality and cached child-access diagnostics when current source, builtin
+dispatch and the same node provenance independently prove the operation. This
+does not suppress application argument or return errors. Cardinality reporting
+corrections defer for known or constrained XML payloads and unaudited calls.
+Unsupported cardinality requirements and stale or ambiguous source spans also
+defer. The native [XPath contract](https://www.php.net/manual/en/simplexmlelement.xpath.php)
+retains `null` and `false` on failure; XPath iteration requires an array guard.
+`php tests/simplexml-provenance.php --integrated` verifies these boundaries.
 
 Native Eloquent `fresh()` and `refresh()` preserve the exact callable-owned model
 template when called without arguments directly in the first statement of a named
@@ -921,6 +952,19 @@ Sum uses `int|float` for proven numeric values, accounting for integer overflow 
 the empty zero seed; arbitrary strings are not assumed numeric. This applies to
 in-memory collection operations, independently of database aggregate semantics.
 `php tests/collection-contracts.php` verifies these contracts and negative cases.
+
+An immediate `$records->isEmpty() ? $fallback : $records->first()` branch can
+preserve the nonnullable item type of a fresh native eager collection; `last()`
+is also supported. The receiver must come from an exact native `new Collection`
+or `new EloquentCollection` with a literal array, and the selected getter must
+be evaluated first with no arguments. Installed constructor, item conversion,
+predicate and getter contracts are verified. Nullable items, callbacks, defaults,
+custom or lazy collections, hidden aliases and opaque or query-produced origins
+defer. A base collection parameter can hold a subclass and is insufficient
+evidence. The supported native implementation uses PHP 8.5 array helpers;
+earlier PHP targets retain native diagnostics.
+`php tests/nonempty-collection-results.php --integrated` compares native,
+isolated and integrated analysis, including unguarded reads after guarded reads.
 
 Higher-order `filter` and `reject` support known item properties and concrete model
 methods on standard collections. They preserve input items, keys and the
