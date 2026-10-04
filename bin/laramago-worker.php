@@ -10,6 +10,8 @@ use Ichinya\Laramago\Analyzer\IntegerValidationPlugin;
 use Ichinya\Laramago\Analyzer\KernelIntersectionPlugin;
 use Ichinya\Laramago\Analyzer\ModelRefreshPlugin;
 use Ichinya\Laramago\Analyzer\NonEmptyCollectionPlugin;
+use Ichinya\Laramago\Analyzer\ReconstructedArrayShapePlugin;
+use Ichinya\Laramago\Analyzer\RefreshedModelPropertyPlugin;
 use Ichinya\Laramago\Analyzer\SimpleXmlProvenancePlugin;
 use Mago\Sdk\Extension;
 use Mago\Sdk\Worker;
@@ -46,14 +48,16 @@ if (! is_string($projectRoot) || ! is_dir($projectRoot)) {
 (new Worker(new Extension(
     identifier: 'ichinya/laramago',
     name: 'Laramago',
-    version: '0.0.24',
+    version: '0.0.25',
     analyzerPlugins: [
         new AggregateProjectionPlugin($projectRoot),
         new ArrayAssertionPlugin($projectRoot),
         new ConditionalArrayGuardPlugin($projectRoot),
+        new ReconstructedArrayShapePlugin($projectRoot),
         new IntegerValidationPlugin,
         new KernelIntersectionPlugin($projectRoot),
         new ModelRefreshPlugin($projectRoot),
+        new RefreshedModelPropertyPlugin($projectRoot),
         new NonEmptyCollectionPlugin($projectRoot),
         new SimpleXmlProvenancePlugin($projectRoot),
         new LaravelPlugin($projectRoot),

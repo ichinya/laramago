@@ -4,7 +4,7 @@ A Composer package with a Laravel preset for the native Mago CLI.
 
 ```sh
 composer config repositories.laramago vcs https://github.com/ichinya/laramago
-composer require --dev ichinya/laramago:0.0.24
+composer require --dev ichinya/laramago:0.0.25
 vendor/bin/mago lint
 ```
 
@@ -15,11 +15,10 @@ uses that executable directly, without a wrapper or Laravel service provider.
 For editor integrations, `vendor/bin/laramago-metadata` exports [source-only
 configuration, route and translation metadata](docs/static-metadata-export.md) as versioned JSON.
 
-Version `0.0.24` adds source-verified SimpleXML provenance, nonempty branches for
-fresh native collections and conditional nested-array guards. It retains the
-Eloquent, request, collection, authentication, container, macro and assertion
-support from earlier releases. Native declarations and PHPDoc contracts retain
-priority; unproven control flow keeps its diagnostics.
+Version `0.0.25` adds source-proven nested-array reconstruction and corrects stale
+virtual Eloquent attribute comparisons after native `refresh()`. Explicit read
+types remain authoritative; unsaved models and unknown effects retain diagnostics.
+It includes the Laravel integrations from earlier releases.
 The GitHub VCS repository shown above provides this version directly. For local
 package development, see the path repository instructions below.
 
@@ -494,6 +493,20 @@ the final root-array check must follow all assignments: replacing an older globa
 object could invoke a destructor that changes the root. Unsupported control flow,
 opaque calls, dynamic consumers and incompatible annotations retain diagnostics.
 
+A fresh local array rebuilt immediately after a throwing discriminator guard
+can preserve the integer field required by one of two literal variants. The
+guard must exhaustively validate both tags and check the dependent field with
+native `is_int()`. Laramago derives the rebuilt shape from the current source
+and checks it against the declaring class's constructor contract, including
+declared type aliases. A copied primitive field remains independent of later
+changes to its original input. The local must remain unexposed until its single
+by-value constructor argument. References, captures, mutations, implicit local
+access, undefined guard locals, unknown native calls and incompatible annotations
+retain diagnostics. Source and metadata identities must agree. The SDK cannot
+restore this discriminator correlation directly; the extension corrects only
+the exact constructor diagnostic for the independently proven argument.
+`php tests/reconstructed-array-shapes.php --integrated` verifies these boundaries.
+
 Native `class_uses()` returns an array with string keys and `trait-string` values
 for an object, or an unconditionally declared class name with autoloading enabled.
 Unknown names, conditional or incomplete declarations and class names with
@@ -547,6 +560,20 @@ template when called without arguments directly in the first statement of a name
 function or method. The receiver must be its original by-value parameter with a
 template bounded by `Model`. `fresh()` remains nullable. Aliases, captures, later
 calls, different bounds and changed native contracts defer.
+
+Native Eloquent `refresh()` may also invalidate a previously observed literal
+value of a virtual attribute. Laramago checks the effective refresh, raw-attribute
+replacement and read implementations against their installed source, then
+checks supported native `Testo\Assert::same()`, `true()` and `false()` calls
+against an independently established read contract.
+Explicit read PHPDoc retains priority over casts and separate write types. This
+corrects exact stale comparison diagnostics without claiming that persistence or
+the assertion succeeds. Known unsaved receivers, no-op overrides, constant
+accessors, real PHP property shadows, custom casts, incompatible read types and
+stale or incomplete source retain diagnostics. Other flow errors, including
+`never` cascades, require their own proof. The SDK cannot forget a cached property
+literal directly, so this correction is limited to the proven comparison.
+`php tests/refreshed-model-properties.php --integrated` verifies these boundaries.
 
 The installed `Internal\Container\Container::get()` and `make()` contracts accept
 unions of class strings while retaining their corresponding object union. Bounded
