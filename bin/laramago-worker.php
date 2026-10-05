@@ -6,6 +6,7 @@ use Ichinya\Laramago\Analyzer\LaravelPlugin;
 use Ichinya\Laramago\Analyzer\AggregateProjectionPlugin;
 use Ichinya\Laramago\Analyzer\ArrayAssertionPlugin;
 use Ichinya\Laramago\Analyzer\ConditionalArrayGuardPlugin;
+use Ichinya\Laramago\Analyzer\DirectCallbackReferencePlugin;
 use Ichinya\Laramago\Analyzer\IntegerValidationPlugin;
 use Ichinya\Laramago\Analyzer\KernelIntersectionPlugin;
 use Ichinya\Laramago\Analyzer\ModelRefreshPlugin;
@@ -48,10 +49,11 @@ if (! is_string($projectRoot) || ! is_dir($projectRoot)) {
 (new Worker(new Extension(
     identifier: 'ichinya/laramago',
     name: 'Laramago',
-    version: '0.0.25',
+    version: '0.0.26',
     analyzerPlugins: [
         new AggregateProjectionPlugin($projectRoot),
         new ArrayAssertionPlugin($projectRoot),
+        new DirectCallbackReferencePlugin($projectRoot),
         new ConditionalArrayGuardPlugin($projectRoot),
         new ReconstructedArrayShapePlugin($projectRoot),
         new IntegerValidationPlugin,

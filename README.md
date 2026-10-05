@@ -4,7 +4,7 @@ A Composer package with a Laravel preset for the native Mago CLI.
 
 ```sh
 composer config repositories.laramago vcs https://github.com/ichinya/laramago
-composer require --dev ichinya/laramago:0.0.25
+composer require --dev ichinya/laramago:0.0.26
 vendor/bin/mago lint
 ```
 
@@ -15,9 +15,10 @@ uses that executable directly, without a wrapper or Laravel service provider.
 For editor integrations, `vendor/bin/laramago-metadata` exports [source-only
 configuration, route and translation metadata](docs/static-metadata-export.md) as versioned JSON.
 
-Version `0.0.25` adds source-proven nested-array reconstruction and corrects stale
-virtual Eloquent attribute comparisons after native `refresh()`. Explicit read
-types remain authoritative; unsaved models and unknown effects retain diagnostics.
+Version `0.0.26` corrects stale boolean comparisons after directly invoked
+callbacks change a local captured by reference, and combines declared input types
+for finite unions of console option names. Unknown effects and unsupported option
+names retain native diagnostics.
 It includes the Laravel integrations from earlier releases.
 The GitHub VCS repository shown above provides this version directly. For local
 package development, see the path repository instructions below.
@@ -440,7 +441,7 @@ deferred portions of these integrations.
 | HTTP test assertions | Typed Laravel and optional Laratesto callbacks, nested fluent scopes, standard Inertia page envelopes and flash assertions | Known installed declarations required; custom contracts/macros win; selected prop and JSON values remain unknown |
 | Facades and container helpers | Concrete roots and public service signatures from class-string accessors, installed framework core service aliases or explicit static binding catalogs, including [literal typed factories](docs/container-bindings.md#literal-factory-closures) | Uncataloged aliases, runtime binding discovery, generic/reference contracts and custom dispatch defer; declared methods and PHPDoc win |
 | Console command closures | Native `Artisan::command()` callbacks receive `ClosureCommand` as `$this` when installed Laravel constructs and binds that command | Custom Kernel bindings, changed facade or callback binding, static closures and unrelated command methods retain native analysis |
-| Console command inputs | Literal entries in an unchanged native command `$signature` refine `$this->option('name')` (`--flag` to `bool`, `--name=` to `string|null`) and `$this->argument('name')` (required to `string`, optional to `string|null`, defaulted to `string`, array to `list<string>`) | Custom constructors, command or input/definition mutation, traits, inherited command bases, dynamic signatures and unsupported forms retain native analysis; these types describe normal CLI input, while programmatic input may supply other values |
+| Console command inputs | Literal entries in an unchanged native command `$signature` refine `$this->option('name')` (`--flag` to `bool`, `--name=` to `string|null`); finite option-name unions combine every member's declared type. `$this->argument('name')` supports single literal names (required to `string`, optional to `string|null`, defaulted to `string`, array to `list<string>`) | Any unknown, reserved or unsupported union member retains native analysis, as do custom constructors, command or input/definition mutation, traits, inherited command bases, dynamic signatures and unsupported forms; these types describe normal CLI input, while programmatic input may supply other values |
 | JSON decoding | `json_decode(..., true)` with a literal `true` assoc argument yields `list<mixed>&#124;array<string,mixed>&#124;bool&#124;int&#124;float&#124;string&#124;null`, matching the PHPStan/Larastan value space | Absent, false, null, dynamic or truthy-int assoc arguments retain native `mixed`; depth and flags are ignored because `json_decode` never returns `false` and `null` stays reachable |
 | Container contract methods | Method calls on receivers typed exactly as an `Illuminate\Contracts\*` interface bound by the installed framework's core alias table resolve to the root concrete class: a false `non-existent-method` is not reported and declared concrete return types apply | Methods missing on both the contract and the concrete keep their diagnostics; unmapped or foreign interfaces, union/generic receivers and methods the contract declares retain native analysis |
 | Class aliases | Global-namespace calls through Laravel's boot aliases (e.g. `\Str::random()`) no longer report a false `non-existent-method` when the literal boot chain — `Facade::defaultAliases()` merged by the framework base config, without project overrides or colliding package aliases — maps the name to a class declaring the method | A project `config/app.php` with any `aliases` key, `dontMergeFrameworkConfiguration()`, unresolvable chain shapes and alias names claimed by installed packages disable the map; a declared global class of the same name and methods the target lacks keep their diagnostics; the call expression itself remains `mixed` |
@@ -574,6 +575,20 @@ stale or incomplete source retain diagnostics. Other flow errors, including
 `never` cascades, require their own proof. The SDK cannot forget a cached property
 literal directly, so this correction is limited to the proven comparison.
 `php tests/refreshed-model-properties.php --integrated` verifies these boundaries.
+
+A directly invoked closure may change a fresh boolean local captured by reference.
+Laramago verifies the analyzed caller, final callee and private forwarding helpers,
+including native `Closure::fromCallable()` normalization and caught exceptions.
+Bounded source constructors preserve physical fields, promotions and the actual
+signatures of stored closures and method callbacks. Invalid arguments, inaccessible
+fields and unsupported initialization retain diagnostics.
+It reconstructs the values reaching a later native `Testo\Assert::true()` or
+`false()` comparison; a transient write followed by a reset does not establish
+the earlier value. Unknown effects, escaped callbacks or references, stronger
+conflicting annotations, incomplete snapshots and stale source retain diagnostics.
+This correction is limited to the proven comparison. Deferred listeners and
+downstream unreachable-flow diagnostics require separate evidence.
+`php tests/direct-callback-reference-effects.php --integrated` verifies these boundaries.
 
 The installed `Internal\Container\Container::get()` and `make()` contracts accept
 unions of class strings while retaining their corresponding object union. Bounded

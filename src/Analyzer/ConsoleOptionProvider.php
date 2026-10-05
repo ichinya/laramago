@@ -15,6 +15,10 @@ use Mago\Sdk\Analyzer\MethodTarget;
 use Mago\Sdk\Analyzer\ReturnTypeProviderContext;
 use Mago\Sdk\Analyzer\Type;
 use Mago\Sdk\Analyzer\Type\NamedObjectType;
+use Mago\Sdk\Analyzer\Type\ScalarType;
+use Mago\Sdk\Analyzer\Type\ScalarTypeKind;
+use Mago\Sdk\Analyzer\Type\StringLiteralKind;
+use Mago\Sdk\Analyzer\Type\StringType;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
 use PhpParser\PrettyPrinter\Standard;
@@ -76,12 +80,16 @@ final class ConsoleOptionProvider implements MethodReturnTypeProvider, Initializ
             || $call->arguments[0]->unpacked
             || $call->arguments[0]->placeholder
             || $call->arguments[0]->name !== null && $call->arguments[0]->name !== 'key'
-            || ($name = $call->arguments[0]->type?->getLiteralString()) === null
-            || $name === ''
-            || ($method === 'option' && in_array($name, self::RESERVED, true))
-            || ! in_array(strtolower(self::COMMAND), array_map(strtolower(...), $context->codebase->getClassAncestors($class->name)), true)
-            || ! $this->native($context->codebase, $method)
         ) {
+            return null;
+        }
+        $literal = $call->arguments[0]->type?->getLiteralString();
+        $names = $method === 'option' ? self::optionNames($call->arguments[0]->type)
+            : ($literal === null ? null : [$literal]);
+        if ($names === null || in_array('', $names, true)
+            || $method === 'option' && array_intersect($names, self::RESERVED) !== []
+            || ! in_array(strtolower(self::COMMAND), array_map(strtolower(...), $context->codebase->getClassAncestors($class->name)), true)
+            || ! $this->native($context->codebase, $method)) {
             return null;
         }
         $className = $class->name;
@@ -89,7 +97,43 @@ final class ConsoleOptionProvider implements MethodReturnTypeProvider, Initializ
             $this->definitions[$className] = $this->classDefinitions($context->codebase, $className);
         }
 
-        return $this->definitions[$className][$method][$name] ?? null;
+        $results = [];
+        foreach ($names as $name) {
+            $type = $this->definitions[$className][$method][$name] ?? null;
+            if ($type === null) {
+                return null;
+            }
+            $results[$type->encode()] = $type;
+        }
+        $types = array_values($results);
+        $first = array_shift($types);
+
+        return $first === null ? null : ($types === [] ? $first : Type::union($first, ...$types));
+    }
+
+    /** @return list<string>|null Every union member must be a known literal option name. */
+    private static function optionNames(?Type $type): ?array
+    {
+        $literal = $type?->getLiteralString();
+        if ($literal !== null) {
+            return [$literal];
+        }
+        $atoms = $type?->atomicTypes ?? [];
+        if ($atoms === [] || count($atoms) > 16 || $type->flags->possiblyUndefined
+            || $type->flags->possiblyUndefinedFromTry || $type->flags->nullsafeNull) {
+            return null;
+        }
+        $names = [];
+        foreach ($atoms as $atom) {
+            if (! $atom instanceof ScalarType || $atom->kind !== ScalarTypeKind::String
+                || ! $atom->refinement instanceof StringType || $atom->refinement->literalKind !== StringLiteralKind::Value
+                || $atom->refinement->literalValue === null || $atom->refinement->literalValue === '') {
+                return null;
+            }
+            $names[] = $atom->refinement->literalValue;
+        }
+
+        return array_values(array_unique($names));
     }
 
     /** @return array{option: array<string, Type>, argument: array<string, Type>}|null */
