@@ -1,0 +1,6 @@
+<?php
+namespace CoalesceCase14;
+function run(array $rows): void { $value = $rows[0]->label ?? 'unknown'; needsInteger($value); }
+function needsInteger(int $value): void {}
+function independentUnsafe(): void { (new \stdClass)->missing(); }
+file_put_contents(__DIR__.'/case-executed','Source must never execute.');

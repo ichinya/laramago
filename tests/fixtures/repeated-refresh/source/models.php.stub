@@ -1,0 +1,32 @@
+<?php
+namespace Fixture;
+use Illuminate\Database\Eloquent\Model;
+
+final class Tenant {}
+/** @property int $id */
+final class Partner extends Model { protected $table = 'partners'; }
+/** @property-read int $units
+ * @property-read string $cost */
+final class Row extends Model {
+    protected $table = 'fixture_rows';
+    protected $casts = ['units' => 'integer', 'cost' => 'decimal:2'];
+}
+/** @property-read int $units
+ * @property-read string $cost */
+final class NoopRow extends Model {
+    protected $table = 'fixture_rows';
+    protected $casts = ['units' => 'integer', 'cost' => 'decimal:2'];
+    /** @return $this */ public function refresh() { return $this; }
+}
+/** @property-read int $units
+ * @property-read string $cost */
+final class AccessorRow extends Model {
+    protected $table = 'fixture_rows';
+    protected $casts = ['units' => 'integer', 'cost' => 'decimal:2'];
+    public function getUnitsAttribute(): int { return 17; }
+}
+final class Persistence {
+    public function save(Tenant $tenant, array $values): Row { throw new \RuntimeException('Fixture body must never execute.'); }
+    public function noop(Tenant $tenant, array $values): NoopRow { throw new \RuntimeException('Fixture body must never execute.'); }
+    public function accessor(Tenant $tenant, array $values): AccessorRow { throw new \RuntimeException('Fixture body must never execute.'); }
+}

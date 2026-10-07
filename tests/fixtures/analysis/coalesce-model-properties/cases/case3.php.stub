@@ -1,0 +1,6 @@
+<?php
+namespace CoalesceCase3;
+function callback(): \Closure { return function (\CoalesceProbeFixture\Invitation $entry): void { $value = $entry->actor->label ?? "unknown"; needsInteger($value); }; }
+function needsInteger(int $value): void {}
+function independentUnsafe(): void { (new \stdClass)->missing(); }
+file_put_contents(__DIR__.'/case-executed','Source must never execute.');

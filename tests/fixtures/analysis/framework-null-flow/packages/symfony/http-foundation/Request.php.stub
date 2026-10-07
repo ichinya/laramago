@@ -1,0 +1,9 @@
+<?php
+namespace Symfony\Component\HttpFoundation;
+class InputBag { public function all(?string $key = null): array { return []; } }
+class HeaderBag extends InputBag { public function get(string $key, ?string $default = null): ?string { return $default; } }
+class Request {
+    public HeaderBag $headers {
+        set { trigger_deprecation('invented/component', '1', 'Use a constructor.'); $this->headers = $value; }
+    }
+}

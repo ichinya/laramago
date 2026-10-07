@@ -1,0 +1,105 @@
+<?php
+namespace NullableOffsetFixture;
+file_put_contents(__DIR__.'/declaration-executed', 'Declaration bodies must never execute.');
+class Record { public string $label = 'Example'; }
+class AuditRecord { public int|string|null $subject_id = null; }
+class StringKey implements \Stringable { public function __toString(): string { return 'chosen'; } }
+trait LeafStyle { public function displayStyle(): string { return 'plain'; } }
+trait BranchStyle { use LeafStyle; }
+/** A closed local accumulator borrow, unrelated to the physical item storage. */
+trait LocalAccumulator {
+    public function average(callable $callback) {
+        $reduced = $this->reduce(static function (&$reduce, $value) use ($callback) {
+            if (!is_null($resolved = $callback($value))) {
+                $reduce[0] += $resolved;
+                $reduce[1]++;
+            }
+            return $reduce;
+        }, [0, 0]);
+        return $reduced[0];
+    }
+    public function reduce(callable $callback, $initial = null) {
+        $result = $initial;
+        foreach ($this as $key => $value) {
+            $result = $callback($result, $value, $key);
+        }
+        return $result;
+    }
+}
+namespace Illuminate\Support;
+/**
+ * @template TKey of array-key
+ * @template TValue
+ * @implements \ArrayAccess<TKey, TValue>
+ */
+class Collection implements \ArrayAccess {
+    use \NullableOffsetFixture\BranchStyle, \NullableOffsetFixture\LocalAccumulator;
+    /** @var array<TKey, TValue> */
+    protected $items = [];
+    /** @param array<TKey, TValue> $items */
+    public function __construct(array $items = []) { $this->items = $items; }
+    /**
+     * @param TKey $offset
+     * @return TValue
+     */
+    public function offsetGet($offset): mixed { return $this->items[$offset]; }
+    /** @param TKey $offset */
+    public function offsetExists($offset): bool { return isset($this->items[$offset]); }
+    /**
+     * @param TKey|null $offset
+     * @param TValue $value
+     */
+    public function offsetSet($offset, $value): void { if (is_null($offset)) { $this->items[] = $value; } else { $this->items[$offset] = $value; } }
+    /** @param TKey $offset */
+    public function offsetUnset($offset): void { unset($this->items[$offset]); }
+}
+namespace NullableOffsetFixture;
+use Illuminate\Support\Collection as NativeCollection;
+/**
+ * @template TKey of array-key
+ * @template TRecord of Record
+ * @extends NativeCollection<TKey, TRecord>
+ */
+class RecordCollection extends NativeCollection {}
+/** @implements \ArrayAccess<array-key, Record> */
+class ForeignOffsets implements \ArrayAccess {
+    public function offsetGet(mixed $offset): mixed { if ($offset === null) { throw new \RuntimeException('No null offset.'); } return new Record; }
+    public function offsetExists(mixed $offset): bool { return $offset !== null; }
+    public function offsetSet(mixed $offset, mixed $value): void {}
+    public function offsetUnset(mixed $offset): void {}
+}
+
+/**
+ * @template TKey of array-key
+ * @template TValue
+ * @extends NativeCollection<TKey, TValue>
+ */
+final class StableCollection extends NativeCollection {}
+/**
+ * @template TKey of array-key
+ * @template TValue
+ * @extends NativeCollection<TKey, TValue>
+ */
+class BenignCollection extends NativeCollection {}
+/**
+ * @template TKey of array-key
+ * @template TValue
+ * @extends BenignCollection<TKey, TValue>
+ */
+final class BenignChild extends BenignCollection {}
+/** @extends RecordCollection<array-key, Record> */
+final class PoisonedRecordChild extends RecordCollection {
+    public function replaceItems(): void { $this->items = new ForeignOffsets; }
+}
+/**
+ * @template TKey of array-key
+ * @template TRecord of Record
+ * @extends NativeCollection<TKey, TRecord>
+ */
+class BenignRecordCollection extends NativeCollection {}
+/**
+ * @template TKey of array-key
+ * @template TRecord of Record
+ * @extends BenignRecordCollection<TKey, TRecord>
+ */
+final class BenignRecordChild extends BenignRecordCollection {}

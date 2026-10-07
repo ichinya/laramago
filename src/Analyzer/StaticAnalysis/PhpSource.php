@@ -16,7 +16,7 @@ final class PhpSource
 {
     private const SHARED_CACHE_BYTES = 8 * 1024 * 1024;
     private const SHARED_CACHE_ENTRIES = 32;
-    private const INSTANCE_CACHE_ENTRIES = 32;
+    private const INSTANCE_CACHE_ENTRIES = 2;
 
     /** @var array<string, string> Serialized, resolved ASTs in least-recently-used order. */
     private static array $sharedFiles = [];
@@ -49,6 +49,17 @@ final class PhpSource
         return $this->contentHashes[$this->path($path)] ?? null;
     }
 
+    /** Every syntax snapshot read by this instance still has its original bytes. */
+    public function isCurrent(): bool
+    {
+        foreach ($this->contentHashes as $path => $hash) {
+            if (@hash_file('sha256', $path) !== $hash) {
+                return false;
+            }
+        }
+
+        return true;
+    }
     /** Start a fresh plugin registration without changing existing reader snapshots. */
     public static function clearSharedCache(): void
     {
@@ -65,6 +76,11 @@ final class PhpSource
             unset($this->files[$path]);
 
             return $this->files[$path] = $nodes;
+        }
+        // Free the oldest AST before allocating another resolved tree. Retaining
+        // it until after unserialize() or parse() increases the worker's peak.
+        while (count($this->files) >= self::INSTANCE_CACHE_ENTRIES) {
+            unset($this->files[array_key_first($this->files)]);
         }
         $contents = @file_get_contents($path);
         if ($contents === false) {

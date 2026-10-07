@@ -1,0 +1,102 @@
+<?php
+declare(strict_types=1);
+namespace Testo;
+use Testo\Assert\Api\Builtin\ArrayType;
+use Testo\Assert\Api\Builtin\FloatType;
+use Testo\Assert\Api\Builtin\IntType;
+use Testo\Assert\Api\Builtin\IterableType;
+use Testo\Assert\Api\Builtin\NumericType;
+use Testo\Assert\Api\Builtin\ObjectType;
+use Testo\Assert\Api\Builtin\StringType;
+use Testo\Assert\Api\Json\JsonAbstract;
+use Testo\Assert\Internal\Assertion\AssertArray;
+use Testo\Assert\Internal\Assertion\AssertFloat;
+use Testo\Assert\Internal\Assertion\AssertInt;
+use Testo\Assert\Internal\Assertion\AssertIterable;
+use Testo\Assert\Internal\Assertion\AssertJson;
+use Testo\Assert\Internal\Assertion\AssertNumeric;
+use Testo\Assert\Internal\Assertion\AssertObject;
+use Testo\Assert\Internal\Assertion\AssertString;
+use Testo\Assert\Internal\StaticState;
+use Testo\Assert\Internal\Support;
+use Testo\Assert\State\Assertion\AssertionException;
+use Testo\Assert\State\Assertion\ComparisonFailure;
+use Testo\Assert\State\Test\Fail;
+use Testo\Common\Attribute\AssertMethod;
+final class Assert {
+/**
+     * Asserts that two values are the same (identical).
+     *
+     * @template ExpectedType
+     *
+     * @param mixed $actual The actual value to compare against the expected value.
+     * @param ExpectedType $expected The expected value.
+     * @param string $message Short description about what exactly is being asserted.
+     * @throws AssertionException when the assertion fails.
+     *
+     * @psalm-assert =ExpectedType $actual
+     * @phpstan-assert =ExpectedType $actual
+     */
+    #[AssertMethod]
+    public static function same(mixed $actual, mixed $expected, string $message = ''): void
+    {
+        $actual === $expected
+            ? StaticState::success($actual, 'is the same', $message)
+            : StaticState::fail(new ComparisonFailure(
+                expected: $expected,
+                actual: $actual,
+                value: Support::stringify($actual),
+                assertion: 'is the same as `' . Support::stringify($expected) . '`',
+                context: $message,
+                reason: 'expected `' . Support::stringify($expected) . '`, got `' . Support::stringify($actual) . '`',
+            ));
+    }
+/**
+     * Asserts that the value is true.
+     *
+     * @param mixed $actual The actual value to check.
+     * @param string $message Short description about what exactly is being asserted.
+     * @throws AssertionException when the assertion fails.
+     *
+     * @psalm-assert true $actual
+     * @phpstan-assert true $actual
+     */
+    #[AssertMethod]
+    public static function true(mixed $actual, string $message = ''): void
+    {
+        $actual === true
+            ? StaticState::success($actual, 'is exactly `true`', $message)
+            : StaticState::fail(new ComparisonFailure(
+                expected: true,
+                actual: $actual,
+                value: Support::stringify($actual),
+                assertion: 'is exactly `true`',
+                context: $message,
+                reason: 'expected `true`, got `' . Support::stringify($actual) . '`',
+            ));
+    }
+/**
+     * Asserts that the value is false.
+     *
+     * @param mixed $actual The actual value to check.
+     * @param string $message Short description about what exactly is being asserted.
+     * @throws AssertionException when the assertion fails.
+     *
+     * @psalm-assert false $actual
+     * @phpstan-assert false $actual
+     */
+    #[AssertMethod]
+    public static function false(mixed $actual, string $message = ''): void
+    {
+        $actual === false
+            ? StaticState::success($actual, 'is exactly `false`', $message)
+            : StaticState::fail(new ComparisonFailure(
+                expected: false,
+                actual: $actual,
+                value: Support::stringify($actual),
+                assertion: 'is exactly `false`',
+                context: $message,
+                reason: 'expected `false`, got `' . Support::stringify($actual) . '`',
+            ));
+    }
+}

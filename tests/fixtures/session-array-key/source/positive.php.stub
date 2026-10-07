@@ -1,0 +1,27 @@
+<?php
+declare(strict_types=1);
+namespace Fixture;
+use Illuminate\Contracts\Session\Session;
+use Illuminate\Session\Store;
+use Illuminate\Http\Request;
+final class Copier {
+    public function direct(Session $source,Store $target):void {
+        foreach($source->all() as $key=>$value) { $target->put($key,$value); }
+    }
+    public function forward(Session $source,ReplayStore $target):void {
+        foreach($source->all() as $key=>$value) { $target->put($key,$value); }
+    }
+    public function request(Request $request):ReplayStore {
+        $source=$request->session();
+        $target=new ReplayStore($source->getName(),$source->getHandler(),$source->getId());
+        $target->start();
+        foreach($source->all() as $key=>$value) { $target->put($key,$value); }
+        return $target;
+    }
+    public function renamed(Request $incoming):ReplayStore {
+        $existing=$incoming->session();
+        $replacement=new ReplayStore($existing->getName(),$existing->getHandler(),$existing->getId());
+        foreach($existing->all() as $name=>$entry) { $replacement->put($name,$entry); }
+        return $replacement;
+    }
+}

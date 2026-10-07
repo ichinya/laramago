@@ -1,0 +1,8 @@
+<?php
+namespace Illuminate\Database\Eloquent;
+/**
+ * @template TKey of array-key = array-key
+ * @template TModel of Model = Model
+ * @extends \Illuminate\Support\Collection<TKey, TModel>
+ */
+class Collection extends \Illuminate\Support\Collection {}

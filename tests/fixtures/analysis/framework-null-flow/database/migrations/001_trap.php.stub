@@ -1,0 +1,1 @@
+<?php file_put_contents(__DIR__."/executed","unexpected");throw new RuntimeException("Fixture body must remain unused.");

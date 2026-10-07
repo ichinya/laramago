@@ -1,0 +1,19 @@
+<?php
+namespace Illuminate\Database\Concerns;
+/**
+ * @template TValue
+ * @mixin \Illuminate\Database\Query\Builder
+ */
+trait BuildsQueries
+{
+/**
+     * Execute the query and get the first result.
+     *
+     * @param  array|string  $columns
+     * @return TValue|null
+     */
+    public function first($columns = ['*'])
+    {
+        return $this->limit(1)->get($columns)->first();
+    }
+}

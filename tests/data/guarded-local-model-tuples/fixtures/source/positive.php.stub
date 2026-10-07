@@ -1,0 +1,92 @@
+<?php
+declare(strict_types=1);
+namespace Example\GuardedModelTuples;
+use Illuminate\Database\Eloquent\Model;
+/** Current invoice model. */
+final class Invoice extends Model {}
+final class OtherInvoice extends Model {}
+final class Result {}
+final class DeferredHandler
+{
+    /**
+     * @template TResult of mixed
+     * @param (\Closure(static): TResult) $callback
+     * @param int $attempts
+     * @return TResult
+     */
+    public function invoke(\Closure $callback,$attempts=1){return $callback($this);}
+}
+abstract class CallbackFacade
+{
+    protected static ?DeferredHandler $handler=null;
+    protected static function resolve():DeferredHandler{return static::$handler??=new DeferredHandler;}
+    public static function __callStatic(string $method,array $arguments):mixed{return static::resolve()->$method(...$arguments);}
+}
+/** @method static mixed invoke(\Closure $callback,int $attempts=1) */
+final class DeferredCallbacks extends CallbackFacade {}
+final class PositiveExamples
+{
+    public function guardedLocal(bool $denied):Result
+    {
+        $rows=[];
+        try {
+            DeferredCallbacks::invoke(function()use($denied,&$rows):Result {
+                $id=1;
+                $invoice=Invoice::query()->where('id',$id)->lockForUpdate()->first();
+                if($invoice===null){throw new \RuntimeException('Missing invoice.');}
+                if($denied){
+                    $this->inspect($invoice);
+                    $rows[]=[$invoice];
+                    throw new \RuntimeException('Deferred denial.');
+                }
+                return new Result;
+            },3);
+        }catch(\RuntimeException $failure){
+            foreach($rows as [$value]){$this->acceptInvoice($value);}
+            throw new \RuntimeException('Denial recorded.');
+        }
+        return new Result;
+    }
+    public function repeatedRows(bool $first,bool $second):Result
+    {
+        $rows=[];
+        try {
+            DeferredCallbacks::invoke(function()use($first,$second,&$rows):Result {
+                $id=2;
+                $invoice=Invoice::query()->where('id',$id)->first();
+                if(null===$invoice){throw new \RuntimeException('Missing invoice.');}
+                if($first){
+                    $this->inspect($invoice);
+                    $rows[]=[$invoice,'first'];
+                    throw new \RuntimeException('First deferred denial.');
+                }
+                if($second){
+                    $rows[]=[$invoice,'second'];
+                    throw new \RuntimeException('Second deferred denial.');
+                }
+                return new Result;
+            },3);
+        }catch(\RuntimeException $failure){
+            foreach($rows as [$value,$reason]){$this->acceptInvoice($value);}
+            throw new \RuntimeException('Denial recorded.');
+        }
+        return new Result;
+    }
+    private function inspect(?Invoice $invoice):void {}
+    private function acceptInvoice(Invoice $invoice):void {}
+}
+final class NativeCoveredExamples
+{
+    public function ordinaryFirst():void
+    {
+        $this->acceptNullable(Invoice::query()->first());
+    }
+    public function ordinaryGuard():void
+    {
+        $invoice=Invoice::query()->first();
+        if($invoice===null){throw new \RuntimeException('Missing invoice.');}
+        $this->acceptInvoice($invoice);
+    }
+    private function acceptNullable(?Invoice $invoice):void {}
+    private function acceptInvoice(Invoice $invoice):void {}
+}

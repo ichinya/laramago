@@ -1,0 +1,80 @@
+[
+  {
+    "id": "stored-opaque-carrier-closure",
+    "filename": "stored-opaque-carrier-closure.php.stub",
+    "sha256": "1da3fd0c0daf81a5760200c6e90218564a99bb86752d5f135985ddfffee52ea4",
+    "reason": "A stored callback exposes the selected carrier through a source-opaque dynamic container effect; no direct global Generator binding masks this route."
+  },
+  {
+    "id": "actual-carrier-argument-to-shadowing-arrow",
+    "filename": "actual-carrier-argument-to-shadowing-arrow.php.stub",
+    "sha256": "e14646d8a40a29a3fcea12c7e45364f933af6cac0bef6e13535663700349b920",
+    "reason": "Arrow parameter shadowing is not proof of read-only effects when the actual selected carrier is supplied."
+  },
+  {
+    "id": "retained-callable-before-callee-rebind",
+    "filename": "retained-callable-before-callee-rebind.php.stub",
+    "sha256": "9fae1ef7e45eb610e6c176485d57a5f4b1d21fcf7c785cc6fc1a0e982423e85b",
+    "reason": "A by-value callable alias retains its old capture after the original callee is rebound; do not resolve it lazily."
+  },
+  {
+    "id": "nested-array-carrier-storage",
+    "filename": "nested-array-carrier-storage.php.stub",
+    "sha256": "5dbe509ed66f532e718ed4df7b6fb58e216fc638515029d58babac1eb4091f6d",
+    "reason": "An array carrier alias hides a dynamic call; this differs from the existing direct variable/property aliases."
+  },
+  {
+    "id": "extract-selected-local-replacement",
+    "filename": "extract-selected-local-replacement.php.stub",
+    "sha256": "8ce6f22f436cc8751b3b5567fe08a1a79d71966d4b7fc63ad15429484800ccf5",
+    "reason": "Symbol-table mutation must invalidate the selected lifetime even without a selected-variable AST write; compact/get_defined_vars already have existing cases."
+  },
+  {
+    "id": "descendant-marker-override",
+    "filename": "descendant-marker-override.php.stub",
+    "sha256": "a03b9a6866f21b420f5d768e0021d17bfeca02206f92b8e1a5baf736eeb634b9",
+    "reason": "A named descendant supplies a nonstandard marker declaration. Use a harmless body so refusal is bound to dispatch/declaration priority, not a duplicate explicit Generator hazard."
+  },
+  {
+    "id": "rename-original-framework-marker",
+    "filename": "rename-original-framework-marker.php.stub",
+    "sha256": "96edf6f028a5cf3d92d3482092d961dd1b5a0fb0f1a0a4a038c0db1d64f90dd7",
+    "reason": "A trait adaptation mentioning the original marker is a dispatch priority change even when the new alias name is unrelated."
+  },
+  {
+    "id": "alias-other-method-to-selected-marker",
+    "filename": "alias-other-method-to-selected-marker.php.stub",
+    "sha256": "ba59f1fa07dabd95147245f1505c2009ae2a1d349982f1de830d2715e5485f6b",
+    "reason": "The new alias name must be scanned as well as the original method name; no fallback to a standard trait is authorized."
+  },
+  {
+    "id": "wrong-trait-index-for-route-marker",
+    "filename": "wrong-trait-index-for-route-marker.php.stub",
+    "sha256": "49cee7c3d369c800b87f21122fb5fc9b56c399e2a3d4197867487eb2bee8ab47",
+    "reason": "The trait index, method_exists string and selected invocation must agree; a different standard trait is not interchangeable."
+  },
+  {
+    "id": "later-route-wrapper-reference-capture",
+    "filename": "later-route-wrapper-reference-capture.php.stub",
+    "sha256": "fe73eab4614e448fef2c9a85313ebf88531618c12ccd2d7cef5170ac165138c0",
+    "reason": "A later marker wrapper introduces reference lifetime beyond the supported by-value lexical arrow."
+  },
+  {
+    "id": "caller-phpstan-return-priority",
+    "filename": "caller-phpstan-return-priority.php.stub",
+    "sha256": "2f433b3f194f12c42c63f600bead8fffea8f72756277a20790554278aaa92271",
+    "reason": "Stronger caller PHPDoc must retain priority; any independent invalid-doc issue introduced by this source remains unchanged before/after."
+  },
+  {
+    "id": "manager-psalm-var-priority",
+    "filename": "manager-psalm-var-priority.php.stub",
+    "sha256": "8784400bbc482c8e8bafb3db805953d0272e146fa1f1b5d5b80e647188608af2",
+    "reason": "Stronger local producer PHPDoc differs from the existing ordinary @var case and must veto borrowing the nominal make domain."
+  },
+  {
+    "id": "marker-trait-class-alias-priority",
+    "filename": "marker-trait-class-alias-priority.php.stub",
+    "sha256": "742da12718ecdfda08ebbb84204f275985f6b7282bc2c625b43d6331e44c42b5",
+    "reason": "The selected marker trait alias is a new priority target; the existing generic ServiceProvider/Carbon aliases remain reused."
+  }
+]

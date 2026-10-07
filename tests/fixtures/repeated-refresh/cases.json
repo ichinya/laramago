@@ -1,0 +1,44 @@
+{
+  "sourceOnly": true,
+  "nativeAcceptanceClaimed": false,
+  "sources": {
+    "database/migrations/2020_01_01_000000_create_rows.php": "84c9c8baff59cd25a67c2c629ebf715d4efa9abc8171aefdb94d664423332aab",
+    "dependency tree/laravel/framework/src/Illuminate/Database/Eloquent/Casts/Json.php": "4b8ab565f2e41d4308fe65f8cb7c5f46c48280a1417302558f9a22ea9454aa46",
+    "dependency tree/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/GuardsAttributes.php": "a8bfb20bb35b9902574eadb3337434257814ed22b038ddda158f1e67fcba123f",
+    "dependency tree/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasAttributes.php": "65c4087895ea4a6e7dac8e6039eb801b9cc04670e4b87d47ab7b35d74df2d4fc",
+    "dependency tree/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasEvents.php": "e8ca6df01bbd137a4cd178fa682021f26f77f220aea3fe16ebdbad89d35fcbb4",
+    "dependency tree/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasRelationships.php": "b14653516561be497bf8b5626dd94a446b9e5336e5cd2be9347162bd4f6a28c6",
+    "dependency tree/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasTimestamps.php": "fd3fe9fc4f7216bd10fab703089d41b03cfc47e1abe290d734c175ddec743dfd",
+    "dependency tree/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/PreventsCircularRecursion.php": "0c24d4966619adc957cd5ed1e9594cc92161493c9c7f3af3fe9077d303da7cca",
+    "dependency tree/laravel/framework/src/Illuminate/Database/Eloquent/Model.php": "9c372d7d3cdce0ac825cdb3c424f1ef2c35bfb50e57f76ba75c62548114170bf",
+    "dependency tree/testo/assert/Assert.php": "a2570576765709319e2e4600a5c06e5b5c67fba907e053a269c25f4ddae0f767",
+    "models.php": "885d84e8b6499f190236ed57791b6f668eb8615863d86721f83f436beb58f2dc",
+    "negative.php": "c06105c86921f9b9c8dcb9750735b3eb68f7bc943e6445c0ba8d42a34ebfa597",
+    "positive.php": "a2c59f732b2f0848799735241b477372765a52b0ee88cebd014ba22783f7c034",
+    "support.php": "72b0b7087f3f17a65f2758ce256480b64a5a1fa8af0d4ef6d63afdca7288db9a"
+  },
+  "positiveOwners": [
+    "positive.php::RepeatedRefresh::check"
+  ],
+  "negativeOwners": [
+    "NegativeRefresh::wrongLiteral",
+    "NegativeRefresh::receiverAlias",
+    "NegativeRefresh::receiverReference",
+    "NegativeRefresh::unsavedReceiver",
+    "NegativeRefresh::receiverWrite",
+    "NegativeRefresh::conditionalRefresh",
+    "NegativeRefresh::noopRefresh",
+    "NegativeRefresh::constantAccessor",
+    "NegativeRefresh::explicitlyFresh",
+    "NegativeRefresh::unrelatedNeverExpression",
+    "NegativeRefresh::explicitThrowExpression",
+    "NegativeRefresh::genuineNeverPrefix"
+  ],
+  "expectedOriginalIds": [
+    "E050"
+  ],
+  "expectedClosedStages": 8,
+  "expectedGenuinePositiveErrors": 1,
+  "expectedGenuineControls": 126,
+  "expectedActualCacheMutations": 37
+}

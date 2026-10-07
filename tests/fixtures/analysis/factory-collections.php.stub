@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class People extends Collection {
     public function names(string $separator = ','): string { throw new \RuntimeException('Do not execute collection code.'); }
 }
-/** @property int $id */
+/** @property-read int $id */
 class CustomPerson extends Model {
     use HasFactory;
     protected static $collectionClass = People::class;

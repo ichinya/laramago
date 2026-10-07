@@ -1,0 +1,143 @@
+<?php
+declare(strict_types=1);
+// Independently invented syntax fixtures. Analyze this file; never include or execute it.
+namespace ValidatedArrayExamples;
+
+/** @param list<mixed> $rows
+ * @return list<array{ticket:int|null,label:string,duration:int}>
+ */
+function sortedValidated(array $rows):array {
+    foreach($rows as $row) {
+        if(!is_array($row) || !array_key_exists('ticket',$row)
+            || ($row['ticket']!==null && !is_int($row['ticket']))
+            || !is_string($row['label']??null) || !is_int($row['duration']??null)) {
+            throw new \InvalidArgumentException('Malformed record.');
+        }
+    }
+    usort($rows,fn($left,$right)=>($left['label']<=>$right['label'])
+        ?:($left['ticket']===$right['ticket']?0:($left['ticket']===null?1:($right['ticket']===null?-1:$left['ticket']<=>$right['ticket']))));
+    return $rows;
+}
+
+/** @param list<array{ticket:int|null,label:string,duration:int}> $rows
+ * @return list<array{ticket:int|null,label:string,duration:int}>
+ */
+function alreadyTyped(array $rows):array {
+    usort($rows,fn($left,$right)=>$left['label']<=>$right['label']); return $rows;
+}
+
+/** @param list<mixed> $rows */
+function missingArrayGuard(array $rows):array {
+    foreach($rows as $row) { if(!is_string($row['label']??null)) { throw new \InvalidArgumentException; } }
+    usort($rows,fn($left,$right)=>$left['label']<=>$right['label']); return $rows;
+}
+/** @param list<mixed> $rows */
+function missingFieldGuard(array $rows):array {
+    foreach($rows as $row) { if(!is_array($row)) { throw new \InvalidArgumentException; } }
+    usort($rows,fn($left,$right)=>$left['label']<=>$right['label']); return $rows;
+}
+/** @param list<mixed> $rows */
+function rootReset(array $rows,mixed $replacement):array {
+    foreach($rows as $row) { if(!is_array($row)||!is_string($row['label']??null)) { throw new \InvalidArgumentException; } }
+    $rows=[$replacement]; usort($rows,fn($left,$right)=>$left['label']<=>$right['label']); return $rows;
+}
+/** @param list<mixed> $rows */
+function referenceAlias(array $rows,mixed $replacement):array {
+    $alias=&$rows;
+    foreach($rows as $row) { if(!is_array($row)||!is_string($row['label']??null)) { throw new \InvalidArgumentException; } }
+    $alias=[$replacement]; usort($rows,fn($left,$right)=>$left['label']<=>$right['label']); return $rows;
+}
+/** @param list<mixed> $rows */
+function incompleteIteration(array $rows):array {
+    foreach($rows as $row) { if(!is_array($row)||!is_string($row['label']??null)) { break; } }
+    usort($rows,fn($left,$right)=>$left['label']<=>$right['label']); return $rows;
+}
+/** @param list<mixed> $rows */
+function comparatorDifferentField(array $rows):array {
+    foreach($rows as $row) { if(!is_array($row)||!is_string($row['label']??null)) { throw new \InvalidArgumentException; } }
+    usort($rows,fn($left,$right)=>$left['unknown']<=>$right['unknown']); return $rows;
+}
+/** @param list<mixed> $rows */
+function foreachReference(array $rows):array {
+    foreach($rows as &$row) { if(!is_array($row)||!is_string($row['label']??null)) { throw new \InvalidArgumentException; } }
+    usort($rows,fn($left,$right)=>$left['label']<=>$right['label']); return $rows;
+}
+function bareArrayParameter(array $segments):mixed {
+    foreach($segments as $segment) { $begin=$segment['begin']; $finish=$segment['finish']; }
+    return [$begin??null,$finish??null];
+}
+function explicitMixedParameter(mixed $value):mixed { return $value['begin']; }
+/** @param list<array{begin:string,finish:string}> $segments */
+function declaredRows(array $segments):mixed {
+    foreach($segments as $segment) { $begin=$segment['begin']; $finish=$segment['finish']; }
+    return [$begin??null,$finish??null];
+}
+function groupedSelection(string $text,mixed $selection):mixed {
+    $data=json_decode($text,true,flags:JSON_THROW_ON_ERROR);
+    if(!is_array($data)) { throw new \RuntimeException; }
+    if($selection!==null&&!is_string($selection)) { throw new \RuntimeException; }
+    if($selection!==null&&(!isset($data['sections'])||!is_array($data['sections'])||!array_key_exists($selection,$data['sections']))) { throw new \RuntimeException; }
+    return $selection===null?($data['entries']??null):$data['sections'][$selection];
+}
+function missingNestedArrayGuard(string $text,mixed $selection):mixed {
+    $data=json_decode($text,true,flags:JSON_THROW_ON_ERROR);
+    if(!is_array($data)) { throw new \RuntimeException; }
+    if($selection!==null&&!is_string($selection)) { throw new \RuntimeException; }
+    if($selection!==null&&(!isset($data['sections'])||!array_key_exists($selection,$data['sections']))) { throw new \RuntimeException; }
+    return $selection===null?($data['entries']??null):$data['sections'][$selection];
+}
+
+final class ScalarValidator {
+    public static function label(string $value):void { if(strlen($value)===0) { throw new \InvalidArgumentException('Empty label.'); } }
+    public static function referenceLabel(string &$value):void { $value='changed'; }
+}
+/** @param list<mixed> $rows
+ * @return list<array{ticket:int|null,label:string,duration:int}>
+ */
+function validatedBookkeeping(array $rows):array {
+    $seen=[];
+    foreach($rows as $row) {
+        if(!is_array($row)||!array_key_exists('ticket',$row)
+            ||($row['ticket']!==null&&(!is_int($row['ticket'])||$row['ticket']<1))
+            ||!is_string($row['label']??null)||!is_int($row['duration']??null)||$row['duration']<0) { throw new \InvalidArgumentException; }
+        ScalarValidator::label($row['label']);
+        $identity=$row['ticket']??'pending';
+        if(isset($seen[$identity])) { throw new \InvalidArgumentException; }
+        $seen[$identity]=true;
+    }
+    usort($rows,fn($first,$second)=>($first['label']<=>$second['label'])
+        ?:($first['ticket']===$second['ticket']?0:($first['ticket']===null?1:($second['ticket']===null?-1:$first['ticket']<=>$second['ticket']))));
+    return $rows;
+}
+/** @param list<mixed> $rows
+ * @return list<array{ticket:int|null,label:string,duration:int}>
+ */
+function scalarHelperReference(array $rows):array {
+    foreach($rows as $row) {
+        if(!is_array($row)||!array_key_exists('ticket',$row)||($row['ticket']!==null&&!is_int($row['ticket']))
+            ||!is_string($row['label']??null)||!is_int($row['duration']??null)) { throw new \InvalidArgumentException; }
+        ScalarValidator::referenceLabel($row['label']);
+    }
+    usort($rows,fn($first,$second)=>$first['label']<=>$second['label']);
+    return $rows;
+}
+/** @param list<mixed> $rows
+ * @return list<array{ticket:int|null,label:string,duration:string}>
+ */
+function incompatibleDeclaredReturn(array $rows):array {
+    foreach($rows as $row) {
+        if(!is_array($row)||!array_key_exists('ticket',$row)||($row['ticket']!==null&&!is_int($row['ticket']))
+            ||!is_string($row['label']??null)||!is_int($row['duration']??null)) { throw new \InvalidArgumentException; }
+    }
+    usort($rows,fn($first,$second)=>$first['label']<=>$second['label']);
+    return $rows;
+}
+/** @param list<mixed> $rows
+ * @return list<array{label:string}>
+ */
+function typedComparatorParameter(array $rows):array {
+    foreach($rows as $row) { if(!is_array($row)||!is_string($row['label']??null)) { throw new \InvalidArgumentException; } }
+    usort($rows,fn(\stdClass $first,\stdClass $second)=>$first['label']<=>$second['label']);
+    return $rows;
+}
+function unrelatedMixedOffset(mixed $noise):mixed { return $noise['unrelated']; }

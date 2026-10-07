@@ -1,0 +1,1 @@
+<?php namespace InputRouteFixture; final class CaseN16 {   public function probe(DifferentHeaderRequest $request): void { if ($request->header('partial') && $request->header('fields')) { explode(',', $request->header('fields')); } } public function unrelatedUnsafeUse(): void { requireInteger('text'); } }

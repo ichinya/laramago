@@ -1,0 +1,83 @@
+{
+  "positiveOwners": [
+    "positive.php::PositiveExamples::guardedLocal",
+    "positive.php::PositiveExamples::repeatedRows"
+  ],
+  "negativeOwners": [
+    "negative.php::NegativeExamples::unguarded",
+    "negative.php::NegativeExamples::nonTerminatingGuard",
+    "negative.php::NegativeExamples::wrongModel",
+    "negative.php::NegativeExamples::rebind",
+    "negative.php::NegativeExamples::byReferenceRead",
+    "negative.php::NegativeExamples::localReference",
+    "negative.php::NegativeExamples::destructuredWrite",
+    "negative.php::NegativeExamples::foreachWrite",
+    "negative.php::NegativeExamples::unknownProducer",
+    "negative.php::NegativeExamples::projectionRebind",
+    "negative.php::NegativeExamples::foreignRowWrite",
+    "negative.php::NegativeExamples::referencedProjection",
+    "negative.php::NegativeExamples::unrelatedMixed",
+    "negative.php::NegativeExamples::genuineNull",
+    "negative.php::NegativeExamples::earlierRowReferenceEffect",
+    "negative.php::NegativeExamples::earlierRowUnknownEffect"
+  ],
+  "nativeCoveredOwners": [
+    "positive.php::NativeCoveredExamples::ordinaryFirst",
+    "positive.php::NativeCoveredExamples::ordinaryGuard"
+  ],
+  "sources": {
+    "dependency tree/laravel/framework/src/Illuminate/Collections/Arr.php": "239fac37066ef6784919e7f2f541355f535f3044a2f21854c35d7a6294b92c7e",
+    "dependency tree/laravel/framework/src/Illuminate/Collections/Collection.php": "41af3c43c03d358a708c84e424d69a66c05ee16d7120c82fb8b61d1f520fe7de",
+    "dependency tree/laravel/framework/src/Illuminate/Collections/Traits/EnumeratesValues.php": "14123997af2f1f38800c71d7ac7156c3acf9b7fa035d6509417b7ee79f9b87b5",
+    "dependency tree/laravel/framework/src/Illuminate/Collections/Traits/TransformsToResourceCollection.php": "6015eba53d567c7dd6419fff3515dff28fd4382fb66191c869351f01de425351",
+    "dependency tree/laravel/framework/src/Illuminate/Contracts/Database/Query/Expression.php": "f2b764571b925966bd1b159efc8a6b6f75ad7d9c1f0a6a66d99673673c0dd2a9",
+    "dependency tree/laravel/framework/src/Illuminate/Database/Concerns/BuildsQueries.php": "b0eb383d0f431fe5476af7a762b6508a8819663de2caf65d91afa77ad671f5b5",
+    "dependency tree/laravel/framework/src/Illuminate/Database/Eloquent/Attributes/CollectedBy.php": "971e0990cc55a071ae1ba1bfdb7046896b6614f946ab0ca9eb18ac6b061aefa5",
+    "dependency tree/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php": "32d0ce3d1ce8f3c10a1df2b8962aa87c752539eaa7939edfa04f236ca802a0aa",
+    "dependency tree/laravel/framework/src/Illuminate/Database/Eloquent/Collection.php": "e5085108cfde8f725081f28cbc103a8f58975c24318818a07e80cc803085b7c9",
+    "dependency tree/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/QueriesRelationships.php": "e2dc25a643731d4a4b8b8f4681df93a498365ffece09a8045becef3793b09ded",
+    "dependency tree/laravel/framework/src/Illuminate/Database/Eloquent/HasCollection.php": "bd84e68ded773bc1468f018758b0907bd472c46ce50efd733797822ab7a2d21e",
+    "dependency tree/laravel/framework/src/Illuminate/Database/Eloquent/Model.php": "acf0fc5a75550c8f8f1bfb2fd4bd5bffd92e382e5d86e3c3879c339f0af67462",
+    "dependency tree/laravel/framework/src/Illuminate/Database/Eloquent/Relations/Concerns/InteractsWithDictionary.php": "25e2677cfe570d0f3b2fd0340101450dfc773584a8c8b714601c6b8dc5a889d3",
+    "dependency tree/laravel/framework/src/Illuminate/Database/Query/Builder.php": "fea755f84a01c031e8b769f197a7ce6a007f10ce8ebeea0b3b51eaca9856c292",
+    "dependency tree/laravel/framework/src/Illuminate/Macroable/Traits/Macroable.php": "07b609c82aee20e0d44f81a36496f7e30da84f4c54f9c389c65a75365d0a18ba",
+    "dependency tree/laravel/framework/src/Illuminate/Support/Traits/Conditionable.php": "f0b253e1babbc49ea0fdc63a7b099fb08b1747cf15ad42f0fbab93408b195c22",
+    "dependency tree/laravel/framework/src/Illuminate/Support/Traits/ForwardsCalls.php": "90f60b05c62da4a0187adc9f716eedf4d14eff148309c3212bdf37bbd20b6546",
+    "negative.php": "4ebaedca48cbdad75c9ecf0e1027991124f9ae496c32fac814abec25dabea575",
+    "positive.php": "8dbdee4377f63ea8f6aaa5df04b47e7f8e8c121caf0f9be47a4b1a061a2ba7a4"
+  },
+  "expectedGenuinePositiveErrors": 2,
+  "nativeAcceptanceClaimed": false,
+  "discoveryOnly": false,
+  "firstAlreadyNativeCovered": true,
+  "returnTypeProvidersRegistered": 0,
+  "selectedBuilderMixinSources": {
+    "builder": "Illuminate\\Database\\Query\\Builder",
+    "buildsQueries": "Illuminate\\Database\\Query\\Builder",
+    "queriesRelationships": "Illuminate\\Database\\Eloquent\\Builder",
+    "duplicatesSignificant": true,
+    "unknownMixinAllowed": false
+  },
+  "requiredNegativeOwners": [
+    "negative.php::NegativeExamples::unguarded",
+    "negative.php::NegativeExamples::nonTerminatingGuard",
+    "negative.php::NegativeExamples::wrongModel",
+    "negative.php::NegativeExamples::rebind",
+    "negative.php::NegativeExamples::byReferenceRead",
+    "negative.php::NegativeExamples::destructuredWrite",
+    "negative.php::NegativeExamples::foreachWrite",
+    "negative.php::NegativeExamples::unknownProducer",
+    "negative.php::NegativeExamples::projectionRebind",
+    "negative.php::NegativeExamples::foreignRowWrite",
+    "negative.php::NegativeExamples::referencedProjection",
+    "negative.php::NegativeExamples::unrelatedMixed",
+    "negative.php::NegativeExamples::genuineNull",
+    "negative.php::NegativeExamples::earlierRowReferenceEffect"
+  ],
+  "nativeCoveredNegativeOwners": [
+    "negative.php::NegativeExamples::localReference",
+    "negative.php::NegativeExamples::earlierRowUnknownEffect"
+  ],
+  "mainEngineThreads": "default",
+  "controlEngineThreads": 1
+}

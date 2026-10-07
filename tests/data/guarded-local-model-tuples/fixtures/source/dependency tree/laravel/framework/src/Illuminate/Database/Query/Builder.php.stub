@@ -1,0 +1,23 @@
+<?php
+namespace Illuminate\Database\Query;
+class Builder
+{
+    protected bool|string $lock=false;
+    /** @return $this */
+    public function lockForUpdate() { return $this->lock(true); }
+    /**
+     * @param bool|string $value
+     * @return $this
+     */
+    public function lock($value = true)
+    {
+        $this->lock = $value;
+        if (! is_null($this->lock)) { $this->useWritePdo(); }
+        return $this;
+    }
+    /** @return $this */
+    public function useWritePdo(){return $this;}
+    /** @return $this */
+    public function where(mixed ...$parameters){return $this;}
+    public function addNestedWhereQuery(self $query,string $boolean):void{}
+}

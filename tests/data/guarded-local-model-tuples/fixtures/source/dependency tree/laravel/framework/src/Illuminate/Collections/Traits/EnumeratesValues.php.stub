@@ -1,0 +1,10 @@
+<?php
+namespace Illuminate\Support\Traits;
+/**
+ * @template TKey of array-key
+ * @template-covariant TValue
+ */
+trait EnumeratesValues
+{
+    use Conditionable;
+}

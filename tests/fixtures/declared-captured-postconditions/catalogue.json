@@ -1,0 +1,474 @@
+{
+    "sourceCases": 39,
+    "caseCatalogue": {
+        "cases/I01.php": {
+            "role": "identity",
+            "candidate": true,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                229,
+                257
+            ],
+            "lexicalProofObserved": true,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": true
+        },
+        "cases/I02.php": {
+            "role": "identity",
+            "candidate": true,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                237,
+                265
+            ],
+            "lexicalProofObserved": true,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": true
+        },
+        "cases/I03.php": {
+            "role": "identity",
+            "candidate": false,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                247,
+                275
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/I04.php": {
+            "role": "identity",
+            "candidate": false,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                247,
+                275
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/I05.php": {
+            "role": "identity",
+            "candidate": false,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                250,
+                278
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/I06.php": {
+            "role": "identity",
+            "candidate": false,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                249,
+                277
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/I07.php": {
+            "role": "identity",
+            "candidate": false,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                235,
+                263
+            ],
+            "lexicalProofObserved": true,
+            "nativeGuardNegative": true,
+            "genuineNativePositivePending": false
+        },
+        "cases/I08.php": {
+            "role": "identity",
+            "candidate": false,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                272,
+                300
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/I09.php": {
+            "role": "identity",
+            "candidate": false,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                229,
+                300
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/I10.php": {
+            "role": "identity",
+            "candidate": false,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                236,
+                264
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/I11.php": {
+            "role": "identity",
+            "candidate": false,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                246,
+                274
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/I12.php": {
+            "role": "identity",
+            "candidate": true,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                258,
+                320
+            ],
+            "lexicalProofObserved": true,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": true
+        },
+        "cases/I13.php": {
+            "role": "identity",
+            "candidate": false,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                255,
+                283
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/I14.php": {
+            "role": "identity",
+            "candidate": false,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                268,
+                296
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/I15.php": {
+            "role": "identity",
+            "candidate": false,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                229,
+                296
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/F01.php": {
+            "role": "factory",
+            "candidate": true,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                201,
+                227
+            ],
+            "lexicalProofObserved": true,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": true
+        },
+        "cases/F02.php": {
+            "role": "factory",
+            "candidate": true,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                201,
+                227
+            ],
+            "lexicalProofObserved": true,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": true
+        },
+        "cases/F03.php": {
+            "role": "factory",
+            "candidate": false,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                201,
+                227
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/F04.php": {
+            "role": "factory",
+            "candidate": false,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                201,
+                227
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/F05.php": {
+            "role": "factory",
+            "candidate": false,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                214,
+                240
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/F06.php": {
+            "role": "factory",
+            "candidate": false,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                219,
+                245
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/F07.php": {
+            "role": "factory",
+            "candidate": false,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                205,
+                231
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/F08.php": {
+            "role": "factory",
+            "candidate": true,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                201,
+                255
+            ],
+            "lexicalProofObserved": true,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": true
+        },
+        "cases/F09.php": {
+            "role": "factory",
+            "candidate": false,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                201,
+                264
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/F10.php": {
+            "role": "factory",
+            "candidate": false,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                201,
+                254
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/F11.php": {
+            "role": "factory",
+            "candidate": true,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                210,
+                236
+            ],
+            "lexicalProofObserved": true,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": true
+        },
+        "cases/F12.php": {
+            "role": "factory",
+            "candidate": true,
+            "targetCode": "impossible-null-type-comparison",
+            "targetPrimarySpan": [
+                214,
+                240
+            ],
+            "lexicalProofObserved": true,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": true
+        },
+        "cases/A01.php": {
+            "role": "flag",
+            "candidate": true,
+            "targetCode": "possibly-null-array-index",
+            "targetPrimarySpan": [
+                536,
+                556
+            ],
+            "lexicalProofObserved": true,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": true
+        },
+        "cases/A02.php": {
+            "role": "flag",
+            "candidate": false,
+            "targetCode": "possibly-null-array-index",
+            "targetPrimarySpan": [
+                547,
+                567
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/A03.php": {
+            "role": "flag",
+            "candidate": false,
+            "targetCode": "possibly-null-array-index",
+            "targetPrimarySpan": [
+                550,
+                570
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/A04.php": {
+            "role": "flag",
+            "candidate": false,
+            "targetCode": "possibly-null-array-index",
+            "targetPrimarySpan": [
+                520,
+                540
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/A05.php": {
+            "role": "flag",
+            "candidate": false,
+            "targetCode": "possibly-null-array-index",
+            "targetPrimarySpan": [
+                535,
+                555
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/A06.php": {
+            "role": "flag",
+            "candidate": false,
+            "targetCode": "possibly-null-array-index",
+            "targetPrimarySpan": [
+                552,
+                572
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/K01.php": {
+            "role": "key",
+            "candidate": true,
+            "targetCode": "possibly-undefined-int-array-index",
+            "targetPrimarySpan": [
+                610,
+                611
+            ],
+            "lexicalProofObserved": true,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": true
+        },
+        "cases/K02.php": {
+            "role": "key",
+            "candidate": false,
+            "targetCode": "possibly-undefined-int-array-index",
+            "targetPrimarySpan": [
+                621,
+                622
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/K03.php": {
+            "role": "key",
+            "candidate": false,
+            "targetCode": "possibly-undefined-int-array-index",
+            "targetPrimarySpan": [
+                626,
+                627
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/K04.php": {
+            "role": "key",
+            "candidate": false,
+            "targetCode": "possibly-undefined-int-array-index",
+            "targetPrimarySpan": [
+                626,
+                627
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/K05.php": {
+            "role": "key",
+            "candidate": false,
+            "targetCode": "possibly-undefined-int-array-index",
+            "targetPrimarySpan": [
+                608,
+                609
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        },
+        "cases/K06.php": {
+            "role": "key",
+            "candidate": false,
+            "targetCode": "possibly-undefined-int-array-index",
+            "targetPrimarySpan": [
+                624,
+                625
+            ],
+            "lexicalProofObserved": false,
+            "nativeGuardNegative": false,
+            "genuineNativePositivePending": false
+        }
+    },
+    "fixtureBodiesMustNeverExecute": true
+}

@@ -3,8 +3,11 @@
 For the latest opt-in route, middleware, policy, binding, template and translation
 diagnostics, see [remaining diagnostic integration](remaining-diagnostics.md).
 
-Laramago reads syntax and Mago metadata without bootstrapping Laravel, executing
-application code, or connecting to a database. Each feature below is a bounded
+By default, Laramago reads syntax and Mago metadata without bootstrapping
+Laravel or executing the inspected application source. The worker still loads
+the application's Composer autoloader, which can execute declared autoload files.
+The [opt-in runtime mode](../README.md#runtime-evaluation) additionally executes
+the project's bootstrap and configuration files. Each feature below is a bounded
 implementation; it does not imply support for every dynamic Laravel behavior.
 
 | Integration | Implemented | Deferred |
@@ -211,3 +214,5 @@ PHPStan compatibility policies for scalar conversions, local mixed values, raw
 request properties, array records, native XML children, inherited PHPDoc
 contracts and unconditional retry loops are described in
 [PHPStan and Larastan compatibility](phpstan-compatibility.md).
+
+Literal argument-closure tuple writes use a bounded possible-write compatibility contract. Current caller and receiving declarations, complete row shapes, capture/reference lifetimes, and native SDK bindings must agree. See [possible callback tuples](possible-callback-tuples.md) for supported inputs and the native regression matrix.

@@ -36,33 +36,44 @@ foreach ($cases as $name => $_) {
 
 $binary = getenv('MAGO_BINARY') ?: $package.'/vendor/bin/mago';
 $command = str_ends_with($binary, '.exe') ? [$binary] : [PHP_BINARY, $binary];
-$run = static function (bool $disabled) use ($workspace, $package, $command): array {
+foreach (['json' => false, 'json-ordinary' => true, 'ordinary' => null] as $mode => $ordinary) {
+    $jsonRegistration = $ordinary === null ? '' : '$registry->registerFunctionReturnTypeProvider(new Ichinya\\Laramago\\Analyzer\\JsonDecodeProvider);';
+    $plugins = $ordinary !== false ? ', new Ichinya\\Laramago\\Analyzer\\OrdinaryMixedAssignmentPlugin' : '';
+    file_put_contents($workspace.'/'.$mode.'-worker.php', '<?php require '.var_export($package.'/vendor/autoload.php', true).';'
+        .'$json = new class implements Mago\\Sdk\\Analyzer\\Plugin {'
+        .'public function getDefinition(): Mago\\Sdk\\Analyzer\\PluginDefinition { return new Mago\\Sdk\\Analyzer\\PluginDefinition("json-control", "JSON control", "Isolated provider and policy controls."); }'
+        .'public function register(Mago\\Sdk\\Analyzer\\PluginRegistry $registry): void { '.$jsonRegistration.' }};'
+        .'(new Mago\\Sdk\\Worker(new Mago\\Sdk\\Extension(identifier:"json-control", name:"JSON control", version:"1", analyzerPlugins:[$json'.$plugins.'])))->run();');
+}
+$run = static function (string $label, ?string $worker = null, int $workers = 1) use ($workspace, $package, $command): array {
     file_put_contents($workspace.'/mago.json', json_encode([
         'extends' => $package.'/presets/laravel.toml',
         'php-version' => '8.5',
         'source' => ['paths' => ['cases.php']],
-        'extension-hosts' => $disabled ? new stdClass : [
+        'extension-hosts' => $worker === null ? new stdClass : [
             'laramago' => [
-                'command' => [PHP_BINARY, $package.'/bin/laramago-worker.php', $package.'/vendor/autoload.php', $workspace],
-                'workers' => 1,
+                'command' => [PHP_BINARY, $worker, $package.'/vendor/autoload.php', $workspace],
+                'workers' => $workers,
+                'request-timeout-ms' => 120000,
             ],
         ],
     ], JSON_THROW_ON_ERROR));
     $process = proc_open([...$command, '--workspace', $workspace, 'analyze', '--reporting-format=json'], [
         0 => ['pipe', 'r'],
-        1 => ['file', $workspace.'/report.json', 'w'],
-        2 => ['file', $workspace.'/stderr.log', 'w'],
+        1 => ['file', $workspace.'/'.$label.'.json', 'w'],
+        2 => ['file', $workspace.'/'.$label.'.stderr', 'w'],
     ], $pipes);
     if (! is_resource($process)) {
         throw new RuntimeException('Could not start Mago.');
     }
     fclose($pipes[0]);
-    proc_close($process);
-    $stderr = file_get_contents($workspace.'/stderr.log');
-    if (preg_match('/External analyzer provider failed|extension worker .*rejected request/i', $stderr)) {
+    $exit = proc_close($process);
+    file_put_contents($workspace.'/'.$label.'.process.json', json_encode(['exitCode' => $exit, 'childClosed' => true], JSON_THROW_ON_ERROR));
+    $stderr = file_get_contents($workspace.'/'.$label.'.stderr');
+    if (! in_array($exit, [0, 1], true) || preg_match('/provider[^\r\n]*failed|rejected request|protocol error|panicked|fallback|invalid[^\r\n]*frame|hook[^\r\n]*failed|fatal|worker[^\r\n]*error|timed? out|timeout|parse error|PHP Warning/i', $stderr)) {
         throw new RuntimeException('Provider failure: '.$stderr);
     }
-    return json_decode(file_get_contents($workspace.'/report.json'), true, flags: JSON_THROW_ON_ERROR)['issues'];
+    return json_decode(file_get_contents($workspace.'/'.$label.'.json'), true, flags: JSON_THROW_ON_ERROR)['issues'];
 };
 $summarize = static function (array $issues): array {
     $result = [];
@@ -77,8 +88,12 @@ $summarize = static function (array $issues): array {
     }
     return $result;
 };
-$native = $summarize($run(true));
-$adapted = $summarize($run(false));
+$nativeIssues = $run('native');
+$isolatedIssues = $run('isolated', $workspace.'/json-worker.php');
+$ordinaryIssues = $run('ordinary', $workspace.'/ordinary-worker.php');
+$combinedIssues = $run('combined', $workspace.'/json-ordinary-worker.php');
+$native = $summarize($nativeIssues);
+$adapted = $summarize($isolatedIssues);
 foreach ($lines as $name => $line) {
     $actual = $adapted[$line] ?? [];
     $baseline = $native[$line] ?? [];
@@ -101,6 +116,24 @@ foreach ($lines as $name => $line) {
     }
     echo 'PASS: '.$name."\n";
 }
+
+$signatures = static function (array $issues): array {
+    $values = array_map(static fn (array $issue): string => json_encode($issue, JSON_THROW_ON_ERROR), $issues);
+    sort($values);
+    return $values;
+};
+$errors = static fn (array $issues): array => array_values(array_filter($issues, static fn (array $issue): bool => $issue['level'] === 'Error'));
+if ($signatures($errors($nativeIssues)) !== $signatures($errors($ordinaryIssues))
+    || $signatures($errors($isolatedIssues)) !== $signatures($errors($combinedIssues))) {
+    throw new RuntimeException('Ordinary assignment policy changed native Errors; inspect '.$workspace);
+}
+foreach ([1, 3] as $workers) {
+    $integrated = $run('integrated'.$workers, $package.'/bin/laramago-worker.php', $workers);
+    if ($signatures($integrated) !== $signatures($combinedIssues)) {
+        throw new RuntimeException('Integrated JSON diagnostics differ from the independently measured provider and Ordinary policy; inspect '.$workspace);
+    }
+}
+echo "PASS: isolated JSON deferrals, independent Ordinary policy, and complete one/three-worker integrated records\n";
 
 $resolved = realpath($workspace);
 $temporary = realpath(sys_get_temp_dir());

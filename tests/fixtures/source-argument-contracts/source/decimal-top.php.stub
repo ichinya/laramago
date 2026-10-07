@@ -1,0 +1,9 @@
+<?php
+$arguments = $_SERVER['argv'] ?? null;
+$delay = is_array($arguments) ? ($arguments[1] ?? '0') : '0';
+$resultPath = __FILE__;
+if (! is_string($delay) || ! ctype_digit($delay) || (int) $delay > 2000) {
+    exit(64);
+}
+$directory = dirname($resultPath);
+usleep((int) $delay * 1000);

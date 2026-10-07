@@ -1,0 +1,7 @@
+<?php
+
+namespace NullableIndexCase61;
+/** @param \NullableOffsetFixture\BenignRecordCollection<array-key, \NullableOffsetFixture\Record> $rows */
+function read(\NullableOffsetFixture\BenignRecordCollection $rows, int|string|null $key): void { $label = $rows[$key]->label ?? null; needsInteger($label); }
+function needsInteger(int $value): void {}
+file_put_contents(__DIR__."/case-executed", "Scenario bodies must never execute.");

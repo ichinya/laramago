@@ -1,0 +1,15 @@
+<?php
+declare(strict_types=1);
+namespace Illuminate\Support;
+class ConfigurationUrlParser
+{
+    /**
+     * @param array<string,mixed>|string $config
+     * @return array<string,mixed>
+     */
+    public function parseConfiguration($config)
+    {
+        if (is_string($config)) { return ['url'=>$config]; }
+        return $config;
+    }
+}

@@ -1,0 +1,413 @@
+{
+    "cases": {
+        "ordinary": {
+            "kind": "positive",
+            "file": "app/ordinary.php",
+            "sha256": "6a3610bed87897031a122a1d1fc7d92029d3caabc0d14af86bf3b726e37605a6",
+            "sourceProofCount": 1,
+            "arraySites": [
+                [
+                    198,
+                    217
+                ]
+            ],
+            "independentErrorSites": [
+                [
+                    387,
+                    432
+                ]
+            ]
+        },
+        "global_names": {
+            "kind": "positive",
+            "file": "app/global_names.php",
+            "sha256": "fe54ca6bb445630c22465829b55384304e7a7cc98a7da5c56860fed2a4c7b0e4",
+            "sourceProofCount": 1,
+            "arraySites": [
+                [
+                    202,
+                    222
+                ]
+            ],
+            "independentErrorSites": [
+                [
+                    393,
+                    438
+                ]
+            ]
+        },
+        "imported_names": {
+            "kind": "positive",
+            "file": "app/imported_names.php",
+            "sha256": "9148090fc044f5159a590c8c39977d1c5648b5ab96c629ea49ba790102a53681",
+            "sourceProofCount": 1,
+            "arraySites": [
+                [
+                    286,
+                    311
+                ]
+            ],
+            "independentErrorSites": [
+                [
+                    485,
+                    530
+                ]
+            ]
+        },
+        "root_try": {
+            "kind": "positive",
+            "file": "app/root_try.php",
+            "sha256": "21e7ce7523e74055c81ddb11f81dee81ef151cfda93e1bc7a28916fa83577e6a",
+            "sourceProofCount": 1,
+            "arraySites": [
+                [
+                    204,
+                    223
+                ]
+            ],
+            "independentErrorSites": [
+                [
+                    436,
+                    481
+                ]
+            ]
+        },
+        "throw_rejection": {
+            "kind": "positive",
+            "file": "app/throw_rejection.php",
+            "sha256": "cd43fd9165ba0ba155b0d88363b6e8a8a11dc300ebbbcd045bb9df4561adeeaa",
+            "sourceProofCount": 1,
+            "arraySites": [
+                [
+                    205,
+                    224
+                ]
+            ],
+            "independentErrorSites": [
+                [
+                    433,
+                    478
+                ]
+            ]
+        },
+        "other_source": {
+            "kind": "negative",
+            "file": "app/other_source.php",
+            "sha256": "89bbc3fc1e71905906d23b3bebab3814e189df319e7203c83fdc7cab4d035463",
+            "sourceProofCount": 0,
+            "arraySites": [],
+            "independentErrorSites": [
+                [
+                    398,
+                    443
+                ]
+            ]
+        },
+        "nonempty_fallback": {
+            "kind": "negative",
+            "file": "app/nonempty_fallback.php",
+            "sha256": "e785eb2c57c84f64c2c2c02966931702cb0667442bda0fc5421e50dd7b16c3db",
+            "sourceProofCount": 0,
+            "arraySites": [],
+            "independentErrorSites": [
+                [
+                    402,
+                    447
+                ]
+            ]
+        },
+        "known_source_write": {
+            "kind": "negative",
+            "file": "app/known_source_write.php",
+            "sha256": "9baf413cd81ecfe676ef9a41d38f99ae2b48f4ddb06247497d5e4e0b46787167",
+            "sourceProofCount": 0,
+            "arraySites": [],
+            "independentErrorSites": [
+                [
+                    420,
+                    465
+                ]
+            ]
+        },
+        "prior_alias": {
+            "kind": "negative",
+            "file": "app/prior_alias.php",
+            "sha256": "e30360abf14f9533c76a9613572043a44ad6bad5d9ad8d8cacadcea7b40a540b",
+            "sourceProofCount": 0,
+            "arraySites": [],
+            "independentErrorSites": [
+                [
+                    418,
+                    463
+                ]
+            ]
+        },
+        "intervening_call": {
+            "kind": "negative",
+            "file": "app/intervening_call.php",
+            "sha256": "8b7386cadfc76d554839fb69d730ae0e27f955e6d24b8a8747dc74eb37aae5f2",
+            "sourceProofCount": 0,
+            "arraySites": [],
+            "independentErrorSites": [
+                [
+                    418,
+                    463
+                ]
+            ]
+        },
+        "rebound_input": {
+            "kind": "negative",
+            "file": "app/rebound_input.php",
+            "sha256": "1d748e012def01d791e596fe55265eb8ce00716fd8fe5de4d4b874a9652504e7",
+            "sourceProofCount": 0,
+            "arraySites": [],
+            "independentErrorSites": [
+                [
+                    408,
+                    453
+                ]
+            ]
+        },
+        "reference_iteration": {
+            "kind": "negative",
+            "file": "app/reference_iteration.php",
+            "sha256": "087fafc85a02096c3c237f003266554859c8f7a60677aaa07013409590d14027",
+            "sourceProofCount": 0,
+            "arraySites": [],
+            "independentErrorSites": [
+                [
+                    399,
+                    444
+                ]
+            ]
+        },
+        "keyed_iteration": {
+            "kind": "negative",
+            "file": "app/keyed_iteration.php",
+            "sha256": "455008bad8247f645ab42a2d165e03b9fe08f6061ebf7cf6dfa2cfdfdcabfd60",
+            "sourceProofCount": 0,
+            "arraySites": [],
+            "independentErrorSites": [
+                [
+                    402,
+                    447
+                ]
+            ]
+        },
+        "wrong_append": {
+            "kind": "negative",
+            "file": "app/wrong_append.php",
+            "sha256": "7ef50d7ee9285eda0d5d34afc408c17bd684f747cc088eb39667f911c92e609b",
+            "sourceProofCount": 0,
+            "arraySites": [],
+            "independentErrorSites": [
+                [
+                    387,
+                    432
+                ]
+            ]
+        },
+        "wrong_receiver": {
+            "kind": "negative",
+            "file": "app/wrong_receiver.php",
+            "sha256": "3e3d0b98b17e85bb8feb225fa9593fc8acd9a31c5e3d32bbaf9f578185f53f3e",
+            "sourceProofCount": 0,
+            "arraySites": [],
+            "independentErrorSites": [
+                [
+                    395,
+                    440
+                ]
+            ]
+        },
+        "wrong_element": {
+            "kind": "negative",
+            "file": "app/wrong_element.php",
+            "sha256": "d1d5f0fa5691a8b1e871b955ced92f16d2c6f7fc3ce794d9c8ed10ae34545cf1",
+            "sourceProofCount": 0,
+            "arraySites": [],
+            "independentErrorSites": [
+                [
+                    395,
+                    440
+                ]
+            ]
+        },
+        "nonterminating_rejection": {
+            "kind": "negative",
+            "file": "app/nonterminating_rejection.php",
+            "sha256": "24d7276b528f343afea60dcfa9a06a0b4793fdab700bb5f07b3af57cdec833ac",
+            "sourceProofCount": 0,
+            "arraySites": [],
+            "independentErrorSites": [
+                [
+                    418,
+                    463
+                ]
+            ]
+        },
+        "conditional_scope": {
+            "kind": "negative",
+            "file": "app/conditional_scope.php",
+            "sha256": "ad1b3d55964a3384d1348ab1bdaeffb563388081b6f6c752d7a09d6811fde29a",
+            "sourceProofCount": 0,
+            "arraySites": [],
+            "independentErrorSites": [
+                [
+                    422,
+                    467
+                ]
+            ]
+        },
+        "function_scope": {
+            "kind": "negative",
+            "file": "app/function_scope.php",
+            "sha256": "4588e25ad3296bec0ab040b90887fe5b2a19b479c9fe0b13c05ba7b5421f7326",
+            "sourceProofCount": 0,
+            "arraySites": [],
+            "independentErrorSites": [
+                [
+                    427,
+                    472
+                ]
+            ]
+        },
+        "strong_variable_doc": {
+            "kind": "negative",
+            "file": "app/strong_variable_doc.php",
+            "sha256": "8f912908a95ccc814394126a4652609fedbd47295e7e257c4f63fd4d72a3eebd",
+            "sourceProofCount": 0,
+            "arraySites": [],
+            "independentErrorSites": [
+                [
+                    434,
+                    479
+                ]
+            ]
+        },
+        "malformed_variable_doc": {
+            "kind": "negative",
+            "file": "app/malformed_variable_doc.php",
+            "sha256": "ac9ebca28c081d490f8c9ecdbde956230a2c95d896814d469451fff4d27a4810",
+            "sourceProofCount": 0,
+            "arraySites": [],
+            "independentErrorSites": [
+                [
+                    434,
+                    479
+                ]
+            ]
+        },
+        "shadow_array": {
+            "kind": "negative",
+            "file": "app/shadow_array.php",
+            "sha256": "8e4e47e1be81dc42a684cdddf55cc5ee05b976e4fff3232117d5c4663cd0ca83",
+            "sourceProofCount": 1,
+            "arraySites": [
+                [
+                    257,
+                    276
+                ]
+            ],
+            "independentErrorSites": [
+                [
+                    446,
+                    491
+                ]
+            ]
+        },
+        "shadow_string": {
+            "kind": "negative",
+            "file": "app/shadow_string.php",
+            "sha256": "b5aff427514a12bcec487817ccfa901aa3a0a2ba5df8b2aaf51784b0d6088900",
+            "sourceProofCount": 1,
+            "arraySites": [
+                [
+                    259,
+                    278
+                ]
+            ],
+            "independentErrorSites": [
+                [
+                    448,
+                    493
+                ]
+            ]
+        },
+        "imported_shadow": {
+            "kind": "negative",
+            "file": "app/imported_shadow.php",
+            "sha256": "08ce1ad3b5ac99127d8c422cf3b32fa300e8a09f4e8b795a7b8907abc9de9a68",
+            "sourceProofCount": 1,
+            "arraySites": [
+                [
+                    264,
+                    283
+                ]
+            ],
+            "independentErrorSites": [
+                [
+                    453,
+                    498
+                ]
+            ]
+        },
+        "different_predicate": {
+            "kind": "negative",
+            "file": "app/different_predicate.php",
+            "sha256": "5cf9acdc50ab578987f7f73c0332f8296c62dc90ed48b002cc1aa40a5366c5f9",
+            "sourceProofCount": 1,
+            "arraySites": [
+                [
+                    209,
+                    231
+                ]
+            ],
+            "independentErrorSites": [
+                [
+                    401,
+                    446
+                ]
+            ]
+        },
+        "duplicate_binding": {
+            "kind": "negative",
+            "file": "app/duplicate_binding.php",
+            "sha256": "46550f75537d2d06c24170daa93672e4cc237f7816359a6f1c795146e15fcb05",
+            "sourceProofCount": 0,
+            "arraySites": [],
+            "independentErrorSites": [
+                [
+                    412,
+                    457
+                ]
+            ]
+        },
+        "reference_binding": {
+            "kind": "negative",
+            "file": "app/reference_binding.php",
+            "sha256": "5622096699e6310ee90b32b7640116a6c012b35665123f23625d51f3bfa4bced",
+            "sourceProofCount": 0,
+            "arraySites": [],
+            "independentErrorSites": [
+                [
+                    417,
+                    462
+                ]
+            ]
+        },
+        "dynamic_predicate": {
+            "kind": "negative",
+            "file": "app/dynamic_predicate.php",
+            "sha256": "4b673343d4af72e900aac708534d0d6d68b25156301bff41df49a01a311618dd",
+            "sourceProofCount": 0,
+            "arraySites": [],
+            "independentErrorSites": [
+                [
+                    400,
+                    445
+                ]
+            ]
+        }
+    }
+}

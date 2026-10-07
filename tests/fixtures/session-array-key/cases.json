@@ -1,0 +1,42 @@
+{
+  "sourceOnly": true,
+  "nativeAcceptanceClaimed": false,
+  "sources": {
+    "framework.php": "34483af99825f9d9c78c0e517779562d6bac2f18dbfd5645b421f131b535fa5e",
+    "negative.php": "ed0c86f01ee78202ef840193e2308721c6ebaeddeb27fae9927db89ef52b9205",
+    "positive.php": "8694a98e5a4f8c97b4f4656f43dbd02a01d3520f1c13cbf157933b1b420ebbad"
+  },
+  "positiveOwners": [
+    "positive.php::Copier::direct",
+    "positive.php::Copier::forward",
+    "positive.php::Copier::request",
+    "positive.php::Copier::renamed"
+  ],
+  "negativeOwners": [
+    "NegativeCopies::alias",
+    "NegativeCopies::referenceAlias",
+    "NegativeCopies::escaped",
+    "NegativeCopies::rebound",
+    "NegativeCopies::referenceFormal",
+    "NegativeCopies::referenceValue",
+    "NegativeCopies::duplicateVariables",
+    "NegativeCopies::changedKey",
+    "NegativeCopies::extraStatement",
+    "NegativeCopies::wrongProjection",
+    "NegativeCopies::unrelatedReceiver",
+    "NegativeCopies::rewritingForwarder",
+    "NegativeCopies::shadowedAttributes",
+    "NegativeCopies::targetReference",
+    "NegativeCopies::targetAlias",
+    "NegativeCopies::targetRebind",
+    "NegativeCopies::conditionalOrigin",
+    "NegativeCopies::requestReference",
+    "NegativeCopies::requestRebind",
+    "NegativeCopies::requestEscape",
+    "NegativeCopies::storedCapture",
+    "NegativeCopies::concreteWrongArgument"
+  ],
+  "originalIds": [
+    "E028"
+  ]
+}

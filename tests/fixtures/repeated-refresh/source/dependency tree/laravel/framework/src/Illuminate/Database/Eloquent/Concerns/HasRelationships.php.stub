@@ -1,0 +1,94 @@
+<?php
+namespace Illuminate\Database\Eloquent\Concerns;
+use Closure;
+use Illuminate\Database\ClassMorphViolationException;
+use Illuminate\Database\Eloquent\Attributes\Initialize;
+use Illuminate\Database\Eloquent\Attributes\Touches;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\PendingHasThroughRelationship;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
+use Illuminate\Database\Eloquent\Relations\Pivot;
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
+trait HasRelationships {
+/**
+     * The loaded relationships for the model.
+     *
+     * @var array
+     */
+    protected $relations = [];
+/**
+     * The relationships that should be touched on save.
+     *
+     * @var array
+     */
+    protected $touches = [];
+/**
+     * The relationship autoloader callback.
+     *
+     * @var \Closure|null
+     */
+    protected $relationAutoloadCallback = null;
+/**
+     * The relationship autoloader callback context.
+     *
+     * @var mixed
+     */
+    protected $relationAutoloadContext = null;
+/**
+     * The many to many relationship methods.
+     *
+     * @var string[]
+     */
+    public static $manyMethods = [
+        'belongsToMany', 'morphToMany', 'morphedByMany',
+    ];
+/**
+     * The relation resolver callbacks.
+     *
+     * @var array
+     */
+    protected static $relationResolvers = [];
+/**
+     * Touch the owning relations of the model.
+     *
+     * @return void
+     */
+    public function touchOwners()
+    {
+        $this->withoutRecursion(function () {
+            foreach ($this->getTouchedRelations() as $relation) {
+                $this->$relation()->touch();
+
+                if ($this->$relation instanceof self) {
+                    $this->$relation->fireModelEvent('saved', false);
+
+                    $this->$relation->touchOwners();
+                } elseif ($this->$relation instanceof EloquentCollection) {
+                    $this->$relation->each->touchOwners();
+                }
+            }
+        });
+    }
+/**
+     * Get the relationships that are touched on save.
+     *
+     * @return array
+     */
+    public function getTouchedRelations()
+    {
+        return $this->touches;
+    }
+}

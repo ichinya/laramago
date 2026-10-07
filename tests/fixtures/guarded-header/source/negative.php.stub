@@ -1,0 +1,54 @@
+<?php
+declare(strict_types=1);
+namespace Fixture\HeaderErrors;
+use Illuminate\Http\Request;
+class HeaderOverride extends Request {
+    /** @return string|array|null */
+    public function header($key=null,$default=null) { return []; }
+}
+class RetrieveOverride extends Request {
+    /** @return string|array|null */
+    protected function retrieveItem($source,$key,$default) { return []; }
+}
+/** @property array $headers */
+class DocumentedHeaders extends Request {}
+class InheritedDocumentedHeaders extends DocumentedHeaders {}
+class WrongRequest {
+    /** @return string|array|null */
+    public function header($key=null,$default=null) { return []; }
+}
+/** @property-read array $headers */
+interface DocumentedHeaderContract {}
+class InterfaceDocumentedRequest extends Request implements DocumentedHeaderContract {}
+/** @method array header(string $key) */
+class MethodDocumentedRequest extends Request {}
+function escape(Request $request):void {}
+function clearHeaders():bool { return true; }
+function selectedDelimiter():string { return ','; }
+class Controller {
+    public function interfacePropertyPriority(InterfaceDocumentedRequest $request):array { if($request->header('X-Selected')) { return explode(',',$request->header('X-Selected')); }return []; }
+    public function methodDocumentationPriority(MethodDocumentedRequest $request):array { if($request->header('X-Selected')) { return explode(',',$request->header('X-Selected')); }return []; }
+    public function guardSideEffect(Request $request):array { if($request->header('X-Selected') && clearHeaders()) { return explode(',',$request->header('X-Selected')); }return []; }
+    public function receivingSideEffect(Request $request):array { if($request->header('X-Selected')) { return explode(selectedDelimiter(),$request->header('X-Selected')); }return []; }
+    public function precedingReadThenAlias(Request $request):array { $data=$request->validated();$alias=$request;if($request->header('X-Selected')) { return explode(',',$request->header('X-Selected')); }return []; }
+    public function precedingReadThenReference(Request $request):array { $data=$request->validated();$alias=&$request;if($request->header('X-Selected')) { return explode(',',$request->header('X-Selected')); }return []; }
+    public function unguarded(Request $request):array { return explode(',',$request->header('X-Selected')); }
+    public function wrongKey(Request $request):array { if($request->header('Other')) { return explode(',',$request->header('X-Selected')); }return []; }
+    public function allHeaders(Request $request):array { if($request->header()) { return explode(',',$request->header()); }return []; }
+    public function defaultArgument(Request $request):array { if($request->header('X-Selected','present')) { return explode(',',$request->header('X-Selected','present')); }return []; }
+    public function dynamicKey(Request $request,string $key):array { if($request->header($key)) { return explode(',',$request->header($key)); }return []; }
+    public function referenceFormal(Request &$request):array { if($request->header('X-Selected')) { return explode(',',$request->header('X-Selected')); }return []; }
+    public function alias(Request $request):array { $alias=$request;if($request->header('X-Selected')) { return explode(',',$request->header('X-Selected')); }return []; }
+    public function referenceAlias(Request $request):array { $alias=&$request;if($request->header('X-Selected')) { return explode(',',$request->header('X-Selected')); }return []; }
+    public function escaped(Request $request):array { escape($request);if($request->header('X-Selected')) { return explode(',',$request->header('X-Selected')); }return []; }
+    public function receiverRebind(Request $request):array { $request=new Request;if($request->header('X-Selected')) { return explode(',',$request->header('X-Selected')); }return []; }
+    public function interveningStatement(Request $request):array { if($request->header('X-Selected')) { $unused=1;return explode(',',$request->header('X-Selected')); }return []; }
+    public function disjunction(Request $request,bool $enabled):array { if($enabled || $request->header('X-Selected')) { return explode(',',$request->header('X-Selected')); }return []; }
+    public function negated(Request $request):array { if(!$request->header('X-Selected')) { return explode(',',$request->header('X-Selected')); }return []; }
+    public function overridingHeader(HeaderOverride $request):array { if($request->header('X-Selected')) { return explode(',',$request->header('X-Selected')); }return []; }
+    public function overridingRetrieve(RetrieveOverride $request):array { if($request->header('X-Selected')) { return explode(',',$request->header('X-Selected')); }return []; }
+    public function strongerProperty(DocumentedHeaders $request):array { if($request->header('X-Selected')) { return explode(',',$request->header('X-Selected')); }return []; }
+    public function strongerInheritedProperty(InheritedDocumentedHeaders $request):array { if($request->header('X-Selected')) { return explode(',',$request->header('X-Selected')); }return []; }
+    public function unrelatedReceiver(WrongRequest $request):array { if($request->header('X-Selected')) { return explode(',',$request->header('X-Selected')); }return []; }
+    public function concreteWrongArgument():array { return explode(',',new \stdClass); }
+}

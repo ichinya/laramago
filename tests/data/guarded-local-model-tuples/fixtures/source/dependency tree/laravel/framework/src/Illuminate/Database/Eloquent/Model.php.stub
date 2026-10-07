@@ -1,0 +1,27 @@
+<?php
+namespace Illuminate\Database\Eloquent;
+abstract class Model
+{
+    /** @use HasCollection<\Illuminate\Database\Eloquent\Collection<array-key, static & self>> */
+    use HasCollection;
+    /** @var class-string<\Illuminate\Database\Eloquent\Builder<*>> */
+    protected static string $builder = Builder::class;
+    /** @var class-string<\Illuminate\Database\Eloquent\Collection<*, *>> */
+    protected static string $collectionClass = Collection::class;
+/**
+     * Begin querying the model.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<static>
+     */
+    public static function query()
+    {
+        return (new static)->newQuery();
+    }
+    /** @return Builder<static> */
+    public function newQuery() { return $this->newModelQuery(); }
+    /** @return Builder<static> */
+    public function newModelQuery() { return (new Builder)->setModel($this); }
+    /** @return Builder<static> */
+    public function newQueryWithoutRelationships(){return $this->newModelQuery();}
+    public static function isAutomaticallyEagerLoadingRelationships(): bool { return false; }
+}

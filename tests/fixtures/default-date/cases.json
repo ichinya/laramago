@@ -1,0 +1,39 @@
+{
+  "sourceOnly": true,
+  "nativeAcceptanceClaimed": false,
+  "sources": {
+    "Carbon.php": "b0c624234034df67e55028b42c7bf92b952bba3814cb809f31e41908eab15c12",
+    "Creator.php": "bab417db73031a2ba6e4d0265dff474f26e91d505549f0839049fd47ea9fe3e8",
+    "Date.php": "71cbbd030b94e16b938d8a1ab94573eb4e6904fdaa5888cae82205e4763c1a34",
+    "DateFactory.php": "81889bcd32fd52e05a7da545a5df165d013967434f08c5f146440b245e287d24",
+    "Enum.php": "28bd9910cbee179e597d1b7b7c29ea6358b1297195f2ae70c60cba42f5c6f48c",
+    "Facade.php": "a781bbfb0766ac95216d9f17c94d3cd859e464d6f6f793f422db46b4c1521444",
+    "helpers.php": "d2028352158cd797dcaa8a44cb1fdfcf56817d3ab0cf91150c8e4caa407ca716",
+    "negative.php": "5883a66bc780c9458d7a2fae8f5067d3b4763d3c6b72084a088d5525bcac351a",
+    "positive.php": "ec14db51bdcac0efc713ab69295a292b7f98949680f6ebb73bb053d89b4a05ef",
+    "SupportCarbon.php": "e03830e8bc04d4ffba6e25a36fadbfd01abbcd4c362c83800295582353220d97"
+  },
+  "positiveOwners": [
+    "positive.php::Period::attribute",
+    "positive.php::Period::testPeriod",
+    "positive.php::Period::current",
+    "positive.php::Period::testChosen"
+  ],
+  "negativeOwners": [
+    "Receiver::argumentTimezone",
+    "Receiver::savedInterface",
+    "Receiver::integerBoundary",
+    "Receiver::stringBoundary",
+    "Receiver::arbitraryObject",
+    "Receiver::whollyUnknown",
+    "Receiver::wrongLiteral",
+    "Receiver::shadowedHelper"
+  ],
+  "originalIds": [
+    "E025",
+    "E026",
+    "E029",
+    "E030"
+  ],
+  "helperBinding": "imported Illuminate\\Support\\enum_value; absent local value and genuine global fallback"
+}

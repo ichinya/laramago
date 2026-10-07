@@ -1,0 +1,6 @@
+<?php
+
+namespace NullableIndexCase29;
+class Unknown extends MissingCollection {}
+function read(Unknown $rows, ?int $key): void { $rows[$key]->missing(); }
+file_put_contents(__DIR__."/case-executed", "Scenario bodies must never execute.");

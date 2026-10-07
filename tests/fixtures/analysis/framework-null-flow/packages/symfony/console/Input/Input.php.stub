@@ -1,0 +1,17 @@
+<?php
+namespace Symfony\Component\Console\Input;
+class Input {
+    protected array $options = [];
+    protected array $arguments = [];
+    protected Definition $definition;
+    public function getOption(string $name): mixed {
+        return array_key_exists($name, $this->options) ? $this->options[$name] : $this->definition->getOption($name)->getDefault();
+    }
+    public function getArgument(string $name): mixed {
+        return $this->arguments[$name] ?? $this->definition->getArgument($name)->getDefault();
+    }
+}
+class Definition {
+    public function getOption(string $name): InputOption { return new InputOption($name); }
+    public function getArgument(string $name): InputArgument { return new InputArgument($name); }
+}

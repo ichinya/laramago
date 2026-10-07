@@ -74,10 +74,20 @@ final class CollectionItemProperty
                 && ($atom->parameters ?? []) === []
                 && ($atom->intersections ?? []) === []
             ) {
-                $property = $context->codebase->getDeclaringProperty(
+                $physical = $context->codebase->getDeclaringProperty(
                     $atom->name,
                     '$'.$name,
-                ) ?? $context->codebase->getDeclaringMagicProperty($atom->name, '$'.$name);
+                );
+                $property = $physical ?? $context->codebase->getDeclaringMagicProperty($atom->name, '$'.$name);
+                if ($physical === null && $context->types->isContainedBy(
+                    Type::fromAtomic($atom), Type::namedObject('Illuminate\\Database\\Eloquent\\Model'),
+                )) {
+                    $type = $this->properties->getPropertyType(new PropertyTypeProviderContext(
+                        $context->phpVersion, $context->codebase,
+                        new PropertyAccess($atom->name, $name, PropertyAccessKind::Read, Type::fromAtomic($atom), $span),
+                        $context->types, $context->cancellation,
+                    ))?->readType;
+                }
                 if ($property !== null) {
                     if (
                         $property->readVisibility !== Visibility::Public
@@ -86,8 +96,8 @@ final class CollectionItemProperty
                     ) {
                         return null;
                     }
-                    $type = $property->type?->type ?? $property->declaredType?->type;
-                } elseif ($context->types->isContainedBy(
+                    $type ??= $property->type?->type ?? $property->declaredType?->type;
+                } elseif ($type === null && $context->types->isContainedBy(
                     Type::fromAtomic($atom),
                     Type::namedObject('Illuminate\\Database\\Eloquent\\Model'),
                 )) {

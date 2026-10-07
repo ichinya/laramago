@@ -1,0 +1,10 @@
+<?php
+namespace Illuminate\Routing;
+class Route {
+    /** @var array{as?:string} */
+    public array $action = [];
+    public string $uri = '';
+    /** @return string|null */
+    public function getName() { return $this->action['as'] ?? null; }
+    public function parameter(string $name, mixed $default = null): object|string|null { return null; }
+}

@@ -1,0 +1,3 @@
+<?php
+namespace Illuminate\Support;
+class Carbon extends \Carbon\Carbon {}

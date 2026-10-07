@@ -1,0 +1,27 @@
+{
+    "casePaths": [
+        "cases\/helper-positive.php",
+        "cases\/facade-positive.php",
+        "cases\/effectful-classification.php",
+        "cases\/unknown-field-key.php",
+        "cases\/non-null-fallback.php",
+        "cases\/unknown-producer.php",
+        "cases\/unknown-default.php",
+        "cases\/by-reference-iteration.php",
+        "cases\/record-escape.php",
+        "cases\/record-overwrite.php",
+        "cases\/wrong-predicate-value.php",
+        "cases\/effectful-presence-key.php",
+        "cases\/duplicate-presence-key.php",
+        "cases\/wrong-presence-receiver.php",
+        "cases\/positive-array-predicate.php",
+        "cases\/different-short-circuit.php",
+        "cases\/business-write-body.php",
+        "cases\/effectful-diagnostic.php",
+        "cases\/reference-value.php",
+        "cases\/reference-record.php",
+        "cases\/unclassified-read.php",
+        "cases\/different-classification-record.php",
+        "cases\/different-selected-record.php"
+    ]
+}

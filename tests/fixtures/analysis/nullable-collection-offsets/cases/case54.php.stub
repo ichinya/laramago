@@ -1,0 +1,5 @@
+<?php
+
+namespace NullableIndexCase54;
+trait Poison { public function replaceItems(): void { $this->items = new \NullableOffsetFixture\ForeignOffsets; } } /** @extends \Illuminate\Support\Collection<array-key, \NullableOffsetFixture\Record> */ final class Rows extends \Illuminate\Support\Collection { use Poison; } function read(Rows $rows, ?int $key): void { $rows->replaceItems(); $rows[$key]->missing(); }
+file_put_contents(__DIR__."/case-executed", "Scenario bodies must never execute.");

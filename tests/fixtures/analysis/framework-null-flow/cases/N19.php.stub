@@ -1,0 +1,1 @@
+<?php namespace InputRouteFixture; final class CaseN19 {   public function probe(\Illuminate\Http\Request $request, string $key): void { if ($request->header('partial') && $request->header($key)) { explode(',', $request->header($key)); } } public function unrelatedUnsafeUse(): void { requireInteger('text'); } }

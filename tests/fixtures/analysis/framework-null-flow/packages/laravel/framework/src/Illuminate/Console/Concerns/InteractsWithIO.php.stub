@@ -1,0 +1,29 @@
+<?php
+namespace Illuminate\Console\Concerns;
+interface Input {
+    public function getOptions(): array;
+    public function getArguments(): array;
+    public function getOption(string $key): mixed;
+    public function getArgument(string $key): mixed;
+    public function setOption(string $key, mixed $value): void;
+    public function setArgument(string $key, mixed $value): void;
+}
+trait InteractsWithIO {
+    protected Input $input;
+    /**
+     * @param string|null $key
+     * @return ($key is null ? array<array|string|float|int|bool|null> : array|string|float|int|bool|null)
+     */
+    public function option($key = null) {
+        if (is_null($key)) { return $this->input->getOptions(); }
+        return $this->input->getOption($key);
+    }
+    /**
+     * @param string|null $key
+     * @return ($key is null ? array<array|string|float|int|bool|null> : array|string|float|int|bool|null)
+     */
+    public function argument($key = null) {
+        if (is_null($key)) { return $this->input->getArguments(); }
+        return $this->input->getArgument($key);
+    }
+}

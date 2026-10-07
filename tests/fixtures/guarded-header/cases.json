@@ -1,0 +1,47 @@
+{
+  "sourceOnly": true,
+  "nativeAcceptanceClaimed": false,
+  "sources": {
+    "framework.php": "03349449caee379145875f29d3401b2b84bdd74e8498abeb4a67eddee97c68b6",
+    "negative.php": "65af8e5749b7a43dd739b50731ae97ccceab5f098e65368900bd820dee855db0",
+    "positive.php": "cbfe170695b907cd5422d699a4de6f4f8f9ab832009cd242ea4c7aa9fd83aa19"
+  },
+  "positiveOwners": [
+    "positive.php::Controller::direct",
+    "positive.php::Controller::inherited",
+    "positive.php::Controller::hierarchy",
+    "positive.php::Controller::conjunction",
+    "positive.php::Controller::precedingReads",
+    "positive.php::Controller::formHierarchy"
+  ],
+  "negativeOwners": [
+    "Controller::unguarded",
+    "Controller::wrongKey",
+    "Controller::allHeaders",
+    "Controller::defaultArgument",
+    "Controller::dynamicKey",
+    "Controller::referenceFormal",
+    "Controller::alias",
+    "Controller::referenceAlias",
+    "Controller::escaped",
+    "Controller::receiverRebind",
+    "Controller::interveningStatement",
+    "Controller::disjunction",
+    "Controller::negated",
+    "Controller::overridingHeader",
+    "Controller::overridingRetrieve",
+    "Controller::strongerProperty",
+    "Controller::strongerInheritedProperty",
+    "Controller::unrelatedReceiver",
+    "Controller::concreteWrongArgument",
+    "Controller::interfacePropertyPriority",
+    "Controller::methodDocumentationPriority",
+    "Controller::guardSideEffect",
+    "Controller::receivingSideEffect",
+    "Controller::precedingReadThenAlias",
+    "Controller::precedingReadThenReference"
+  ],
+  "originalIds": [
+    "E064"
+  ]
+}

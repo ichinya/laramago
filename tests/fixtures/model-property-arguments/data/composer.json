@@ -1,0 +1,8 @@
+{
+    "name": "example\/model-property-argument",
+    "autoload": {
+        "psr-4": {
+            "Example\\": "app\/"
+        }
+    }
+}

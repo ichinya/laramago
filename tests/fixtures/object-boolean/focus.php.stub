@@ -1,0 +1,25 @@
+<?php
+
+declare(strict_types=1);
+
+namespace ObjectBooleanFocus;
+
+function left(object $value,bool $flag):bool { return $value && $flag; }
+function right(object $value,bool $flag):bool { return $flag && $value; }
+function grouped(object $value,bool $flag):bool { return (($value)) && $flag; }
+function methodPeer(object $value):bool { return $value && $value->read(); }
+function propertyPeer(object $value):bool { return $value && $value->label !== ''; }
+function wrongReturn(object $value,bool $flag):string { return $value && $flag; }
+function nestedWrongArgument(object $value):bool { return $value && strlen(new \stdClass); }
+function xml(\SimpleXMLElement $value,bool $flag):bool { return $value && $flag; }
+function gmp(\GMP $value,bool $flag):bool { return $value && $flag; }
+function decimal(\BcMath\Number $value,bool $flag):bool { return $value && $flag; }
+function genericObject(mixed $value,bool $flag):bool { if(!is_object($value)){throw new \RuntimeException;} return $value && $flag; }
+function arrayTruth(array $value,bool $flag):bool { return $value && $flag; }
+function mixedTruth(mixed $value,bool $flag):bool { return $value && $flag; }
+function objectArithmetic(object $value):int { return $value+1; }
+function objectConcat(object $value):string { return 'value='.$value; }
+function objectComparison(object $value):bool { return $value>0; }
+function unrelatedOr(object $value,bool $flag):bool { return $value || $flag; }
+function unrelatedLogical(object $value,bool $flag):bool { return ($value and $flag); }
+file_put_contents(__DIR__.'/body-executed','Analyzed body must never execute.');

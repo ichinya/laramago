@@ -1,0 +1,541 @@
+{
+    "sourceSha256": "c6e52b48e1612c121b5acfa20dcd0b760941e0148681b9b35e7d2e25bd017dad",
+    "classes": {
+        "RowMapping": {
+            "span": [
+                196,
+                337
+            ],
+            "nameSpan": [
+                206,
+                216
+            ],
+            "methods": {
+                "map": {
+                    "span": [
+                        297,
+                        335
+                    ],
+                    "nameSpan": [
+                        313,
+                        316
+                    ]
+                }
+            }
+        },
+        "MappingA": {
+            "span": [
+                338,
+                434
+            ],
+            "nameSpan": [
+                350,
+                358
+            ],
+            "methods": {
+                "map": {
+                    "span": [
+                        383,
+                        432
+                    ],
+                    "nameSpan": [
+                        399,
+                        402
+                    ]
+                }
+            }
+        },
+        "MappingB": {
+            "span": [
+                435,
+                530
+            ],
+            "nameSpan": [
+                447,
+                455
+            ],
+            "methods": {
+                "map": {
+                    "span": [
+                        480,
+                        528
+                    ],
+                    "nameSpan": [
+                        496,
+                        499
+                    ]
+                }
+            }
+        },
+        "BaseStore": {
+            "span": [
+                531,
+                722
+            ],
+            "nameSpan": [
+                537,
+                546
+            ],
+            "methods": {
+                "put": {
+                    "span": [
+                        662,
+                        720
+                    ],
+                    "nameSpan": [
+                        678,
+                        681
+                    ]
+                }
+            }
+        },
+        "IntermediateStore": {
+            "span": [
+                723,
+                767
+            ],
+            "nameSpan": [
+                729,
+                746
+            ],
+            "methods": []
+        },
+        "DerivedStore": {
+            "span": [
+                768,
+                964
+            ],
+            "nameSpan": [
+                780,
+                792
+            ],
+            "methods": {
+                "put": {
+                    "span": [
+                        883,
+                        962
+                    ],
+                    "nameSpan": [
+                        899,
+                        902
+                    ]
+                }
+            }
+        },
+        "TypedParent": {
+            "span": [
+                965,
+                1051
+            ],
+            "nameSpan": [
+                971,
+                982
+            ],
+            "methods": {
+                "convert": {
+                    "span": [
+                        985,
+                        1049
+                    ],
+                    "nameSpan": [
+                        1001,
+                        1008
+                    ]
+                }
+            }
+        },
+        "TypedChild": {
+            "span": [
+                1052,
+                1161
+            ],
+            "nameSpan": [
+                1064,
+                1074
+            ],
+            "methods": {
+                "convert": {
+                    "span": [
+                        1097,
+                        1159
+                    ],
+                    "nameSpan": [
+                        1113,
+                        1120
+                    ]
+                }
+            }
+        },
+        "NamedCallParent": {
+            "span": [
+                1162,
+                1251
+            ],
+            "nameSpan": [
+                1168,
+                1183
+            ],
+            "methods": {
+                "handle": {
+                    "span": [
+                        1186,
+                        1249
+                    ],
+                    "nameSpan": [
+                        1202,
+                        1208
+                    ]
+                }
+            }
+        },
+        "NamedCallChild": {
+            "span": [
+                1252,
+                1368
+            ],
+            "nameSpan": [
+                1264,
+                1278
+            ],
+            "methods": {
+                "handle": {
+                    "span": [
+                        1305,
+                        1366
+                    ],
+                    "nameSpan": [
+                        1321,
+                        1327
+                    ]
+                }
+            }
+        },
+        "NarrowParent": {
+            "span": [
+                1995,
+                2067
+            ],
+            "nameSpan": [
+                2001,
+                2013
+            ],
+            "methods": {
+                "process": {
+                    "span": [
+                        2016,
+                        2065
+                    ],
+                    "nameSpan": [
+                        2032,
+                        2039
+                    ]
+                }
+            }
+        },
+        "NarrowChild": {
+            "span": [
+                2068,
+                2161
+            ],
+            "nameSpan": [
+                2080,
+                2091
+            ],
+            "methods": {
+                "process": {
+                    "span": [
+                        2115,
+                        2159
+                    ],
+                    "nameSpan": [
+                        2131,
+                        2138
+                    ]
+                }
+            }
+        },
+        "ArityParent": {
+            "span": [
+                2162,
+                2239
+            ],
+            "nameSpan": [
+                2168,
+                2179
+            ],
+            "methods": {
+                "process": {
+                    "span": [
+                        2182,
+                        2237
+                    ],
+                    "nameSpan": [
+                        2198,
+                        2205
+                    ]
+                }
+            }
+        },
+        "ArityChild": {
+            "span": [
+                2240,
+                2332
+            ],
+            "nameSpan": [
+                2252,
+                2262
+            ],
+            "methods": {
+                "process": {
+                    "span": [
+                        2285,
+                        2330
+                    ],
+                    "nameSpan": [
+                        2301,
+                        2308
+                    ]
+                }
+            }
+        },
+        "OptionalParent": {
+            "span": [
+                2333,
+                2411
+            ],
+            "nameSpan": [
+                2339,
+                2353
+            ],
+            "methods": {
+                "process": {
+                    "span": [
+                        2356,
+                        2409
+                    ],
+                    "nameSpan": [
+                        2372,
+                        2379
+                    ]
+                }
+            }
+        },
+        "RequiredChild": {
+            "span": [
+                2412,
+                2512
+            ],
+            "nameSpan": [
+                2424,
+                2437
+            ],
+            "methods": {
+                "process": {
+                    "span": [
+                        2463,
+                        2510
+                    ],
+                    "nameSpan": [
+                        2479,
+                        2486
+                    ]
+                }
+            }
+        },
+        "ReferenceParent": {
+            "span": [
+                2513,
+                2585
+            ],
+            "nameSpan": [
+                2519,
+                2534
+            ],
+            "methods": {
+                "process": {
+                    "span": [
+                        2537,
+                        2583
+                    ],
+                    "nameSpan": [
+                        2553,
+                        2560
+                    ]
+                }
+            }
+        },
+        "ReferenceChild": {
+            "span": [
+                2586,
+                2689
+            ],
+            "nameSpan": [
+                2598,
+                2612
+            ],
+            "methods": {
+                "process": {
+                    "span": [
+                        2639,
+                        2687
+                    ],
+                    "nameSpan": [
+                        2655,
+                        2662
+                    ]
+                }
+            }
+        },
+        "VariadicParent": {
+            "span": [
+                2690,
+                2764
+            ],
+            "nameSpan": [
+                2696,
+                2710
+            ],
+            "methods": {
+                "process": {
+                    "span": [
+                        2713,
+                        2762
+                    ],
+                    "nameSpan": [
+                        2729,
+                        2736
+                    ]
+                }
+            }
+        },
+        "VariadicChild": {
+            "span": [
+                2765,
+                2869
+            ],
+            "nameSpan": [
+                2777,
+                2790
+            ],
+            "methods": {
+                "process": {
+                    "span": [
+                        2816,
+                        2867
+                    ],
+                    "nameSpan": [
+                        2832,
+                        2839
+                    ]
+                }
+            }
+        },
+        "ReturnParent": {
+            "span": [
+                2870,
+                2960
+            ],
+            "nameSpan": [
+                2876,
+                2888
+            ],
+            "methods": {
+                "process": {
+                    "span": [
+                        2891,
+                        2958
+                    ],
+                    "nameSpan": [
+                        2907,
+                        2914
+                    ]
+                }
+            }
+        },
+        "WrongReturnChild": {
+            "span": [
+                2961,
+                3081
+            ],
+            "nameSpan": [
+                2973,
+                2989
+            ],
+            "methods": {
+                "process": {
+                    "span": [
+                        3013,
+                        3079
+                    ],
+                    "nameSpan": [
+                        3029,
+                        3036
+                    ]
+                }
+            }
+        }
+    },
+    "functions": {
+        "positionalCalls": [
+            1369,
+            1485
+        ],
+        "validNamedCall": [
+            1486,
+            1570
+        ],
+        "invalidNamedCall": [
+            1571,
+            1663
+        ],
+        "polymorphicNamedCall": [
+            1664,
+            1765
+        ],
+        "invalidCallType": [
+            1766,
+            1846
+        ],
+        "invalidCallArity": [
+            1847,
+            1921
+        ],
+        "unrelatedError": [
+            1922,
+            1993
+        ]
+    },
+    "positiveClasses": {
+        "MappingA": "map",
+        "MappingB": "map",
+        "DerivedStore": "put",
+        "TypedChild": "convert"
+    },
+    "warningMustStayClasses": [
+        "NamedCallChild",
+        "NarrowChild",
+        "ArityChild",
+        "RequiredChild",
+        "ReferenceChild",
+        "VariadicChild",
+        "WrongReturnChild"
+    ],
+    "mandatoryNativeErrorClasses": [
+        "NarrowChild",
+        "ArityChild",
+        "RequiredChild",
+        "WrongReturnChild"
+    ],
+    "mandatoryNativeErrorFunctions": [
+        "invalidNamedCall",
+        "invalidCallType",
+        "invalidCallArity",
+        "unrelatedError"
+    ],
+    "expectedGenuineControls": 56,
+    "lexicalNamedPairs": [
+        "convert:$text",
+        "handle:$value"
+    ],
+    "lexicalSourceControls": 7
+}

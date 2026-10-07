@@ -1,0 +1,35 @@
+<?php
+namespace Example\LocalCacheRegistration;
+use Illuminate\Foundation\Application;
+use Illuminate\Cache\CacheManager;
+use Illuminate\Foundation\Testing\WithCachedConfig;
+use Illuminate\Foundation\Testing\WithCachedRoutes;
+abstract class CacheBootHooks
+{
+    public function createApplication(): Application
+    {
+        $application = loadApplication();
+        if (! $application instanceof Application) {
+            throw new \UnexpectedValueException('An application is required.');
+        }
+        $application->booting(function () use ($application): void {
+            $manager = $application->make(CacheManager::class);
+            $manager->extend('array', static fn () => null);
+        });
+        $traits = class_uses_recursive(static::class);
+        if (isset($traits[WithCachedConfig::class]) && method_exists($this, 'markConfigCached')) {
+            $this->markConfigCached($application);
+        }
+        if (isset($traits[WithCachedRoutes::class]) && method_exists($this, 'markRoutesCached')) {
+            $application->booting(fn () => $this->markRoutesCached($application));
+        }
+        $pending = static fn () => mutateCarrier($application);
+        $retained = $pending;
+        $pending = static fn () => null;
+        $retained();
+        return $application;
+    }
+}
+function loadApplication(): mixed { throw new \RuntimeException('Source fixture only.'); }
+
+function mutateCarrier(Application $carrier): void { $method = "instance"; $carrier->{$method}("cache", new \stdClass()); }

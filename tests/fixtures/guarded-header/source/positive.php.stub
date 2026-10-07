@@ -1,0 +1,35 @@
+<?php
+declare(strict_types=1);
+namespace Fixture\HeaderArguments;
+use Illuminate\Http\Request;
+class CustomRequest extends Request {}
+class AdditionalRequest extends CustomRequest {}
+class ValidatedRequest extends \Illuminate\Foundation\Http\FormRequest {}
+class Controller {
+    public function precedingReads(Request $request):array {
+        $data=$request->validated();$user=$request->user();
+        if($request->header('X-Selected')) { return explode(',',$request->header('X-Selected')); }
+        return [];
+    }
+    public function formHierarchy(ValidatedRequest $request):array {
+        $data=$request->validated();$user=$request->user();
+        if($request->header('X-First') && $request->header('X-Selected')) { return explode(',',$request->header('X-Selected')); }
+        return [];
+    }
+    public function direct(Request $request):array {
+        if($request->header('X-Selected')) { return explode(',',$request->header('X-Selected')); }
+        return [];
+    }
+    public function inherited(CustomRequest $request):array {
+        if($request->header('X-Selected')) { return explode(',',$request->header('X-Selected')); }
+        return [];
+    }
+    public function hierarchy(AdditionalRequest $request):array {
+        if($request->header('X-Selected')) { return explode(',',$request->header('X-Selected')); }
+        return [];
+    }
+    public function conjunction(CustomRequest $request,bool $enabled):array {
+        if($enabled && $request->header('X-Selected')) { return explode(',',$request->header('X-Selected')); }
+        return [];
+    }
+}

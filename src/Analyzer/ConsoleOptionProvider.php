@@ -111,6 +111,22 @@ final class ConsoleOptionProvider implements MethodReturnTypeProvider, Initializ
         return $first === null ? null : ($types === [] ? $first : Type::union($first, ...$types));
     }
 
+    /** Reuse the same ordinary declaration contract for an actual issue; no invocation DTO is manufactured. */
+    public function readLiteralIssue(Codebase $codebase, string $class, string $method, string $name): ?Type
+    {
+        $method = strtolower($method);
+        if (! in_array($method, ['option', 'argument'], true) || $name === '' || $class === self::COMMAND
+            || $method === 'option' && in_array($name, self::RESERVED, true)
+            || ! in_array(strtolower(self::COMMAND), array_map(strtolower(...), $codebase->getClassAncestors($class)), true)
+            || ! $this->native($codebase, $method)) {
+            return null;
+        }
+
+        // The issue path uses a fresh instance, so no declaration/AST cached by another hook is authority.
+        $definitions = $this->classDefinitions($codebase, $class);
+
+        return $definitions[$method][$name] ?? null;
+    }
     /** @return list<string>|null Every union member must be a known literal option name. */
     private static function optionNames(?Type $type): ?array
     {

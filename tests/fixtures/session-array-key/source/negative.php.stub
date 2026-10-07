@@ -1,0 +1,32 @@
+<?php
+declare(strict_types=1);
+namespace Fixture;
+use Illuminate\Contracts\Session\Session;
+use Illuminate\Session\Store;
+use Illuminate\Http\Request;
+final class NegativeCopies {
+    private function escape(mixed &$value):void {}
+    private function store(callable $callback):void {}
+    public function alias(Session $source,Store $target):void { $alias=$source;foreach($source->all() as $key=>$value) { $target->put($key,$value); } }
+    public function referenceAlias(Session $source,Store $target):void { $alias=&$source;foreach($source->all() as $key=>$value) { $target->put($key,$value); } }
+    public function escaped(Session $source,Store $target):void { $this->escape($source);foreach($source->all() as $key=>$value) { $target->put($key,$value); } }
+    public function rebound(Session $source,Store $target,Session $other):void { $source=$other;foreach($source->all() as $key=>$value) { $target->put($key,$value); } }
+    public function referenceFormal(Session &$source,Store $target):void { foreach($source->all() as $key=>$value) { $target->put($key,$value); } }
+    public function referenceValue(Session $source,Store $target):void { foreach($source->all() as $key=>&$value) { $target->put($key,$value); } }
+    public function duplicateVariables(Session $source,Store $target):void { foreach($source->all() as $key=>$key) { $target->put($key,$key); } }
+    public function changedKey(Session $source,Store $target):void { foreach($source->all() as $key=>$value) { $key++;$target->put($key,$value); } }
+    public function extraStatement(Session $source,Store $target):void { foreach($source->all() as $key=>$value) { $target->put($key,$value);$target->start(); } }
+    public function wrongProjection(Session $source,Store $target):void { foreach($source->all() as $key=>$value) { $target->put($value,$key); } }
+    public function unrelatedReceiver(Session $source,ForeignStore $target):void { foreach($source->all() as $key=>$value) { $target->put($key,$value); } }
+    public function rewritingForwarder(Session $source,RewritingStore $target):void { foreach($source->all() as $key=>$value) { $target->put($key,$value); } }
+    public function shadowedAttributes(Session $source,ShadowStore $target):void { foreach($source->all() as $key=>$value) { $target->put($key,$value); } }
+    public function targetReference(Session $source,Store &$target):void { foreach($source->all() as $key=>$value) { $target->put($key,$value); } }
+    public function targetAlias(Session $source,Store $target):void { $alias=&$target;foreach($source->all() as $key=>$value) { $target->put($key,$value); } }
+    public function targetRebind(Session $source,Store $target,Store $other):void { $target=$other;foreach($source->all() as $key=>$value) { $target->put($key,$value); } }
+    public function conditionalOrigin(Request $request,bool $condition):void { if($condition) { $source=$request->session(); }$target=new ReplayStore;foreach($source->all() as $key=>$value) { $target->put($key,$value); } }
+    public function requestReference(Request &$request):void { $source=$request->session();$target=new ReplayStore;foreach($source->all() as $key=>$value) { $target->put($key,$value); } }
+    public function requestRebind(Request $request,Request $other):void { $request=$other;$source=$request->session();$target=new ReplayStore;foreach($source->all() as $key=>$value) { $target->put($key,$value); } }
+    public function requestEscape(Request $request):void { $this->escape($request);$source=$request->session();$target=new ReplayStore;foreach($source->all() as $key=>$value) { $target->put($key,$value); } }
+    public function storedCapture(Session $source,Store $target):void { $this->store(function()use($source,$target):void { foreach($source->all() as $key=>$value) { $target->put($key,$value); } }); }
+    public function concreteWrongArgument(Store $target):void { $target->put(new \stdClass,null); }
+}

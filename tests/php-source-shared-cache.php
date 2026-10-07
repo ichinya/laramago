@@ -98,8 +98,31 @@ try {
         $class((new PhpSource($root))->read('missing.php'))?->name?->toString() === 'Updated',
         'a later reader observes a previously missing file',
     );
+
+    $bounded = new PhpSource($root);
+    $oldest = null;
+    for ($index = 0; $index < 12; $index++) {
+        $file = 'bounded-'.$index.'.php';
+        file_put_contents($root.'/'.$file, '<?php namespace Example; final class Cached'.$index.' {}');
+        $nodes = $bounded->read($file);
+        if ($index === 0) {
+            $oldest = WeakReference::create($class($nodes));
+        }
+        unset($nodes);
+        if ($index === 2) {
+            gc_collect_cycles();
+            $assert($oldest?->get() === null, 'a reader releases the oldest AST before retaining a third parsed file');
+        }
+    }
+    gc_collect_cycles();
+    $assert($oldest?->get() === null, 'a long-lived reader releases old AST objects within a bounded window');
+    file_put_contents($root.'/bounded-0.php', '<?php namespace Example; final class AfterEviction {}');
+    $assert(
+        $class($bounded->read('bounded-0.php'))?->name?->toString() === 'AfterEviction',
+        'an evicted source is reparsed from current bytes without executing it',
+    );
 } finally {
-    foreach (['source.php', 'missing.php'] as $file) {
+    foreach (['source.php', 'missing.php', ...array_map(static fn (int $index): string => 'bounded-'.$index.'.php', range(0, 11))] as $file) {
         if (is_file($root.'/'.$file)) {
             unlink($root.'/'.$file);
         }

@@ -1,0 +1,11 @@
+<?php
+declare(strict_types=1);
+use Illuminate\Support\ConfigurationUrlParser;
+$normalizer=static function(array $configuration): array {
+    $configuration=(new ConfigurationUrlParser())->parseConfiguration($configuration);
+    return $configuration;
+};
+return ['connections'=>[
+    'primary'=>$normalizer(['driver'=>'sqlite','database'=>':memory:']),
+    'secondary'=>$normalizer(['driver'=>'pgsql','host'=>'localhost','options'=>[]]),
+]];

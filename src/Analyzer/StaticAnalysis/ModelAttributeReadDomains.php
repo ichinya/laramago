@@ -112,7 +112,14 @@ final class ModelAttributeReadDomains
         if ($castMethod !== null && ! $this->retain($castMethod->location->file)) { return null; }
         $magic = $codebase->getDeclaringMagicProperty($class, '$'.$property);
         if ($magic !== null) {
-            // Declared reads retain priority over inferred casts and separate writes.
+            // Explicit reads win; general tags retain writes while casts define reads.
+            $castType = AttributeTypes::cast($cast, $codebase);
+            $castType = $castType === null ? null : AttributeTypes::nullable($castType, $column->nullable);
+            $contract = $types === null || $castType === null ? null
+                : (new ModelPropertyReadContracts($this->source))->metadataCastContract($codebase, $types, $class, $property, $castType);
+            if ($contract !== null) {
+                return $this->current() ? $contract->readType : null;
+            }
             if ($magic->type === null || ! $magic->type->fromDocblock || $magic->readVisibility !== \Mago\Sdk\Analyzer\Type\Visibility::Public
                 || $magic->flags->contains(\Mago\Sdk\Analyzer\Metadata\MetadataFlags::WRITEONLY)
                 || $magic->hooks !== [] || ! $this->retain($magic->type->location->file)
@@ -274,6 +281,7 @@ final class ModelAttributeReadDomains
     {
         if ($file === null || str_starts_with($file, '@')) { return false; }
         $path = $this->source->path(RefreshedModelProperties::path($file));
+        if (isset($this->snapshots[$path])) { return $this->snapshots[$path] === @hash_file('sha256', $path); }
         if ($this->source->read($path) === null) { return false; }
         $hash = $this->source->contentHash($path);
         if ($hash === null) { return false; }

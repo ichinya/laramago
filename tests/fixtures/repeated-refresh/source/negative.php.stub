@@ -1,0 +1,56 @@
+<?php
+namespace Fixture;
+use Testo\Assert;
+
+final class NegativeRefresh {
+    private Tenant $tenant;
+    private Partner $partner;
+    private function saved(): Row { return (new Persistence)->save($this->tenant, ['partner_id' => $this->partner->id]); }
+    private function noop(): NoopRow { return (new Persistence)->noop($this->tenant, ['partner_id' => $this->partner->id]); }
+    private function accessor(): AccessorRow { return (new Persistence)->accessor($this->tenant, ['partner_id' => $this->partner->id]); }
+    private function freshRow(): Row { return new Row; }
+    private function neverValue(): never { throw new \RuntimeException('A genuine never expression.'); }
+    public function wrongLiteral(): void {
+        $row = $this->saved(); Assert::same($row->cost, '17.00'); $row->refresh();
+        Assert::same($row->units, 17); Assert::same($row->cost, '28.00'); $row->refresh(); Assert::same($row->units, 'wrong'); Assert::same($row->cost, '17.00');
+    }
+    public function receiverAlias(): void {
+        $row = $this->saved(); $alias = $row; Assert::same($row->cost, '17.00'); $row->refresh();
+        Assert::same($row->units, 17); Assert::same($row->cost, '28.00'); $row->refresh(); Assert::same($row->units, 0); Assert::same($row->cost, '17.00');
+    }
+    public function receiverReference(): void {
+        $row = $this->saved(); $alias =& $row; Assert::same($row->cost, '17.00'); $row->refresh();
+        Assert::same($row->units, 17); Assert::same($row->cost, '28.00'); $row->refresh(); Assert::same($row->units, 0); Assert::same($row->cost, '17.00');
+    }
+    public function unsavedReceiver(): void {
+        $row = $this->saved(); Assert::same($row->cost, '17.00'); $row->refresh();
+        Assert::same($row->units, 17); Assert::same($row->cost, '28.00'); $row->exists = false; $row->refresh(); Assert::same($row->units, 0); Assert::same($row->cost, '17.00');
+    }
+    public function receiverWrite(): void {
+        $row = $this->saved(); Assert::same($row->cost, '17.00'); $row->refresh();
+        Assert::same($row->units, 17); Assert::same($row->cost, '28.00'); $row->units = 17; $row->refresh(); Assert::same($row->units, 0); Assert::same($row->cost, '17.00');
+    }
+    public function conditionalRefresh(bool $condition): void {
+        $row = $this->saved(); Assert::same($row->cost, '17.00'); $row->refresh();
+        Assert::same($row->units, 17); Assert::same($row->cost, '28.00'); if ($condition) { $row->refresh(); } Assert::same($row->units, 0); Assert::same($row->cost, '17.00');
+    }
+    public function noopRefresh(): void {
+        $row = $this->noop(); Assert::same($row->cost, '17.00'); $row->refresh();
+        Assert::same($row->units, 17); Assert::same($row->cost, '28.00'); $row->refresh(); Assert::same($row->units, 0); Assert::same($row->cost, '17.00');
+    }
+    public function constantAccessor(): void {
+        $row = $this->accessor(); Assert::same($row->cost, '17.00'); $row->refresh();
+        Assert::same($row->units, 17); Assert::same($row->cost, '28.00'); $row->refresh(); Assert::same($row->units, 0); Assert::same($row->cost, '17.00');
+    }
+    public function explicitlyFresh(): void {
+        $row = $this->freshRow(); Assert::same($row->cost, '17.00'); $row->refresh();
+        Assert::same($row->units, 17); Assert::same($row->cost, '28.00'); $row->refresh(); Assert::same($row->units, 0); Assert::same($row->cost, '17.00');
+    }
+    public function unrelatedNeverExpression(): void { Assert::same($this->neverValue(), 0); }
+    public function explicitThrowExpression(): void { Assert::same(throw new \RuntimeException('Unreachable.'), 0); }
+    public function genuineNeverPrefix(): void {
+        $row = $this->saved(); Assert::same($row->cost, '17.00'); $row->refresh();
+        Assert::same($row->units, 17); Assert::same($row->cost, '28.00'); $this->neverValue();
+        $row->refresh(); Assert::same($row->units, 0); Assert::same($row->cost, '17.00');
+    }
+}

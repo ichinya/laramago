@@ -1,0 +1,7 @@
+# Faker cache registration contracts
+
+The default formatter proof can account for a source-bound local CacheManager producer and a source-bound Cache facade extension while preserving Generator and container override priority. Conditional framework cache markers require their exact current trait, source and SDK declarations. Unknown receivers, aliases, root replacements, stronger declarations and unsupported effects defer.
+
+The registered neutral fixtures keep complete Warning and Error records before testing admission. Every role independently queries eighteen formatter profiles. The local suite runs 131 SDK mutations and four physical source changes per role plus thirteen registration refusals. The facade suite runs 116 SDK mutations and four source changes per role plus eleven root-priority refusals. A separate empty-ancestry fixture tests two actual requested-parent/trait replacements per role; it never invokes the local 131 builder.
+
+All mutations require a fresh admitted proof, meaningful refusal under changed current metadata or source, exact finally restoration, and a fresh admitted proof with the whole issue envelope and residual report unchanged. Ordinary gates use the default engine and one/three hosts; cache controls use engine one, 512 MiB and 120000 ms. Fixtures never bootstrap an application or execute a formatter. The existing registered 155-stage legacy suite and twenty-six source priorities remain separate and unchanged.

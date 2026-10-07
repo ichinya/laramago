@@ -1,0 +1,16 @@
+<?php
+namespace Illuminate\Database\Eloquent;
+use Illuminate\Support\Collection as BaseCollection;
+use Illuminate\Database\Eloquent\Relations\Concerns\InteractsWithDictionary;
+/**
+ * @template TKey of array-key
+ * @template TModel of \Illuminate\Database\Eloquent\Model
+ * @extends \Illuminate\Support\Collection<TKey, TModel>
+ */
+class Collection extends BaseCollection
+{
+    use InteractsWithDictionary;
+    /** @return $this */
+    public function withRelationshipAutoloading() { return $this; }
+}
+class Allocation extends Collection {}

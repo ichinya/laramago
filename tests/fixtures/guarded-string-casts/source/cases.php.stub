@@ -1,0 +1,133 @@
+<?php
+declare(strict_types=1);
+namespace CastCompatibilityFixture;
+use Illuminate\Http\Request;
+
+function pass(string $value): string { return $value; }
+final class Plain {}
+final class MagicOnly
+{
+    public function __call(string $method, array $arguments): mixed { return 'text'; }
+}
+
+// Positive: direct assignment, by-value foreach and the first evaluated static-call argument.
+final class Transformer
+{
+    public static function pass(string $value): string { return $value; }
+    /** @param array<array-key,mixed> $values @return array<array-key,mixed> */
+    public function transform(array $values): array
+    {
+        foreach ($values as $key => $item) {
+            if (is_string($item)) { $values[$key] = $item; }
+            elseif (is_array($item)) { $values[$key] = $item; }
+            elseif (is_object($item) && is_callable([$item, '__toString'])) {
+                $values[$key] = self::pass((string) $item);
+            }
+        }
+        return $values;
+    }
+    public function callback(): \Closure
+    {
+        return fn (Request $request): string => self::pass((string) $request->route('slug', 'fallback'));
+    }
+}
+function fullyQualifiedGuard(mixed $value): string
+{
+    if (\is_object($value) && \is_callable([$value, '__toString'])) { return (string) $value; }
+    return '';
+}
+function firstCallArgument(mixed $value): string
+{
+    if (is_object($value) && is_callable([$value, '__toString'])) { return pass((string) $value); }
+    return '';
+}
+
+// Negatives: missing/incorrect guard and casts beyond the selected positive branch.
+function unprotected(object $value): string { return (string) $value; }
+function objectOnly(mixed $value): string
+{
+    if (is_object($value)) { return (string) $value; }
+    return '';
+}
+function otherMethod(mixed $value): string
+{
+    if (is_object($value) && is_callable([$value, 'render'])) { return (string) $value; }
+    return '';
+}
+function otherVariable(mixed $value, mixed $other): string
+{
+    if (is_object($value) && is_callable([$other, '__toString'])) { return (string) $value; }
+    return '';
+}
+function syntaxOnly(mixed $value): string
+{
+    if (is_object($value) && is_callable([$value, '__toString'], true)) { return (string) $value; }
+    return '';
+}
+function outsideBranch(mixed $value): string
+{
+    if (is_object($value) && is_callable([$value, '__toString'])) { pass('text'); }
+    return (string) $value;
+}
+function disjunctive(object $value): string
+{
+    if (is_object($value) || is_callable([$value, '__toString'])) { return (string) $value; }
+    return '';
+}
+function selectedWrite(mixed $value): string
+{
+    if (is_object($value) && is_callable([$value, '__toString'])) {
+        $value = new Plain;
+        return (string) $value;
+    }
+    return '';
+}
+function aliasBefore(mixed $value): string
+{
+    $alias =& $value;
+    if (is_object($value) && is_callable([$value, '__toString'])) { return (string) $value; }
+    return '';
+}
+function referenceFormal(mixed &$value): string
+{
+    if (is_object($value) && is_callable([$value, '__toString'])) { return (string) $value; }
+    return '';
+}
+function nestedCallback(mixed $value): \Closure
+{
+    if (is_object($value) && is_callable([$value, '__toString'])) { return fn (): string => (string) $value; }
+    return static fn (): string => '';
+}
+function effectBeforeCast(mixed $value): string
+{
+    if (is_object($value) && is_callable([$value, '__toString'])) {
+        return implode(pass('text'), [(string) $value]);
+    }
+    return '';
+}
+function concretePlain(Plain $value): string { return (string) $value; }
+function concreteMagicOnly(MagicOnly $value): string { return (string) $value; }
+function routeZeroArguments(Request $request): string { return (string) $request->route(); }
+function routeNullParameter(Request $request): string { return (string) $request->route(null, ''); }
+function routeArrayDefault(Request $request): string { return (string) $request->route('slug', []); }
+function routeNamedArguments(Request $request): string { return (string) $request->route(default: '', param: 'slug'); }
+function routeReference(Request &$request): string { return (string) $request->route('slug', ''); }
+function routeWrittenReceiver(Request $request): string
+{
+    $request = new Request;
+    return (string) $request->route('slug', '');
+}
+class CustomRequest extends Request
+{
+    public function route($param = null, $default = null): object { return new Plain; }
+}
+function routeOverridden(CustomRequest $request): string { return (string) $request->route('slug', ''); }
+
+namespace CastCompatibilityShadowFixture;
+function is_object(mixed $value): bool { return true; }
+function is_callable(mixed $value): bool { return true; }
+function shadowedGuards(object $value): string
+{
+    if (is_object($value) && is_callable([$value, '__toString'])) { return (string) $value; }
+    return '';
+}

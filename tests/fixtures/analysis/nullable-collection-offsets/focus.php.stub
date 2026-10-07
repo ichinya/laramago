@@ -1,0 +1,5 @@
+<?php
+namespace NullableIndexFocus;
+/** @param \NullableOffsetFixture\StableCollection<array-key, \NullableOffsetFixture\Record> $rows */
+function read(\NullableOffsetFixture\StableCollection $rows, ?int $key): void { $rows[$key]->missing(); }
+file_put_contents(__DIR__.'/focus-executed', 'Analyzed bodies must never execute.');

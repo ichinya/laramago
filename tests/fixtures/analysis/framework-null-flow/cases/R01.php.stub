@@ -1,0 +1,1 @@
+<?php namespace InputRouteFixture; final class CaseR01 {   public function probe(\Illuminate\Http\Request $request): string { $route = $request->route(); if ($route && $route->getName()) { return $route->getName(); } return 'fallback'; } public function unrelatedUnsafeUse(): void { requireInteger('text'); } }

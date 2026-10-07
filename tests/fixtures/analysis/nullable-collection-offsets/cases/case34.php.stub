@@ -1,0 +1,5 @@
+<?php
+
+namespace NullableIndexCase34;
+trait Leaf { public function replace(): void { $this->items = new \NullableOffsetFixture\ForeignOffsets; } } trait Label { use Leaf; } /** @extends \Illuminate\Support\Collection<array-key, \NullableOffsetFixture\Record> */ final class Rows extends \Illuminate\Support\Collection { use Label; } function read(Rows $rows, ?int $key): void { $rows[$key]->missing(); }
+file_put_contents(__DIR__."/case-executed", "Scenario bodies must never execute.");

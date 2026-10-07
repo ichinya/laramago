@@ -1,0 +1,17 @@
+<?php
+namespace Illuminate\Http;
+class Request extends \Symfony\Component\HttpFoundation\Request {
+    use Concerns\InteractsWithInput;
+    /** @return \Closure():\Illuminate\Routing\Route|null */
+    public function getRouteResolver(): \Closure { return static fn (): ?\Illuminate\Routing\Route => null; }
+    /**
+     * @param string|null $param
+     * @param mixed $default
+     * @return ($param is null ? \Illuminate\Routing\Route : object|string|null)
+     */
+    public function route($param = null, $default = null) {
+        $route = call_user_func($this->getRouteResolver());
+        if (is_null($route) || is_null($param)) { return $route; }
+        return $route->parameter($param, $default);
+    }
+}

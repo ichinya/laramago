@@ -1,0 +1,68 @@
+{
+  "sourceOnly": true,
+  "nativeJobs": 0,
+  "legacySourceCases": 17,
+  "schemaSourceCases": 6,
+  "casesSourceSha256": "1500eddfc91259095aabb2763ee041e9f7903b75693e7adf254d6c09a29727d2",
+  "schemaSourceSha256": "6bc6086120e8e7de32f63ad7d10425153ce5cc3558c34f6ef3bcf49bde0c374a",
+  "requiredGenuineTargets": {
+    "positive": {
+      "file": "cases.php",
+      "span": [
+        325,
+        344
+      ],
+      "route": "explicit-scalar-cast"
+    },
+    "independentEarlier": {
+      "file": "cases.php",
+      "span": [
+        2808,
+        2827
+      ],
+      "route": "explicit-scalar-cast"
+    },
+    "schemaOnly": {
+      "file": "schema-cases.php",
+      "span": [
+        1009,
+        1028
+      ],
+      "route": "schema-only-column"
+    }
+  },
+  "requiredEarlierArgumentErrors": {
+    "independentEarlier": [
+      2798,
+      2807
+    ]
+  },
+  "legacyCases": [
+    "positive",
+    "independentEarlier",
+    "unknown",
+    "typo",
+    "getter",
+    "readDocument",
+    "reference",
+    "wrongAssignment",
+    "independent",
+    "effectful",
+    "assignment",
+    "earlierReference",
+    "earlierOutput",
+    "unpack",
+    "named",
+    "propertyEffect",
+    "dynamicLocal"
+  ],
+  "schemaCases": [
+    "schemaOnly",
+    "getAttributeOverride",
+    "magicOverride",
+    "actualDateDomain",
+    "customDates",
+    "directionalRead"
+  ],
+  "negativeCoveragePolicy": "Classify actual nonempty native records separately from native-covered source cases; no fabricated positives."
+}

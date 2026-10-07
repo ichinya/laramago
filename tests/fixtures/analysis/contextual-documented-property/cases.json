@@ -1,0 +1,674 @@
+[
+    {
+        "file": "cases\/case-00.php",
+        "label": "catch documented integer",
+        "expectedCandidateRead": true,
+        "sites": [
+            {
+                "fetch": [
+                    346,
+                    354
+                ],
+                "name": [
+                    352,
+                    354
+                ],
+                "field": "id"
+            }
+        ],
+        "sourceSha256": "1ac78b8ac09add99e3495a231bb6bff715867ba80c055434f8a0ade4902b6468",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-01.php",
+        "label": "ordinary documented integer",
+        "expectedCandidateRead": true,
+        "sites": [
+            {
+                "fetch": [
+                    282,
+                    290
+                ],
+                "name": [
+                    288,
+                    290
+                ],
+                "field": "id"
+            }
+        ],
+        "sourceSha256": "c2c73045e410462e0e0a8cfc57cdc05c5b97159091d50819ba7ecdbae684d684",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-02.php",
+        "label": "nullable documented catch read",
+        "expectedCandidateRead": true,
+        "sites": [
+            {
+                "fetch": [
+                    351,
+                    365
+                ],
+                "name": [
+                    357,
+                    365
+                ],
+                "field": "nullable"
+            }
+        ],
+        "sourceSha256": "c901a782450072ffd3ee98d4902db5e6a70c9471c1f628cb280561b5706f6716",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-03.php",
+        "label": "literal documented catch read",
+        "expectedCandidateRead": true,
+        "sites": [
+            {
+                "fetch": [
+                    349,
+                    362
+                ],
+                "name": [
+                    355,
+                    362
+                ],
+                "field": "literal"
+            }
+        ],
+        "sourceSha256": "06939582beea7daad6c2e3032b40dce500da9cbd7f2fec5ccc00f553bac98581",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-04.php",
+        "label": "read-only input helper before catch",
+        "expectedCandidateRead": true,
+        "sites": [
+            {
+                "fetch": [
+                    369,
+                    377
+                ],
+                "name": [
+                    375,
+                    377
+                ],
+                "field": "id"
+            }
+        ],
+        "sourceSha256": "85b0532ac510730429b7890b11803e8f2758dbdb7b5fcfcdd4369acf5c244be7",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-05.php",
+        "label": "physical public field catch",
+        "expectedCandidateRead": true,
+        "sites": [
+            {
+                "fetch": [
+                    353,
+                    365
+                ],
+                "name": [
+                    359,
+                    365
+                ],
+                "field": "amount"
+            }
+        ],
+        "sourceSha256": "e72f109af19da0a3b78ddf92eab99756175e7e92b6cd16f4d065ba66d03f8d0a",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-06.php",
+        "label": "wrong scalar use stays an Error",
+        "expectedCandidateRead": true,
+        "sites": [
+            {
+                "fetch": [
+                    346,
+                    358
+                ],
+                "name": [
+                    352,
+                    358
+                ],
+                "field": "amount"
+            }
+        ],
+        "sourceSha256": "c38b6a79688b1ec66dca227b4a3b4fac249e7ca5b5d5153fe5d4e319177a882b",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-07.php",
+        "label": "unknown field catch",
+        "expectedCandidateRead": false,
+        "sites": [
+            {
+                "fetch": [
+                    346,
+                    359
+                ],
+                "name": [
+                    352,
+                    359
+                ],
+                "field": "unknown"
+            }
+        ],
+        "sourceSha256": "9fee364e9dcf412cc24aa3a2a9c2f2d59dcf97ab278388955099cfafa2d180e2",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-08.php",
+        "label": "misspelled field catch",
+        "expectedCandidateRead": false,
+        "sites": [
+            {
+                "fetch": [
+                    346,
+                    355
+                ],
+                "name": [
+                    352,
+                    355
+                ],
+                "field": "idd"
+            }
+        ],
+        "sourceSha256": "adbd52d2390aad17ac0e91e3a71051ed3bcdc6f235b5cb300f737c792f8934be",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-09.php",
+        "label": "receiver is the collection",
+        "expectedCandidateRead": false,
+        "sites": [
+            {
+                "fetch": [
+                    346,
+                    356
+                ],
+                "name": [
+                    354,
+                    356
+                ],
+                "field": "id"
+            }
+        ],
+        "sourceSha256": "310f80ed0cac56747403815ce77703b83a972e63fe274446d9083d1425886968",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-10.php",
+        "label": "item reassignment in try",
+        "expectedCandidateRead": false,
+        "sites": [
+            {
+                "fetch": [
+                    347,
+                    355
+                ],
+                "name": [
+                    353,
+                    355
+                ],
+                "field": "id"
+            }
+        ],
+        "sourceSha256": "3220abd95076991138c944522f7d9ad3f12ed34ada009738dbb946f5cdb8a123",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-11.php",
+        "label": "item reassignment in catch",
+        "expectedCandidateRead": false,
+        "sites": [
+            {
+                "fetch": [
+                    368,
+                    376
+                ],
+                "name": [
+                    374,
+                    376
+                ],
+                "field": "id"
+            }
+        ],
+        "sourceSha256": "dac3cb858c9bc74f3d9757f54829591f816e2814e3d8fc92fce385e0a74fda0d",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-12.php",
+        "label": "item alias escape",
+        "expectedCandidateRead": false,
+        "sites": [
+            {
+                "fetch": [
+                    362,
+                    370
+                ],
+                "name": [
+                    368,
+                    370
+                ],
+                "field": "id"
+            }
+        ],
+        "sourceSha256": "97aab45e1f0a72213e868fa2e0c4b27f5de95b51ef639b4d4f9fe140f741303b",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-13.php",
+        "label": "item reference iteration",
+        "expectedCandidateRead": false,
+        "sites": [
+            {
+                "fetch": [
+                    348,
+                    356
+                ],
+                "name": [
+                    354,
+                    356
+                ],
+                "field": "id"
+            }
+        ],
+        "sourceSha256": "66ba8d68cdd2a286b993eae6d9d1cccd1ac308a33cabca92eaa821210235c230",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-14.php",
+        "label": "item reference capture",
+        "expectedCandidateRead": false,
+        "sites": [
+            {
+                "fetch": [
+                    386,
+                    394
+                ],
+                "name": [
+                    392,
+                    394
+                ],
+                "field": "id"
+            }
+        ],
+        "sourceSha256": "a819ceba19008df32501591c98d4a4f1a5b4a0aff9326bd9061b153485c1ec66",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-15.php",
+        "label": "item unknown argument escape",
+        "expectedCandidateRead": false,
+        "sites": [
+            {
+                "fetch": [
+                    361,
+                    369
+                ],
+                "name": [
+                    367,
+                    369
+                ],
+                "field": "id"
+            }
+        ],
+        "sourceSha256": "ee8e92d6969a270ffa6d55570d019f92405d556ca78d5026d186007d9d8ca3a6",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-16.php",
+        "label": "input collection alias",
+        "expectedCandidateRead": false,
+        "sites": [
+            {
+                "fetch": [
+                    364,
+                    372
+                ],
+                "name": [
+                    370,
+                    372
+                ],
+                "field": "id"
+            }
+        ],
+        "sourceSha256": "cd8ab7bdeab77d3a11f909ac1a1975cadbc6fef41da094ed95a084e65be72d0a",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-17.php",
+        "label": "input collection mutation",
+        "expectedCandidateRead": false,
+        "sites": [
+            {
+                "fetch": [
+                    375,
+                    383
+                ],
+                "name": [
+                    381,
+                    383
+                ],
+                "field": "id"
+            }
+        ],
+        "sourceSha256": "95df15bea94d315179a8e400eaee0168466a303f0cdb9f8dbc5fb22abc10dde0",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-18.php",
+        "label": "input mutable helper",
+        "expectedCandidateRead": false,
+        "sites": [
+            {
+                "fetch": [
+                    372,
+                    380
+                ],
+                "name": [
+                    378,
+                    380
+                ],
+                "field": "id"
+            }
+        ],
+        "sourceSha256": "116384d19fece9a7d76796615c852bfaf7349679fa1aa8bb4fa004deb7f4069a",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-19.php",
+        "label": "strong local annotation",
+        "expectedCandidateRead": false,
+        "sites": [
+            {
+                "fetch": [
+                    373,
+                    381
+                ],
+                "name": [
+                    379,
+                    381
+                ],
+                "field": "id"
+            }
+        ],
+        "sourceSha256": "b97aa9eeaac71da0e4a24dcc9ac0ade90cb4a4bd8fd7901a037e54cb63799e16",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-20.php",
+        "label": "strong generic callback annotation",
+        "expectedCandidateRead": false,
+        "sites": [
+            {
+                "fetch": [
+                    394,
+                    402
+                ],
+                "name": [
+                    400,
+                    402
+                ],
+                "field": "id"
+            }
+        ],
+        "sourceSha256": "b9e6c211a47e1329842df322eac6b04d503823295b3dc5b607bd7047be0d5fc1",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-21.php",
+        "label": "query model replacement",
+        "expectedCandidateRead": false,
+        "sites": [
+            {
+                "fetch": [
+                    401,
+                    409
+                ],
+                "name": [
+                    407,
+                    409
+                ],
+                "field": "id"
+            }
+        ],
+        "sourceSha256": "33f9770d8f3a71798f4a39bc7938357f3c546bb271119f7f83de6e6cf1a26429",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-22.php",
+        "label": "unknown field of a different producer",
+        "expectedCandidateRead": false,
+        "sites": [
+            {
+                "fetch": [
+                    330,
+                    338
+                ],
+                "name": [
+                    336,
+                    338
+                ],
+                "field": "id"
+            }
+        ],
+        "sourceSha256": "32ab35982fd41df26c928fac7541323c679920eb68831c7e3d2619901f1adbe0",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-23.php",
+        "label": "custom query body",
+        "expectedCandidateRead": false,
+        "sites": [
+            {
+                "fetch": [
+                    358,
+                    366
+                ],
+                "name": [
+                    364,
+                    366
+                ],
+                "field": "id"
+            }
+        ],
+        "sourceSha256": "a51f8699f06197206d8fefdc3e33675d4c31b16ca7bf3b6824a959c919ec5856",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-24.php",
+        "label": "custom hydration body",
+        "expectedCandidateRead": false,
+        "sites": [
+            {
+                "fetch": [
+                    361,
+                    369
+                ],
+                "name": [
+                    367,
+                    369
+                ],
+                "field": "id"
+            }
+        ],
+        "sourceSha256": "41d94dacdc10054fa924f72a7405c8fc910fc0deecb40bc005835ec8a69d6ad2",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-25.php",
+        "label": "custom collection body",
+        "expectedCandidateRead": false,
+        "sites": [
+            {
+                "fetch": [
+                    363,
+                    371
+                ],
+                "name": [
+                    369,
+                    371
+                ],
+                "field": "id"
+            }
+        ],
+        "sourceSha256": "cf0fea9e457b92fa717a304a51e1c994107e76b0ba9828fae29481755e23c47f",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-26.php",
+        "label": "private physical shadow",
+        "expectedCandidateRead": false,
+        "sites": [
+            {
+                "fetch": [
+                    353,
+                    365
+                ],
+                "name": [
+                    359,
+                    365
+                ],
+                "field": "amount"
+            }
+        ],
+        "sourceSha256": "a6d02b714e21d1c55eb7736ba6410b3371f3e467cc563063368b3b1fe1a5489d",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-27.php",
+        "label": "write-only documented field",
+        "expectedCandidateRead": false,
+        "sites": [
+            {
+                "fetch": [
+                    334,
+                    350
+                ],
+                "name": [
+                    340,
+                    350
+                ],
+                "field": "write_only"
+            }
+        ],
+        "sourceSha256": "2858e8125b18b601f4315a55558f30a9822e470b45e93101516288fcc6dfe2f7",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-28.php",
+        "label": "field direct write",
+        "expectedCandidateRead": false,
+        "sites": [
+            {
+                "fetch": [
+                    275,
+                    283
+                ],
+                "name": [
+                    281,
+                    283
+                ],
+                "field": "id"
+            }
+        ],
+        "sourceSha256": "1bdf96ccc782ed397d4803c5a0864d9dd2b2a6b1a989afed70500d48917cc48b",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-29.php",
+        "label": "field reference escape",
+        "expectedCandidateRead": false,
+        "sites": [
+            {
+                "fetch": [
+                    287,
+                    295
+                ],
+                "name": [
+                    293,
+                    295
+                ],
+                "field": "id"
+            }
+        ],
+        "sourceSha256": "33f0bb4edd94c9200ecb7a14e19ee0ece68cc25d4f6944ed5028d43d08cb1ecb",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-30.php",
+        "label": "field unset",
+        "expectedCandidateRead": false,
+        "sites": [
+            {
+                "fetch": [
+                    281,
+                    289
+                ],
+                "name": [
+                    287,
+                    289
+                ],
+                "field": "id"
+            }
+        ],
+        "sourceSha256": "53bb3df8a34dba713cd5fb4c0e6389db7d5f126009b498aa90499a5da9310480",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    },
+    {
+        "file": "cases\/case-31.php",
+        "label": "field isset",
+        "expectedCandidateRead": false,
+        "sites": [
+            {
+                "fetch": [
+                    281,
+                    289
+                ],
+                "name": [
+                    287,
+                    289
+                ],
+                "field": "id"
+            }
+        ],
+        "sourceSha256": "2e02d422fdb38c21b254a368c845ac8b02f893c13df4d309ee5ea22faf2b1fe7",
+        "independentInvalidScalar": true,
+        "globalProviderNameCollision": true
+    }
+]

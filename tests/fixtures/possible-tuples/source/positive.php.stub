@@ -1,0 +1,92 @@
+<?php
+declare(strict_types=1);
+namespace Fixture\TypedTuples;
+class TupleExamples {
+    public const LABEL_FIRST='alpha';
+    public const LABEL_SECOND='beta';
+    public function text(string $input,bool $first,bool $second):Receipt {
+        $rows=[];
+        try {
+            return DeferredCallbacks::invoke(function()use($input,$first,$second,&$rows):Receipt {
+                if (!$first) {
+                    $this->inspect($input);
+                    $rows[]=[$input];
+                    throw new \RuntimeException('First deferred denial.');
+                }
+                if (!$second) {
+                    $rows[]=[$input];
+                    throw new \RuntimeException('Second deferred denial.');
+                }
+                return new Receipt;
+            },3);
+        } catch (\RuntimeException $failure) {
+            foreach($rows as [$value]) { $this->acceptText($value); }
+            throw new \RuntimeException('Deferred denial reported.');
+        }
+    }
+    public function object(Packet $packet,bool $first,bool $second):Receipt {
+        $rows=[];
+        try {
+            return DeferredCallbacks::invoke(function()use($packet,$first,$second,&$rows):Receipt {
+                if (!$first) {
+                    $rows[]=[$packet];
+                    throw new \RuntimeException('First deferred denial.');
+                }
+                if (!$second) {
+                    $rows[]=[$packet];
+                    throw new \RuntimeException('Second deferred denial.');
+                }
+                return new Receipt;
+            },3);
+        } catch (\RuntimeException $failure) {
+            foreach($rows as [$value]) { $this->acceptPacket($value); }
+            throw new \RuntimeException('Deferred denial reported.');
+        }
+    }
+    public function unknownFields(mixed $unknown,bool $first,bool $second):Receipt {
+        $rows=[];
+        try {
+            return DeferredCallbacks::invoke(function()use($unknown,$first,$second,&$rows):Receipt {
+                if (!$first) {
+                    $rows[]=[$unknown];
+                    throw new \RuntimeException('First deferred denial.');
+                }
+                if (!$second) {
+                    $rows[]=[$unknown];
+                    throw new \RuntimeException('Second deferred denial.');
+                }
+                return new Receipt;
+            },3);
+        } catch (\RuntimeException $failure) {
+            foreach($rows as [$value]) { $this->acceptPacket($value); }
+            throw new \RuntimeException('Deferred denial reported.');
+        }
+    }
+    /** @param self::LABEL_* $input */
+    public function constantText(string $input,bool $first,bool $second):Receipt {
+        $rows=[];
+        try {
+            return DeferredCallbacks::invoke(function()use($input,$first,$second,&$rows):Receipt {
+                if (!$first) {
+                    $this->inspectConstant($input);
+                    $label=$input===self::LABEL_FIRST?'first':'second';
+                    $rows[]=[$input];
+                    throw new \RuntimeException('First deferred denial.');
+                }
+                if (!$second) {
+                    $rows[]=[$input];
+                    throw new \RuntimeException('Second deferred denial.');
+                }
+                return new Receipt;
+            },3);
+        } catch (\RuntimeException $failure) {
+            foreach($rows as [$value]) { $this->acceptText($value); }
+            throw new \RuntimeException('Deferred denial reported.');
+        }
+    }
+    /** @param self::LABEL_*|null $input */
+    private function inspectConstant(?string $input):void {}
+    private function inspect(?string $input):void {}
+    private function acceptText(string $input):void {}
+    private function acceptPacket(Packet $packet):void {}
+}

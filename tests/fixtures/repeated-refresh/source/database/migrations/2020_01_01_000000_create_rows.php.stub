@@ -1,0 +1,13 @@
+<?php
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends \Illuminate\Database\Migrations\Migration {
+    public function up(): void {
+        Schema::create('fixture_rows', static function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedInteger('units');
+            $table->decimal('cost', 8, 2);
+        });
+        Schema::create('partners', static function (Blueprint $table): void { $table->id(); });
+    }
+};

@@ -1,0 +1,5 @@
+The configuration argument adapter follows all invocations of a nonescaping top-level static literal callback with one array parameter. It can establish string keys when every invocation supplies a literal array with explicit nonnumeric string keys. Array values stay mixed. The selected receiving declaration and its argument domain are checked through native SDK metadata and current physical source.
+
+Integer or numeric string keys, unpacked or referenced items, unknown input arrays, callback aliases, callback storage, rebinding, reference parameters and preceding formal mutations preserve the native Errors. The rule does not change a function's declared type, create a closure identifier or require callback hooks to run in the same worker.
+
+Run `php tests/closed-configuration.php` after integration. The test requires genuine native Errors, an AlwaysKeep observer, exact one/three-worker removals, intact whole issue records for all other findings, actual selected native cache mutations with restoration, and the full production registry comparison. Invented fixture bodies and the consumer bootstrap/autoload are never executed.

@@ -1,0 +1,10 @@
+<?php
+namespace Carbon\Traits;
+use DateTimeZone;
+trait Creator
+{
+    public static function now(DateTimeZone|string|int|null $timezone = null): static
+    {
+        return new static(null, $timezone);
+    }
+}

@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer\StaticAnalysis;
 
 use Mago\Sdk\Analyzer\Codebase;
+use Mago\Sdk\Analyzer\Metadata\ClassLikeKind;
 use Mago\Sdk\Analyzer\Metadata\FunctionLikeMetadata;
 use Mago\Sdk\Analyzer\Metadata\FunctionLikeKind;
 use Mago\Sdk\Analyzer\Metadata\MetadataFlags;
+use Mago\Sdk\Analyzer\Type;
+use Mago\Sdk\Analyzer\TypeComparator;
 use Mago\Sdk\Analyzer\Type\Visibility;
 
 /** Verify the native replacement and primitive-reader dispatch, including delegated overrides. */
@@ -21,6 +24,7 @@ final class NativeModelAttributeRefresh
         '/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasRelationships.php' => 'c571b377b627420754dd2dcf297aab8f7f40c8ecc6eb367f53534cbdde6167e0',
         '/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasTimestamps.php' => 'fb0ac2ee5148846061ea14283f464ab3295a599a409afe85b3eeaf8fddd11b34',
         '/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/PreventsCircularRecursion.php' => '5b68c23b0f374c92502f260fae343ea80f841eb35d86d477c194b78d8fe5d0a5',
+        '/laravel/framework/src/Illuminate/Database/Eloquent/Casts/Json.php' => '8d35680fcbc71dfc735b700024a081adcbdbf51cce7bf6187a22bd77595c1b1a',
         '/testo/assert/Assert.php' => 'bd4393799a6bf4799ca1e71efce2ffe4311bb5dedeb41a81987e026b4ca0b7b0',
     ];
     /** @var array<string,array{hash:string,valid:bool}> */
@@ -78,6 +82,9 @@ final class NativeModelAttributeRefresh
     private const JSON_READ_METHODS = [
         'fromjson' => ['Concerns/HasAttributes', '29cb77aecac80287fa1f544780b908b3401a32a480735e53b2dba85b9e94d675', 2, 'Public'],
     ];
+    private const JSON_CODEC = 'Illuminate\\Database\\Eloquent\\Casts\\Json';
+    private const JSON_CODEC_CLASS = 'ce57252145a63d1d6d7c01f72f95a0d675653a8d36d8ad384da22c18704280eb';
+    private const JSON_DECODE = '98f07351c941519d474fd71c86907bfd3a246737b6fbce69303aefb9cbb00f29';
     private const UPDATE_METHODS = [
         '__set' => ['Model', 'e02111d23b57f0e3bf4a9f552a5b05db63b8e1643d5a6ff0243fba3967221071', 2, 'Public'],
         'asdatetime' => ['Concerns/HasAttributes', '6b9fd446f44782cd59960ed3076529050df6dbd9bc51002d2ad86321db2f6fcb', 1, 'Protected'],
@@ -148,6 +155,68 @@ final class NativeModelAttributeRefresh
     }
 
     public function update(Codebase $codebase, string $class): bool { return $this->methods($codebase, $class, self::UPDATE_METHODS); }
+
+    /**
+     * Dirty comparison may read an unrelated native JSON field before refresh.
+     * The native codec has an ordinary decoder-free continuation; this does not
+     * assert that a configurable callback is absent or that update must succeed.
+     */
+    public function jsonUpdateReads(Codebase $codebase, string $class, TypeComparator $types): bool
+    {
+        if (! $this->methods($codebase, $class, self::JSON_READ_METHODS) || ! self::builtinJsonDecoder($codebase, $types)) { return false; }
+        $codec = $codebase->getClass(self::JSON_CODEC);
+        $decode = $codebase->getMethod(self::JSON_CODEC, 'decode');
+        if ($codec === null || $codec->kind !== ClassLikeKind::Class_ || $codec->hasIncompleteHierarchy()
+            || strcasecmp($codec->name, self::JSON_CODEC) !== 0 || $codec->parentClasses !== [] || $codec->parentInterfaces !== []
+            || $codec->usedTraits !== [] || $codec->templates !== [] || $codec->typeAliases !== [] || $codec->mixins !== []
+            || $decode === null || strcasecmp($decode->identifier->class ?? '', self::JSON_CODEC) !== 0
+            || ! self::metadata($decode, 'decode', 2, Visibility::Public, true)
+            || ! $this->source($decode, '/laravel/framework/src/Illuminate/Database/Eloquent/Casts/Json.php', self::JSON_DECODE)
+            || RefreshedModelProperties::path($codec->location->file ?? '') !== RefreshedModelProperties::path($decode->location->file ?? '')
+            || RefreshedModelProperties::path($codec->nameLocation?->file ?? '') !== RefreshedModelProperties::path($codec->location->file ?? '')) { return false; }
+        $source = new PhpSource($this->root);
+        $file = $codec->location->file;
+        $nodes = $source->read($file);
+        if ($nodes === null) { return false; }
+        foreach ((new \PhpParser\NodeFinder)->findInstanceOf($nodes, \PhpParser\Node\Stmt\Class_::class) as $node) {
+            if ($node->namespacedName === null || strcasecmp($node->namespacedName->toString(), self::JSON_CODEC) !== 0) { continue; }
+            if ($node->getStartFilePos() !== $codec->location->span->start || $node->getEndFilePos() + 1 !== $codec->location->span->end
+                || $node->name?->getStartFilePos() !== $codec->nameLocation?->span->start || $node->name?->getEndFilePos() + 1 !== $codec->nameLocation?->span->end) { return false; }
+            $contents = @file_get_contents($source->path($file));
+            return $contents !== false && $source->contentHash($file) === hash('sha256', $contents)
+                && hash_equals(self::JSON_CODEC_CLASS, self::fingerprint(substr($contents, $node->getStartFilePos(), $node->getEndFilePos() + 1 - $node->getStartFilePos())));
+        }
+        return false;
+    }
+
+    private static function builtinJsonDecoder(Codebase $codebase, TypeComparator $types): bool
+    {
+        // The installed codec calls an unqualified function in this namespace.
+        if ($codebase->getFunction('Illuminate\\Database\\Eloquent\\Casts\\json_decode') !== null) { return false; }
+        $decoder = $codebase->getFunction('json_decode');
+        if ($decoder === null || $decoder->kind !== FunctionLikeKind::Function_ || $decoder->static
+            || $decoder->identifier->kind !== \Mago\Sdk\Analyzer\Type\FunctionLikeKind::Function_
+            || $decoder->identifier->class !== null || strcasecmp($decoder->identifier->name, 'json_decode') !== 0
+            || strcasecmp($decoder->name, 'json_decode') !== 0 || strcasecmp($decoder->originalName, 'json_decode') !== 0 || ! $decoder->flags->contains(MetadataFlags::BUILTIN)
+            || $decoder->flags->contains(MetadataFlags::USER_DEFINED) || $decoder->flags->contains(MetadataFlags::BY_REFERENCE)
+            || $decoder->templates !== [] || $decoder->assertions !== [] || $decoder->ifTrueAssertions !== [] || $decoder->ifFalseAssertions !== [] || $decoder->assertionsInferred
+            || $decoder->globalsAccessed !== [] || $decoder->whereConstraints !== []
+            || $decoder->returnType === null || $decoder->declaredReturnType === null
+            || ! $types->equals($decoder->returnType->type, Type::mixed()) || ! $types->equals($decoder->declaredReturnType->type, Type::mixed())
+            || count($decoder->parameters) !== 4) { return false; }
+        $parameters = [['$json', Type::string(), null], ['$associative', Type::union(Type::bool(), Type::null()), Type::null()],
+            ['$depth', Type::int(), Type::literalInt(512)], ['$flags', Type::int(), Type::literalInt(0)]];
+        foreach ($parameters as $position => [$name, $type, $default]) {
+            $parameter = $decoder->parameters[$position];
+            if ($parameter->name !== $name || $parameter->flags->contains(MetadataFlags::BY_REFERENCE) || $parameter->flags->contains(MetadataFlags::VARIADIC)
+                || $parameter->outType !== null || $parameter->closureThisType !== null
+                || $parameter->type === null || $parameter->declaredType === null || ! $types->equals($parameter->type->type, $type)
+                || ! $types->equals($parameter->declaredType->type, $type)
+                || ($default === null ? $parameter->flags->contains(MetadataFlags::HAS_DEFAULT)
+                    : ! $parameter->flags->contains(MetadataFlags::HAS_DEFAULT) || $parameter->defaultType === null || ! $types->equals($parameter->defaultType->type, $default))) { return false; }
+        }
+        return true;
+    }
 
     /** Unrelated attribute reads must not invoke an unverified receiver-aware cast before refresh. */
     public function reads(Codebase $codebase, string $class, array $properties): bool

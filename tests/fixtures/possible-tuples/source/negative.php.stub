@@ -1,0 +1,51 @@
+<?php
+declare(strict_types=1);
+namespace Fixture\TypedTuples;
+class NegativeRows {
+    public const REJECT_FIRST='alpha';
+    public const REJECT_SECOND=7;
+    public function alias(string $input,mixed $unknown):void {$rows=[];try {$alias=$rows;DeferredCallbacks::invoke(function()use($input,&$rows):Receipt{if (\random_int(0,1)===0) {$rows[]=[$input];throw new \RuntimeException('First deferred denial.');} if (\random_int(0,1)===0) {$rows[]=[$input];throw new \RuntimeException('Second deferred denial.');} return new Receipt;},3);} catch (\RuntimeException $failure) {foreach($rows as[$value]){$this->acceptText($value);}}}
+    public function referenceAlias(string $input,mixed $unknown):void {$rows=[];try {$alias=&$rows;DeferredCallbacks::invoke(function()use($input,&$rows):Receipt{if (\random_int(0,1)===0) {$rows[]=[$input];throw new \RuntimeException('First deferred denial.');} if (\random_int(0,1)===0) {$rows[]=[$input];throw new \RuntimeException('Second deferred denial.');} return new Receipt;},3);} catch (\RuntimeException $failure) {foreach($rows as[$value]){$this->acceptText($value);}}}
+    public function escaped(string $input,mixed $unknown):void {$rows=[];try {$this->escape($rows);DeferredCallbacks::invoke(function()use($input,&$rows):Receipt{if (\random_int(0,1)===0) {$rows[]=[$input];throw new \RuntimeException('First deferred denial.');} if (\random_int(0,1)===0) {$rows[]=[$input];throw new \RuntimeException('Second deferred denial.');} return new Receipt;},3);} catch (\RuntimeException $failure) {foreach($rows as[$value]){$this->acceptText($value);}}}
+    public function rebound(string $input,mixed $unknown):void {$rows=[];try {DeferredCallbacks::invoke(function()use($input,&$rows):Receipt{if (\random_int(0,1)===0) {$rows[]=[$input];throw new \RuntimeException('First deferred denial.');} if (\random_int(0,1)===0) {$rows[]=[$input];throw new \RuntimeException('Second deferred denial.');} return new Receipt;},3);$rows=$unknown;} catch (\RuntimeException $failure) {foreach($rows as[$value]){$this->acceptText($value);}}}
+    public function storedCapture(string $input,mixed $unknown):void {$rows=[];try {$stored=function()use($input,&$rows):Receipt{if (\random_int(0,1)===0) {$rows[]=[$input];throw new \RuntimeException('First deferred denial.');} if (\random_int(0,1)===0) {$rows[]=[$input];throw new \RuntimeException('Second deferred denial.');} return new Receipt;};DeferredCallbacks::invoke($stored,3);} catch (\RuntimeException $failure) {foreach($rows as[$value]){$this->acceptText($value);}}}
+    public function referenceLoop(string $input,mixed $unknown):void {$rows=[];try {DeferredCallbacks::invoke(function()use($input,&$rows):Receipt{if (\random_int(0,1)===0) {$rows[]=[$input];throw new \RuntimeException('First deferred denial.');} if (\random_int(0,1)===0) {$rows[]=[$input];throw new \RuntimeException('Second deferred denial.');} return new Receipt;},3);} catch (\RuntimeException $failure) {foreach($rows as [&$value]){$this->acceptText($value);}}}
+    public function duplicateProjection(string $input,mixed $unknown):void {$rows=[];try {DeferredCallbacks::invoke(function()use($input,$unknown,&$rows):Receipt{if (\random_int(0,1)===1) {return new Receipt;}$rows[]=[$input,$unknown];throw new \RuntimeException('Deferred write boundary.');},3);} catch (\RuntimeException $failure) {foreach($rows as[$value,$value]){$this->acceptText($value);}}}
+    public function nonArrayWrite(string $input,mixed $unknown):void {$rows=[];try {DeferredCallbacks::invoke(function()use($input,&$rows):Receipt{if (\random_int(0,1)===1) {return new Receipt;}$rows[]=42;throw new \RuntimeException('Deferred write boundary.');},3);} catch (\RuntimeException $failure) {foreach($rows as[$value]){$this->acceptText($value);}}}
+    public function differentArity(string $input,mixed $unknown):void {$rows=[];try {DeferredCallbacks::invoke(function()use($input,$unknown,&$rows):Receipt{if (\random_int(0,1)===1) {return new Receipt;}$rows[]=[$unknown,$input];throw new \RuntimeException('Deferred write boundary.');},3);} catch (\RuntimeException $failure) {foreach($rows as[$value]){$this->acceptText($value);}}}
+    public function keyedRow(string $input,mixed $unknown):void {$rows=[];try {DeferredCallbacks::invoke(function()use($input,&$rows):Receipt{if (\random_int(0,1)===1) {return new Receipt;}$rows[]=["value"=>$input];throw new \RuntimeException('Deferred write boundary.');},3);} catch (\RuntimeException $failure) {foreach($rows as[$value]){$this->acceptText($value);}}}
+    public function spreadRow(string $input,mixed $unknown):void {$rows=[];try {DeferredCallbacks::invoke(function()use($input,$unknown,&$rows):Receipt{if (\random_int(0,1)===1) {return new Receipt;}$rows[]=[...[$unknown]];throw new \RuntimeException('Deferred write boundary.');},3);} catch (\RuntimeException $failure) {foreach($rows as[$value]){$this->acceptText($value);}}}
+    public function referencedEntry(string $input,mixed $unknown):void {$rows=[];try {DeferredCallbacks::invoke(function()use($input,$unknown,&$rows):Receipt{if (\random_int(0,1)===1) {return new Receipt;}$rows[]=[&$unknown];throw new \RuntimeException('Deferred write boundary.');},3);} catch (\RuntimeException $failure) {foreach($rows as[$value]){$this->acceptText($value);}}}
+    public function inputReference(string $input,mixed $unknown):void {$rows=[];try {DeferredCallbacks::invoke(function()use($input,&$rows):Receipt{$alias=&$input;if (\random_int(0,1)===0) {$rows[]=[$input];throw new \RuntimeException('First deferred denial.');} if (\random_int(0,1)===0) {$rows[]=[$input];throw new \RuntimeException('Second deferred denial.');} return new Receipt;},3);} catch (\RuntimeException $failure) {foreach($rows as[$value]){$this->acceptText($value);}}}
+    public function referenceReadFormal(string $input,mixed $unknown):void {$rows=[];try {DeferredCallbacks::invoke(function()use($input,&$rows):Receipt{$this->mutate($input);if (\random_int(0,1)===0) {$rows[]=[$input];throw new \RuntimeException('First deferred denial.');} if (\random_int(0,1)===0) {$rows[]=[$input];throw new \RuntimeException('Second deferred denial.');} return new Receipt;},3);} catch (\RuntimeException $failure) {foreach($rows as[$value]){$this->acceptText($value);}}}
+    public function concreteWrongArgument(string $input,mixed $unknown):void {$this->acceptPacket(42);}
+
+    public function builtinReceiver(string $input,mixed $unknown):void {$rows=[];try {DeferredCallbacks::invoke(function()use($input,$unknown,&$rows):Receipt{if (\random_int(0,1)===1) {return new Receipt;}$rows[]=[$input,$unknown];throw new \RuntimeException('Deferred write boundary.');},3);} catch (\RuntimeException $failure) {foreach($rows as[$value,$value]){\count($value);}}}
+
+    /** @param self::REJECT_* $input */
+    public function constantMixed(string $input,bool $first,bool $second):Receipt {
+        $rows=[];
+        try {
+            return DeferredCallbacks::invoke(function()use($input,$first,$second,&$rows):Receipt {
+                if (!$first) {
+                    
+                    $label=$input===self::REJECT_FIRST?'first':'second';
+                    $rows[]=[$input];
+                    throw new \RuntimeException('First deferred denial.');
+                }
+                if (!$second) {
+                    $rows[]=[$input];
+                    throw new \RuntimeException('Second deferred denial.');
+                }
+                return new Receipt;
+            },3);
+        } catch (\RuntimeException $failure) {
+            foreach($rows as [$value]) { $this->acceptText($value); }
+            throw new \RuntimeException('Deferred denial reported.');
+        }
+    }
+    private function acceptText(string $input):void {}
+    private function acceptPacket(Packet $packet):void {}
+    private function mutate(string &$input):void {}
+    private function escape(mixed &$rows):void {}
+}

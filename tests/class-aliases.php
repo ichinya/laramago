@@ -74,15 +74,28 @@ foreach ($plainCases as $name => $_) {
 
 $binary = getenv('MAGO_BINARY') ?: $package.'/vendor/bin/mago';
 $command = str_ends_with($binary, '.exe') ? [$binary] : [PHP_BINARY, $binary];
-$run = static function (bool $disabled) use ($workspace, $package, $command): array {
+foreach (['aliases' => false, 'aliases-ordinary' => true] as $mode => $ordinary) {
+    file_put_contents($workspace.'/'.$mode.'-worker.php', '<?php require '.var_export($package.'/vendor/autoload.php', true).';'
+        .'$aliases = new class('.var_export($workspace, true).') implements Mago\\Sdk\\Analyzer\\Plugin {'
+        .'public function __construct(private string $root) {}'
+        .'public function getDefinition(): Mago\\Sdk\\Analyzer\\PluginDefinition { return new Mago\\Sdk\\Analyzer\\PluginDefinition("alias-control", "Alias control", "Isolated class alias filter."); }'
+        .'public function register(Mago\\Sdk\\Analyzer\\PluginRegistry $registry): void { '
+        .'$filter = new Ichinya\\Laramago\\Analyzer\\ClassAliasFilter($this->root); '
+        .'$registry->registerIssueFilterHook($filter); $registry->registerInitializationHook($filter); }};'
+        .'(new Mago\\Sdk\\Worker(new Mago\\Sdk\\Extension(identifier:"alias-control", name:"Alias control", version:"1", analyzerPlugins:[$aliases'
+        .($ordinary ? ', new Ichinya\\Laramago\\Analyzer\\OrdinaryMixedAssignmentPlugin' : '')
+        .'])))->run();');
+}
+$run = static function (bool $disabled, ?string $worker = null, int $workers = 1) use ($workspace, $package, $command): array {
     file_put_contents($workspace.'/mago.json', json_encode([
         'extends' => $package.'/presets/laravel.toml',
         'php-version' => '8.5',
         'source' => ['paths' => ['cases.php'], 'includes' => [$workspace.'/laravel']],
         'extension-hosts' => $disabled ? new stdClass : [
             'laramago' => [
-                'command' => [PHP_BINARY, $package.'/bin/laramago-worker.php', $package.'/vendor/autoload.php', $workspace],
-                'workers' => 1,
+                'command' => [PHP_BINARY, $worker ?? $workspace.'/aliases-worker.php', $package.'/vendor/autoload.php', $workspace],
+                'workers' => $workers,
+                'request-timeout-ms' => 120000,
             ],
         ],
     ], JSON_THROW_ON_ERROR));
@@ -95,12 +108,31 @@ $run = static function (bool $disabled) use ($workspace, $package, $command): ar
         throw new RuntimeException('Could not start Mago.');
     }
     fclose($pipes[0]);
-    proc_close($process);
+    $exit = proc_close($process);
+    file_put_contents($workspace.'/process.json', json_encode(['exitCode' => $exit, 'childClosed' => true], JSON_THROW_ON_ERROR));
     $stderr = file_get_contents($workspace.'/stderr.log');
-    if (preg_match('/External analyzer provider failed|extension worker .*rejected request|analyzer issue-filter hook .* failed/i', $stderr)) {
+    if (! in_array($exit, [0, 1], true) || preg_match('/provider[^\r\n]*failed|rejected request|protocol error|panicked|fallback|invalid[^\r\n]*frame|hook[^\r\n]*failed|fatal|worker[^\r\n]*error|timed? out|timeout|parse error|PHP Warning/i', $stderr)) {
         throw new RuntimeException('Provider failure: '.$stderr);
     }
     return json_decode(file_get_contents($workspace.'/report.json'), true, flags: JSON_THROW_ON_ERROR)['issues'];
+};
+$signatures = static function (array $issues): array {
+    $rows = array_map(static fn (array $issue): string => json_encode($issue, JSON_THROW_ON_ERROR), $issues);
+    sort($rows);
+    return $rows;
+};
+$checkIntegration = static function () use ($run, $package, $workspace, $signatures): void {
+    $isolated = $run(false);
+    $combined = $run(false, $workspace.'/aliases-ordinary-worker.php');
+    $errors = static fn (array $issues): array => array_values(array_filter($issues, static fn (array $issue): bool => $issue['level'] === 'Error'));
+    if ($signatures($errors($isolated)) !== $signatures($errors($combined))) {
+        throw new RuntimeException('Assignment advisory policy changed alias Errors; inspect '.$workspace);
+    }
+    foreach ([1, 3] as $workers) {
+        if ($signatures($run(false, $package.'/bin/laramago-worker.php', $workers)) !== $signatures($combined)) {
+            throw new RuntimeException('Integrated aliases differ from the independently measured filter and assignment policy; inspect '.$workspace);
+        }
+    }
 };
 $summarize = static function (array $issues): array {
     $result = [];
@@ -140,6 +172,7 @@ foreach ($lines as $name => $line) {
     }
     echo 'PASS: '.$name."\n";
 }
+$checkIntegration();
 
 // The project declaring its own global Str class defeats the boot alias, so the
 // diagnostic must survive.
@@ -152,6 +185,7 @@ if (($shadowAdapted[5] ?? []) !== ($shadowNative[5] ?? []) || ! in_array('non-ex
     throw new RuntimeException('declared-class-shadow must keep its real diagnostic; native '.json_encode($shadowNative[5] ?? []).'; adapted '.json_encode($shadowAdapted[5] ?? []).'; inspect '.$workspace);
 }
 echo "PASS: declared-class-shadow\n";
+$checkIntegration();
 
 // A project config that carries any `aliases` key replaces the base table wholesale,
 // so the filter must disable itself entirely.

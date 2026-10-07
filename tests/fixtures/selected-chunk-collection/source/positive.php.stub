@@ -1,0 +1,23 @@
+<?php
+declare(strict_types=1);
+namespace Fixture;
+use Illuminate\Database\Eloquent\Collection;
+final class Projection {
+    /** @param Collection<int,Row> $items */
+    private function accept(Collection $items):array { throw new \RuntimeException('Fixture body must not execute.'); }
+    private function record(array $data):void { throw new \RuntimeException('Fixture body must not execute.'); }
+    public function configured():void {
+        $query=Row::query();$query->where('category_id',7);$total=(clone $query)->count();
+        $query->with(['category'])->chunkById(10,function(Collection $items):void { $this->accept($items); });
+    }
+    public function direct():void {
+        $query=Row::query();$query->chunkById(10,function(Collection $items):void { $this->accept($items); });
+    }
+    public function unrelatedReference():void {
+        $query=Row::query();$completed=0;$failed=0;
+        $query->chunkById(10,function(Collection $items)use(&$completed,&$failed):void { $this->accept($items);$completed++;$failed++; });
+    }
+    public function nestedReceivingExpression():void {
+        $query=Row::query();$query->chunkById(10,function(Collection $items):void { $this->record($this->accept($items)); });
+    }
+}

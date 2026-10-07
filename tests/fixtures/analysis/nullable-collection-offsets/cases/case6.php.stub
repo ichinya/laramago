@@ -1,0 +1,13 @@
+<?php
+
+namespace NullableIndexCase6;
+/**
+ * @param \Illuminate\Support\Collection<array-key, \NullableOffsetFixture\Record> $rows
+ * @param array{id:int|null} $row
+ */
+function read(\Illuminate\Support\Collection $rows, array $row): void {
+    $record = $rows[$row['id']];
+    if (! $record instanceof \NullableOffsetFixture\Record) { throw new \RuntimeException('Unexpected record.'); }
+    $record->missing();
+}
+file_put_contents(__DIR__."/case-executed", "Scenario bodies must never execute.");

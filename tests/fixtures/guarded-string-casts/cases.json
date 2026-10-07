@@ -1,0 +1,51 @@
+{
+  "sources": {
+    "guard-focus.php": "a1ba7cc542e715218a1a7a00e6a1ee90c0b571a83909bb0288874cdefeab273e",
+    "route-focus.php": "5f0a4a04e23da6bf565fbb7e1cae929f9f63eeee07ed8d164e1fee3fe98f2617",
+    "cases.php": "c0f26f1a534d36643faca06048bcda25dc7c86e186f813c179bb2c93a7af06a6",
+    "laravel/framework/src/Illuminate/Http/Request.php": "4f0e356a78240fc8d6bdd7d924c976991d882418602344a6317f8aee6daacf5e",
+    "laravel/framework/src/Illuminate/Routing/Route.php": "78dee3194dbdd264440435b3226b8323c379648ae543007057490563c2623657"
+  },
+  "positiveOwners": [
+    "guarded",
+    "routeParameter",
+    "transform",
+    "callback",
+    "fullyQualifiedGuard",
+    "firstCallArgument"
+  ],
+  "negativeOwners": [
+    "unprotected",
+    "objectOnly",
+    "otherMethod",
+    "otherVariable",
+    "syntaxOnly",
+    "disjunctive",
+    "selectedWrite",
+    "aliasBefore",
+    "referenceFormal",
+    "nestedCallback",
+    "effectBeforeCast",
+    "concretePlain",
+    "concreteMagicOnly",
+    "routeZeroArguments",
+    "routeNullParameter",
+    "routeArrayDefault",
+    "routeNamedArguments",
+    "routeReference",
+    "routeWrittenReceiver",
+    "routeOverridden",
+    "shadowedGuards"
+  ],
+  "expectedGenuineControls": {
+    "guard": 50,
+    "route": 80
+  },
+  "expectedNativeCacheMutations": {
+    "guard": 31,
+    "route": 61
+  },
+  "sourceOnlyNegativeOwners": [
+    "outsideBranch"
+  ]
+}

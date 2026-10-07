@@ -1,0 +1,1 @@
+<?php file_put_contents(__DIR__."/executed", "executed"); throw new RuntimeException("Source body executed.");

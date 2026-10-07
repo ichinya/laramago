@@ -80,6 +80,42 @@ final class ConditionalArrayGuards implements CodebaseScanHook, InitializationHo
         return $entry !== null && hash('sha256', $contents) === $entry['hash'] ? $entry['proofs'] : [];
     }
 
+    /**
+     * Read script-local source candidates under PHPStan's default lexical assignment policy.
+     * The temporary frame is used only by the source interpreter; it has no native identity.
+     * Explicit references and dynamic storage retain their refusal behavior.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function lexicalScriptProofs(string $contents): array
+    {
+        if (strlen($contents) > 1024 * 1024) { return []; }
+        try {
+            $nodes = (new NodeTraverser(new NameResolver))->traverse(
+                (new ParserFactory)->createForNewestSupportedVersion()->parse($contents) ?? []);
+        } catch (\PhpParser\Error) { return []; }
+        if ((new NodeFinder)->findFirst($nodes, static fn (Node $node): bool =>
+            $node instanceof Node\Expr\AssignRef || $node instanceof Node\Stmt\Global_
+            || $node instanceof Node\Expr\Eval_ || $node instanceof Node\Expr\Variable && ! is_string($node->name)
+            || $node instanceof Node\Arg && $node->byRef || $node instanceof Node\ArrayItem && $node->byRef
+            || $node instanceof Node\Stmt\Foreach_ && $node->byRef
+            || $node instanceof Node\Expr\ClosureUse && $node->byRef) !== null) { return []; }
+        $functions = self::functions($nodes);
+        $proofs = [];
+        foreach (self::blocks($nodes) as [$scope, $statements]) {
+            if ($scope !== null) { continue; }
+            foreach ($statements as $index => $statement) {
+                if (self::selection($statements[$index + 1] ?? null, $functions) === null) { continue; }
+                $prefix = array_slice($statements, 0, $index + 2);
+                $frame = new Node\Stmt\Function_('__laramago_lexical_frame', ['stmts' => $prefix]);
+                foreach (self::candidates($frame, $prefix, $functions) as $proof) {
+                    $proof['scope'] = null;
+                    $proofs[] = $proof;
+                }
+            }
+        }
+        return $proofs;
+    }
     /** @param array<string, mixed> $proof */
     public static function current(array $proof): bool
     {

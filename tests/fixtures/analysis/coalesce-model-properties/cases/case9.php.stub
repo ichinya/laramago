@@ -1,0 +1,6 @@
+<?php
+namespace CoalesceCase9;
+function run(\Illuminate\Database\Eloquent\Model $row): void { $row->label ??= 'unknown'; needsInteger($row->label); }
+function needsInteger(int $value): void {}
+function independentUnsafe(): void { (new \stdClass)->missing(); }
+file_put_contents(__DIR__.'/case-executed','Source must never execute.');

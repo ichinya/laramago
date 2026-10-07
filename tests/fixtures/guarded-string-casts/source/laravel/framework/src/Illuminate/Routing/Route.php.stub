@@ -1,0 +1,7 @@
+<?php
+namespace Illuminate\Routing;
+class Route
+{
+    /** @param mixed $default @return object|string|null */
+    public function parameter(string $name, $default = null) { return $default; }
+}

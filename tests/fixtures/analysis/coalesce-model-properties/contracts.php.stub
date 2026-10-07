@@ -1,0 +1,32 @@
+<?php
+namespace Illuminate\Database\Eloquent;
+abstract class Model implements \ArrayAccess {
+    /**
+     * @param string $key
+     * @return mixed
+     */
+    public function __get($key) { return $this->getAttribute($key); }
+    /**
+     * @param string $key
+     * @return bool
+     */
+    public function __isset($key) { return $this->offsetExists($key); }
+    /**
+     * @param string $key
+     * @return mixed
+     */
+    public function getAttribute($key) { return null; }
+    public function offsetExists(mixed $offset): bool { return false; }
+    public function offsetGet(mixed $offset): mixed { return null; }
+    public function offsetSet(mixed $offset, mixed $value): void {}
+    public function offsetUnset(mixed $offset): void {}
+}
+namespace CoalesceProbeFixture;
+use Illuminate\Database\Eloquent\Model;
+class Invitation { public ?Model $actor = null; }
+class Collection { /** @return mixed */ public function __get(string $key) { return null; } }
+class PhysicalRow extends Model { public string $label = 'example'; }
+/** @property-read string $label */
+class DocumentedRow extends Model {}
+class ForeignMagic { /** @return mixed */ public function __get(string $key) { return null; } }
+file_put_contents(__DIR__.'/contracts-executed', 'Declaration source must never execute.');

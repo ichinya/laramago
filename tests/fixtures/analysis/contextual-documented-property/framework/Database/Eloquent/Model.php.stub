@@ -1,0 +1,60 @@
+<?php
+namespace Illuminate\Database\Eloquent;
+/** @implements \Illuminate\Contracts\Support\Arrayable<array-key, mixed> */
+class Model implements \Illuminate\Contracts\Support\Arrayable {
+    use HasCollection;
+    use \Illuminate\Database\Eloquent\Concerns\HasGlobalScopes;
+    protected static $builder = Builder::class;
+    protected static $collectionClass = Collection::class;
+    protected $with = [];
+    protected $withCount = [];
+    public function __construct(array $attributes = []) {}
+    public function __call(string $method, array $arguments): mixed {}
+    public static function __callStatic(string $method, array $arguments): mixed {}
+    public function __get(string $key): mixed {}
+    public function toArray(): array { return []; }
+    /** @return \Illuminate\Database\Eloquent\Builder<static> */
+    public static function query() { return (new static)->newQuery(); }
+    /** @return \Illuminate\Database\Eloquent\Builder<static> */
+    public function newQuery() { return $this->registerGlobalScopes($this->newQueryWithoutScopes()); }
+    /** @return \Illuminate\Database\Eloquent\Builder<static> */
+    public function newModelQuery() { return $this->newEloquentBuilder($this->newBaseQueryBuilder())->setModel($this); }
+    /** @return \Illuminate\Database\Eloquent\Builder<static> */
+    public function newQueryWithoutScopes() { return $this->newModelQuery()->with($this->with)->withCount($this->withCount); }
+    /** @return \Illuminate\Database\Eloquent\Builder<static> */
+    public function newQueryWithoutRelationships() { return $this->registerGlobalScopes($this->newModelQuery()); }
+    /**
+     * @param \Illuminate\Database\Eloquent\Builder<static> $builder
+     * @return \Illuminate\Database\Eloquent\Builder<static>
+     */
+    public function registerGlobalScopes($builder) {
+        foreach ($this->getGlobalScopes() as $identifier => $scope) { $builder->withGlobalScope($identifier, $scope); }
+        return $builder;
+    }
+    /** @return \Illuminate\Database\Eloquent\Builder<*> */
+    public function newEloquentBuilder($query) {
+        $builderClass = $this->resolveCustomBuilderClass();
+        if ($builderClass && is_subclass_of($builderClass, Builder::class)) { return new $builderClass($query); }
+        return new static::$builder($query);
+    }
+    protected function newBaseQueryBuilder() { return $this->getConnection()->query(); }
+    protected function resolveCustomBuilderClass() { return static::resolveClassAttribute(\Illuminate\Database\Eloquent\Attributes\UseEloquentBuilder::class, 'builderClass') ?? false; }
+    /** @return static */
+    public function newInstance($attributes = [], $exists = false) {
+        $model = new static;
+        $model->exists = $exists;
+        $model->setConnection($this->getConnectionName());
+        $model->setTable($this->getTable());
+        $model->mergeCasts($this->casts);
+        $model->fill((array) $attributes);
+        return $model;
+    }
+    /** @return static */
+    public function newFromBuilder($attributes = [], $connection = null) {
+        $model = $this->newInstance([], true);
+        $model->setRawAttributes((array) $attributes, true);
+        $model->setConnection($connection ?? $this->getConnectionName());
+        $model->fireModelEvent('retrieved', false);
+        return $model;
+    }
+}

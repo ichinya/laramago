@@ -69,7 +69,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
-/** @property int $id */
+/** @property-read int $id */
 class Person extends Model {
     /** @use HasFactory<\Database\Factories\PersonFactory> */
     use HasFactory;

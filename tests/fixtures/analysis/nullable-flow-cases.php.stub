@@ -1,0 +1,123 @@
+<?php
+declare(strict_types=1);
+namespace NullFlowExamples;
+
+final class Member { public string $value='ready';public function can(string $action,mixed $subject=null):bool { return $action!==''; } }
+final class Holder
+{
+    public ?string $path=null;
+    public ?Member $member=null;
+    public function __construct(?string $path,?Member $member) { $this->path=$path;$this->member=$member; }
+    public function label():?string { return $this->path; }
+    public function user():?Member { return $this->member; }
+    public function option(string $key):?string { return $key==='left'?$this->path:null; }
+    public function header(string $key):?string { return $key!==''?$this->path:null; }
+    public function clear():void { $this->path=null;$this->member=null; }
+    public function unstable():?Member { $value=$this->member;$this->member=null;return $value; }
+}
+final class Postcondition
+{
+    /** @phpstan-assert !null $actual */
+    public static function notNull(mixed $actual,string $message=''):void { if($actual===null) { throw new \RuntimeException($message); } }
+    public static function unrelated(string $value):void {}
+}
+final class Consumer
+{
+    public static function text(string $value):string { return $value; }
+    public static function member(Member $value):string { return $value->value; }
+    public static function ready(string $channel,string $nonce,Member $member):void {}
+    public static function integer(int $value):void {}
+}
+final class RowCollection
+{
+    /** @var list<Member> */ private array $items;
+    /** @param list<Member> $items */ public function __construct(array $items) { $this->items=$items; }
+    public function first():?Member { return $this->items[0]??null; }
+    /** @phpstan-assert-if-false Member $this->first() */
+    public function isEmpty():bool { return $this->items===[]; }
+}
+final class Resolver { public function resolve(string $key):Member { if($key==='') { throw new \RuntimeException; }return new Member; } }
+final class BroadValue { public function value():array|string|null { return random_int(0,1)===1?[]:null; } }
+
+function retainedReturn(Holder $holder):string {
+    if($holder->label()) { return /* POSITIVE P01 nullable-return-statement */ $holder->label(); }
+    return 'fallback';
+}
+function retainedMethodOne(Holder $holder):bool {
+    return $holder->user()!==null&&/* POSITIVE P02 possible-method-access-on-null */ $holder->user()->can('read');
+}
+function retainedMethodTwo(Holder $holder,bool $skip):bool {
+    return $holder->user()!==null&&($skip||/* POSITIVE P03 possible-method-access-on-null */ $holder->user()->can('read'));
+}
+function retainedMethodThree(Holder $holder,?Member $subject):bool {
+    return $holder->user()!==null&&($subject===null||/* POSITIVE P04 possible-method-access-on-null */ $holder->user()->can('read',$subject));
+}
+function retainedMethodFour(Holder $holder,?object $subject):bool {
+    return $holder->user()!==null&&(!($subject instanceof Member)||/* POSITIVE P05 possible-method-access-on-null */ $holder->user()->can('read'));
+}
+function retainedPostconditionOne(Holder $holder):void {
+    Postcondition::notNull($holder->label());
+    Consumer::text(/* POSITIVE P06 possibly-null-argument */ $holder->label());
+}
+function retainedPostconditionTwo(Holder $holder):void {
+    Postcondition::notNull($holder->label());$events=[];
+    $unrelated=static function()use(&$events):void { $events[]='observed'; };$unrelated();
+    Postcondition::unrelated('ready');
+    file_get_contents(/* POSITIVE P07 possibly-null-argument */ $holder->label());
+}
+function retainedPropertyPath(Holder $holder):void {
+    Postcondition::notNull($holder->path);
+    try { Consumer::text(/* POSITIVE P08 possibly-null-argument */ $holder->path); }finally { Postcondition::unrelated('finished'); }
+}
+function conditionalCollection(RowCollection $rows):string {
+    return $rows->isEmpty()?'empty':Consumer::member(/* POSITIVE P09 possibly-null-argument */ $rows->first());
+}
+function retainedOptions(Holder $holder):void {
+    if($holder->option('left')===null||$holder->option('right')===null) { return; }
+    Consumer::text(/* POSITIVE P10 possibly-null-argument */ $holder->option('left'));
+    Consumer::text(/* POSITIVE P11 possibly-null-argument */ $holder->option('right'));
+}
+function retainedFilePath(Holder $holder):void {
+    Postcondition::notNull($holder->path);
+    file_get_contents(/* POSITIVE P12 possibly-null-argument */ $holder->path);
+}
+function retainedHeader(Holder $holder):void {
+    if($holder->header('partial')&&$holder->header('fields')) { explode(',',/* POSITIVE P13 possibly-null-argument */ $holder->header('fields')); }
+}
+function retainedCatchFlag(Resolver $resolver,string $key):void {
+    $identity=null;$failed=false;
+    try { $identity=$resolver->resolve($key);if($key==='invalid') { throw new \RuntimeException; } }
+    catch(\Throwable) { $failed=true; }
+    finally { Postcondition::unrelated('finished'); }
+    if($failed) { return; }
+    Consumer::ready('channel','nonce',/* POSITIVE P14 possibly-null-argument */ $identity);
+}
+function retainedMemberProperty(Holder $holder):void {
+    Postcondition::notNull($holder->member);
+    Postcondition::unrelated('ready');
+    Consumer::text(/* POSITIVE P15 possibly-null-property-access */ $holder->member->value);
+    Consumer::text(/* POSITIVE P16 possibly-null-property-access */ $holder->member->value);
+}
+
+function unguardedArgument(Holder $holder):void { Consumer::text($holder->label()); }
+function concreteNullArgument():void { Consumer::text(null); }
+function invalidConcreteType(Holder $holder):void { if($holder->label()) { Consumer::integer($holder->label()); } }
+function unguardedMethod(Holder $holder):bool { return $holder->user()->can('read'); }
+function unguardedProperty(Holder $holder):string { return $holder->member->value; }
+function rebindAfterGuard(Holder $holder):void { Postcondition::notNull($holder->path);$holder=new Holder(null,null);Consumer::text($holder->path); }
+function directFieldWrite(Holder $holder):void { Postcondition::notNull($holder->label());$holder->path=null;Consumer::text($holder->label()); }
+function aliasFieldWrite(Holder $holder):void { $alias=$holder;Postcondition::notNull($holder->label());$alias->path=null;Consumer::text($holder->label()); }
+function knownWriter(Holder $holder):void { Postcondition::notNull($holder->label());$holder->clear();Consumer::text($holder->label()); }
+function aliasWriter(Holder $holder):void { $alias=$holder;Postcondition::notNull($holder->label());$alias->clear();Consumer::text($holder->label()); }
+function relevantReference(Holder $holder):void { $alias=&$holder;Postcondition::notNull($holder->label());Consumer::text($holder->label()); }
+function capturedWriter(Holder $holder):void { Postcondition::notNull($holder->label());$mutate=static function()use($holder):void { $holder->clear(); };$mutate();Consumer::text($holder->label()); }
+function unstableProducer(Holder $holder):bool { return $holder->unstable()!==null&&$holder->unstable()->can('read'); }
+function caughtPostcondition(Holder $holder):void { try { Postcondition::notNull($holder->path); }catch(\Throwable) { $holder->path=null; }Consumer::text($holder->path); }
+function wrongBooleanBranch(Holder $holder):void { if($holder->label()===null) { Consumer::text($holder->label()); } }
+function differentCallArguments(Holder $holder):void { if($holder->option('left')!==null) { Consumer::text($holder->option('right')); } }
+function nullableReturnUnguarded(Holder $holder):string { return $holder->label(); }
+function missingMemberAfterGuard(Holder $holder):void { if($holder->user()) { $holder->user()->missingMethod(); } }
+function invalidArityAfterGuard(Holder $holder):void { if($holder->label()) { Consumer::text($holder->label(),'extra'); } }
+function nullableCatchProducer(Holder $holder):void { $identity=null;$failed=false;try { $identity=$holder->user(); }catch(\Throwable) { $failed=true; }if($failed) { return; }Consumer::member($identity); }
+function catchFlagRebinding(Resolver $resolver,string $key):void { $identity=null;$failed=false;try { $identity=$resolver->resolve($key); }catch(\Throwable) { $failed=true; }if($failed) { return; }$identity=null;Consumer::member($identity); }
+function guardedBroadValue(BroadValue $source):void { if($source->value()!==null) { Consumer::text($source->value()); } }

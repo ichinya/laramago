@@ -1,0 +1,17 @@
+<?php
+namespace InputRouteFixture;
+final class DateReceiver {
+    public static function date(string $value): int { return strlen($value); }
+}
+function requireInteger(int $value): void {}
+function replaceRequest(\Illuminate\Http\Request &$request): void { $request = new \Illuminate\Http\Request; }
+function invalidConcreteNull(): void { DateReceiver::date(null); }
+class HookedHeaderRequest extends \Illuminate\Http\Request {
+    public \Symfony\Component\HttpFoundation\HeaderBag $headers {
+        get { return new \Symfony\Component\HttpFoundation\HeaderBag; }
+        set { $this->headers = $value; }
+    }
+}
+class DifferentHeaderRequest extends \Illuminate\Http\Request {
+    public function header($key = null, $default = null): array|string|null { return null; }
+}

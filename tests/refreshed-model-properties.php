@@ -1852,6 +1852,37 @@ trait HasAttributes {
     }
 }
 NATIVE_HasAttributes,
+    'laravel/framework/src/Illuminate/Database/Eloquent/Casts/Json.php' => <<<'NATIVE_Json'
+<?php
+namespace Illuminate\Database\Eloquent\Casts;
+class Json
+{
+    /** @var callable|null */
+    protected static $encoder;
+    /** @var callable|null */
+    protected static $decoder;
+    public static function encode(mixed $value, int $flags = 0): mixed
+    {
+        return isset(static::$encoder)
+            ? (static::$encoder)($value, $flags)
+            : json_encode($value, $flags);
+    }
+    public static function decode(mixed $value, ?bool $associative = true): mixed
+    {
+        return isset(static::$decoder)
+            ? (static::$decoder)($value, $associative)
+            : json_decode($value, $associative);
+    }
+    public static function encodeUsing(?callable $encoder): void
+    {
+        static::$encoder = $encoder;
+    }
+    public static function decodeUsing(?callable $decoder): void
+    {
+        static::$decoder = $decoder;
+    }
+}
+NATIVE_Json,
     'testo/assert/Assert.php' => <<<'NATIVE_Assert'
 <?php
 declare(strict_types=1);
@@ -2519,7 +2550,7 @@ trait NoopRefreshTrait {
  * @property-read int|null $units
  * @property-read string $cost
  * @property-write int|float|string $cost
- * @property float $hours */
+ * @property-read float $hours */
 class Row extends Model implements ModelAuditContract {
     use ModelAuditTrait;
     protected $table = 'fixture_rows';
@@ -2825,6 +2856,28 @@ foreach ($mixinCases as $class => [$type]) {
         ."protected \$table = 'fixture_rows';\nprotected \$casts = ['flag' => 'boolean'];\n}\n";
 }
 file_put_contents($workspace.'/models.php', $mixinSource, FILE_APPEND);
+$jsonModels = [
+    'NativeArraySideRow' => ['array', ''],
+    'NativeJsonSideRow' => ['json', ''],
+    'NativeUnicodeSideRow' => ['json:unicode', ''],
+    'ChangedJsonSideRow' => ['array', 'public function fromJson($value, $asObject = false) { $this->exists = false; return []; }'],
+    'ChangedDirtySideRow' => ['array', 'public function getDirty() { $this->exists = false; return []; }'],
+    'ChangedEquivalenceSideRow' => ['array', 'public function originalIsEquivalent($key) { $this->exists = false; return true; }'],
+    'ChangedSaveSideRow' => ['array', 'public function save($options = []) { $this->exists = false; return true; }'],
+    'CustomJsonSideRow' => ['Fixture\\UnsavedNoteCast', ''],
+    'ObjectJsonSideRow' => ['object', ''],
+    'CollectionJsonSideRow' => ['collection', ''],
+    'EncryptedJsonSideRow' => ['encrypted:array', ''],
+    'ParameterizedJsonSideRow' => ['array:custom', ''],
+    'NarrowJsonSideRow' => ['array', ''],
+];
+foreach ($jsonModels as $class => [$cast, $methods]) {
+    $flag = $class === 'NarrowJsonSideRow' ? 'true' : 'bool';
+    $direction = $class === 'NarrowJsonSideRow' ? '-read' : '';
+    file_put_contents($workspace.'/models.php', "\n/** @property".$direction." ".$flag." \$flag */\nfinal class ".$class." extends Model {\n"
+        ."protected \$table = 'fixture_rows';\nprotected \$casts = ['flag' => 'boolean', 'payload' => ".var_export($cast, true)."];\n"
+        .$methods."\n}\n", FILE_APPEND);
+}
 mkdir($workspace.'/database/migrations', recursive: true);
 file_put_contents($workspace.'/database/migrations/2020_01_01_000000_create_fixture_rows.php', <<<'PHP'
 <?php
@@ -2859,6 +2912,26 @@ $cases = [
     'boolean same uncertain existence' => ['Row', 'Assert::same($row->flag, true); '.$reload.'Assert::same($row->flag, false);', true],
     'boolean true false' => ['Row', 'Assert::true($row->flag); '.$reload.'Assert::false($row->flag);', true],
     'boolean native update then refresh' => ['Row', 'Assert::true($row->flag); $row->update(["flag" => "0"]); '.$reload.'Assert::false($row->flag);', true],
+    'unrelated native array dirty comparison' => ['NativeArraySideRow', 'Assert::true($row->flag); $row->update(["flag" => "0"]); '.$reload.'Assert::false($row->flag);', true],
+    'unrelated native JSON dirty comparison' => ['NativeJsonSideRow', 'Assert::true($row->flag); $row->update(["flag" => "0"]); '.$reload.'Assert::false($row->flag);', true],
+    'unrelated native Unicode JSON dirty comparison' => ['NativeUnicodeSideRow', 'Assert::true($row->flag); $row->update(["flag" => "0"]); '.$reload.'Assert::false($row->flag);', true],
+    'native JSON keeps unsafe boolean method Error' => ['NativeArraySideRow', '$row->flag->missing(); Assert::true($row->flag); $row->update(["flag" => "0"]); '.$reload.'Assert::false($row->flag);', true],
+    'JSON field update remains unaudited' => ['NativeArraySideRow', 'Assert::true($row->flag); $row->update(["payload" => "changed"]); '.$reload.'Assert::false($row->flag);', false],
+    'JSON member path update remains unaudited' => ['NativeArraySideRow', 'Assert::true($row->flag); $row->update(["payload->flag" => "0"]); '.$reload.'Assert::false($row->flag);', false],
+    'unrelated JSON reader override changes existence' => ['ChangedJsonSideRow', 'Assert::true($row->flag); $row->update(["flag" => "0"]); '.$reload.'Assert::false($row->flag);', false],
+    'unrelated JSON dirty override changes existence' => ['ChangedDirtySideRow', 'Assert::true($row->flag); $row->update(["flag" => "0"]); '.$reload.'Assert::false($row->flag);', false],
+    'unrelated JSON equivalence override changes existence' => ['ChangedEquivalenceSideRow', 'Assert::true($row->flag); $row->update(["flag" => "0"]); '.$reload.'Assert::false($row->flag);', false],
+    'unrelated JSON save override changes existence' => ['ChangedSaveSideRow', 'Assert::true($row->flag); $row->update(["flag" => "0"]); '.$reload.'Assert::false($row->flag);', false],
+    'unrelated JSON custom cast remains uncertain' => ['CustomJsonSideRow', 'Assert::true($row->flag); $row->update(["flag" => "0"]); '.$reload.'Assert::false($row->flag);', false],
+    'unrelated JSON object cast remains unaudited' => ['ObjectJsonSideRow', 'Assert::true($row->flag); $row->update(["flag" => "0"]); '.$reload.'Assert::false($row->flag);', false],
+    'unrelated JSON collection cast remains unaudited' => ['CollectionJsonSideRow', 'Assert::true($row->flag); $row->update(["flag" => "0"]); '.$reload.'Assert::false($row->flag);', false],
+    'unrelated encrypted JSON remains unaudited' => ['EncryptedJsonSideRow', 'Assert::true($row->flag); $row->update(["flag" => "0"]); '.$reload.'Assert::false($row->flag);', false],
+    'unrelated JSON parameters remain unaudited' => ['ParameterizedJsonSideRow', 'Assert::true($row->flag); $row->update(["flag" => "0"]); '.$reload.'Assert::false($row->flag);', false],
+    'native JSON preserves stronger boolean read' => ['NarrowJsonSideRow', 'Assert::true($row->flag); $row->update(["flag" => "0"]); '.$reload.'Assert::false($row->flag);', false],
+    'native JSON receiver alias remains unsafe' => ['NativeArraySideRow', '$alias = $row; Assert::true($row->flag); $row->update(["flag" => "0"]); '.$reload.'Assert::false($row->flag);', false],
+    'native JSON source-bound decoder activation' => ['NativeArraySideRow', 'Assert::true($row->flag); \Illuminate\Database\Eloquent\Casts\Json::decodeUsing("strlen"); $row->update(["flag" => "0"]); '.$reload.'Assert::false($row->flag);', false],
+    'native JSON alias decoder activation' => ['NativeArraySideRow', 'Assert::true($row->flag); JsonCodec::decodeUsing("strlen"); $row->update(["flag" => "0"]); '.$reload.'Assert::false($row->flag);', false],
+    'native JSON uncertain static callback dispatch' => ['NativeArraySideRow', 'Assert::true($row->flag); $codec = "Illuminate\\\\Database\\\\Eloquent\\\\Casts\\\\Json"; $codec::decodeUsing("strlen"); $row->update(["flag" => "0"]); '.$reload.'Assert::false($row->flag);', false],
     'nullable integer zero' => ['Row', $same.$reload.$zero, true],
     'nullable integer null' => ['Row', $same.$reload.'Assert::same($row->units, null);', true],
     'decimal read separated from write' => ['Row', 'Assert::same($row->cost, "17.00"); '.$reload.'Assert::same($row->cost, "28.00");', true],
@@ -2974,7 +3047,7 @@ $originHelpers = [
 foreach ($originHelpers as $helper => [$label]) {
     $cases[$label] = ['Row', 'Assert::true($row->flag); '.$reload.'Assert::false($row->flag);', false, '', $helper];
 }
-$source = "<?php\nnamespace Fixture;\nuse Testo\\Assert;\nfinal class RefreshScenarios {\n";
+$source = "<?php\nnamespace Fixture;\nuse Testo\\Assert;\nuse Illuminate\\Database\\Eloquent\\Casts\\Json as JsonCodec;\nfinal class RefreshScenarios {\n";
 foreach (array_unique(array_column($cases, 0)) as $class) {
     $source .= 'private function source'.$class.'('.$class.' $value): '.$class.' { return $value; }' ."\n";
 }
@@ -3007,6 +3080,29 @@ final class RefreshProof {
     }
 }
 PHP);
+file_put_contents($workspace.'/json-proof.php', <<<'PHP'
+<?php
+namespace Fixture;
+use Testo\Assert;
+final class JsonRefreshProof {
+    private function source(NativeArraySideRow $value): NativeArraySideRow { return $value; }
+    public function check(NativeArraySideRow $input): void {
+        $row = $this->source($input);
+        $row->flag->missing();
+        Assert::true($row->flag);
+        $row->update(['flag' => '0']);
+        $row->refresh();
+        Assert::false($row->flag);
+    }
+}
+PHP);
+file_put_contents($workspace.'/json-shadow.php', <<<'PHP'
+<?php
+namespace Illuminate\Database\Eloquent\Casts;
+function json_decode(string $json, ?bool $associative = null, int $depth = 512, int $flags = 0): mixed {
+    throw new \RuntimeException('Namespaced JSON decoder body must never execute.');
+}
+PHP);
 file_put_contents($workspace.'/worker.php', <<<'PHP'
 <?php
 require $argv[1];
@@ -3023,8 +3119,8 @@ $plugin = new class($argv[2]) implements \Mago\Sdk\Analyzer\Plugin {
         $registry->registerIssueFilterHook(new \Ichinya\Laramago\Analyzer\RefreshedModelPropertyIssueFilter($index));
     }
 };
-$plugins = $mode === 'standalone' ? [] : [new \Ichinya\Laramago\Analyzer\LaravelPlugin($argv[2])];
-if (in_array($mode, ['standalone', 'proven', 'contexts'], true)) { $plugins[] = $plugin; }
+$plugins = in_array($mode, ['standalone', 'json-standalone', 'json-shadow-standalone'], true) ? [] : [new \Ichinya\Laramago\Analyzer\LaravelPlugin($argv[2])];
+if (in_array($mode, ['standalone', 'proven', 'contexts', 'json-standalone', 'json-shadow-standalone'], true)) { $plugins[] = $plugin; }
 (new \Mago\Sdk\Worker(new \Mago\Sdk\Extension(identifier: 'fixture/refreshed-properties', name: 'Refreshed properties', version: '1', analyzerPlugins: $plugins)))->run();
 PHP);
 
@@ -3306,18 +3402,139 @@ $plugin = new class($argv[2]) implements \Mago\Sdk\Analyzer\Plugin {
 (new \Mago\Sdk\Worker(new \Mago\Sdk\Extension(identifier: 'fixture/refresh-contexts', name: 'Refresh contexts', version: '1', analyzerPlugins: [$plugin])))->run();
 PHP);
 
+file_put_contents($workspace.'/json-proof-worker.php', <<<'PHP'
+<?php
+require $argv[1];
+$plugin = new class($argv[2]) implements \Mago\Sdk\Analyzer\Plugin {
+    public function __construct(private string $root) {}
+    public function getDefinition(): \Mago\Sdk\Analyzer\PluginDefinition {
+        return new \Mago\Sdk\Analyzer\PluginDefinition('fixture/json-refresh-contexts', 'JSON refresh contexts', 'Genuine native unrelated JSON dispatch controls');
+    }
+    public function register(\Mago\Sdk\Analyzer\PluginRegistry $registry): void {
+        $index = new \Ichinya\Laramago\Analyzer\StaticAnalysis\RefreshedModelProperties($this->root);
+        $registry->registerInitializationHook($index);
+        $registry->registerCodebaseScanHook($index);
+        $filter = new \Ichinya\Laramago\Analyzer\RefreshedModelPropertyIssueFilter($index);
+        $registry->registerIssueFilterHook(new class($filter, $this->root) implements \Mago\Sdk\Analyzer\IssueFilterHook {
+            private bool $recorded = false;
+            public function __construct(private $filter, private string $root) {}
+            public function getCodes(): array { return $this->filter->getCodes(); }
+            public function filterIssue(\Mago\Sdk\Analyzer\IssueFilterContext $context): \Mago\Sdk\Analyzer\IssueFilterDecision {
+                $result = $this->filter->filterIssue($context);
+                if ($this->recorded || !str_ends_with($context->file, 'json-proof.php')) { return $result; }
+                $this->recorded = true;
+                $checks = [];
+                $expect = function (string $label, bool $accepted) use ($context, &$checks): void {
+                    $actual = $this->filter->filterIssue($context) === \Mago\Sdk\Analyzer\IssueFilterDecision::Remove;
+                    $checks[$label] = $actual === $accepted;
+                    file_put_contents($this->root.'/json-controls-progress.json', json_encode($checks, JSON_THROW_ON_ERROR));
+                    if (!$checks[$label]) { throw new \RuntimeException('JSON refresh control failed: '.$label); }
+                };
+                $expect('genuine native JSON positive', true);
+                $codec = $context->codebase->getClass('Illuminate\\Database\\Eloquent\\Casts\\Json');
+                $decode = $context->codebase->getMethod('Illuminate\\Database\\Eloquent\\Casts\\Json', 'decode');
+                $reader = $context->codebase->getMethod('Fixture\\NativeArraySideRow', 'fromJson')
+                    ?? $context->codebase->getDeclaringMethod('Fixture\\NativeArraySideRow', 'fromJson');
+                $declaredReader = $context->codebase->getDeclaringMethod('Fixture\\NativeArraySideRow', 'fromJson');
+                $builtin = $context->codebase->getFunction('json_decode');
+                if ($codec === null || $decode === null || $reader === null || $declaredReader === null || $builtin === null) { throw new \RuntimeException('Missing genuine JSON metadata.'); }
+                file_put_contents($this->root.'/json-native-metadata.txt', var_export(['codec' => $codec, 'decode' => $decode, 'reader' => $reader, 'declaredReader' => $declaredReader, 'builtin' => $builtin, 'issue' => $context->issue], true));
+                $cache = (new \ReflectionProperty($context->codebase, 'cache'))->getValue($context->codebase);
+                $snapshot = $cache->values;
+                $variants = [
+                    'missing codec class' => [$codec, null],
+                    'codec wrong name' => [$codec, ['name' => 'Other\\Json']],
+                    'codec interface' => [$codec, ['kind' => \Mago\Sdk\Analyzer\Metadata\ClassLikeKind::Interface]],
+                    'codec incomplete hierarchy' => [$codec, ['unresolvedHierarchyDependencies' => ['Unknown']]],
+                    'codec foreign parent' => [$codec, ['parentClasses' => ['Other\\Codec']]],
+                    'codec foreign trait' => [$codec, ['usedTraits' => ['Other\\Codec']]],
+                    'codec foreign file' => [$codec, ['location' => new \Mago\Sdk\SourceLocation('other.php', $codec->location->span)]],
+                    'codec changed span' => [$codec, ['location' => new \Mago\Sdk\SourceLocation($codec->location->file, new \Mago\Sdk\Span($codec->location->span->start + 1, $codec->location->span->end))]],
+                    'codec changed name file' => [$codec, ['nameLocation' => new \Mago\Sdk\SourceLocation('other.php', $codec->nameLocation->span)]],
+                    'codec changed name span' => [$codec, ['nameLocation' => new \Mago\Sdk\SourceLocation($codec->nameLocation->file, new \Mago\Sdk\Span($codec->nameLocation->span->start + 1, $codec->nameLocation->span->end))]],
+                    'builtin missing' => [$builtin, null],
+                    'builtin wrong name' => [$builtin, ['name' => 'other_decode']],
+                    'builtin removed native flag' => [$builtin, ['flags' => new \Mago\Sdk\Analyzer\Metadata\MetadataFlags($builtin->flags->bits & ~\Mago\Sdk\Analyzer\Metadata\MetadataFlags::BUILTIN)]],
+                    'builtin user-defined flag' => [$builtin, ['flags' => new \Mago\Sdk\Analyzer\Metadata\MetadataFlags($builtin->flags->bits | \Mago\Sdk\Analyzer\Metadata\MetadataFlags::USER_DEFINED)]],
+                    'builtin reference return' => [$builtin, ['flags' => new \Mago\Sdk\Analyzer\Metadata\MetadataFlags($builtin->flags->bits | \Mago\Sdk\Analyzer\Metadata\MetadataFlags::BY_REFERENCE)]],
+                    'builtin changed arity' => [$builtin, ['parameters' => array_slice($builtin->parameters, 0, 3)]],
+                    'builtin changed effective return' => [$builtin, ['returnType' => new \Mago\Sdk\Analyzer\Metadata\TypeMetadata($builtin->returnType->location, \Mago\Sdk\Analyzer\Type::string(), $builtin->returnType->fromDocblock, $builtin->returnType->inferred)]],
+                    'builtin changed declared return' => [$builtin, ['declaredReturnType' => new \Mago\Sdk\Analyzer\Metadata\TypeMetadata($builtin->declaredReturnType->location, \Mago\Sdk\Analyzer\Type::string(), $builtin->declaredReturnType->fromDocblock, $builtin->declaredReturnType->inferred)]],
+                ];
+                foreach (['parameter name', 'parameter type', 'parameter default', 'parameter reference'] as $label) {
+                    $parameters = $builtin->parameters;
+                    $parameter = $parameters[1];
+                    $values = get_object_vars($parameter);
+                    if ($label === 'parameter name') { $values['name'] = '$other'; }
+                    if ($label === 'parameter type') { $values['type'] = new \Mago\Sdk\Analyzer\Metadata\TypeMetadata($parameter->type->location, \Mago\Sdk\Analyzer\Type::string(), $parameter->type->fromDocblock, $parameter->type->inferred); }
+                    if ($label === 'parameter default') { $values['defaultType'] = new \Mago\Sdk\Analyzer\Metadata\TypeMetadata($parameter->defaultType->location, \Mago\Sdk\Analyzer\Type::true(), $parameter->defaultType->fromDocblock, $parameter->defaultType->inferred); }
+                    if ($label === 'parameter reference') { $values['flags'] = new \Mago\Sdk\Analyzer\Metadata\MetadataFlags($parameter->flags->bits | \Mago\Sdk\Analyzer\Metadata\MetadataFlags::BY_REFERENCE); }
+                    $parameters[1] = new ($parameter::class)(...$values);
+                    $variants['builtin '.$label] = [$builtin, ['parameters' => $parameters]];
+                }
+                foreach (['decoder' => $decode, 'receiver reader' => $reader] as $role => $method) {
+                    $variants[$role.' missing'] = [$method, null];
+                    $variants[$role.' wrong owner'] = [$method, ['identifier' => new \Mago\Sdk\Analyzer\Type\FunctionLikeIdentifier($method->identifier->kind, $method->identifier->name, 'Other\\Codec')]];
+                    $variants[$role.' foreign file'] = [$method, ['location' => new \Mago\Sdk\SourceLocation('other.php', $method->location->span)]];
+                    $variants[$role.' changed body span'] = [$method, ['location' => new \Mago\Sdk\SourceLocation($method->location->file, new \Mago\Sdk\Span($method->location->span->start, $method->location->span->end - 1))]];
+                    $variants[$role.' changed name span'] = [$method, ['nameLocation' => new \Mago\Sdk\SourceLocation($method->nameLocation->file, new \Mago\Sdk\Span($method->nameLocation->span->start + 1, $method->nameLocation->span->end))]];
+                    $variants[$role.' static dispatch'] = [$method, ['static' => !$method->static]];
+                    $variants[$role.' reference return'] = [$method, ['flags' => new \Mago\Sdk\Analyzer\Metadata\MetadataFlags($method->flags->bits | \Mago\Sdk\Analyzer\Metadata\MetadataFlags::BY_REFERENCE)]];
+                    $variants[$role.' changed arity'] = [$method, ['parameters' => array_slice($method->parameters, 0, 1)]];
+                }
+                foreach ($variants as $label => [$original, $changes]) {
+                    $class = $original::class;
+                    $replaced = 0;
+                    foreach ($snapshot as $operation => $entries) { foreach ($entries as $key => $entry) {
+                        if ($entry === $original || $original === $reader && $entry === $declaredReader) {
+                            $cache->values[$operation][$key] = $changes === null ? null : new $class(...array_replace(get_object_vars($entry), $changes));
+                            $replaced++;
+                        }
+                    } }
+                    try {
+                        if ($replaced === 0) { throw new \RuntimeException('Vacuous genuine JSON metadata mutation: '.$label); }
+                        $expect($label, false);
+                    } finally { $cache->values = $snapshot; }
+                }
+                $sourceVariants = [
+                    'configured literal decoder default' => ['packages/laravel/framework/src/Illuminate/Database/Eloquent/Casts/Json.php', 'protected static $decoder;', 'protected static $decoder = "strlen";'],
+                    'changed codec decoder branch' => ['packages/laravel/framework/src/Illuminate/Database/Eloquent/Casts/Json.php', ': json_decode($value, $associative);', ': json_encode($value, $associative);'],
+                    'changed codec namespace' => ['packages/laravel/framework/src/Illuminate/Database/Eloquent/Casts/Json.php', 'namespace Illuminate\\Database\\Eloquent\\Casts;', 'namespace Other\\Database\\Eloquent\\Casts;'],
+                    'changed JSON import alias' => ['packages/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasAttributes.php', 'use Illuminate\\Database\\Eloquent\\Casts\\Json;', 'use Other\\Database\\Eloquent\\Casts\\Json;'],
+                    'changed native receiver dirty reader' => ['packages/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasAttributes.php', 'foreach ($this->getAttributes() as $key => $value) {', 'foreach ($this->getCasts() as $key => $value) {'],
+                ];
+                foreach ($sourceVariants as $label => [$path, $before, $after]) {
+                    $file = $this->root.'/'.$path;
+                    $bytes = file_get_contents($file);
+                    $changed = str_replace($before, $after, $bytes, $replaced);
+                    if ($replaced !== 1) { throw new \RuntimeException('Vacuous JSON source control: '.$label.' '.$replaced); }
+                    file_put_contents($file, $changed);
+                    try { $expect($label, false); }
+                    finally { file_put_contents($file, $bytes); }
+                    $expect('restored '.$label, true);
+                }
+                $expect('restored native JSON metadata', true);
+                file_put_contents($this->root.'/json-controls.json', json_encode($checks, JSON_THROW_ON_ERROR));
+                return $result;
+            }
+        });
+    }
+};
+(new \Mago\Sdk\Worker(new \Mago\Sdk\Extension('fixture/json-refresh-contexts', 'JSON refresh contexts', '1', analyzerPlugins: [$plugin])))->run();
+PHP);
+
 $analyze = static function (string $mode, int $workers = 1, bool $external = false, array $paths = ['cases.php']) use ($workspace, $package, $vendor, $nativeSources): array {
     $configuration = $external ? $workspace.' external configuration' : $workspace;
     if (!is_dir($configuration)) { mkdir($configuration); }
-    $hosts = $mode === 'native' ? new stdClass : ['fixture' => [
-        'command' => $mode === 'integrated'
+    $hosts = in_array($mode, ['native', 'json-native', 'json-shadow-native'], true) ? new stdClass : ['fixture' => [
+        'command' => in_array($mode, ['integrated', 'json-shadow-integrated'], true)
             ? [PHP_BINARY, '-d', 'opcache.enable_cli=0', $package.'/bin/laramago-worker.php', $package.'/vendor/autoload.php', $workspace]
-            : [PHP_BINARY, '-d', 'opcache.enable_cli=0', $workspace.'/'.($mode === 'contexts' ? 'proof-worker.php' : 'worker.php'), $package.'/vendor/autoload.php', $workspace, $mode],
+            : [PHP_BINARY, '-d', 'opcache.enable_cli=0', $workspace.'/'.match ($mode) { 'contexts' => 'proof-worker.php', 'json-contexts' => 'json-proof-worker.php', default => 'worker.php' }, $package.'/vendor/autoload.php', $workspace, $mode],
         'workers' => $workers, 'request-timeout-ms' => 120000,
     ]];
     file_put_contents($configuration.'/mago.json', json_encode([
         'extends' => $package.'/presets/laravel.toml', 'php-version' => '8.5',
-        'source' => ['paths' => $paths, 'includes' => [...array_map(static fn (string $path): string => $vendor.'/'.$path, array_keys($nativeSources)), 'models.php', 'support.php']],
+        'source' => ['paths' => $paths, 'includes' => [...array_map(static fn (string $path): string => $vendor.'/'.$path, array_keys($nativeSources)), 'models.php', 'support.php', ...(str_starts_with($mode, 'json-shadow-') ? ['json-shadow.php'] : [])]],
         'extension-hosts' => $hosts,
     ], JSON_THROW_ON_ERROR));
     $binary = getenv('MAGO_BINARY') ?: $package.'/vendor/bin/mago';
@@ -3357,6 +3574,32 @@ $group = static function (array $issues) use ($ranges, $signature): array {
     }
     return $grouped;
 };
+if (in_array('--prepare-only', $argv, true)) {
+    require $package.'/vendor/autoload.php';
+    $parser = (new \PhpParser\ParserFactory)->createForNewestSupportedVersion();
+    $prepared = [...array_map(static fn (string $path): string => $vendor.'/'.$path, array_keys($nativeSources)),
+        'models.php', 'support.php', 'cases.php', 'proof.php', 'json-proof.php', 'json-shadow.php', 'worker.php', 'proof-worker.php', 'json-proof-worker.php'];
+    foreach ($prepared as $file) { $parser->parse(file_get_contents($workspace.'/'.$file)); }
+    echo 'Prepared and parsed '.count($prepared).' generated sources without analyzer or fixture execution: '.$workspace."\n";
+    exit(0);
+}
+$wholeSignature = static function (array $issues): array {
+    $result = array_map(static fn (array $issue): string => json_encode($issue, JSON_THROW_ON_ERROR), $issues);
+    sort($result);
+    return $result;
+};
+$wholeWithin = static function (array $issues, string $file, ?array $range = null): array {
+    return array_values(array_filter($issues, static function (array $issue) use ($file, $range): bool {
+        foreach ($issue['annotations'] as $annotation) {
+            if ($annotation['kind'] !== 'Primary' || $annotation['span']['file_id']['name'] !== $file) { continue; }
+            $position = $annotation['span']['start']['offset'];
+            return $range === null || $position >= $range[0] && $position < $range[1];
+        }
+        return false;
+    }));
+};
+// Keep original 139 SDK controls; the JSON focus has independent genuine native controls.
+$jsonLabels = array_keys(array_filter($cases, static fn (array $case): bool => isset($jsonModels[$case[0]])));
 $native = $analyze('native');
 $control = $analyze('control');
 if (in_array('--baseline', $argv, true)) {
@@ -3369,6 +3612,20 @@ if (in_array('--baseline', $argv, true)) {
 }
 $standalone = $analyze('standalone');
 $proven = $analyze('proven');
+foreach ([[$native, $standalone], [$control, $proven]] as [$beforeReports, $afterReports]) {
+    foreach ($jsonLabels as $label) {
+        $before = $wholeWithin($beforeReports, 'cases.php', $ranges[$label]);
+        $after = $wholeWithin($afterReports, 'cases.php', $ranges[$label]);
+        $targets = array_values(array_filter($before, static fn (array $issue): bool => $issue['level'] === 'Error' && $issue['code'] === 'impossible-type-comparison'));
+        if (count($targets) !== 1) { throw new RuntimeException('Vacuous genuine JSON contradiction: '.$label.' '.$workspace); }
+        $expected = $cases[$label][2] ? array_values(array_filter($before, static fn (array $issue): bool => $issue !== $targets[0])) : $before;
+        if ($wholeSignature($after) !== $wholeSignature($expected)) { throw new RuntimeException('Complete JSON source report changed: '.$label.' '.$workspace); }
+        if ($label === 'native JSON keeps unsafe boolean method Error'
+            && count(array_filter($after, static fn (array $issue): bool => $issue['level'] === 'Error')) < 1) {
+            throw new RuntimeException('Missing preserved unsafe JSON boolean use Error. '.$workspace);
+        }
+    }
+}
 $corrected = 0;
 $retained = 0;
 foreach ([[$native, $standalone], [$control, $proven]] as [$beforeReports, $afterReports]) {
@@ -3396,9 +3653,28 @@ if ($signature($analyze('proven', external: true)) !== $signature($proven)) { th
 $contexts = $analyze('contexts', paths: ['proof.php']);
 $contextChecks = file_exists($workspace.'/context-checks.log') ? array_sum(array_map('intval', file($workspace.'/context-checks.log', FILE_IGNORE_NEW_LINES))) : 0;
 if ($contextChecks !== 139 || in_array('impossible-type-comparison', array_column($contexts, 'code'), true)) { throw new RuntimeException('Missing exact source and metadata controls: '.$contextChecks.' '.$workspace); }
+$jsonNative = $analyze('json-native', paths: ['json-proof.php']);
+$jsonStandalone = $analyze('json-standalone', paths: ['json-proof.php']);
+$jsonExpected = array_values(array_filter($jsonNative, static fn (array $issue): bool => $issue['code'] !== 'impossible-type-comparison'));
+if (count($jsonNative) - count($jsonExpected) !== 1 || count(array_filter($jsonExpected, static fn (array $issue): bool => $issue['level'] === 'Error')) < 1
+    || $wholeSignature($jsonStandalone) !== $wholeSignature($jsonExpected)) { throw new RuntimeException('Missing exact genuine JSON single-file correction and unsafe-use Error. '.$workspace); }
+$jsonContexts = $analyze('json-contexts', paths: ['json-proof.php']);
+$jsonChecks = file_exists($workspace.'/json-controls.json') ? json_decode(file_get_contents($workspace.'/json-controls.json'), true, flags: JSON_THROW_ON_ERROR) : [];
+if (count($jsonChecks) !== 50 || in_array(false, $jsonChecks, true) || $wholeSignature($jsonContexts) !== $wholeSignature($jsonStandalone)) {
+    throw new RuntimeException('Missing nonvacuous genuine native JSON controls: '.count($jsonChecks).' '.$workspace);
+}
+$jsonShadowNative = $analyze('json-shadow-native', paths: ['json-proof.php']);
+$jsonShadowStandalone = $analyze('json-shadow-standalone', paths: ['json-proof.php']);
+if (!in_array('impossible-type-comparison', array_column($jsonShadowNative, 'code'), true)
+    || $wholeSignature($jsonShadowNative) !== $wholeSignature($jsonShadowStandalone)) { throw new RuntimeException('Effective namespaced JSON decoder must retain every complete native report. '.$workspace); }
+echo 'JSON refresh checks: '.count($jsonLabels).' nonvacuous source cases, '.count($jsonChecks)." genuine metadata/source controls, complete reports, namespace shadow and unsafe-use Error preserved.\n";
 if (in_array('--integrated', $argv, true)) {
     foreach ([1, 3] as $workers) {
         if ($signature($analyze('integrated', $workers)) !== $signature($proven)) { throw new RuntimeException('Integrated refreshed property diagnostics differ: '.$workers.' workers. '.$workspace); }
+        if ($wholeSignature($analyze('integrated', $workers, paths: ['json-proof.php'])) !== $wholeSignature($jsonStandalone)
+            || $wholeSignature($analyze('json-shadow-integrated', $workers, paths: ['json-proof.php'])) !== $wholeSignature($jsonShadowNative)) {
+            throw new RuntimeException('Integrated whole JSON signatures differ: '.$workers.' workers. '.$workspace);
+        }
     }
 }
 if (file_exists($workspace.'/executed')) { throw new RuntimeException('Analyzed bootstrap or migration executed.'); }

@@ -1,0 +1,10 @@
+<?php
+declare(strict_types=1);
+namespace CastCompatibilityFixture;
+function guarded(mixed $item): string
+{
+    if (is_object($item) && is_callable([$item, '__toString'])) {
+        return (string) $item;
+    }
+    return '';
+}

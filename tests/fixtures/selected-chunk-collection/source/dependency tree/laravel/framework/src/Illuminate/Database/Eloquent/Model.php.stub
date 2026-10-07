@@ -1,0 +1,24 @@
+<?php
+namespace Illuminate\Database\Eloquent;
+class Model {
+    /** @use HasCollection<\Illuminate\Database\Eloquent\Collection<array-key, static & self>> */
+    use HasCollection;
+    protected static string $builder = Builder::class;
+    protected static string $collectionClass = Collection::class;
+    /**
+     * Begin querying the model.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<static>
+     */
+    public static function query()
+    {
+        return (new static)->newQuery();
+    }
+    /** @return Builder<static> */ public function newQuery() { throw new \RuntimeException('Fixture body must not execute.'); }
+    /** @return Builder<static> */ public function newModelQuery() { throw new \RuntimeException('Fixture body must not execute.'); }
+    /** @return Builder<static> */ public function newQueryWithoutScopes() { throw new \RuntimeException('Fixture body must not execute.'); }
+    /** @return Builder<static> */ public function newQueryWithoutRelationships() { throw new \RuntimeException('Fixture body must not execute.'); }
+    /** @return Builder<static> */ public function newEloquentBuilder($query) { throw new \RuntimeException('Fixture body must not execute.'); }
+    public function __call(string $method,array $arguments):mixed { throw new \RuntimeException('Fixture body must not execute.'); }
+    public static function __callStatic(string $method,array $arguments):mixed { throw new \RuntimeException('Fixture body must not execute.'); }
+}

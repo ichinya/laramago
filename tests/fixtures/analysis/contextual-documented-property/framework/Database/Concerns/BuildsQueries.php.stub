@@ -1,0 +1,132 @@
+<?php
+namespace Illuminate\Database\Concerns;
+/**
+ * Adapted from Laravel framework (MIT); see chunk-callbacks-LICENSE.md.
+ * @template TValue
+ */
+trait BuildsQueries {
+/**
+ * Chunk the results of the query.
+ *
+ * @param  int  $count
+ * @param  callable(\Illuminate\Support\Collection<int, TValue>, int): mixed  $callback
+ * @return bool
+ */
+public function chunk($count, callable $callback)
+{
+    $this->enforceOrderBy();
+    $skip = $this->getOffset();
+    $remaining = $this->getLimit();
+    $page = 1;
+    do {
+        $offset = ($page - 1) * $count + (int) $skip;
+        $limit = is_null($remaining) ? $count : min($count, $remaining);
+        if ($limit === 0) {
+            break;
+        }
+        $results = $this->offset($offset)->limit($limit)->get();
+        $countResults = $results->count();
+        if ($countResults === 0) {
+            break;
+        }
+        if (!is_null($remaining)) {
+            $remaining = max($remaining - $countResults, 0);
+        }
+        if ($callback($results, $page) === false) {
+            return false;
+        }
+        unset($results);
+        $page++;
+    } while ($countResults == $count);
+    return true;
+}
+/**
+ * Chunk the results of a query by comparing IDs.
+ *
+ * @param  int  $count
+ * @param  callable(\Illuminate\Support\Collection<int, TValue>, int): mixed  $callback
+ * @param  string|null  $column
+ * @param  string|null  $alias
+ * @return bool
+ */
+public function chunkById($count, callable $callback, $column = null, $alias = null)
+{
+    return $this->orderedChunkById($count, $callback, $column, $alias);
+}
+/**
+ * Chunk the results of a query by comparing IDs in descending order.
+ *
+ * @param  int  $count
+ * @param  callable(\Illuminate\Support\Collection<int, TValue>, int): mixed  $callback
+ * @param  string|null  $column
+ * @param  string|null  $alias
+ * @return bool
+ */
+public function chunkByIdDesc($count, callable $callback, $column = null, $alias = null)
+{
+    return $this->orderedChunkById($count, $callback, $column, $alias, descending: \SortDirection::Descending);
+}
+/**
+ * Chunk the results of a query by comparing IDs in a given order.
+ *
+ * @param  int  $count
+ * @param  callable(\Illuminate\Support\Collection<int, TValue>, int): mixed  $callback
+ * @param  string|null  $column
+ * @param  string|null  $alias
+ * @param  SortDirection|bool  $descending
+ * @return bool
+ *
+ * @throws \RuntimeException
+ */
+public function orderedChunkById($count, callable $callback, $column = null, $alias = null, $descending = false)
+{
+    $column ??= $this->defaultKeyName();
+    $alias ??= $column;
+    $lastId = null;
+    $skip = $this->getOffset();
+    $remaining = $this->getLimit();
+    $page = 1;
+    do {
+        $clone = clone $this;
+        if ($skip && $page > 1) {
+            $clone->offset(0);
+        }
+        $limit = is_null($remaining) ? $count : min($count, $remaining);
+        if ($limit === 0) {
+            break;
+        }
+        $results = match ($descending) {
+            \SortDirection::Ascending, false => $clone->forPageAfterId($limit, $lastId, $column)->get(),
+            \SortDirection::Descending, true => $clone->forPageBeforeId($limit, $lastId, $column)->get(),
+        };
+        $countResults = $results->count();
+        if ($countResults === 0) {
+            break;
+        }
+        if (!is_null($remaining)) {
+            $remaining = max($remaining - $countResults, 0);
+        }
+        if ($callback($results, $page) === false) {
+            return false;
+        }
+        $lastId = data_get($results->last(), $alias);
+        if ($lastId === null) {
+            throw new \RuntimeException("The chunkById operation was aborted because the [{$alias}] column is not present in the query result.");
+        }
+        unset($results);
+        $page++;
+    } while ($countResults == $count);
+    return true;
+}
+    /**
+     * @param array|string $columns
+     * @return TValue
+     */
+    public function sole($columns = ['*']) {
+        $result = $this->limit(2)->get($columns);
+        $count = $result->count();
+        if ($count === 0) { throw new \Illuminate\Database\RecordsNotFoundException; }
+        if ($count > 1) { throw new \Illuminate\Database\MultipleRecordsFoundException($count); }
+        return $result->first();
+    }
+}

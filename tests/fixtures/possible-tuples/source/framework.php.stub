@@ -1,0 +1,23 @@
+<?php
+declare(strict_types=1);
+namespace Fixture\TypedTuples;
+final class Packet {}
+final class Receipt {}
+final class DeferredHandler {
+    /**
+     * @template TResult of mixed
+     * @param (\Closure(static): TResult) $callback
+     * @param int $attempts
+     * @return TResult
+     */
+    public function invoke(\Closure $callback,$attempts=1) { return $callback($this); }
+}
+abstract class CallbackFacade {
+    protected static ?DeferredHandler $handler=null;
+    protected static function resolve():DeferredHandler { return static::$handler ??= new DeferredHandler; }
+    public static function __callStatic(string $method,array $arguments):mixed {
+        return static::resolve()->$method(...$arguments);
+    }
+}
+/** @method static mixed invoke(\Closure $callback,int $attempts=1) */
+final class DeferredCallbacks extends CallbackFacade {}

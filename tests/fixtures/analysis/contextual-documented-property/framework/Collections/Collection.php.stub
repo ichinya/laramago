@@ -1,0 +1,29 @@
+<?php
+namespace Illuminate\Support;
+/**
+ * @template TKey of array-key
+ * @template TValue
+ * @implements \Illuminate\Support\Enumerable<TKey, TValue>
+ */
+class Collection implements Enumerable {
+    /** @var array<TKey, TValue> */
+    protected $items = [];
+    /** @param array<TKey, TValue> $items */
+    public function __construct(array $items = []) { $this->items = $items; }
+    /** @return \ArrayIterator<TKey, TValue> */
+    public function getIterator(): \Traversable { return new \ArrayIterator($this->items); }
+    /** @param TValue $item */
+    public function push($item): static { $this->items[] = $item; return $this; }
+    /** @return array<TKey, TValue> */
+    public function toArray(): array { return $this->items; }
+    /**
+     * @template TZipValue
+     * @param \Illuminate\Contracts\Support\Arrayable<array-key, TZipValue>|iterable<array-key, TZipValue> ...$items
+     * @return static<int, static<int, TValue|TZipValue>>
+     */
+    public function zip($items) {
+        $arrayableItems = array_map(fn ($items) => $this->getArrayableItems($items), func_get_args());
+        $params = array_merge([fn () => $this->newInstance(func_get_args()), $this->items], $arrayableItems);
+        return $this->newInstance(array_map(...$params));
+    }
+}

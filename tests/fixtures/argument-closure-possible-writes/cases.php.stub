@@ -1,0 +1,43 @@
+<?php
+declare(strict_types=1);
+namespace Fixture\ArgumentClosureWrites;
+use Closure;
+use RuntimeException;
+use Testo\Assert;
+
+final class Query { public function __construct(public readonly string $sql) {} }
+final class Registry { public function retain(Closure $callback): void {} }
+final class Cases
+{
+    public function listener(): void
+    {
+        $seen=false;
+        (new Registry)->retain(function(Query $query) use (&$seen): void {
+            if (! $seen && str_contains(strtolower($query->sql),'commit')) {
+                $seen=true;
+                throw new RuntimeException('Injected listener failure.');
+            }
+        });
+        Assert::true($seen);
+    }
+    public function tryArgument(): void
+    {
+        $seen=false;
+        try {
+            (new Registry)->retain(static function(string $stage) use (&$seen): void {
+                if (! $seen && $stage==='commit') { $seen=true;throw new RuntimeException('Injected stage failure.'); }
+            });
+            Assert::true($seen);
+        } finally {}
+    }
+    public function foreachArgument(): void
+    {
+        foreach (['commit','rollback'] as $fault) {
+            $seen=false;
+            (new Registry)->retain(function(string $stage) use (&$seen,$fault): void {
+                if (! $seen && $stage===$fault) { $seen=true;throw new RuntimeException('Injected iteration failure.'); }
+            });
+            Assert::true($seen);
+        }
+    }
+}

@@ -1,0 +1,43 @@
+<?php
+namespace Illuminate\Console;
+use Symfony\Component\Console\Input\InputArgument;
+use Symfony\Component\Console\Input\InputOption;
+class Parser {
+    public static function parse(string $expression) {
+        if (preg_match_all('/\{\s*(.*?)\s*\}/', $expression, $matches) && count($matches[1])) {
+            return array_merge(['name'], static::parameters($matches[1]));
+        }
+        return ['name', [], []];
+    }
+    protected static function parameters(array $tokens): array {
+        $arguments = [];
+        $options = [];
+        foreach ($tokens as $token) {
+            if (preg_match('/^-{2,}(.*)/', $token, $matches)) { $options[] = static::parseOption($matches[1]); }
+            else { $arguments[] = static::parseArgument($token); }
+        }
+        return [$arguments, $options];
+    }
+    protected static function parseOption(string $token) {
+        return match (true) {
+            str_ends_with($token, '=') => new InputOption($token, null, InputOption::VALUE_OPTIONAL),
+            default => new InputOption($token, null, InputOption::VALUE_NONE),
+        };
+    }
+    protected static function parseArgument(string $token) {
+        [$token, $description] = static::extractDescription($token);
+        return match (true) {
+            str_ends_with($token, '?*') => new InputArgument(trim($token, '?*'), InputArgument::IS_ARRAY, $description),
+            str_ends_with($token, '*') => new InputArgument(trim($token, '*'), InputArgument::IS_ARRAY | InputArgument::REQUIRED, $description),
+            str_ends_with($token, '?') => new InputArgument(trim($token, '?'), InputArgument::OPTIONAL, $description),
+            (bool) preg_match('/(.+)\=\*(.+)/', $token, $matches) => new InputArgument($matches[1], InputArgument::IS_ARRAY, $description, preg_split('/,\s?/', $matches[2])),
+            (bool) preg_match('/(.+)\=(.+)/', $token, $matches) => new InputArgument($matches[1], InputArgument::OPTIONAL, $description, $matches[2]),
+            default => new InputArgument($token, InputArgument::REQUIRED, $description),
+        };
+    }
+    protected static function extractDescription(string $token) {
+        $parts = preg_split('/\s+:\s+/', trim($token), 2);
+        return count($parts) === 2 ? $parts : [$token, ''];
+    }
+}
+class Definition { public function addOptions(array $options): void {} public function addArguments(array $arguments): void {} }

@@ -1,0 +1,8 @@
+{
+    "name": "example\/configuration-member-fixture",
+    "autoload": {
+        "psr-4": {
+            "Example\\ConfigurationMembers\\": "cases\/"
+        }
+    }
+}

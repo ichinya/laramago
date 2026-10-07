@@ -62,6 +62,29 @@ does not pin it.
 - Vendor dependencies available for type information, outside lint/format targets.
 - Type errors and missing methods remain visible in the analyzer. Unused definition
   checks are disabled because Laravel often invokes definitions indirectly.
+- A bounded defensive-check policy permits a fresh local array guard protecting
+  a literal-key read followed immediately by a throwing string check. Native
+  array types and argument/return errors remain active; other redundant checks
+  retain their diagnostics. See the [compatibility policy](docs/phpstan-compatibility.md).
+- Direct script assignments of an `include` or `require` result permit untyped
+  variable storage. The result stays `mixed`; unsafe uses and stronger variable
+  annotations retain native analysis.
+- A local object `@var` on a plain assignment or ordinary `foreach` header may
+  repeat the inferred type.
+  Laramago permits this documentation when native Mago certifies exact equality
+  and current source and class metadata confirm the binding. Types and usage
+  errors remain active; stronger or uncertain annotations retain diagnostics.
+- An object `@var` before the first method guard in a by-value `foreach` may
+  repeat its existing type when native Mago certifies exact equality. The
+  current loop binding, enclosing scope and concrete class must agree; usage
+  errors and stronger annotations retain native analysis.
+- The same native equality policy permits a local object tag on an immediate
+  argument to `$this` after a matching `instanceof` guard. Intervening statements,
+  references, compound conditions and uncertain bindings retain diagnostics.
+- Exhaustive string checks on a fresh decoded JSON list can establish an
+  optional `list<string>` field in a yielded record. The declared iterable
+  contract remains authoritative; unchecked elements and incompatible fields
+  retain errors. See the [compatibility policy](docs/phpstan-compatibility.md).
 
 ### Linter diagnostic levels
 
@@ -114,12 +137,25 @@ builders, local scopes, and additional bounded integrations are described below.
 Laravel contracts and [PHPStan-compatible analysis policies](docs/phpstan-compatibility.md)
 run directly on Mago. PHPStan and Larastan are used to compare behavior; they are
 not required by the extension. No source overlays are generated.
+Source-certified native `float` callable boundaries accept numeric strings in
+weak PHP mode; strict files and stronger PHPDoc retain their checks. Own physical
+methods may coexist with source-certified named `@mixin` declarations; callable
+contracts are taken from those physical methods.
+Defensive CLI normalization of `$_SERVER['argv']` into a string list permits
+the source-proven redundant array check while preserving all native types and
+errors. Conditional, referenced or dynamically shared bindings retain their checks.
+Ordinary unannotated local assignments and by-value foreach bindings may store
+`mixed`, matching PHPStan's advisory policy. Native types and all unsafe-use
+errors remain active; references, captures and stronger contracts retain their checks.
 `examples/compatibility.toml` remains an optional fragment with targeted
 suppressions for your `[analyzer]` section.
 
-The worker uses Mago's bundled PHP SDK and the application's Composer autoloader.
-It does not bootstrap Laravel or connect to a database. The `php` executable must
-be on PATH; a project may override the worker command with a specific executable.
+The worker uses Mago's bundled PHP SDK and loads the application's Composer
+autoloader. The default analyzer does not itself bootstrap Laravel or query a
+database. Loading the autoloader can execute Composer `autoload.files` entries;
+source inspection does not execute the inspected files. Runtime evaluation is
+separately opt-in, as described below. The `php` executable must be on PATH; a
+project may override the worker command with a specific executable.
 
 ### Local scopes without a database
 
@@ -194,9 +230,15 @@ Supported information includes:
   `Collection<int, Related>`; singular relations include `null` unless a statically
   recognized `withDefault()` call provides a default.
 
-Native PHP properties and existing `@property`, `@property-read`, and
-`@property-write` contracts retain priority. Casts refine schema types and preserve
-schema nullability; without a known column, cast-derived attributes include `null`.
+Native PHP properties, typed accessors and explicit `@property-read` contracts
+retain priority. A known cast determines the read type ahead of a general
+`@property` tag, including supported PHPStan and Psalm tags. Compatible array
+casts preserve declared list items, keys and shapes. Explicit `@property-write`
+tags retain priority. A virtual general `float` tag with a known decimal cast
+uses the cast's `int|float|string` input contract; other general write contracts
+retain their types. Casts
+preserve schema and documented nullability; without a known column,
+cast-derived attributes include `null`. Unresolved casts retain native analysis.
 Decimal casts read as `numeric-string`, while numeric writes are accepted. Uncast
 decimal and boolean columns retain driver-dependent numeric/string and boolean/flag
 alternatives; explicit casts give them precise PHP types. Ordinary date
@@ -445,7 +487,7 @@ deferred portions of these integrations.
 | JSON decoding | `json_decode(..., true)` with a literal `true` assoc argument yields `list<mixed>&#124;array<string,mixed>&#124;bool&#124;int&#124;float&#124;string&#124;null`, matching the PHPStan/Larastan value space | Absent, false, null, dynamic or truthy-int assoc arguments retain native `mixed`; depth and flags are ignored because `json_decode` never returns `false` and `null` stays reachable |
 | Container contract methods | Method calls on receivers typed exactly as an `Illuminate\Contracts\*` interface bound by the installed framework's core alias table resolve to the root concrete class: a false `non-existent-method` is not reported and declared concrete return types apply | Methods missing on both the contract and the concrete keep their diagnostics; unmapped or foreign interfaces, union/generic receivers and methods the contract declares retain native analysis |
 | Class aliases | Global-namespace calls through Laravel's boot aliases (e.g. `\Str::random()`) no longer report a false `non-existent-method` when the literal boot chain — `Facade::defaultAliases()` merged by the framework base config, without project overrides or colliding package aliases — maps the name to a class declaring the method | A project `config/app.php` with any `aliases` key, `dontMergeFrameworkConfiguration()`, unresolvable chain shapes and alias names claimed by installed packages disable the map; a declared global class of the same name and methods the target lacks keep their diagnostics; the call expression itself remains `mixed` |
-| Configuration | Literal helper and native Config reads from static configuration arrays, including shapes, known defaults, `getMany`, typed getters and exact native `#[Config]` injection attributes; native literal `env()` reads use `string|bool|null` plus a safe default when installed Laravel source is verified; missing literal keys under an [explicit complete runtime contract](docs/configuration-keys.md) | Arbitrary repository instances, dynamic env calls/defaults, machine-specific values without runtime opt-in, runtime mutations, package-merged defaults and unasserted missing-key warnings defer |
+| Configuration | Literal helper and native Config reads from static configuration arrays, including shapes, known defaults, `getMany`, typed getters and exact native `#[Config]` injection attributes; verified native literal `env()` calls with an explicit scalar default use its generalized declared type; calls without a default and environment-derived configuration values retain the broader native possibilities; missing literal keys under an [explicit complete runtime contract](docs/configuration-keys.md) | Arbitrary repository instances, dynamic env calls/defaults, machine-specific values without runtime opt-in, runtime mutations, package-merged defaults and unasserted missing-key warnings defer |
 | Storage disks | Literal native `Storage::disk` and `#[Storage]` names under an [explicit complete runtime contract](docs/storage-disks.md) | Dynamic names, custom facades/managers/attributes, adapters and unasserted runtime mutations defer |
 | Translation strings | Known PHP/JSON strings with explicit locales or literal `app.locale`, respecting JSON precedence | Missing literal views/translations can be checked with [complete catalogs](docs/reference-catalogs.md); dynamic locales/loaders defer; native `view()` typing is retained |
 | Route parameters | Duplicate placeholders in literal native Router, lexically resolved native Route facade and Route `setUri()` calls; missing required URI keys for closed named URL-parameter arrays under an explicit effective-default contract | [Complete named-route contracts](docs/named-route-contracts.md) check native URL/redirect generators; positional/domain parameters, runtime aliases, middleware and dynamic routing defer |
@@ -567,7 +609,8 @@ value of a virtual attribute. Laramago checks the effective refresh, raw-attribu
 replacement and read implementations against their installed source, then
 checks supported native `Testo\Assert::same()`, `true()` and `false()` calls
 against an independently established read contract.
-Explicit read PHPDoc retains priority over casts and separate write types. This
+Explicit `@property-read` PHPDoc retains priority; known casts refine general
+`@property` reads while keeping explicit directional write types. This
 corrects exact stale comparison diagnostics without claiming that persistence or
 the assertion succeeds. Known unsaved receivers, no-op overrides, constant
 accessors, real PHP property shadows, custom casts, incompatible read types and
@@ -575,6 +618,61 @@ stale or incomplete source retain diagnostics. Other flow errors, including
 `never` cascades, require their own proof. The SDK cannot forget a cached property
 literal directly, so this correction is limited to the proven comparison.
 `php tests/refreshed-model-properties.php --integrated` verifies these boundaries.
+
+[Model attribute source freshness](docs/model-attribute-source-freshness.md) also checks that an already certified unscanned dependency remains unchanged after its AST is evicted; changed source defers until exact restoration. Run `php tests/model-attribute-source-freshness.php` for the genuine source mutation and restoration regression.
+
+A successful native `Testo\Assert::notNull()` can preserve a nullable string
+getter's result at its immediate repeated call. The receiver must be a final
+source-verified class, and the public getter must return one ordinary physical
+field without callbacks or side effects. Laramago also verifies the installed
+assertion's successful logging path. Nullable declarations stay unchanged;
+intervening operations, changed dependencies, magic storage and stronger PHPDoc
+defer. Missing analyzed declarations and ambiguous call spans defer as well.
+`php tests/asserted-pure-getter.php --integrated` verifies these boundaries.
+
+A direct native `array_map()` over a fresh list of nonempty string literals can
+preserve those finite input values at the first constructor argument, even when
+the inline callback declares a general `string` parameter. Laramago verifies
+the actual callback and constructor metadata against their current source and
+checks every literal against the declared `non-empty-string` parameter. Included
+dependency declarations are read independently. Empty, computed or unknown inputs,
+escaped callbacks, references and stronger conflicting annotations retain native
+diagnostics. This correction leaves the general callback declaration unchanged.
+`php tests/finite-map-arguments.php --integrated` verifies these boundaries.
+
+Native Eloquent chunk callbacks with a bare `Collection` parameter can lose the
+queried model's generic type inside their body. For an unchanged `foreach` item,
+Laramago can restore an independently documented public property read when the
+query, hydration, collection and iterator contracts are verified from source.
+Explicit generic annotations, real base-model properties and unsupported query
+effects retain priority. This correction does not infer unknown fields or model
+methods. Ambiguous property spans, aliases, references, writes and custom query
+or collection implementations defer.
+`php tests/contextual-collection-members.php --integrated` verifies these boundaries.
+Read-only helpers may read an item property in a dictionary key. Actual field
+writes, indexed writes, destructuring and reference escapes still defer.
+
+When an ambiguous base-model property warning survives the native provider,
+Laramago can use the exact analyzed file and a verified concrete model declaration
+to resolve that advisory. The shared source index keeps property-provider span
+collisions conservative. Unknown fields and unsafe uses retain their diagnostics.
+`php tests/contextual-documented-property.php` checks the full registry and native controls.
+
+An exhaustive by-value validation loop can establish scalar row fields before
+an inline native `usort()` comparator and a direct list return. Laramago verifies
+the current guards, callback, caller and documented return contract. References,
+missing checks, altered rows and incompatible returns retain errors. A bounded
+top-level `getopt()` array guard follows the same lexical compatibility policy.
+Native expression types stay unchanged.
+`php tests/validated-array-contracts.php` checks these boundaries.
+
+Two [guarded string cast policies](docs/guarded-string-casts.md) preserve native
+types while matching PHPStan's declared callable-method guard and Larastan's
+benevolent literal Request route conversion. Exact source spans, native caller
+and builtin contracts, and unchanged variables are required. Concrete bad objects,
+unprotected casts, references, custom implementations and unsupported defaults
+retain their diagnostics. `php tests/guarded-string-casts.php` verifies the exact
+native delta and one/three-worker agreement.
 
 A directly invoked closure may change a fresh boolean local captured by reference.
 Laramago verifies the analyzed caller, final callee and private forwarding helpers,
@@ -744,19 +842,25 @@ Instead of declaring contracts by hand, an application can let Laramago read its
 resolved authentication configuration from a local application load. The mode is
 strictly opt-in: set `LARAMAGO_EVALUATE_RUNTIME=1` in the environment or add
 `--evaluate-runtime` to the worker command in `extension-hosts`. Without the flag,
-application code is not executed: only the verified native `env()` type union
-can refine static environment reads.
+the runtime loader does not require `bootstrap/app.php` or evaluate configuration
+files; the required Composer autoloader still runs. Verified native `env()` calls
+with an explicit scalar default use its generalized type under Larastan's policy; calls without
+a default retain `string|bool|null`. Static configuration arrays retain the broader
+native environment possibilities.
 
 ```toml
 [extension-hosts.laramago]
-command = ["php", "-d", "display_errors=stderr", "vendor/ichinya/laramago/bin/laramago-worker.php", "vendor/autoload.php", "--evaluate-runtime"]
+command = ["php", "-d", "display_errors=stderr", "vendor/ichinya/laramago/bin/laramago-worker.php", "vendor/autoload.php", ".", "--evaluate-runtime"]
 ```
 
-When enabled, the worker loads the analyzed application once with only the three
-configuration bootstrapstrappers: environment variables, configuration files and
-facade registration. Service providers never run, the database is never touched,
-and the loaded application is discarded immediately after the values are
-extracted. Authentication keeps only literal string entries: the default guard,
+When enabled, the worker requires the project's `bootstrap/app.php` and explicitly
+runs only three configuration bootstrappers: environment variables,
+configuration files and facade registration. It does not invoke the service-provider
+registration or boot phases. Project bootstrap and configuration files still
+execute PHP and may register providers, access a database or cause other side
+effects. The worker does not prevent those project-defined effects. It discards
+the loaded application after extracting the values. Authentication keeps only
+literal string entries: the default guard,
 each guard's provider and driver, and each provider's driver and model,
 validated against the live autoloader. Literal `config()`, `Config::get()` and
 `env()` reads additionally resolve to the machine's actual values — the general
@@ -978,8 +1082,8 @@ execution traps and concurrent workers in a path containing spaces. A comparison
 with analyzer plugins disabled reproduces the native proxy-chain errors.
 
 Property mapping such as `$users->map->name` also preserves keys and known model
-property types. Public native/PHPDoc contracts take precedence over inferred
-attributes, casts and accessors. Scalar or nullable results produce a Support
+property types. Physical properties and explicit read contracts retain priority;
+known casts refine general model property reads. Scalar or nullable results produce a Support
 collection; proven model results retain the Eloquent collection. Unknown or
 inaccessible properties still produce diagnostics. Required array-shape and tuple
 keys can also be mapped; all branches of an item union must have a known readable
@@ -1277,3 +1381,47 @@ They preserve positional, nullable, default and variadic semantics without
 bootstrapping Laravel or inferring effective routes and container state.
 
 [Permitted assertViewIs identities](docs/assert-view-identity-policy.md) provide an optional literal-reference policy for native stored-view identity assertions.
+
+Eloquent factory `$model` declarations accept a general `@var string` when the
+literal model class agrees with the declared factory generic and the installed
+parent contract. Current source and native metadata are checked without loading
+the application. Conflicting models and unsafe storage changes retain diagnostics.
+
+Bounded false operand compatibility follows PHPStan's handling of PHP ordered
+comparisons and string concatenation. False plus an integer is accepted at
+source-certified ordered comparisons with an integer peer; false plus a string
+is accepted in concatenation with literal string peers. Other domains and all
+unsafe arithmetic diagnostics retain their native behavior. Inferred types stay
+unchanged, including the false alternatives.
+
+[Closed configuration arguments](docs/closed-configuration-arguments.md) and [framework default date arguments](docs/default-date-arguments.md) adapt source-bound Laravel call contracts without loading the application. Dedicated native Mago regression matrices cover receiving declarations, one and three workers, and unsafe source or metadata replacements.
+
+[Declared framework compatibility](docs/declared-framework-compatibility.md) supports Eloquent coalesce probes, certified nullable collection offsets and native Request, route and console postconditions. Native Mago regression matrices retain unsafe property, element and receiving-contract diagnostics.
+
+[Repeated refreshed model values](docs/repeated-refresh-values.md) also recognize a native no-value argument after a second unconditional refresh on the same model receiver. Physical typed producer fields, primitive attribute readers, casts, schema and native declarations must establish the changed literal domain; aliases, references, unsaved receivers and genuine unreachable expressions keep their diagnostics. Run `php tests/repeated-refresh.php` for the native one/three-worker matrix and selected SDK cache controls.
+
+[Bounded defensive compatibility](docs/defensive-boundary-compatibility.md) covers native array caller contracts, captured-state guards, configuration classification, quoted route keys and Inertia response checks. Installed Fortify defaults use verified static package binding declarations with explicit application bindings taking priority. All regression fixtures are analyzed through the production worker.
+
+Laramago retains the selected model type in standard Eloquent `chunkById()` callbacks. See [selected chunk collection arguments](docs/selected-chunk-collection-arguments.md) and [driver extension forwarding](docs/driver-extension-forwarding.md) for the supported contracts and regression checks.
+
+[Collection offset guards](docs/collection-offset-guards.md) cover defensive index reads and model checks after a standard Eloquent query and literal `keyBy('id')`. Native value types and unrelated diagnostics remain available.
+
+Literal Request header arguments use the physical HeaderBag contract after a stable successful guard; see [the policy](docs/guarded-header-arguments.md).
+
+Declared methods on standard Eloquent chunk models keep their concrete receiver contract through a read-only collection helper. See [selected chunk model methods](docs/selected-chunk-model-warning.md).
+
+[Declared and captured postconditions](docs/declared-captured-postconditions.md) preserve closed assertion and callback evidence without changing native types.
+
+[Defensive configuration member checks](docs/configuration-member-guards.md) retain classified validation checks while preserving business-operation Errors.
+
+[XML cardinality guards](docs/xml-cardinality-guards.md) keep defensive singleton-node validation while preserving native value types and unrelated Errors.
+
+[Session array-key copies](docs/session-array-key-arguments.md) follow the physical Laravel key normalization while retaining invalid aliases, refinements and receiving contracts.
+
+[Model property arguments](docs/model-property-arguments.md) use current model declarations and primitive migration columns at verified receiving contracts, without loading the application or connecting to a database.
+
+[Factory Faker contracts](docs/factory-faker-contracts.md) certify selected literal formatter values through current default declarations and registered-source override checks, without executing providers or the application.
+
+[Possible callback tuples](docs/possible-callback-tuples.md) preserve closed positional writes from literal argument closures and physically typed captured inputs. Run `php -d memory_limit=512M tests/possible-tuples.php` for native one/three-worker and SDK restoration checks.
+
+[Guarded local model tuples](docs/guarded-local-model-tuples.md) preserve a guarded concrete model from a standard Eloquent query when it is stored in a literal callback tuple. Run `php -d memory_limit=512M -d opcache.enable_cli=0 tests/guarded-local-model-tuples.php` for the native regression matrix.

@@ -1,0 +1,13 @@
+<?php
+declare(strict_types=1);
+namespace Fixture\DefaultDates;
+use Carbon\Carbon;
+class Period
+{
+    public function activeOn(Carbon $date): bool { return true; }
+    public function attribute(): bool { return $this->activeOn(now()); }
+    public function testPeriod(): bool { $period=new self;return $period->activeOn(now()); }
+    public static function chosenAt(int $identity,Carbon $date): bool { return true; }
+    public function current(): bool { return self::chosenAt(1,now()); }
+    public function testChosen(): bool { return self::chosenAt(2,now()); }
+}

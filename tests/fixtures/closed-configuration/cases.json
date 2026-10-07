@@ -1,0 +1,28 @@
+{
+  "sourceOnly": true,
+  "nativeAcceptanceClaimed": false,
+  "sources": {
+    "configuration.php": "50b6846cd4f19b7687bd7f010af49c7707a10c2a5f18d490523c1301fe8ccc44",
+    "ConfigurationUrlParser.php": "8854d9ee76927f83a2f645e52a192cad30866638a0bd90287d4890305e48e2b8",
+    "negative.php": "33d3268b5f2bf2df22eff82568ee41e7fb0927ab7bf1c6dd0962844f475023c8"
+  },
+  "positiveOwners": [
+    "configuration.php::normalizer"
+  ],
+  "negativeOwners": [
+    "integerKey",
+    "numericStringKey",
+    "escaped",
+    "stored",
+    "rewritten",
+    "referenceFormal",
+    "referenceEscape",
+    "unknownInvocation",
+    "unpacked",
+    "byReferenceItem",
+    "unknownReceiver"
+  ],
+  "originalIds": [
+    "E027"
+  ]
+}

@@ -1,0 +1,16 @@
+<?php
+namespace Illuminate\Support;
+/**
+ * @template TKey of array-key
+ * @template TValue
+ * @extends \IteratorAggregate<TKey, TValue>
+ * @extends \Illuminate\Contracts\Support\Arrayable<TKey, TValue>
+ */
+interface Enumerable extends \IteratorAggregate, \Illuminate\Contracts\Support\Arrayable {
+    /**
+     * @template TZipValue
+     * @param \Illuminate\Contracts\Support\Arrayable<array-key, TZipValue>|iterable<array-key, TZipValue> ...$items
+     * @return static<int, static<int, TValue|TZipValue>>
+     */
+    public function zip($items);
+}

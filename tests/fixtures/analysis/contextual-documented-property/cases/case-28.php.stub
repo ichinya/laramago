@@ -1,0 +1,1 @@
+<?php use Illuminate\Database\Eloquent\Collection; abstract class SourceCase28 extends Reader { public function run(): void { intSink("independent invalid scalar"); $query = Row::query();  $query->chunkById(10, function (Collection $items): void { foreach ($items as $row) { $row->id = 2; } }); }}

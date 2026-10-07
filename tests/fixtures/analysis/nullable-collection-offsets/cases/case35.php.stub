@@ -1,0 +1,6 @@
+<?php
+
+namespace NullableIndexCase35;
+/** @param \NullableOffsetFixture\StableCollection<array-key, \NullableOffsetFixture\Record> $rows */
+function read(\NullableOffsetFixture\StableCollection $rows, ?int $key): void { $rows[$key]->missing(); }
+file_put_contents(__DIR__."/case-executed", "Scenario bodies must never execute.");

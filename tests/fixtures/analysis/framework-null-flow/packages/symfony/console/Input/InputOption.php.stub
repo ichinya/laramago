@@ -1,0 +1,14 @@
+<?php
+namespace Symfony\Component\Console\Input;
+class InputOption {
+    public const VALUE_NONE = 1;
+    public const VALUE_OPTIONAL = 4;
+    private mixed $default;
+    public function __construct($name, $shortcut = null, $mode = null, mixed $default = null) { $this->setDefault($default); }
+    public function acceptValue(): bool { return true; }
+    public function isNegatable(): bool { return false; }
+    public function setDefault(mixed $default): void {
+        $this->default = $this->acceptValue() || $this->isNegatable() ? $default : false;
+    }
+    public function getDefault(): mixed { return $this->default; }
+}

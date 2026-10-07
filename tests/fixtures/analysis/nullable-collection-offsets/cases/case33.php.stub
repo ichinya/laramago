@@ -1,0 +1,5 @@
+<?php
+
+namespace NullableIndexCase33;
+trait Label { public function expose(): array { return [&$this->items]; } } /** @extends \Illuminate\Support\Collection<array-key, \NullableOffsetFixture\Record> */ final class Rows extends \Illuminate\Support\Collection { use Label; } function read(Rows $rows, ?int $key): void { $rows[$key]->missing(); }
+file_put_contents(__DIR__."/case-executed", "Scenario bodies must never execute.");

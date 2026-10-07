@@ -1,0 +1,143 @@
+{
+  "sourceOnly": true,
+  "nativeAcceptanceClaimed": false,
+  "sources": {
+    "framework.php": "5cc34b20fcc23dd4a68bcba1e2cc8dec8810536d015f22ad849883aee2eb99e3",
+    "negative.php": "63eb88401f7ec7e44c0551df166a4f416a35d42e22b13d7a1eb4ab24053b3cd1",
+    "positive.php": "4f2125c751c43edca7f775176debc531d9e9d8680b9c8c64818babe680d2ca4a"
+  },
+  "positiveTargets": [
+    {
+      "owner": "positive.php::TupleExamples::text",
+      "code": "invalid-destructuring-source"
+    },
+    {
+      "owner": "positive.php::TupleExamples::text",
+      "code": "mixed-argument"
+    },
+    {
+      "owner": "positive.php::TupleExamples::object",
+      "code": "invalid-destructuring-source"
+    },
+    {
+      "owner": "positive.php::TupleExamples::object",
+      "code": "mixed-argument"
+    },
+    {
+      "owner": "positive.php::TupleExamples::unknownFields",
+      "code": "invalid-destructuring-source"
+    },
+    {
+      "owner": "negative.php::NegativeRows::inputReference",
+      "code": "invalid-destructuring-source"
+    },
+    {
+      "owner": "negative.php::NegativeRows::referenceReadFormal",
+      "code": "invalid-destructuring-source"
+    },
+    {
+      "owner": "positive.php::TupleExamples::constantText",
+      "code": "invalid-destructuring-source"
+    },
+    {
+      "owner": "positive.php::TupleExamples::constantText",
+      "code": "mixed-argument"
+    },
+    {
+      "owner": "negative.php::NegativeRows::constantMixed",
+      "code": "invalid-destructuring-source"
+    }
+  ],
+  "negativeOwners": [
+    "positive.php::TupleExamples::unknownFields",
+    "negative.php::NegativeRows::alias",
+    "negative.php::NegativeRows::referenceAlias",
+    "negative.php::NegativeRows::escaped",
+    "negative.php::NegativeRows::rebound",
+    "negative.php::NegativeRows::storedCapture",
+    "negative.php::NegativeRows::referenceLoop",
+    "negative.php::NegativeRows::duplicateProjection",
+    "negative.php::NegativeRows::nonArrayWrite",
+    "negative.php::NegativeRows::differentArity",
+    "negative.php::NegativeRows::keyedRow",
+    "negative.php::NegativeRows::spreadRow",
+    "negative.php::NegativeRows::referencedEntry",
+    "negative.php::NegativeRows::inputReference",
+    "negative.php::NegativeRows::referenceReadFormal",
+    "negative.php::NegativeRows::concreteWrongArgument",
+    "negative.php::NegativeRows::builtinReceiver",
+    "negative.php::NegativeRows::constantMixed"
+  ],
+  "originalIds": [
+    "E018",
+    "E037",
+    "E038"
+  ],
+  "relatedModelProjectionOriginalId": "E032",
+  "expectedControls": {
+    "shape": [
+      66,
+      19
+    ],
+    "argument": [
+      150,
+      47
+    ]
+  },
+  "policy": "PHPStan possible writes, no guaranteed callback execution claimed",
+  "unknownFieldArgumentErrorRetained": true,
+  "fixtureBoundary": "Invented Closure dispatch with two conditional append-and-throw paths and a normal object return, followed by catch-only positional reads.",
+  "physicalDefaultDeclarations": {
+    "DeferredHandler::invoke": {
+      "callback": "Closure",
+      "attempts": {
+        "phpType": null,
+        "docType": "int",
+        "default": 1
+      },
+      "docClosureArgument": "static",
+      "template": "TResult of mixed",
+      "return": "TResult"
+    },
+    "CallbackFacade::$handler": {
+      "type": "?DeferredHandler",
+      "default": null
+    },
+    "selectedCallAttempts": 3
+  },
+  "expectedPositiveErrorsRemainUnverified": true,
+  "negativeWitnessCodes": [
+    "invalid-destructuring-source",
+    "less-specific-argument",
+    "possibly-invalid-argument",
+    "invalid-argument",
+    "mixed-argument",
+    "null-argument"
+  ],
+  "negativeWitnessesRequiredAtInitialNativeStage": true,
+  "unsafeSelectedMixedFieldOwners": [
+    "duplicateProjection",
+    "differentArity",
+    "spreadRow",
+    "referencedEntry"
+  ],
+  "requiredNativeNegativeTargets": [
+    {
+      "owner": "negative.php::NegativeRows::builtinReceiver",
+      "code": "mixed-argument",
+      "receivingFunction": "count"
+    }
+  ],
+  "builtinReceiverGuardStage": "physical receiving declaration has a named class owner",
+  "builtinReceiverExpectedDecision": "Keep",
+  "genuineBuiltinNegativeStillRequiresNativeWitness": true,
+  "newConstantDomainPositive": "positive.php::TupleExamples::constantText",
+  "newConstantDomainNegative": "negative.php::NegativeRows::constantMixed",
+  "constantDomainNativeWitnessPending": true,
+  "resolvedDocDomain": "Exact literal string union from current own noninherited constants; never generalized string.",
+  "expectedConstantDomainControls": {
+    "cacheMutations": 33,
+    "checks": 107,
+    "sourceMutations": 2
+  }
+}

@@ -1,0 +1,17 @@
+<?php
+namespace Illuminate\Database\Eloquent;
+/** @template TCollection of Collection */
+trait HasCollection {
+    protected static array $resolvedCollectionClasses = [];
+    /**
+     * @param array<array-key, Model> $models
+     * @return TCollection
+     */
+    public function newCollection(array $models = []) {
+        static::$resolvedCollectionClasses[static::class] ??= ($this->resolveCollectionFromAttribute() ?? static::$collectionClass);
+        $collection = new static::$resolvedCollectionClasses[static::class]($models);
+        if (Model::isAutomaticallyEagerLoadingRelationships()) { $collection->withRelationshipAutoloading(); }
+        return $collection;
+    }
+    public function resolveCollectionFromAttribute() { return null; }
+}

@@ -1,0 +1,75 @@
+<?php
+namespace Fixture\ArgumentContracts\Negative;
+function unknownDecimal(string $delay): void { usleep((int) $delay * 1000); }
+function missingUpper(string $delay): void
+{
+    if (! is_string($delay) || ! ctype_digit($delay)) { exit(64); }
+    usleep((int) $delay * 1000);
+}
+function wrongConjunction(string $delay): void
+{
+    if (! is_string($delay) && ! ctype_digit($delay) && (int) $delay > 2000) { exit(64); }
+    usleep((int) $delay * 1000);
+}
+function changedValue(string $delay): void
+{
+    if (! is_string($delay) || ! ctype_digit($delay) || (int) $delay > 2000) { exit(64); }
+    $delay = '-1';
+    usleep((int) $delay * 1000);
+}
+function referenceFormal(string &$delay): void
+{
+    if (! is_string($delay) || ! ctype_digit($delay) || (int) $delay > 2000) { exit(64); }
+    usleep((int) $delay * 1000);
+}
+function aliasedValue(string $delay): void
+{
+    $alias =& $delay;
+    if (! is_string($delay) || ! ctype_digit($delay) || (int) $delay > 2000) { exit(64); }
+    usleep((int) $delay * 1000);
+}
+function unknownEffect(): void {}
+function unknownInterveningCall(string $delay): void
+{
+    if (! is_string($delay) || ! ctype_digit($delay) || (int) $delay > 2000) { exit(64); }
+    unknownEffect();
+    usleep((int) $delay * 1000);
+}
+function overflowingProduct(string $delay): void
+{
+    if (! is_string($delay) || ! ctype_digit($delay) || (int) $delay > 2000000000) { exit(64); }
+    usleep((int) $delay * 1000000000);
+}
+function wrongGuardValue(string $delay, string $other): void
+{
+    if (! is_string($other) || ! ctype_digit($other) || (int) $other > 2000) { exit(64); }
+    usleep((int) $delay * 1000);
+}
+final class MutableDirectory
+{
+    public function __construct(private string $directory) {}
+    public function launch(): mixed { $pipes=[];return proc_open('fixture', [], $pipes, $this->directory); }
+}
+final class UnknownDirectory
+{
+    public function __construct(private readonly mixed $directory) {}
+    public function launch(): mixed { $pipes=[];return proc_open('fixture', [], $pipes, $this->directory); }
+}
+final class ReferenceDirectory
+{
+    public function __construct(private readonly string &$directory) {}
+    public function launch(): mixed { $pipes=[];return proc_open('fixture', [], $pipes, $this->directory); }
+}
+function command(): string { return 'fixture'; }
+final class EarlierArgumentEffect
+{
+    public function __construct(private readonly string $directory) {}
+    public function launch(): mixed { $pipes=[];return proc_open(command(), [], $pipes, $this->directory); }
+}
+namespace Fixture\ArgumentContracts\Shadow;
+function ctype_digit(mixed $value): bool { return true; }
+function shadowedDigit(string $delay): void
+{
+    if (! is_string($delay) || ! ctype_digit($delay) || (int) $delay > 2000) { exit(64); }
+    usleep((int) $delay * 1000);
+}

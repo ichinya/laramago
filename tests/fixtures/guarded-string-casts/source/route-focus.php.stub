@@ -1,0 +1,8 @@
+<?php
+declare(strict_types=1);
+namespace CastCompatibilityFixture;
+use Illuminate\Http\Request;
+function routeParameter(Request $request): string
+{
+    return (string) $request->route('slug', '');
+}

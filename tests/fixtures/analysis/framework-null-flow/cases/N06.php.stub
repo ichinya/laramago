@@ -1,0 +1,1 @@
+<?php namespace InputRouteFixture; final class CaseN06 extends \Illuminate\Console\Command { protected $signature = self::SIGNATURE; private const SIGNATURE = 'example {--day=}'; public function probe(): int { if ($this->option('day') !== null) { return DateReceiver::date($this->option('day')); } return 0; } public function unrelatedUnsafeUse(): void { requireInteger('text'); } }

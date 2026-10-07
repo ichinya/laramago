@@ -1,0 +1,671 @@
+{
+    "sourceCases": 63,
+    "caseCatalogue": {
+        "cases/case0.php": {
+            "label": "support nullable integer read with retained unsafe use",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case1.php": {
+            "label": "eloquent nullable integer and string coalesce",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case2.php": {
+            "label": "native offsetGet explicit call comparator",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 3
+        },
+        "cases/case3.php": {
+            "label": "native offsetExists explicit call comparator",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 4
+        },
+        "cases/case4.php": {
+            "label": "support literal null read",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 3
+        },
+        "cases/case5.php": {
+            "label": "support nullable string isset",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 1
+        },
+        "cases/case6.php": {
+            "label": "support nullable row field local result guarded",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case7.php": {
+            "label": "support nullable property captured in closure",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case8.php": {
+            "label": "support nonnullable string baseline",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 1
+        },
+        "cases/case9.php": {
+            "label": "collection array offset",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case10.php": {
+            "label": "collection object offset",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case11.php": {
+            "label": "collection stringable object offset",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case12.php": {
+            "label": "collection boolean offset",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case13.php": {
+            "label": "collection float offset",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case14.php": {
+            "label": "collection resource offset",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case15.php": {
+            "label": "collection mixed offset",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case16.php": {
+            "label": "nullable object union offset",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case17.php": {
+            "label": "native array receiver retains nullable warning and unsafe type error",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 1
+        },
+        "cases/case18.php": {
+            "label": "narrow integer key collection",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case19.php": {
+            "label": "literal key collection",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case20.php": {
+            "label": "custom null rejecting getter override",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case21.php": {
+            "label": "custom null rejecting isset override",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 1
+        },
+        "cases/case22.php": {
+            "label": "stronger getter docblock parameter",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 3
+        },
+        "cases/case23.php": {
+            "label": "array access backed storage shadow",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 3
+        },
+        "cases/case24.php": {
+            "label": "storage reference escape",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case25.php": {
+            "label": "storage replaced by method before use",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 3
+        },
+        "cases/case26.php": {
+            "label": "dynamic offset getter dispatch",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case27.php": {
+            "label": "ambiguous array or collection receiver",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 1
+        },
+        "cases/case28.php": {
+            "label": "arbitrary foreign ArrayAccess",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case29.php": {
+            "label": "unknown receiver hierarchy",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 3
+        },
+        "cases/case30.php": {
+            "label": "own benign trait with inherited merged closure",
+            "candidate": true,
+            "exactTargets": 1,
+            "unrelatedErrorsKept": 1
+        },
+        "cases/case31.php": {
+            "label": "own nested benign trait with inherited merged closure",
+            "candidate": true,
+            "exactTargets": 1,
+            "unrelatedErrorsKept": 1
+        },
+        "cases/case32.php": {
+            "label": "own nested trait reference argument retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 3
+        },
+        "cases/case33.php": {
+            "label": "own trait array reference exposure retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 3
+        },
+        "cases/case34.php": {
+            "label": "own nested trait object storage replacement retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 3
+        },
+        "cases/case35.php": {
+            "label": "closed native nullable integer",
+            "candidate": true,
+            "exactTargets": 1,
+            "unrelatedErrorsKept": 1
+        },
+        "cases/case36.php": {
+            "label": "closed native integer string null coalesce",
+            "candidate": true,
+            "exactTargets": 1,
+            "unrelatedErrorsKept": 1
+        },
+        "cases/case37.php": {
+            "label": "closed native literal null",
+            "candidate": true,
+            "exactTargets": 1,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case38.php": {
+            "label": "closed native nullable string isset",
+            "candidate": true,
+            "exactTargets": 1,
+            "unrelatedErrorsKept": 1
+        },
+        "cases/case39.php": {
+            "label": "closed native nullable row field",
+            "candidate": true,
+            "exactTargets": 1,
+            "unrelatedErrorsKept": 1
+        },
+        "cases/case40.php": {
+            "label": "closed native closure captured receiver",
+            "candidate": true,
+            "exactTargets": 1,
+            "unrelatedErrorsKept": 1
+        },
+        "cases/case41.php": {
+            "label": "closed native strict caller same array key conversion",
+            "candidate": true,
+            "exactTargets": 1,
+            "unrelatedErrorsKept": 1
+        },
+        "cases/case42.php": {
+            "label": "benign inherited native receiver known descendants",
+            "candidate": true,
+            "exactTargets": 1,
+            "unrelatedErrorsKept": 1
+        },
+        "cases/case43.php": {
+            "label": "closed native nullable string coalescing read",
+            "candidate": true,
+            "exactTargets": 1,
+            "unrelatedErrorsKept": 1
+        },
+        "cases/case44.php": {
+            "label": "closed native nullable physical row property",
+            "candidate": true,
+            "exactTargets": 1,
+            "unrelatedErrorsKept": 1
+        },
+        "cases/case45.php": {
+            "label": "closed native nullable collection property receiver",
+            "candidate": true,
+            "exactTargets": 1,
+            "unrelatedErrorsKept": 1
+        },
+        "cases/case46.php": {
+            "label": "closed native pure null parameter",
+            "candidate": true,
+            "exactTargets": 1,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case47.php": {
+            "label": "closed native alias by reference retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case48.php": {
+            "label": "closed native by reference parameter retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case49.php": {
+            "label": "closed native by reference closure capture retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case50.php": {
+            "label": "closed native destructuring reference retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case51.php": {
+            "label": "closed native write target retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case52.php": {
+            "label": "closed native unset target retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case53.php": {
+            "label": "closed native reference call escape retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case54.php": {
+            "label": "trait storage object replacement retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 3
+        },
+        "cases/case55.php": {
+            "label": "ordinary arbitrary storage replacement retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 3
+        },
+        "cases/case56.php": {
+            "label": "trait reader alias retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 4
+        },
+        "cases/case57.php": {
+            "label": "closed native narrow integer key retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case58.php": {
+            "label": "closed native narrow literal key retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case59.php": {
+            "label": "closed native null or object key retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case60.php": {
+            "label": "closed native ambiguous array receiver retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 1
+        },
+        "cases/case61.php": {
+            "label": "benign model-constrained inherited receiver coalescing read",
+            "candidate": true,
+            "exactTargets": 1,
+            "unrelatedErrorsKept": 1
+        },
+        "cases/case62.php": {
+            "label": "benign model-constrained inherited receiver closure property read",
+            "candidate": true,
+            "exactTargets": 1,
+            "unrelatedErrorsKept": 1
+        }
+    },
+    "fixtureFiles": {
+        "bootstrap.php": {
+            "dataFile": "bootstrap.php.stub",
+            "sha256": "04ec019e11cf5ae3bff6481da424aab62da3a628f03b7e817f2b6881fcfb7fed"
+        },
+        "cases/case0.php": {
+            "dataFile": "cases/case0.php.stub",
+            "sha256": "c72e551ae45113280e66098e44ee96657617062a723085f678faed330f3dcd39"
+        },
+        "cases/case1.php": {
+            "dataFile": "cases/case1.php.stub",
+            "sha256": "81606e44a2a45a0baa82aed039b504183e0248063857d48685ad4c773b58b2d4"
+        },
+        "cases/case10.php": {
+            "dataFile": "cases/case10.php.stub",
+            "sha256": "c20d64230f392b01af2c281b2535a92daabf66e32ecc525d3f779a092fc9aff4"
+        },
+        "cases/case11.php": {
+            "dataFile": "cases/case11.php.stub",
+            "sha256": "e56df0343c3d8d9de16269bae9a1079da892fdbce075720147bf62f59ccb9ab7"
+        },
+        "cases/case12.php": {
+            "dataFile": "cases/case12.php.stub",
+            "sha256": "56e3768bdad47016ea56945974206678ed557014bdbcb2ad9839be8cb9ba8c25"
+        },
+        "cases/case13.php": {
+            "dataFile": "cases/case13.php.stub",
+            "sha256": "2b14b48754d2e7efbcf4fb80a65b6b20be47f9cd2d7e28e960e6fe12dba56eb8"
+        },
+        "cases/case14.php": {
+            "dataFile": "cases/case14.php.stub",
+            "sha256": "a671041b57ac0aabf336ed6a8ad7afa17a95500ee5af4f321af3fa23ce1f7a03"
+        },
+        "cases/case15.php": {
+            "dataFile": "cases/case15.php.stub",
+            "sha256": "e3e10a4303bd8cf39d5c095075519ddca3585d2740ea12cf569f7bdde3e324c5"
+        },
+        "cases/case16.php": {
+            "dataFile": "cases/case16.php.stub",
+            "sha256": "ce4a2cc8f1a69b236ce15a888841a9278481ca843c661641808d8ca560f27c99"
+        },
+        "cases/case17.php": {
+            "dataFile": "cases/case17.php.stub",
+            "sha256": "9d05a948833a159e47a50bd69cae42c86b5679fb5d629a927c54cf8fda7e2e87"
+        },
+        "cases/case18.php": {
+            "dataFile": "cases/case18.php.stub",
+            "sha256": "89052c12e852aaf6e2994e916e26574dc5e079678c3ca9998438d8f8e7b5413e"
+        },
+        "cases/case19.php": {
+            "dataFile": "cases/case19.php.stub",
+            "sha256": "3f231a90634091d46ee9a88554da3dbc657b37257b3b4192fa16456bf6cf0532"
+        },
+        "cases/case2.php": {
+            "dataFile": "cases/case2.php.stub",
+            "sha256": "e12d43e6b76e15dce6b297b75c4a1df6af97d4800538bb4f2dfca458f3b7f60b"
+        },
+        "cases/case20.php": {
+            "dataFile": "cases/case20.php.stub",
+            "sha256": "0d46a658c2bbb4e3178e11b8ad1ec779dacb2b449d2b242658087d6bef4e169a"
+        },
+        "cases/case21.php": {
+            "dataFile": "cases/case21.php.stub",
+            "sha256": "ad4009f94ffd075c7f4adb94056ef6e4b26f10c8fccae192255e256d4719f04a"
+        },
+        "cases/case22.php": {
+            "dataFile": "cases/case22.php.stub",
+            "sha256": "fe1fb79cbbaa8340e79714766163ba61a290fb6b21631cb03dd7df561b24aff0"
+        },
+        "cases/case23.php": {
+            "dataFile": "cases/case23.php.stub",
+            "sha256": "40c86ae291554eba25ff6e6ca67874d88c29811b99ff6eb8763b464705533aca"
+        },
+        "cases/case24.php": {
+            "dataFile": "cases/case24.php.stub",
+            "sha256": "cf039937f4b1744456f59db439e7e25188a3ecc1b23d43f14ab1d8397dcf4e34"
+        },
+        "cases/case25.php": {
+            "dataFile": "cases/case25.php.stub",
+            "sha256": "55135df9f5fd962a048b64b81f0f2a77558864d48d28bfd6e7b747687e00f9f1"
+        },
+        "cases/case26.php": {
+            "dataFile": "cases/case26.php.stub",
+            "sha256": "d9ce51cdbf190a672362275c7b5874e270f69fcb64700cb92174ab01f0da75f8"
+        },
+        "cases/case27.php": {
+            "dataFile": "cases/case27.php.stub",
+            "sha256": "7c79f93c91440b260aa54fa0dde4b84643b04410b74a173771aceca5d8f12e6b"
+        },
+        "cases/case28.php": {
+            "dataFile": "cases/case28.php.stub",
+            "sha256": "11461c512dbfd310f3200e9e101a36b92bb7ce334f296bc44116f3de315f2a1b"
+        },
+        "cases/case29.php": {
+            "dataFile": "cases/case29.php.stub",
+            "sha256": "db8e57d3addb047df919a72db480bddca19b0ddc22f5f74256652c4787148924"
+        },
+        "cases/case3.php": {
+            "dataFile": "cases/case3.php.stub",
+            "sha256": "371f6965e0ebe3b15c6065b7499295d5e23f4a477e2e0b7c87c4cd32ac5eab7f"
+        },
+        "cases/case30.php": {
+            "dataFile": "cases/case30.php.stub",
+            "sha256": "5d53ff6c287168d4f42d8fabe282efd3182fe085e47fbb9b17b3015a2fb77df4"
+        },
+        "cases/case31.php": {
+            "dataFile": "cases/case31.php.stub",
+            "sha256": "77a5c94ab5c10b66e70eb16c5649c8b66b3f5520ee7c5a07b2ee6bc256ae0ee3"
+        },
+        "cases/case32.php": {
+            "dataFile": "cases/case32.php.stub",
+            "sha256": "5e0e9473eedf8001246874aa1105999417122446c2fdd27210d6ae852a3dcbf4"
+        },
+        "cases/case33.php": {
+            "dataFile": "cases/case33.php.stub",
+            "sha256": "753696131626af592093aa0c0cc34441578f14e186c804a027e6c752c177ac17"
+        },
+        "cases/case34.php": {
+            "dataFile": "cases/case34.php.stub",
+            "sha256": "b8e4fdd8f28a9ac0669af748818685b9e18fc97497b176ca3fd6b30bbb5f42d9"
+        },
+        "cases/case35.php": {
+            "dataFile": "cases/case35.php.stub",
+            "sha256": "03941a312879a825bde6bd29c2f85394674cc67bc867229584f361f083caf306"
+        },
+        "cases/case36.php": {
+            "dataFile": "cases/case36.php.stub",
+            "sha256": "ede2fabc7f04f9d1fa62c306ee1ecb0a8d51de2abd4fb86fa3e1b8a319f86920"
+        },
+        "cases/case37.php": {
+            "dataFile": "cases/case37.php.stub",
+            "sha256": "00ea135bd0b7943e6b07c4a91795b1a18f8f33e50e41ecaf104ed4f6d2d07027"
+        },
+        "cases/case38.php": {
+            "dataFile": "cases/case38.php.stub",
+            "sha256": "279f3c3f349ee89104f7abeceeb5425479aff9d0cf0ff2686d22be9e90462166"
+        },
+        "cases/case39.php": {
+            "dataFile": "cases/case39.php.stub",
+            "sha256": "0489b82b3bc0e719f0bf237df5e41d607b81e858d278b1c1f80a4c624545bae2"
+        },
+        "cases/case4.php": {
+            "dataFile": "cases/case4.php.stub",
+            "sha256": "cd87f1031746d22f20fca6e7b31a1663a3a19e40e5c965216c68ccb6aaa79c6d"
+        },
+        "cases/case40.php": {
+            "dataFile": "cases/case40.php.stub",
+            "sha256": "907bdd7a56c90b7d1342bfc1a51994df247fe5e0edc937fc98bc3a93a0597283"
+        },
+        "cases/case41.php": {
+            "dataFile": "cases/case41.php.stub",
+            "sha256": "780d107cc02009b6e4a71d7f626bc59e9c8696ee71cb3e310c49eb5fe33cba45"
+        },
+        "cases/case42.php": {
+            "dataFile": "cases/case42.php.stub",
+            "sha256": "b0c46f514197f4a0e0810f98e7064691657901c63706f942a2b2e5929dffd7bb"
+        },
+        "cases/case43.php": {
+            "dataFile": "cases/case43.php.stub",
+            "sha256": "25f592200474688d6006cea74b1701c8cf9b09e01025c35420ab61750a73bdf4"
+        },
+        "cases/case44.php": {
+            "dataFile": "cases/case44.php.stub",
+            "sha256": "5a1483938c7c8be5e25d757b1bdc54480043556a94fccdb872b8060d4e8584e2"
+        },
+        "cases/case45.php": {
+            "dataFile": "cases/case45.php.stub",
+            "sha256": "aeec30bd0e668662af813e48b8e9a49cb3282c72803111ebd0367664ec58a5e3"
+        },
+        "cases/case46.php": {
+            "dataFile": "cases/case46.php.stub",
+            "sha256": "221251ce3be0408d94c1e2c2947e0263c392889db863c8147bfee00f16d1dd55"
+        },
+        "cases/case47.php": {
+            "dataFile": "cases/case47.php.stub",
+            "sha256": "819b544958ab02639178da047f4c6fb18dbfc245098ed19dac3b45f14841957d"
+        },
+        "cases/case48.php": {
+            "dataFile": "cases/case48.php.stub",
+            "sha256": "9cd5648cd474c180e1a8dcc61dbb184a985077737ad293d1dc39fbe011fe92b0"
+        },
+        "cases/case49.php": {
+            "dataFile": "cases/case49.php.stub",
+            "sha256": "86bc38cba6939db22fe98c38fa47748ccd835b6015353361b2c1d401e89b0ed5"
+        },
+        "cases/case5.php": {
+            "dataFile": "cases/case5.php.stub",
+            "sha256": "ecd9c21ee47582331effc8aa6b4f657c23896acae69ca22bc05f087588f657f7"
+        },
+        "cases/case50.php": {
+            "dataFile": "cases/case50.php.stub",
+            "sha256": "1ef8fdc489af118f644273b523fcd0bfff2f09e48a68cec491b75638f6b1482b"
+        },
+        "cases/case51.php": {
+            "dataFile": "cases/case51.php.stub",
+            "sha256": "8a43e626631730d3a8102191cf195e01c4526bb3cedd851c9a72e98c552f4f47"
+        },
+        "cases/case52.php": {
+            "dataFile": "cases/case52.php.stub",
+            "sha256": "72307c5bc0211c3cfceaba0237fdfab3d738d6cfe03cab5c62b2318976d31b9e"
+        },
+        "cases/case53.php": {
+            "dataFile": "cases/case53.php.stub",
+            "sha256": "226256bfaa73db54c9054bba26792272b63191ba1b54f5b13a2859754eff5b48"
+        },
+        "cases/case54.php": {
+            "dataFile": "cases/case54.php.stub",
+            "sha256": "84da834d245183ef228ea53dbe9126891f95fa9be996631c0877e610aef5c005"
+        },
+        "cases/case55.php": {
+            "dataFile": "cases/case55.php.stub",
+            "sha256": "117e2a4f59f03e232bbe68451bf780ef30f87a703d29eda0409a6f1ce1ea1239"
+        },
+        "cases/case56.php": {
+            "dataFile": "cases/case56.php.stub",
+            "sha256": "441cb7c5da78161369491956e3db062ae3b0cf1f296f65ae1296907e0ae9ba84"
+        },
+        "cases/case57.php": {
+            "dataFile": "cases/case57.php.stub",
+            "sha256": "2b9fd61dc756d9c8e9fcc2e355acb5d6cf933f4d6c8e2df722bf0a0875a1a0e8"
+        },
+        "cases/case58.php": {
+            "dataFile": "cases/case58.php.stub",
+            "sha256": "63fe70557bad692bdb46f956d2c03ab980785bf945103822913c1bd839d09541"
+        },
+        "cases/case59.php": {
+            "dataFile": "cases/case59.php.stub",
+            "sha256": "b9df1d1493947c3982a70880ac050555b74dd9c7caa7ec3a6e15217588a28ec5"
+        },
+        "cases/case6.php": {
+            "dataFile": "cases/case6.php.stub",
+            "sha256": "421d93e18e2f10d53c43f7dbba6c19f88d9a564ec33f745e3a17ed28f5535b7a"
+        },
+        "cases/case60.php": {
+            "dataFile": "cases/case60.php.stub",
+            "sha256": "b6d7fc4b10dd522158dce8e92ad386196f7111db162b124ca637df1c7d136bed"
+        },
+        "cases/case61.php": {
+            "dataFile": "cases/case61.php.stub",
+            "sha256": "3f8b0a185feddc27dac3398979d54206ac1bacf11eb137722e15cf17ac49b47f"
+        },
+        "cases/case62.php": {
+            "dataFile": "cases/case62.php.stub",
+            "sha256": "3b023baffcf147144d52a7dd3f40b14f59ba38b9e926115c8e7031628f03e986"
+        },
+        "cases/case7.php": {
+            "dataFile": "cases/case7.php.stub",
+            "sha256": "cefebb5e300569910a33891578f397ad71e12ac6a7e911635219d218e8d70013"
+        },
+        "cases/case8.php": {
+            "dataFile": "cases/case8.php.stub",
+            "sha256": "933523391fa97fad1c1511187b9da06b7444a8720d1476053e7307686bedce0a"
+        },
+        "cases/case9.php": {
+            "dataFile": "cases/case9.php.stub",
+            "sha256": "a6e5635d93f229c74cb8a36c507d50ddd63238c303ecf5ca97bd36a82badeaa5"
+        },
+        "composer.json": {
+            "dataFile": "composer.json",
+            "sha256": "7a74cfdb07a737c7bebc6305c3eff3d3caf1b8ba9831b6fa9717bff8e9e2489f"
+        },
+        "contracts.php": {
+            "dataFile": "contracts.php.stub",
+            "sha256": "cc6e4b55490e3fff8b880ec6a49f173a9ff77908dad33db729dd294102622f03"
+        },
+        "database/migrations/001_trap.php": {
+            "dataFile": "database/migrations/001_trap.php.stub",
+            "sha256": "04ec019e11cf5ae3bff6481da424aab62da3a628f03b7e817f2b6881fcfb7fed"
+        },
+        "focus.php": {
+            "dataFile": "focus.php.stub",
+            "sha256": "dd4109482945b0faf4eed790ede6bf91a9cd5cc6ca51fb928c41fb2ed7afa570"
+        },
+        "packages/composer/autoload_files.php": {
+            "dataFile": "packages/composer/autoload_files.php.stub",
+            "sha256": "46e5a620a0877197993063eafd49fe4b2015280f02ee453beef2fd291d997184"
+        },
+        "packages/composer/installed.json": {
+            "dataFile": "packages/composer/installed.json",
+            "sha256": "454eea274ef715bed0aef364fec823e04318850d28eb04f1c16a03a5127c071c"
+        },
+        "packages/composer/trap.php": {
+            "dataFile": "packages/composer/trap.php.stub",
+            "sha256": "04ec019e11cf5ae3bff6481da424aab62da3a628f03b7e817f2b6881fcfb7fed"
+        }
+    },
+    "fixtureBodiesMustNeverExecute": true,
+    "nativeAcceptanceOfPortableNamespaceAdaptationPending": true
+}

@@ -1,0 +1,8 @@
+<?php
+namespace Carbon;
+interface CarbonInterface {}
+class Carbon extends \DateTime implements CarbonInterface
+{
+    use \Carbon\Traits\Creator;
+    public function __construct(mixed $value=null,mixed $timezone=null) {}
+}

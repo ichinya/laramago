@@ -1,0 +1,88 @@
+<?php
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
+/**
+ * @property-read string $amount
+ * @property-read int $id
+ * @property-read string|null $nullable
+ * @property-read 'fixed value' $literal
+ * @mixin Model
+ */
+class Row extends Model { public function recalculate(): void {} }
+/** @property-read int $amount */
+class OtherRow extends Model {}
+class ShadowRow extends Row { private int $amount = 1; }
+class IntegerRow extends Row { public int $amount = 1; }
+class CustomQueryRow extends Row { public static function query(): \Illuminate\Database\Eloquent\Builder { return new \Illuminate\Database\Eloquent\Builder; } }
+class CustomInstanceRow extends Row { public function newInstance($attributes = [], $exists = false): Row { return new Row; } }
+class CustomCollectionRow extends Row { public function newCollection(array $models = []): Collection { return new Collection($models); } }
+/** @property float $amount */
+class CastRow extends Model { protected $casts = ['amount' => 'decimal:2']; }
+/** @property-read float $amount */
+class ExplicitReadCastRow extends Model { protected $casts = ['amount' => 'decimal:2']; }
+function stringSink(string $value): void {}
+function intSink(int $value): void {}
+function nullableSink(?string $value): void {}
+/** @param numeric-string|null $value */
+function nullableNumericSink(?string $value): void {}
+function floatSink(float $value): void {}
+function arraySink(array $value): void {}
+interface ReaderContract { public function helperMarker(): void; }
+abstract class Reader implements ReaderContract {
+    public function helperMarker(): void {}
+    /** @param Collection<int, Row> $items */
+    abstract protected function abstractLabels(Collection $items): array;
+    /**
+     * @param Collection<int, Row> $items
+     * @return array<int, string>
+     */
+    protected function labels(Collection $items): array {
+        $labels = [];
+        foreach ($items as $row) { $labels[] = $row->amount; }
+        return $labels;
+    }
+    /** @param Collection<int, Row> $items */
+    protected function keyedLabels(Collection $items): array {
+        $labels = [];
+        foreach ($items as $row) { $labels[$row->amount] = true; }
+        return $labels;
+    }
+    /** @param Collection<int, Row> $items */
+    protected function nestedKeyedLabels(Collection $items): array {
+        $labels = [];
+        foreach ($items as $row) { $labels['group'][$row->amount] = true; }
+        return $labels;
+    }
+    /** @param Collection<int, Row> $items */
+    protected function keyedPairLabels(Collection $items): array {
+        $labels = [];
+        foreach ($items as $row) { $labels[$row->amount] = $row->amount; }
+        return $labels;
+    }
+    /** @param Collection<int, Row> $items */
+    protected function fieldWriter(Collection $items): void {
+        foreach ($items as $row) { $row->amount = 'changed'; }
+    }
+    /** @param Collection<int, Row> $items */
+    protected function indexedFieldWriter(Collection $items): void {
+        foreach ($items as $row) { $row->amount[0] = 'x'; }
+    }
+    /** @param Collection<int, Row> $items */
+    protected function destructuredFieldWriter(Collection $items): void {
+        foreach ($items as $row) { [$row->amount] = ['changed']; }
+    }
+    /** @param Collection<int, Row> $items */
+    protected function referencedFields(Collection $items): array {
+        $references = [];
+        foreach ($items as $row) { $references[] = [&$row->amount]; }
+        return $references;
+    }
+    /** @param Collection<int, Row> $items */
+    protected function iteratedFieldWriter(Collection $items): void {
+        foreach ($items as $row) { foreach (['changed'] as $row->amount) {} }
+    }
+    /** @param Collection<int, Row> $items */
+    protected function mutating(Collection $items): void { $items->push(new OtherRow); }
+}
+/** @property-write int $write_only */
+class WriteOnlyRow extends \Illuminate\Database\Eloquent\Model {}

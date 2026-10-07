@@ -1,0 +1,462 @@
+{
+    "sourceCases": 25,
+    "caseCatalogue": {
+        "cases/C01.php": {
+            "label": "guarded literal value option",
+            "candidate": true,
+            "role": "console",
+            "id": "C01",
+            "class": "InputRouteFixture\\CaseC01",
+            "sourceSha256": "a326dc55278707e894b391470486310054e8c0379a1cb7dd9a327a39cc66ae0b",
+            "targetCodes": [
+                "possibly-null-argument"
+            ]
+        },
+        "cases/C02.php": {
+            "label": "guarded optional argument",
+            "candidate": true,
+            "role": "console",
+            "signature": "example {day?}",
+            "id": "C02",
+            "class": "InputRouteFixture\\CaseC02",
+            "sourceSha256": "cff20116d10127bbb1724c5a8044b51c1305762de27c24e9676fe25c6747d211",
+            "targetCodes": [
+                "possibly-null-argument"
+            ]
+        },
+        "cases/R01.php": {
+            "label": "truthy repeated route name",
+            "candidate": true,
+            "role": "route",
+            "id": "R01",
+            "class": "InputRouteFixture\\CaseR01",
+            "sourceSha256": "ddc598f57b7b70d33c075afb333db59a679a332304a85696a08e8cf5375c0090",
+            "targetCodes": [
+                "invalid-return-statement",
+                "nullable-return-statement"
+            ]
+        },
+        "cases/R02.php": {
+            "label": "explicit non-null repeated route name",
+            "candidate": true,
+            "role": "route",
+            "id": "R02",
+            "class": "InputRouteFixture\\CaseR02",
+            "sourceSha256": "05224aea4c133447062212732ada278a973d1aeafc008994e2c2563b1b9f06cb",
+            "targetCodes": [
+                "invalid-return-statement",
+                "nullable-return-statement"
+            ]
+        },
+        "cases/H01.php": {
+            "label": "literal header through physical setter-only property",
+            "candidate": true,
+            "role": "header",
+            "id": "H01",
+            "class": "InputRouteFixture\\CaseH01",
+            "sourceSha256": "0e9cec5ec8d66ea5ecb964fd3108c88cf97222e93fd3f3432a307397d54b8809",
+            "targetCodes": [
+                "possibly-null-argument"
+            ]
+        },
+        "cases/N01.php": {
+            "label": "unguarded optional value",
+            "candidate": false,
+            "role": "console",
+            "id": "N01",
+            "class": "InputRouteFixture\\CaseN01",
+            "sourceSha256": "10131b2d14cc988151b45ab880f89d55418acf70e95080c1fbaba28fb84bc541",
+            "targetCodes": [
+                "possibly-null-argument"
+            ]
+        },
+        "cases/N02.php": {
+            "label": "guard tests a different key",
+            "candidate": false,
+            "role": "console",
+            "id": "N02",
+            "class": "InputRouteFixture\\CaseN02",
+            "sourceSha256": "69fdc4e4f5861fd1a80c31856afc0c89e472af6dba39984886bc4bcdcd047d4e",
+            "targetCodes": [
+                "possibly-null-argument"
+            ]
+        },
+        "cases/N03.php": {
+            "label": "flag is not a string value option",
+            "candidate": false,
+            "role": "console",
+            "signature": "example {--day}",
+            "id": "N03",
+            "class": "InputRouteFixture\\CaseN03",
+            "sourceSha256": "68efa04a8a047a672d8dff4ff3c1341109ab9b3cadd3d8130bc3fbb399772993",
+            "targetCodes": [
+                "possibly-null-argument"
+            ]
+        },
+        "cases/N04.php": {
+            "label": "array option is not a string value",
+            "candidate": false,
+            "role": "console",
+            "signature": "example {--day=*}",
+            "id": "N04",
+            "class": "InputRouteFixture\\CaseN04",
+            "sourceSha256": "6cba870411b9aae7da33ea7c01004ff29020a4a452de5990c84d718f4e45d6c7",
+            "targetCodes": [
+                "possibly-null-argument"
+            ]
+        },
+        "cases/N05.php": {
+            "label": "unknown literal input",
+            "candidate": false,
+            "role": "console",
+            "signature": "example {--other=}",
+            "id": "N05",
+            "class": "InputRouteFixture\\CaseN05",
+            "sourceSha256": "88bf6fc2e7e99e3a64d1f494a6f025f614fa00af34d01cb095d3d7a238be438a",
+            "targetCodes": [
+                "possibly-null-argument"
+            ]
+        },
+        "cases/N06.php": {
+            "label": "dynamic signature declaration",
+            "candidate": false,
+            "role": "console",
+            "signature": "self::SIGNATURE",
+            "signatureExpression": true,
+            "id": "N06",
+            "class": "InputRouteFixture\\CaseN06",
+            "sourceSha256": "0bdfdca949fd82b9ef43e3090487440ed95a2d614523a77120db2cf3d624c7af",
+            "targetCodes": [
+                "possibly-null-argument"
+            ]
+        },
+        "cases/N07.php": {
+            "label": "custom option declaration",
+            "candidate": false,
+            "role": "console",
+            "id": "N07",
+            "class": "InputRouteFixture\\CaseN07",
+            "sourceSha256": "4832b2124dca8b4a80e272f99b39dc3f188c032ec3bfa447b20e572f21a20052",
+            "targetCodes": [
+                "possibly-null-argument"
+            ]
+        },
+        "cases/N08.php": {
+            "label": "input modified between guard and use",
+            "candidate": false,
+            "role": "console",
+            "id": "N08",
+            "class": "InputRouteFixture\\CaseN08",
+            "sourceSha256": "014d649e5e6cb1902882b5aa4282d6f4284d822a2ebfd1de2f2b8f3d3cd2f03c",
+            "targetCodes": [
+                "possibly-null-argument"
+            ]
+        },
+        "cases/N09.php": {
+            "label": "unguarded route name",
+            "candidate": false,
+            "role": "route",
+            "id": "N09",
+            "class": "InputRouteFixture\\CaseN09",
+            "sourceSha256": "20ec53d5012040e7bdc52e76f11c420d86707e16826f4b4f7be37612fb1f7620",
+            "targetCodes": [
+                "invalid-return-statement",
+                "nullable-return-statement"
+            ]
+        },
+        "cases/N10.php": {
+            "label": "route parameter call has a different role",
+            "candidate": false,
+            "role": "route",
+            "id": "N10",
+            "class": "InputRouteFixture\\CaseN10",
+            "sourceSha256": "546e275956bf4f8d7c085ec139a9aaf009c4b820987d0d60a2f9d646c6c8c620",
+            "targetCodes": [
+                "invalid-return-statement",
+                "nullable-return-statement"
+            ]
+        },
+        "cases/N11.php": {
+            "label": "request rebound between guard and route resolution",
+            "candidate": false,
+            "role": "route",
+            "id": "N11",
+            "class": "InputRouteFixture\\CaseN11",
+            "sourceSha256": "70c1c5f919ba5cba146497646014654bf12771496721afcc8d6e7430a929f0ec",
+            "targetCodes": [
+                "invalid-return-statement",
+                "nullable-return-statement"
+            ]
+        },
+        "cases/N12.php": {
+            "label": "name explicitly cleared after guard",
+            "candidate": false,
+            "role": "route",
+            "id": "N12",
+            "class": "InputRouteFixture\\CaseN12",
+            "sourceSha256": "32b567789deb926e2d6bb76aaebdd0592bc3f296e830601f6def46b28725c04b",
+            "targetCodes": [
+                "invalid-return-statement",
+                "nullable-return-statement"
+            ]
+        },
+        "cases/N13.php": {
+            "label": "different route instance after guard",
+            "candidate": false,
+            "role": "route",
+            "id": "N13",
+            "class": "InputRouteFixture\\CaseN13",
+            "sourceSha256": "9f637339644e4ecbddf7bb9224dd0073ce216d5cf1a47bc5b52206c3efdbea94",
+            "targetCodes": [
+                "invalid-return-statement",
+                "nullable-return-statement"
+            ]
+        },
+        "cases/N14.php": {
+            "label": "bare array rows keep mixed accesses",
+            "candidate": false,
+            "role": "array",
+            "id": "N14",
+            "class": "InputRouteFixture\\CaseN14",
+            "sourceSha256": "8ce142031a36f58aec1126637afa827a603d4f9245ed3e5d087d951aa63d738c",
+            "targetCodes": [
+                "invalid-return-statement",
+                "nullable-return-statement"
+            ]
+        },
+        "cases/N15.php": {
+            "label": "header property has a get hook",
+            "candidate": false,
+            "role": "header",
+            "id": "N15",
+            "class": "InputRouteFixture\\CaseN15",
+            "sourceSha256": "4ab0745e3b8c8b538690802eac81cb5c9077fdb246ccd757bd0f4468ee9cfac5",
+            "targetCodes": [
+                "possibly-null-argument"
+            ]
+        },
+        "cases/N16.php": {
+            "label": "header method changed in a subclass",
+            "candidate": false,
+            "role": "header",
+            "id": "N16",
+            "class": "InputRouteFixture\\CaseN16",
+            "sourceSha256": "ac5606c36ff5f4a378421f54f91e24d619a4ad81d2acd5045098feacbecf01e0",
+            "targetCodes": [
+                "possibly-null-argument"
+            ]
+        },
+        "cases/N17.php": {
+            "label": "header guard tests a different literal",
+            "candidate": false,
+            "role": "header",
+            "id": "N17",
+            "class": "InputRouteFixture\\CaseN17",
+            "sourceSha256": "c5730edae2fa4776d2f20f24d8bc04e1bc53407c8ed54788cf9f42d7c32c933d",
+            "targetCodes": [
+                "possibly-null-argument"
+            ]
+        },
+        "cases/N18.php": {
+            "label": "header default supplied outside receiving proof",
+            "candidate": false,
+            "role": "header",
+            "id": "N18",
+            "class": "InputRouteFixture\\CaseN18",
+            "sourceSha256": "a2171e26448e00a241c3f7cb6019d85bd4fe97471e451e9c043934006e9088f9",
+            "targetCodes": [
+                "possibly-null-argument"
+            ]
+        },
+        "cases/N19.php": {
+            "label": "dynamic header name has no literal role",
+            "candidate": false,
+            "role": "header",
+            "id": "N19",
+            "class": "InputRouteFixture\\CaseN19",
+            "sourceSha256": "bbf4d04a1ae7288591be6be9ede71a5d2a2a933a39c577b0d2636e25e2bb1975",
+            "targetCodes": [
+                "possibly-null-argument"
+            ]
+        },
+        "cases/N20.php": {
+            "label": "header carrier rebound after the guard",
+            "candidate": false,
+            "role": "header",
+            "id": "N20",
+            "class": "InputRouteFixture\\CaseN20",
+            "sourceSha256": "fb5c837d7104d8072ae4666e48223b400974d948fe138e0369a82d817e826fd1",
+            "targetCodes": [
+                "possibly-null-argument"
+            ]
+        }
+    },
+    "fixtureFiles": {
+        "bootstrap.php": {
+            "dataFile": "bootstrap.php.stub",
+            "sha256": "2af6933aac6596aadfcf6189841b41719e3c5a8eed1b56e90e42e977c4d83555"
+        },
+        "cases/C01.php": {
+            "dataFile": "cases/C01.php.stub",
+            "sha256": "a326dc55278707e894b391470486310054e8c0379a1cb7dd9a327a39cc66ae0b"
+        },
+        "cases/C02.php": {
+            "dataFile": "cases/C02.php.stub",
+            "sha256": "cff20116d10127bbb1724c5a8044b51c1305762de27c24e9676fe25c6747d211"
+        },
+        "cases/H01.php": {
+            "dataFile": "cases/H01.php.stub",
+            "sha256": "0e9cec5ec8d66ea5ecb964fd3108c88cf97222e93fd3f3432a307397d54b8809"
+        },
+        "cases/N01.php": {
+            "dataFile": "cases/N01.php.stub",
+            "sha256": "10131b2d14cc988151b45ab880f89d55418acf70e95080c1fbaba28fb84bc541"
+        },
+        "cases/N02.php": {
+            "dataFile": "cases/N02.php.stub",
+            "sha256": "69fdc4e4f5861fd1a80c31856afc0c89e472af6dba39984886bc4bcdcd047d4e"
+        },
+        "cases/N03.php": {
+            "dataFile": "cases/N03.php.stub",
+            "sha256": "68efa04a8a047a672d8dff4ff3c1341109ab9b3cadd3d8130bc3fbb399772993"
+        },
+        "cases/N04.php": {
+            "dataFile": "cases/N04.php.stub",
+            "sha256": "6cba870411b9aae7da33ea7c01004ff29020a4a452de5990c84d718f4e45d6c7"
+        },
+        "cases/N05.php": {
+            "dataFile": "cases/N05.php.stub",
+            "sha256": "88bf6fc2e7e99e3a64d1f494a6f025f614fa00af34d01cb095d3d7a238be438a"
+        },
+        "cases/N06.php": {
+            "dataFile": "cases/N06.php.stub",
+            "sha256": "0bdfdca949fd82b9ef43e3090487440ed95a2d614523a77120db2cf3d624c7af"
+        },
+        "cases/N07.php": {
+            "dataFile": "cases/N07.php.stub",
+            "sha256": "4832b2124dca8b4a80e272f99b39dc3f188c032ec3bfa447b20e572f21a20052"
+        },
+        "cases/N08.php": {
+            "dataFile": "cases/N08.php.stub",
+            "sha256": "014d649e5e6cb1902882b5aa4282d6f4284d822a2ebfd1de2f2b8f3d3cd2f03c"
+        },
+        "cases/N09.php": {
+            "dataFile": "cases/N09.php.stub",
+            "sha256": "20ec53d5012040e7bdc52e76f11c420d86707e16826f4b4f7be37612fb1f7620"
+        },
+        "cases/N10.php": {
+            "dataFile": "cases/N10.php.stub",
+            "sha256": "546e275956bf4f8d7c085ec139a9aaf009c4b820987d0d60a2f9d646c6c8c620"
+        },
+        "cases/N11.php": {
+            "dataFile": "cases/N11.php.stub",
+            "sha256": "70c1c5f919ba5cba146497646014654bf12771496721afcc8d6e7430a929f0ec"
+        },
+        "cases/N12.php": {
+            "dataFile": "cases/N12.php.stub",
+            "sha256": "32b567789deb926e2d6bb76aaebdd0592bc3f296e830601f6def46b28725c04b"
+        },
+        "cases/N13.php": {
+            "dataFile": "cases/N13.php.stub",
+            "sha256": "9f637339644e4ecbddf7bb9224dd0073ce216d5cf1a47bc5b52206c3efdbea94"
+        },
+        "cases/N14.php": {
+            "dataFile": "cases/N14.php.stub",
+            "sha256": "8ce142031a36f58aec1126637afa827a603d4f9245ed3e5d087d951aa63d738c"
+        },
+        "cases/N15.php": {
+            "dataFile": "cases/N15.php.stub",
+            "sha256": "4ab0745e3b8c8b538690802eac81cb5c9077fdb246ccd757bd0f4468ee9cfac5"
+        },
+        "cases/N16.php": {
+            "dataFile": "cases/N16.php.stub",
+            "sha256": "ac5606c36ff5f4a378421f54f91e24d619a4ad81d2acd5045098feacbecf01e0"
+        },
+        "cases/N17.php": {
+            "dataFile": "cases/N17.php.stub",
+            "sha256": "c5730edae2fa4776d2f20f24d8bc04e1bc53407c8ed54788cf9f42d7c32c933d"
+        },
+        "cases/N18.php": {
+            "dataFile": "cases/N18.php.stub",
+            "sha256": "a2171e26448e00a241c3f7cb6019d85bd4fe97471e451e9c043934006e9088f9"
+        },
+        "cases/N19.php": {
+            "dataFile": "cases/N19.php.stub",
+            "sha256": "bbf4d04a1ae7288591be6be9ede71a5d2a2a933a39c577b0d2636e25e2bb1975"
+        },
+        "cases/N20.php": {
+            "dataFile": "cases/N20.php.stub",
+            "sha256": "fb5c837d7104d8072ae4666e48223b400974d948fe138e0369a82d817e826fd1"
+        },
+        "cases/R01.php": {
+            "dataFile": "cases/R01.php.stub",
+            "sha256": "ddc598f57b7b70d33c075afb333db59a679a332304a85696a08e8cf5375c0090"
+        },
+        "cases/R02.php": {
+            "dataFile": "cases/R02.php.stub",
+            "sha256": "05224aea4c133447062212732ada278a973d1aeafc008994e2c2563b1b9f06cb"
+        },
+        "composer.json": {
+            "dataFile": "composer.json",
+            "sha256": "54b48e47d57566d2942af23a3682cbd271016a6737cef90299236b24c0a783e3"
+        },
+        "contracts.php": {
+            "dataFile": "contracts.php.stub",
+            "sha256": "21c4ec22b2abd12b90e4c4ff192ffa68cede3621cf3c09887ebdf2f2b542fada"
+        },
+        "database/migrations/001_trap.php": {
+            "dataFile": "database/migrations/001_trap.php.stub",
+            "sha256": "2af6933aac6596aadfcf6189841b41719e3c5a8eed1b56e90e42e977c4d83555"
+        },
+        "packages/composer/autoload.php": {
+            "dataFile": "packages/composer/autoload.php.stub",
+            "sha256": "2af6933aac6596aadfcf6189841b41719e3c5a8eed1b56e90e42e977c4d83555"
+        },
+        "packages/laravel/framework/src/Illuminate/Console/Attributes/Signature.php": {
+            "dataFile": "packages/laravel/framework/src/Illuminate/Console/Attributes/Signature.php.stub",
+            "sha256": "c4090c27b5b2ea5f0d02946e76e88d1b6490e06c0f014b25b24c229eb57dcc0f"
+        },
+        "packages/laravel/framework/src/Illuminate/Console/Command.php": {
+            "dataFile": "packages/laravel/framework/src/Illuminate/Console/Command.php.stub",
+            "sha256": "862ab9290af40f4588cc0bf3769f7b2896f53992e0ac9e33898e9004af98be94"
+        },
+        "packages/laravel/framework/src/Illuminate/Console/Concerns/InteractsWithIO.php": {
+            "dataFile": "packages/laravel/framework/src/Illuminate/Console/Concerns/InteractsWithIO.php.stub",
+            "sha256": "cc8838ade962f58d915952e9097a20e9652a518640c8a396d18f015162e0cec3"
+        },
+        "packages/laravel/framework/src/Illuminate/Console/Parser.php": {
+            "dataFile": "packages/laravel/framework/src/Illuminate/Console/Parser.php.stub",
+            "sha256": "7bdac82000ab2bfff22de4949bc5836551bc6078b0cc083a82f54bbcb8b1921d"
+        },
+        "packages/laravel/framework/src/Illuminate/Http/Concerns/InteractsWithInput.php": {
+            "dataFile": "packages/laravel/framework/src/Illuminate/Http/Concerns/InteractsWithInput.php.stub",
+            "sha256": "511d75ae3810697ed1fa338b8d888594d0bc2c7a9de0f70f8385f126c41fab32"
+        },
+        "packages/laravel/framework/src/Illuminate/Http/Request.php": {
+            "dataFile": "packages/laravel/framework/src/Illuminate/Http/Request.php.stub",
+            "sha256": "b59866be2e4bb7aa73fa51f5a7cec3fe19076fd8a6608eef8fcc4c4ef33b2405"
+        },
+        "packages/laravel/framework/src/Illuminate/Routing/Route.php": {
+            "dataFile": "packages/laravel/framework/src/Illuminate/Routing/Route.php.stub",
+            "sha256": "befba3f21f6f658347e016dafa7c5d346ff01b3c04ac115d1f932eac8d78445a"
+        },
+        "packages/symfony/console/Input/Input.php": {
+            "dataFile": "packages/symfony/console/Input/Input.php.stub",
+            "sha256": "ccd5e91092f4d23c9a10272ea85d170b65e91c9ab5be8d90cde22a82a070423a"
+        },
+        "packages/symfony/console/Input/InputArgument.php": {
+            "dataFile": "packages/symfony/console/Input/InputArgument.php.stub",
+            "sha256": "3da9af7357c35017ca64a30befdb3cbf10bb48f31c39f7f8a4fc26914b98a235"
+        },
+        "packages/symfony/console/Input/InputOption.php": {
+            "dataFile": "packages/symfony/console/Input/InputOption.php.stub",
+            "sha256": "305994c64630aaec83ebfa277fcaa65b1c43267255ae38e9f6cf2a4f1434a116"
+        },
+        "packages/symfony/http-foundation/Request.php": {
+            "dataFile": "packages/symfony/http-foundation/Request.php.stub",
+            "sha256": "b6927df9d05186286438f6419d4caddea30e5b1b03cb28fa96aa1b7c03dc099e"
+        }
+    },
+    "fixtureBodiesMustNeverExecute": true,
+    "nativeAcceptanceOfPortableNamespaceAdaptationPending": true
+}

@@ -1,0 +1,7 @@
+Direct zero-argument now() arguments can follow Laravel's default date factory when current physical helper, facade, factory and Carbon constructor declarations establish the result class. Declared and effective CarbonInterface returns remain unchanged; the source-derived default Carbon class must satisfy the genuine receiving formal.
+
+This is an offline default-configuration policy. Source-visible Date handler replacements, facade swaps/mocks and selected container rebinding veto it. Unknown input interfaces, saved helper results, shadowed functions, explicit timezones and wrong concrete receiving types retain native Errors. It does not claim to observe the running application's configuration.
+
+Run `php tests/default-date.php`. Acceptance requires genuine native positive Errors, intact whole issue records for all other findings, one/three-worker results, actual native cache controls with restoration, full production registry comparisons and separate source replacement vetoes. Invented source and consumer bootstrap/autoload files are never executed.
+
+The imported Illuminate\Support\enum_value declaration is bound by its actual fully qualified native identity, physical name/formal spans and unchanged implementation. Its unqualified value() call requires a genuine absent Illuminate\Support\value lookup and the unchanged global helper. A namespace shadow retains every native Error; declared and effective helper return types remain intact.

@@ -1,0 +1,16 @@
+<?php
+declare(strict_types=1);
+namespace Fixture;
+use Illuminate\Database\Eloquent\{Builder,Collection,Model};
+final class Row extends Model {}
+final class OtherRow extends Model {}
+class CustomBuilder extends Builder {}
+final class CustomBuilderRow extends Model { protected static string $builder=CustomBuilder::class; }
+final class CustomQueryRow extends Model {
+    /** @return Builder<static> */
+    public static function query() { throw new \RuntimeException('Fixture body must not execute.'); }
+}
+final class CustomCollectionRow extends Model {
+    /** @return Collection<int,OtherRow> */
+    public function newCollection(array $models=[]) { return new Collection($models); }
+}

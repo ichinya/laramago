@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\EvaluatedRuntime;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\EnvironmentDefaultContracts;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Mago\Sdk\Analyzer\Codebase;
 use Mago\Sdk\Analyzer\FunctionReturnTypeProvider;
@@ -22,8 +23,9 @@ use PhpParser\PrettyPrinter\Standard;
 
 /**
  * Refines native literal env reads from either opt-in evaluated values or the
- * installed Laravel source. Without evaluation, values retain every native
- * string, boolean and null possibility plus the safe default argument type.
+ * installed Laravel source. Explicit scalar defaults declare the generalized
+ * return type under Larastan's policy. Calls without a default retain the
+ * native string, boolean and null possibilities.
  * Machine-dependent literals are never produced; uncertain calls defer.
  */
 final class EnvironmentValueProvider implements FunctionReturnTypeProvider
@@ -105,9 +107,14 @@ final class EnvironmentValueProvider implements FunctionReturnTypeProvider
             return $defaultType;
         }
 
-        return self::nativeSource($context->codebase, $this->source ??= new PhpSource($this->root))
-            ? self::staticType($defaultType)
-            : null;
+        if (! self::nativeSource($context->codebase, $this->source ??= new PhpSource($this->root))) {
+            return null;
+        }
+        if ($default !== null) {
+            return EnvironmentDefaultContracts::type($defaultType) ?? self::staticType($defaultType);
+        }
+
+        return self::staticType($defaultType);
     }
 
     /** Native Env only: repository strings are normalized to string, bool or null. */

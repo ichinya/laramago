@@ -113,18 +113,27 @@ $configuration = [
     'php-version' => '8.5',
     'source' => ['paths' => ['cases.php']],
 ];
-$run = static function (bool $extended) use ($workspace, $configuration, $command, $package): array {
+$run = static function (bool $extended, bool $localOnly = false) use ($workspace, $configuration, $command, $package): array {
     $config = $configuration;
     if ($extended) {
+        $worker = $package.'/bin/laramago-worker.php';
+        if ($localOnly) {
+            $worker = $workspace.'/local-worker.php';
+            file_put_contents($worker, '<?php require '.var_export($package.'/vendor/autoload.php', true).';'
+                .'$plugin = new class implements Mago\\Sdk\\Analyzer\\Plugin {'
+                .'public function getDefinition(): Mago\\Sdk\\Analyzer\\PluginDefinition { return new Mago\\Sdk\\Analyzer\\PluginDefinition("fixture/local-storage", "Local storage", "Isolated native local assignment control"); }'
+                .'public function register(Mago\\Sdk\\Analyzer\\PluginRegistry $registry): void { $registry->registerIssueFilterHook(new Ichinya\\Laramago\\Analyzer\\LocalMixedAssignmentFilter); } };'
+                .'(new Mago\\Sdk\\Worker(new Mago\\Sdk\\Extension("fixture/local-storage", "Local storage", "1", analyzerPlugins: [$plugin])))->run();');
+        }
         $config['extension-hosts'] = [
             'laramago' => [
-                'command' => [PHP_BINARY, $package.'/bin/laramago-worker.php', $package.'/vendor/autoload.php', $workspace],
+                'command' => [PHP_BINARY, $worker, $package.'/vendor/autoload.php', $workspace],
                 'workers' => 1,
             ],
         ];
     }
     file_put_contents($workspace.'/mago.json', json_encode($config, JSON_THROW_ON_ERROR));
-    $name = $extended ? 'adapted' : 'native';
+    $name = $localOnly ? 'isolated-local' : ($extended ? 'adapted' : 'native');
     $process = proc_open(
         [...$command, '--workspace', $workspace, 'analyze', '--reporting-format=json'],
         [
@@ -140,7 +149,8 @@ $run = static function (bool $extended) use ($workspace, $configuration, $comman
     fclose($pipes[0]);
     $exit = proc_close($process);
     $stderr = file_get_contents($workspace.'/'.$name.'.log');
-    if ($exit !== 1 || preg_match('/External analyzer provider failed|extension worker .*rejected request/i', $stderr)) {
+    file_put_contents($workspace.'/'.$name.'.process.json', json_encode(['exit' => $exit, 'processClosed' => true], JSON_THROW_ON_ERROR));
+    if ($exit !== 1 || preg_match('/provider[^\r\n]*failed|rejected request|protocol error|panicked|fallback|invalid[^\r\n]*extension[^\r\n]*frame|hook[^\r\n]*failed|fatal|worker[^\r\n]*error|timed? out|timeout|parse error|PHP Warning/i', $stderr)) {
         throw new RuntimeException('Mago analysis failed: '.$name.'; inspect '.$workspace);
     }
     $report = json_decode(file_get_contents($workspace.'/'.$name.'.json'), true, flags: JSON_THROW_ON_ERROR);
@@ -164,6 +174,7 @@ $run = static function (bool $extended) use ($workspace, $configuration, $comman
 };
 
 $native = $run(false);
+$isolatedLocal = $run(true, true);
 $adapted = $run(true);
 foreach ($lines as $line => $name) {
     $case = $cases[$name];
@@ -179,26 +190,27 @@ foreach ($lines as $line => $name) {
     }
     $expected = array_values($expected);
     sort($expected);
-    if ($after !== $expected || array_diff($case['remaining'], $after) !== []) {
+    if ($after !== $expected || ($isolatedLocal[$line] ?? []) !== $expected || array_diff($case['remaining'], $after) !== []) {
         throw new RuntimeException(
             $name.': native '.json_encode($before).', adapted '.json_encode($after)
             .', expected '.json_encode($expected).'; inspect '.$workspace,
         );
     }
-    unset($native[$line], $adapted[$line]);
+    unset($native[$line], $isolatedLocal[$line], $adapted[$line]);
     echo 'PASS: '.$name."\n";
 }
 if (
     ($native[$globalLine] ?? []) !== ['mixed-assignment']
-    || ($adapted[$globalLine] ?? []) !== ['mixed-assignment']
+    || ($isolatedLocal[$globalLine] ?? []) !== ['mixed-assignment']
+    || ($adapted[$globalLine] ?? []) !== []
 ) {
-    throw new RuntimeException('Global assignment must remain visible; inspect '.$workspace);
+    throw new RuntimeException('Script scope must retain the isolated Local advisory and follow the integrated Ordinary policy; inspect '.$workspace);
 }
-unset($native[$globalLine], $adapted[$globalLine]);
-if ($native !== [] || $adapted !== []) {
+unset($native[$globalLine], $isolatedLocal[$globalLine], $adapted[$globalLine]);
+if ($native !== [] || $isolatedLocal !== [] || $adapted !== []) {
     throw new RuntimeException('Unexpected diagnostics outside scenarios; inspect '.$workspace);
 }
-echo "PASS: global assignment remains visible\n";
+echo "PASS: script assignment retains isolated Local diagnostics and follows integrated Ordinary policy\n";
 
 // The filter must use the SDK's in-memory contents, even when the same path has different bytes.
 $cancel = new class implements CancellationTokenInterface {

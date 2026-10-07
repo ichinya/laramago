@@ -1,0 +1,38 @@
+<?php
+declare(strict_types=1);
+namespace Fixture;
+use Illuminate\Database\Eloquent\{Builder,Collection};
+final class NegativeProjection {
+    /** @param Collection<int,Row> $items */
+    private function accept(Collection $items):void { throw new \RuntimeException('Fixture body must not execute.'); }
+    /** @param Collection<int,OtherRow> $items */
+    private function other(Collection $items):void { throw new \RuntimeException('Fixture body must not execute.'); }
+    private function inspectBuilder(Builder $query):void { throw new \RuntimeException('Fixture body must not execute.'); }
+    private function inspectCollection(Collection $items):void { throw new \RuntimeException('Fixture body must not execute.'); }
+    public function queryAlias():void { $query=Row::query();$alias=$query;$query->chunkById(10,function(Collection $items):void { $this->accept($items); }); }
+    public function queryReference():void { $query=Row::query();$alias=&$query;$query->chunkById(10,function(Collection $items):void { $this->accept($items); }); }
+    public function queryRebind():void { $query=Row::query();$query=OtherRow::query();$query->chunkById(10,function(Collection $items):void { $this->accept($items); }); }
+    public function queryEscape():void { $query=Row::query();$this->inspectBuilder($query);$query->chunkById(10,function(Collection $items):void { $this->accept($items); }); }
+    public function changedModel():void { $query=Row::query();$query->setModel(new OtherRow);$query->chunkById(10,function(Collection $items):void { $this->accept($items); }); }
+    public function whereCallback():void { $query=Row::query();$query->where(function(Builder $nested):void {});$query->chunkById(10,function(Collection $items):void { $this->accept($items); }); }
+    public function eagerLoadCallback():void { $query=Row::query();$query->with(['category'=>function():void {}])->chunkById(10,function(Collection $items):void { $this->accept($items); }); }
+    public function collectionAlias():void { $query=Row::query();$query->chunkById(10,function(Collection $items):void { $alias=$items;$this->accept($items); }); }
+    public function collectionReference():void { $query=Row::query();$query->chunkById(10,function(Collection $items):void { $alias=&$items;$this->accept($items); }); }
+    public function collectionWrite():void { $query=Row::query();$query->chunkById(10,function(Collection $items):void { $items=new Collection([new OtherRow]);$this->accept($items); }); }
+    public function collectionEscape():void { $query=Row::query();$query->chunkById(10,function(Collection $items):void { $this->inspectCollection($items);$this->accept($items); }); }
+    public function customBuilder():void { $query=CustomBuilderRow::query();$query->chunkById(10,function(Collection $items):void { $this->accept($items); }); }
+    public function customQuery():void { $query=CustomQueryRow::query();$query->chunkById(10,function(Collection $items):void { $this->accept($items); }); }
+    public function customCollection():void { $query=CustomCollectionRow::query();$query->chunkById(10,function(Collection $items):void { $this->accept($items); }); }
+    public function incompatibleReceivingModel():void { $query=Row::query();$query->chunkById(10,function(Collection $items):void { $this->other($items); }); }
+    public function unknownQuery(Builder $query):void { $query->chunkById(10,function(Collection $items):void { $this->accept($items); }); }
+    public function conditionalOrigin(bool $enabled):void { if($enabled) { $query=Row::query(); }$query->chunkById(10,function(Collection $items):void { $this->accept($items); }); }
+    public function referenceFormal():void { $query=Row::query();$query->chunkById(10,function(Collection &$items):void { $this->accept($items); }); }
+    public function wrongCount():void { $query=Row::query();$query->chunkById('invalid',function(Collection $items):void { $this->accept($items); }); }
+    public function arbitraryCollection(Collection $items):void { $this->accept($items); }
+    public function dynamicLocalMutation():void { $query=Row::query();extract([]);$query->chunkById(10,function(Collection $items):void { $this->accept($items); }); }
+    public function storedCallback():void { $query=Row::query();$callback=function(Collection $items):void { $this->accept($items); };$query->chunkById(10,$callback); }
+    public function wrongConcreteArgument():void { $query=Row::query();$query->chunkById(10,function(Collection $items):void { $this->accept('invalid'); }); }
+    public function selectedModelConfiguration():void { Row::$builder=CustomBuilder::class;$query=Row::query();$query->chunkById(10,function(Collection $items):void { $this->accept($items); }); }
+    public function strongerCallbackDocumentation():void { $query=Row::query();$query->chunkById(10,/** @param Collection<int,OtherRow> $items */ function(Collection $items):void { $this->accept($items); }); }
+    public function inlineCallbackDocumentation():void { $query=Row::query();$query->chunkById(10,function(Collection $items):void { /** @var Collection<int,OtherRow> $items */ $this->accept($items); }); }
+}

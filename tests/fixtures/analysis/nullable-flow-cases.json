@@ -1,0 +1,262 @@
+{
+    "sourceOnly": true,
+    "nativeAcceptance": false,
+    "sourceSha256": "10f8274665b1cde01ee5ac6d9180584e9826774d19244928924a1c558512ee65",
+    "positives": {
+        "P01": {
+            "span": [
+                2212,
+                2228
+            ],
+            "proofKind": "condition",
+            "code": "nullable-return-statement",
+            "companionNativeCodes": ["invalid-return-statement"]
+        },
+        "P02": {
+            "span": [
+                2392,
+                2407
+            ],
+            "proofKind": "condition",
+            "code": "possible-method-access-on-null"
+        },
+        "P03": {
+            "span": [
+                2578,
+                2593
+            ],
+            "proofKind": "condition",
+            "code": "possible-method-access-on-null"
+        },
+        "P04": {
+            "span": [
+                2783,
+                2798
+            ],
+            "proofKind": "condition",
+            "code": "possible-method-access-on-null"
+        },
+        "P05": {
+            "span": [
+                3010,
+                3025
+            ],
+            "proofKind": "condition",
+            "code": "possible-method-access-on-null"
+        },
+        "P06": {
+            "span": [
+                3207,
+                3223
+            ],
+            "proofKind": "documented-postcondition",
+            "code": "possibly-null-argument"
+        },
+        "P07": {
+            "span": [
+                3536,
+                3552
+            ],
+            "proofKind": "documented-postcondition",
+            "code": "possibly-null-argument"
+        },
+        "P08": {
+            "span": [
+                3720,
+                3733
+            ],
+            "proofKind": "documented-postcondition",
+            "code": "possibly-null-argument"
+        },
+        "P09": {
+            "span": [
+                3945,
+                3959
+            ],
+            "proofKind": "conditional-method-postcondition",
+            "code": "possibly-null-argument"
+        },
+        "P10": {
+            "span": [
+                4157,
+                4180
+            ],
+            "proofKind": "condition",
+            "code": "possibly-null-argument"
+        },
+        "P11": {
+            "span": [
+                4244,
+                4268
+            ],
+            "proofKind": "condition",
+            "code": "possibly-null-argument"
+        },
+        "P12": {
+            "span": [
+                4429,
+                4442
+            ],
+            "proofKind": "documented-postcondition",
+            "code": "possibly-null-argument"
+        },
+        "P13": {
+            "span": [
+                4612,
+                4637
+            ],
+            "proofKind": "condition",
+            "code": "possibly-null-argument"
+        },
+        "P14": {
+            "span": [
+                5047,
+                5056
+            ],
+            "proofKind": "nonnullable-producer-catch-flag",
+            "code": "possibly-null-argument"
+        },
+        "P15": {
+            "span": [
+                5268,
+                5283
+            ],
+            "proofKind": "documented-postcondition",
+            "code": "possibly-null-property-access"
+        },
+        "P16": {
+            "span": [
+                5361,
+                5376
+            ],
+            "proofKind": "documented-postcondition",
+            "code": "possibly-null-property-access"
+        }
+    },
+    "requiredNativePositiveLabels": [
+        "P01",
+        "P02",
+        "P03",
+        "P04",
+        "P05",
+        "P06",
+        "P07",
+        "P09",
+        "P10",
+        "P11",
+        "P13",
+        "P14"
+    ],
+    "nativeCoveredSourceLabels": [
+        "P08",
+        "P12",
+        "P15",
+        "P16"
+    ],
+    "nativeCoverageProvenance": "Root-owned closed v1 native report; direct property postconditions already covered.",
+    "mandatoryNativeErrorFunctions": {
+        "unguardedArgument": [
+            5389,
+            5474
+        ],
+        "concreteNullArgument": [
+            5475,
+            5537
+        ],
+        "invalidConcreteType": [
+            5538,
+            5653
+        ],
+        "unguardedMethod": [
+            5654,
+            5740
+        ],
+        "unguardedProperty": [
+            5741,
+            5825
+        ],
+        "rebindAfterGuard": [
+            5826,
+            5975
+        ],
+        "directFieldWrite": [
+            5976,
+            6120
+        ],
+        "aliasFieldWrite": [
+            6121,
+            6278
+        ],
+        "knownWriter": [
+            6279,
+            6416
+        ],
+        "aliasWriter": [
+            6417,
+            6568
+        ],
+        "relevantReference": [
+            6569,
+            6711
+        ],
+        "capturedWriter": [
+            6712,
+            6910
+        ],
+        "unstableProducer": [
+            6911,
+            7030
+        ],
+        "caughtPostcondition": [
+            7031,
+            7202
+        ],
+        "wrongBooleanBranch": [
+            7203,
+            7321
+        ],
+        "differentCallArguments": [
+            7322,
+            7459
+        ],
+        "nullableReturnUnguarded": [
+            7460,
+            7544
+        ],
+        "missingMemberAfterGuard": [
+            7545,
+            7660
+        ],
+        "invalidArityAfterGuard": [
+            7661,
+            7784
+        ],
+        "nullableCatchProducer": [
+            7785,
+            7990
+        ],
+        "catchFlagRebinding": [
+            7991,
+            8233
+        ],
+        "guardedBroadValue": [
+            8234,
+            8355
+        ]
+    },
+    "lexicalZeroProofControls": {
+        "unguardedArgument": true,
+        "concreteNullArgument": true,
+        "unguardedMethod": true,
+        "unguardedProperty": true,
+        "rebindAfterGuard": true,
+        "directFieldWrite": true,
+        "aliasFieldWrite": true,
+        "relevantReference": true,
+        "caughtPostcondition": true,
+        "wrongBooleanBranch": true,
+        "differentCallArguments": true,
+        "nullableReturnUnguarded": true,
+        "catchFlagRebinding": true
+    }
+}

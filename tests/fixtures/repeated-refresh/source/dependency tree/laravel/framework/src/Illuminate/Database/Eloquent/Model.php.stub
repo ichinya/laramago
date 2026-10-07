@@ -1,0 +1,748 @@
+<?php
+namespace Illuminate\Database\Eloquent;
+use ArrayAccess;
+use Closure;
+use Exception;
+use Illuminate\Contracts\Broadcasting\HasBroadcastChannel;
+use Illuminate\Contracts\Queue\QueueableCollection;
+use Illuminate\Contracts\Queue\QueueableEntity;
+use Illuminate\Contracts\Routing\UrlRoutable;
+use Illuminate\Contracts\Support\Arrayable;
+use Illuminate\Contracts\Support\CanBeEscapedWhenCastToString;
+use Illuminate\Contracts\Support\Jsonable;
+use Illuminate\Database\ConnectionResolverInterface as Resolver;
+use Illuminate\Database\Eloquent\Attributes\Boot;
+use Illuminate\Database\Eloquent\Attributes\Connection;
+use Illuminate\Database\Eloquent\Attributes\Initialize;
+use Illuminate\Database\Eloquent\Attributes\RouteKey;
+use Illuminate\Database\Eloquent\Attributes\Scope as LocalScope;
+use Illuminate\Database\Eloquent\Attributes\Table;
+use Illuminate\Database\Eloquent\Attributes\UseEloquentBuilder;
+use Illuminate\Database\Eloquent\Attributes\WithoutIncrementing;
+use Illuminate\Database\Eloquent\Attributes\WithoutTimestamps;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\Concerns\AsPivot;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\Pivot;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Collection as BaseCollection;
+use Illuminate\Support\Str;
+use Illuminate\Support\Stringable as SupportStringable;
+use Illuminate\Support\Traits\ForwardsCalls;
+use JsonException;
+use JsonSerializable;
+use LogicException;
+use ReflectionClass;
+use ReflectionMethod;
+use Stringable;
+use function Illuminate\Support\enum_value;
+abstract class Model {
+    /** The name of the "created at" column. @var string|null */
+    const CREATED_AT = 'created_at';
+    /** The name of the "updated at" column. @var string|null */
+    const UPDATED_AT = 'updated_at';
+use \Illuminate\Database\Eloquent\Concerns\HasAttributes;
+use \Illuminate\Database\Eloquent\Concerns\PreventsCircularRecursion;
+use \Illuminate\Database\Eloquent\Concerns\GuardsAttributes;
+use \Illuminate\Database\Eloquent\Concerns\HasRelationships;
+use \Illuminate\Database\Eloquent\Concerns\HasTimestamps;
+use \Illuminate\Database\Eloquent\Concerns\HasEvents;
+/**
+     * The connection name for the model.
+     *
+     * @var \UnitEnum|string|null
+     */
+    protected $connection;
+/**
+     * The table associated with the model.
+     *
+     * @var string|null
+     */
+    protected $table;
+/**
+     * The primary key for the model.
+     *
+     * @var string
+     */
+    protected $primaryKey = 'id';
+/**
+     * The "type" of the primary key ID.
+     *
+     * @var string
+     */
+    protected $keyType = 'int';
+/**
+     * Indicates if the IDs are auto-incrementing.
+     *
+     * @var bool
+     */
+    public $incrementing = true;
+/**
+     * The relations to eager load on every query.
+     *
+     * @var array
+     */
+    protected $with = [];
+/**
+     * The relationship counts that should be eager loaded on every query.
+     *
+     * @var array
+     */
+    protected $withCount = [];
+/**
+     * Indicates whether lazy loading will be prevented on this model.
+     *
+     * @var bool
+     */
+    public $preventsLazyLoading = false;
+/**
+     * The number of models to return for pagination.
+     *
+     * @var int
+     */
+    protected $perPage = 15;
+/**
+     * Indicates if the model exists.
+     *
+     * @var bool
+     */
+    public $exists = false;
+/**
+     * Indicates if the model was inserted during the object's lifecycle.
+     *
+     * @var bool
+     */
+    public $wasRecentlyCreated = false;
+/**
+     * Indicates that the object's string representation should be escaped when __toString is invoked.
+     *
+     * @var bool
+     */
+    protected $escapeWhenCastingToString = false;
+/**
+     * The connection resolver instance.
+     *
+     * @var \Illuminate\Database\ConnectionResolverInterface
+     */
+    protected static $resolver;
+/**
+     * The event dispatcher instance.
+     *
+     * @var \Illuminate\Contracts\Events\Dispatcher|null
+     */
+    protected static $dispatcher;
+/**
+     * The models that are currently being booted.
+     *
+     * @var array
+     */
+    protected static $booting = [];
+/**
+     * The array of booted models.
+     *
+     * @var array
+     */
+    protected static $booted = [];
+/**
+     * The callbacks that should be executed after the model has booted.
+     *
+     * @var array
+     */
+    protected static $bootedCallbacks = [];
+/**
+     * The array of trait initializers that will be called on each new instance.
+     *
+     * @var array
+     */
+    protected static $traitInitializers = [];
+/**
+     * The array of global scopes on the model.
+     *
+     * @var array
+     */
+    protected static $globalScopes = [];
+/**
+     * The list of models classes that should not be affected with touch.
+     *
+     * @var array
+     */
+    protected static $ignoreOnTouch = [];
+/**
+     * Indicates whether lazy loading should be restricted on all models.
+     *
+     * @var bool
+     */
+    protected static $modelsShouldPreventLazyLoading = false;
+/**
+     * Indicates whether relations should be automatically loaded on all models when they are accessed.
+     *
+     * @var bool
+     */
+    protected static $modelsShouldAutomaticallyEagerLoadRelationships = false;
+/**
+     * The callback that is responsible for handling lazy loading violations.
+     *
+     * @var (callable(self, string): mixed)|null
+     */
+    protected static $lazyLoadingViolationCallback;
+/**
+     * Indicates if an exception should be thrown instead of silently discarding non-fillable attributes.
+     *
+     * @var bool
+     */
+    protected static $modelsShouldPreventSilentlyDiscardingAttributes = false;
+/**
+     * The callback that is responsible for handling discarded attribute violations.
+     *
+     * @var (callable(self, array): mixed)|null
+     */
+    protected static $discardedAttributeViolationCallback;
+/**
+     * Indicates if an exception should be thrown when trying to access a missing attribute on a retrieved model.
+     *
+     * @var bool
+     */
+    protected static $modelsShouldPreventAccessingMissingAttributes = false;
+/**
+     * The callback that is responsible for handling missing attribute violations.
+     *
+     * @var (callable(self, string): mixed)|null
+     */
+    protected static $missingAttributeViolationCallback;
+/**
+     * Indicates if broadcasting is currently enabled.
+     *
+     * @var bool
+     */
+    protected static $isBroadcasting = true;
+/**
+     * The Eloquent query builder class to use for the model.
+     *
+     * @var class-string<\Illuminate\Database\Eloquent\Builder<*>>
+     */
+    protected static string $builder = Builder::class;
+/**
+     * The Eloquent collection class to use for the model.
+     *
+     * @var class-string<\Illuminate\Database\Eloquent\Collection<*, *>>
+     */
+    protected static string $collectionClass = Collection::class;
+/**
+     * Cache of soft deletable models.
+     *
+     * @var array<class-string<self>, bool>
+     */
+    protected static array $isSoftDeletable;
+/**
+     * Cache of prunable models.
+     *
+     * @var array<class-string<self>, bool>
+     */
+    protected static array $isPrunable;
+/**
+     * Cache of mass prunable models.
+     *
+     * @var array<class-string<self>, bool>
+     */
+    protected static array $isMassPrunable;
+/**
+     * Cache of resolved class attributes.
+     *
+     * @var array<class-string<self>, array<class-string, mixed>>
+     */
+    protected static array $classAttributes = [];
+/**
+     * Eager load relations on the model.
+     *
+     * @param  array|string  $relations
+     * @return $this
+     */
+    public function load($relations)
+    {
+        $query = $this->newQueryWithoutRelationships()->with(
+            is_string($relations) ? func_get_args() : $relations
+        );
+
+        $query->eagerLoadRelations([$this]);
+
+        return $this;
+    }
+/**
+     * Set the keys for a select query.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<static>  $query
+     * @return \Illuminate\Database\Eloquent\Builder<static>
+     */
+    protected function setKeysForSelectQuery($query)
+    {
+        $query->where($this->getKeyName(), '=', $this->getKeyForSelectQuery());
+
+        return $query;
+    }
+/**
+     * Get the primary key value for a select query.
+     *
+     * @return mixed
+     */
+    protected function getKeyForSelectQuery()
+    {
+        return $this->original[$this->getKeyName()] ?? $this->getKey();
+    }
+/**
+     * Get a new query builder that doesn't have any global scopes or eager loading.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<static>
+     */
+    public function newModelQuery()
+    {
+        return $this->newEloquentBuilder(
+            $this->newBaseQueryBuilder()
+        )->setModel($this);
+    }
+/**
+     * Get a new query builder that doesn't have any global scopes.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<static>
+     */
+    public function newQueryWithoutScopes()
+    {
+        return $this->newModelQuery()
+            ->with($this->with)
+            ->withCount($this->withCount);
+    }
+/**
+     * Create a new Eloquent query builder for the model.
+     *
+     * @param  \Illuminate\Database\Query\Builder  $query
+     * @return \Illuminate\Database\Eloquent\Builder<*>
+     */
+    public function newEloquentBuilder($query)
+    {
+        $builderClass = $this->resolveCustomBuilderClass();
+
+        if ($builderClass && is_subclass_of($builderClass, Builder::class)) {
+            return new $builderClass($query);
+        }
+
+        return new static::$builder($query);
+    }
+/**
+     * Reload a fresh model instance from the database.
+     *
+     * @param  array|string  $with
+     * @return static|null
+     */
+    public function fresh($with = [])
+    {
+        if (! $this->exists) {
+            return;
+        }
+
+        return $this->setKeysForSelectQuery($this->newQueryWithoutScopes())
+            ->useWritePdo()
+            ->with(is_string($with) ? func_get_args() : $with)
+            ->first();
+    }
+/**
+     * Reload the current model instance with fresh attributes from the database.
+     *
+     * @return $this
+     */
+    public function refresh()
+    {
+        if (! $this->exists) {
+            return $this;
+        }
+
+        return $this->refreshUsingQuery($this->newQueryWithoutScopes());
+    }
+/**
+     * Reload the current model instance using the given query.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<static>  $query
+     * @return $this
+     */
+    protected function refreshUsingQuery(Builder $query)
+    {
+        $this->setRawAttributes(
+            $this->setKeysForSelectQuery($query)
+                ->useWritePdo()
+                ->firstOrFail()
+                ->attributes
+        );
+
+        $this->load((new BaseCollection($this->relations))->reject(
+            fn ($relation) => $relation instanceof Pivot
+                || (is_object($relation) && isset(class_uses_recursive($relation)[AsPivot::class]))
+        )->keys()->all());
+
+        $this->syncOriginal();
+
+        return $this;
+    }
+/**
+     * Get the value of the model's primary key.
+     *
+     * @return mixed
+     */
+    public function getKey()
+    {
+        return $this->getAttribute($this->getKeyName());
+    }
+/**
+     * Dynamically retrieve attributes on the model.
+     *
+     * @param  string  $key
+     * @return mixed
+     */
+    public function __get($key)
+    {
+        return $this->getAttribute($key);
+    }
+/**
+     * Update the model in the database.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @param  array<string, mixed>  $options
+     * @return bool
+     */
+    public function update(array $attributes = [], array $options = [])
+    {
+        if (! $this->exists) {
+            return false;
+        }
+
+        return $this->fill($attributes)->save($options);
+    }
+/**
+     * Get a new query builder with no relationships loaded.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<static>
+     */
+    public function newQueryWithoutRelationships()
+    {
+        return $this->registerGlobalScopes($this->newModelQuery());
+    }
+/**
+     * Resolve the custom Eloquent builder class from the model attributes.
+     *
+     * @return class-string<\Illuminate\Database\Eloquent\Builder>|false
+     */
+    protected function resolveCustomBuilderClass()
+    {
+        return static::resolveClassAttribute(UseEloquentBuilder::class, 'builderClass') ?? false;
+    }
+/**
+     * Get the primary key for the model.
+     *
+     * @return string
+     */
+    public function getKeyName()
+    {
+        return $this->primaryKey;
+    }
+/**
+     * Get the auto-incrementing key type.
+     *
+     * @return string
+     */
+    public function getKeyType()
+    {
+        return $this->keyType;
+    }
+/**
+     * Get the value indicating whether the IDs are incrementing.
+     *
+     * @return bool
+     */
+    public function getIncrementing()
+    {
+        return $this->incrementing;
+    }
+/**
+     * Get a new query builder instance for the connection.
+     *
+     * @return \Illuminate\Database\Query\Builder
+     */
+    protected function newBaseQueryBuilder()
+    {
+        return $this->getConnection()->query();
+    }
+/**
+     * Get the database connection for the model.
+     *
+     * @return \Illuminate\Database\Connection
+     */
+    public function getConnection()
+    {
+        return static::resolveConnection($this->getConnectionName());
+    }
+/**
+     * Fill the model with an array of attributes.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @return $this
+     *
+     * @throws \Illuminate\Database\Eloquent\MassAssignmentException
+     */
+    public function fill(array $attributes)
+    {
+        $totallyGuarded = $this->totallyGuarded();
+
+        $fillable = $this->fillableFromArray($attributes);
+
+        foreach ($fillable as $key => $value) {
+            // The developers may choose to place some attributes in the "fillable" array
+            // which means only those attributes may be set through mass assignment to
+            // the model, and all others will just get ignored for security reasons.
+            if ($this->isFillable($key)) {
+                $this->setAttribute($key, $value);
+            } elseif ($totallyGuarded || static::preventsSilentlyDiscardingAttributes()) {
+                if (isset(static::$discardedAttributeViolationCallback)) {
+                    call_user_func(static::$discardedAttributeViolationCallback, $this, [$key]);
+                } else {
+                    throw new MassAssignmentException(sprintf(
+                        'Add [%s] to fillable property to allow mass assignment on [%s].',
+                        $key, get_class($this)
+                    ));
+                }
+            }
+        }
+
+        if (count($attributes) !== count($fillable) &&
+            static::preventsSilentlyDiscardingAttributes()) {
+            $keys = array_diff(array_keys($attributes), array_keys($fillable));
+
+            if (isset(static::$discardedAttributeViolationCallback)) {
+                call_user_func(static::$discardedAttributeViolationCallback, $this, $keys);
+            } else {
+                throw new MassAssignmentException(sprintf(
+                    'Add fillable property [%s] to allow mass assignment on [%s].',
+                    implode(', ', $keys),
+                    get_class($this)
+                ));
+            }
+        }
+
+        return $this;
+    }
+/**
+     * Save the model to the database.
+     *
+     * @param  array  $options
+     * @return bool
+     */
+    public function save(array $options = [])
+    {
+        $this->mergeAttributesFromCachedCasts();
+
+        $query = $this->newModelQuery();
+
+        // If the "saving" event returns false we'll bail out of the save and return
+        // false, indicating that the save failed. This provides a chance for any
+        // listeners to cancel save operations if validations fail or whatever.
+        if ($this->fireModelEvent('saving') === false) {
+            return false;
+        }
+
+        // If the model already exists in the database we can just update our record
+        // that is already in this database using the current IDs in this "where"
+        // clause to only update this model. Otherwise, we'll just insert them.
+        if ($this->exists) {
+            $saved = $this->isDirty() ?
+                $this->performUpdate($query) : true;
+        }
+
+        // If the model is brand new, we'll insert it into our database and set the
+        // ID attribute on the model to the value of the newly inserted row's ID
+        // which is typically an auto-increment value managed by the database.
+        else {
+            $saved = $this->performInsert($query);
+
+            if (! $this->getConnectionName() &&
+                $connection = $query->getConnection()) {
+                $this->setConnection($connection->getName());
+            }
+        }
+
+        // If the model is successfully saved, we need to do a few more things once
+        // that is done. We will call the "saved" method here to run any actions
+        // we need to happen after a model gets successfully saved right here.
+        if ($saved) {
+            $this->finishSave($options);
+        }
+
+        return $saved;
+    }
+/**
+     * Perform any actions that are necessary after the model is saved.
+     *
+     * @param  array  $options
+     * @return void
+     */
+    protected function finishSave(array $options)
+    {
+        $this->fireModelEvent('saved', false);
+
+        if ($this->isDirty() && ($options['touch'] ?? true)) {
+            $this->touchOwners();
+        }
+
+        $this->syncOriginal();
+    }
+/**
+     * Perform a model update operation.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<static>  $query
+     * @return bool
+     */
+    protected function performUpdate(Builder $query)
+    {
+        // If the updating event returns false, we will cancel the update operation so
+        // developers can hook Validation systems into their models and cancel this
+        // operation if the model does not pass validation. Otherwise, we update.
+        if ($this->fireModelEvent('updating') === false) {
+            return false;
+        }
+
+        // First we need to create a fresh query instance and touch the creation and
+        // update timestamp on the model which are maintained by us for developer
+        // convenience. Then we will just continue saving the model instances.
+        if ($this->usesTimestamps()) {
+            $this->updateTimestamps();
+        }
+
+        // Once we have run the update operation, we will fire the "updated" event for
+        // this model instance. This will allow developers to hook into these after
+        // models are updated, giving them a chance to do any special processing.
+        $dirty = $this->getDirtyForUpdate();
+
+        if (count($dirty) > 0) {
+            $this->setKeysForSaveQuery($query)->update($dirty);
+
+            $this->syncChanges();
+
+            $this->fireModelEvent('updated', false);
+        }
+
+        return true;
+    }
+/**
+     * Set the keys for a save update query.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<static>  $query
+     * @return \Illuminate\Database\Eloquent\Builder<static>
+     */
+    protected function setKeysForSaveQuery($query)
+    {
+        $query->where($this->getKeyName(), '=', $this->getKeyForSaveQuery());
+
+        return $query;
+    }
+/**
+     * Get the primary key value for a save query.
+     *
+     * @return mixed
+     */
+    protected function getKeyForSaveQuery()
+    {
+        return $this->original[$this->getKeyName()] ?? $this->getKey();
+    }
+/**
+     * Perform a model insert operation.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<static>  $query
+     * @return bool
+     */
+    protected function performInsert(Builder $query)
+    {
+        if ($this->usesUniqueIds()) {
+            $this->setUniqueIds();
+        }
+
+        if ($this->fireModelEvent('creating') === false) {
+            return false;
+        }
+
+        // First we'll need to create a fresh query instance and touch the creation and
+        // update timestamps on this model, which are maintained by us for developer
+        // convenience. After, we will just continue saving these model instances.
+        if ($this->usesTimestamps()) {
+            $this->updateTimestamps();
+        }
+
+        // If the model has an incrementing key, we can use the "insertGetId" method on
+        // the query builder, which will give us back the final inserted ID for this
+        // table from the database. Not all tables have to be incrementing though.
+        $attributes = $this->getAttributesForInsert();
+
+        if ($this->getIncrementing()) {
+            $this->insertAndSetId($query, $attributes);
+        }
+
+        // If the table isn't incrementing we'll simply insert these attributes as they
+        // are. These attribute arrays must contain an "id" column previously placed
+        // there by the developer as the manually determined key for these models.
+        else {
+            if (empty($attributes)) {
+                return true;
+            }
+
+            $query->insert($attributes);
+        }
+
+        // We will go ahead and set the exists property to true, so that it is set when
+        // the created event is fired, just in case the developer tries to update it
+        // during the event. This will allow them to do so and run an update here.
+        $this->exists = true;
+
+        $this->wasRecentlyCreated = true;
+
+        $this->fireModelEvent('created', false);
+
+        return true;
+    }
+/**
+     * Determine if discarding guarded attribute fills is disabled.
+     *
+     * @return bool
+     */
+    public static function preventsSilentlyDiscardingAttributes()
+    {
+        return static::$modelsShouldPreventSilentlyDiscardingAttributes;
+    }
+/**
+     * Dynamically set attributes on the model.
+     *
+     * @param  string  $key
+     * @param  mixed  $value
+     * @return void
+     */
+    public function __set($key, $value)
+    {
+        $this->setAttribute($key, $value);
+    }
+    /** Create a new instance of the given model.
+     * @param array<string, mixed> $attributes
+     * @param bool $exists
+     * @return static */
+    public function newInstance($attributes = [], $exists = false)
+    {
+        $model = new static;
+
+        $model->exists = $exists;
+
+        $model->setConnection(
+            $this->getConnectionName()
+        );
+
+        $model->setTable($this->getTable());
+
+        $model->mergeCasts($this->casts);
+
+        $model->fill((array) $attributes);
+
+        return $model;
+    }
+}

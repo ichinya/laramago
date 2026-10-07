@@ -125,7 +125,7 @@ final class DiagnosticArrayTypes
             }
             $optional = str_ends_with($pair[0], '?');
             $rawKey = $optional ? substr($pair[0], 0, -1) : $pair[0];
-            if (preg_match("/^'([A-Za-z_][A-Za-z0-9_-]*)'$/D", $rawKey, $match)) {
+            if (preg_match("/^'([A-Za-z_][A-Za-z0-9_*\/-]*)'$/D", $rawKey, $match)) {
                 $key = new ArrayKey(ArrayKeyKind::String, $match[1]);
             } elseif (preg_match('/^-?(?:0|[1-9][0-9]*)$/D', $rawKey)
                 && (string) (int) $rawKey === $rawKey) {

@@ -1,0 +1,9 @@
+<?php
+namespace Fixture\ArgumentContracts;
+function boundedDelay(string $delay): void
+{
+    if (! is_string($delay) || ! ctype_digit($delay) || (int) $delay > 2000) {
+        exit(64);
+    }
+    usleep((int) $delay * 1000);
+}

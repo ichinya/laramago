@@ -1,0 +1,64 @@
+<?php
+namespace Symfony\Component\HttpFoundation {
+    class HeaderBag {
+        /** @var array<string,list<string|null>> */
+        protected array $headers=[];
+        public function get(string $key,?string $default=null):?string { return $this->headers[$key][0]??$default; }
+        /** @return array<string,list<string|null>> */
+        public function all():array { return $this->headers; }
+    }
+    class InputBag {
+        /** @return array<string,mixed> */
+        public function all():array { return []; }
+    }
+    class Request implements \Stringable {
+        public HeaderBag $headers {
+            set {
+                trigger_deprecation('symfony/http-foundation', '8.1', 'Directly setting property "headers" of "%s" is deprecated; pass header parameters as a constructor argument or call "initialize()" instead.', static::class);
+                $this->headers = $value;
+            }
+        }
+        public function __toString():string { return ''; }
+        public function __construct() { $this->headers=new HeaderBag; }
+    }
+}
+namespace Illuminate\Http\Concerns {
+    use Symfony\Component\HttpFoundation\InputBag;
+    trait InteractsWithInput {
+        /** @return string|array|null */
+        public function header($key=null,$default=null) { return $this->retrieveItem('headers',$key,$default); }
+        /** @return string|array|null */
+        protected function retrieveItem($source,$key,$default) {
+            if(is_null($key)) { return $this->$source->all(); }
+            if($this->$source instanceof InputBag) { return $this->$source->all()[$key]??$default; }
+            return $this->$source->get($key,$default);
+        }
+    }
+}
+namespace Illuminate\Contracts\Support {
+    interface Arrayable { public function toArray(); }
+}
+namespace Illuminate\Contracts\Validation {
+    interface ValidatesWhenResolved { public function validateResolved(); }
+}
+namespace Illuminate\Http {
+    class Request extends \Symfony\Component\HttpFoundation\Request implements \ArrayAccess, \Illuminate\Contracts\Support\Arrayable {
+        use \Illuminate\Http\Concerns\InteractsWithInput;
+        public function toArray():array { return []; }
+        public function offsetExists(mixed $offset):bool { return false; }
+        public function offsetGet(mixed $offset):mixed { return null; }
+        public function offsetSet(mixed $offset,mixed $value):void {}
+        public function offsetUnset(mixed $offset):void {}
+        public function user():?\stdClass { return null; }
+        public function validated():array { return []; }
+    }
+}
+
+namespace Illuminate\Foundation\Http {
+    class FormRequest extends \Illuminate\Http\Request implements \Illuminate\Contracts\Validation\ValidatesWhenResolved {
+        public function validateResolved():void {}
+    }
+}
+namespace {
+    function trigger_deprecation(string $package,string $version,string $message,mixed ...$arguments):void {}
+}

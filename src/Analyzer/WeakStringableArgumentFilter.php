@@ -106,6 +106,8 @@ final class WeakStringableArgumentFilter implements IssueFilterHook, Initializat
             }
             $this->cache[$key] = ['strict' => $strict, 'calls' => $calls];
         }
+        // The cached call certificates are scalar; release the parsed file before native RPC reentry.
+        unset($nodes, $finder, $call, $arg);
         $parsed = $this->cache[$key];
         if ($parsed['strict']) {
             return IssueFilterDecision::Keep;

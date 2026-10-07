@@ -1,0 +1,3 @@
+<?php
+namespace Illuminate\Database\Eloquent\Concerns;
+trait HasGlobalScopes { public function getGlobalScopes(): array { return []; } }

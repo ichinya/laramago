@@ -1,0 +1,24 @@
+<?php
+namespace Testo\Assert\Internal {
+    final class StaticState {
+        public static function success(mixed $value, string $assertion, string $message): void {}
+        public static function fail(\Throwable $failure): never { throw $failure; }
+    }
+    final class Support { public static function stringify(mixed $value): string { return ''; } }
+}
+namespace Testo\Common\Attribute { #[\Attribute] final class AssertMethod {} }
+namespace Testo\Assert\State\Assertion {
+    class AssertionException extends \RuntimeException {}
+    final class ComparisonFailure extends \RuntimeException {
+        public function __construct(mixed $expected, mixed $actual, string $value, string $assertion, string $context, string $reason) {}
+    }
+}
+namespace Fixture {
+    function unavailableForwarder(callable $callback): void {}
+    function stopNever(): never { exit(1); }
+    final class FakeClosure {
+        public static function fromCallable(callable $callback): \Closure { return static function (string $stage): void {}; }
+    }
+    final class WrongAssert { public static function true(mixed $actual): void {} }
+}
+namespace Fixture\LocalOps { function strlen(string $value): never { exit(1); } }

@@ -1,0 +1,93 @@
+<?php
+namespace Illuminate\Database\Eloquent\Concerns;
+use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Events\NullDispatcher;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
+use InvalidArgumentException;
+use ReflectionClass;
+trait HasEvents {
+/**
+     * The event map for the model.
+     *
+     * Allows for object-based events for native Eloquent events.
+     *
+     * @var array<string, class-string>
+     */
+    protected $dispatchesEvents = [];
+/**
+     * User exposed observable events.
+     *
+     * These are extra user-defined events observers may subscribe to.
+     *
+     * @var string[]
+     */
+    protected $observables = [];
+/**
+     * Fire the given event for the model.
+     *
+     * @param  string  $event
+     * @param  bool  $halt
+     * @return mixed
+     */
+    protected function fireModelEvent($event, $halt = true)
+    {
+        if (! isset(static::$dispatcher)) {
+            return true;
+        }
+
+        // First, we will get the proper method to call on the event dispatcher, and then we
+        // will attempt to fire a custom, object based event for the given event. If that
+        // returns a result we can return that result, or we'll call the string events.
+        $method = $halt ? 'until' : 'dispatch';
+
+        $result = $this->filterModelEventResults(
+            $this->fireCustomModelEvent($event, $method)
+        );
+
+        if ($result === false) {
+            return false;
+        }
+
+        return ! empty($result) ? $result : static::$dispatcher->{$method}(
+            "eloquent.{$event}: ".static::class, $this
+        );
+    }
+/**
+     * Fire a custom model event for the given event.
+     *
+     * @param  string  $event
+     * @param  'until'|'dispatch'  $method
+     * @return array|null|void
+     */
+    protected function fireCustomModelEvent($event, $method)
+    {
+        if (! isset($this->dispatchesEvents[$event])) {
+            return;
+        }
+
+        $result = static::$dispatcher->$method(new $this->dispatchesEvents[$event]($this));
+
+        if (! is_null($result)) {
+            return $result;
+        }
+    }
+/**
+     * Filter the model event results.
+     *
+     * @param  mixed  $result
+     * @return mixed
+     */
+    protected function filterModelEventResults($result)
+    {
+        if (is_array($result)) {
+            $result = array_filter($result, function ($response) {
+                return ! is_null($response);
+            });
+        }
+
+        return $result;
+    }
+}

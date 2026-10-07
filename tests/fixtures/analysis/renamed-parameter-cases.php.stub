@@ -1,0 +1,53 @@
+<?php
+declare(strict_types=1);
+// Independently invented declarations/calls. Never include or execute this source.
+namespace ParameterNameExamples;
+
+/** @template-contravariant RowType = mixed */
+interface RowMapping {
+    /** @param RowType $row
+     * @return array<array-key,mixed>
+     */
+    public function map(mixed $row):array;
+}
+final class MappingA implements RowMapping { public function map($record):array { return []; } }
+final class MappingB implements RowMapping { public function map($entry):array { return []; } }
+class BaseStore {
+    /** @param string $key
+     * @param mixed $value
+     * @param int $seconds
+     * @return bool
+     */
+    public function put($key,$value,$seconds) { return true; }
+}
+class IntermediateStore extends BaseStore {}
+final class DerivedStore extends IntermediateStore {
+    /** @param string $key
+     * @param int $ttl
+     */
+    public function put($key,$value,$ttl) { return parent::put($key,$value,$ttl); }
+}
+class TypedParent { public function convert(string $value):string { return $value; } }
+final class TypedChild extends TypedParent { public function convert(string $text):string { return $text; } }
+class NamedCallParent { public function handle(string $value):string { return $value; } }
+final class NamedCallChild extends NamedCallParent { public function handle(string $text):string { return $text; } }
+function positionalCalls(MappingA $mapping,DerivedStore $store):void { $mapping->map([]);$store->put('key',[],15); }
+function validNamedCall(TypedChild $worker):void { $worker->convert(text:'valid'); }
+function invalidNamedCall(NamedCallChild $worker):void { $worker->handle(value:'invalid'); }
+function polymorphicNamedCall(NamedCallParent $worker):void { $worker->handle(value:'parent name'); }
+function invalidCallType(TypedChild $worker):void { $worker->convert(text:[]); }
+function invalidCallArity(TypedChild $worker):void { $worker->convert(); }
+function unrelatedError(mixed $value):mixed { return $value['noise']; }
+
+class NarrowParent { public function process(int|string $item):void {} }
+final class NarrowChild extends NarrowParent { public function process(int $record):void {} }
+class ArityParent { public function process(string $key,int $limit):void {} }
+final class ArityChild extends ArityParent { public function process(string $name):void {} }
+class OptionalParent { public function process(string $item='value'):void {} }
+final class RequiredChild extends OptionalParent { public function process(string $record):void {} }
+class ReferenceParent { public function process(string &$item):void {} }
+final class ReferenceChild extends ReferenceParent { public function process(string &$record):void {} }
+class VariadicParent { public function process(string ...$items):void {} }
+final class VariadicChild extends VariadicParent { public function process(string ...$entries):void {} }
+class ReturnParent { public function process(string $item):int { return strlen($item); } }
+final class WrongReturnChild extends ReturnParent { public function process(string $record):string { return $record; } }

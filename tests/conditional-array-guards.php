@@ -35,7 +35,11 @@ $plugin = new class($argv[2]) implements \Mago\Sdk\Analyzer\Plugin {
     }
 };
 $plugins = $mode === 'standalone' ? [] : [new \Ichinya\Laramago\Analyzer\LaravelPlugin($argv[2])];
-if (in_array($mode, ['standalone', 'proven'], true)) { array_unshift($plugins, $plugin); }
+if (in_array($mode, ['standalone', 'proven', 'existing-policies'], true)) { array_unshift($plugins, $plugin); }
+if ($mode === 'existing-policies') {
+    $plugins[] = new \Ichinya\Laramago\Analyzer\DefensiveBoundaryGuardPlugin($argv[2]);
+    $plugins[] = new \Ichinya\Laramago\Analyzer\OrdinaryMixedAssignmentPlugin;
+}
 (new \Mago\Sdk\Worker(new \Mago\Sdk\Extension(identifier: 'fixture/conditional-array', name: 'Conditional array fixture', version: '1', analyzerPlugins: $plugins)))->run();
 PHP);
 
@@ -372,9 +376,58 @@ $guardReports = $analyze('guards', ['guard.php']);
 $contextChecks = file_exists($workspace.'/context-checks.log') ? array_sum(array_map('intval', file($workspace.'/context-checks.log', FILE_IGNORE_NEW_LINES))) : 0;
 if ($contextChecks !== 42 || in_array('mixed-array-access', array_column($guardReports, 'code'), true)) { throw new RuntimeException('Missing real-Mago context controls: '.$contextChecks.' '.$workspace); }
 if (in_array('--integrated', $argv, true)) {
-    foreach ([1, 3] as $workers) {
-        if ($signature($analyze('integrated', workers: $workers)) !== $signature($proven)) { throw new RuntimeException('Integrated conditional array diagnostics differ: '.$workers.' workers. '.$workspace); }
+    $existingPolicies = $analyze('existing-policies');
+    $wholeSignature = static function (array $issues): array {
+        $records = array_map(static fn (array $issue): string => json_encode($issue, JSON_THROW_ON_ERROR), $issues);
+        sort($records);
+        return $records;
+    };
+    // Independently measure the existing defensive-boundary and ordinary-storage policies.
+    $topSource = file_get_contents($workspace.'/top.php');
+    $condition = '$selection !== null && !is_string($selection)';
+    $predicate = 'is_string($selection)';
+    $assignment = '$chosen = receiveTop(';
+    foreach ([$condition, $predicate, $assignment] as $marker) {
+        if (substr_count($topSource, $marker) !== 1) { throw new RuntimeException('The current top-level conditional array policy control changed.'); }
     }
+    $expectedSites = [
+        ['redundant-type-comparison', 'Redundant type assertion: `$selection` is already `string`.', strpos($topSource, $predicate), strlen($predicate)],
+        ['impossible-condition', 'This condition (type `false`) will always evaluate to false.', strpos($topSource, $condition), strlen($condition)],
+        ['mixed-assignment', 'Assigning `mixed` type to a variable may lead to unexpected behavior.', strpos($topSource, $assignment), strlen('$chosen')],
+    ];
+    $expected = $proven;
+    $policyWarnings = [];
+    foreach ($expectedSites as [$code, $message, $start, $length]) {
+        $matches = array_filter($proven, static function (array $issue) use ($code, $message, $start, $length): bool {
+            if ($issue['level'] !== 'Warning' || $issue['code'] !== $code || $issue['message'] !== $message) { return false; }
+            $primary = array_values(array_filter($issue['annotations'], static fn (array $annotation): bool => $annotation['kind'] === 'Primary'));
+            return count($primary) === 1 && $primary[0]['span']['file_id']['name'] === 'top.php'
+                && $primary[0]['span']['start']['offset'] === $start && $primary[0]['span']['end']['offset'] === $start + $length;
+        });
+        if (count($matches) !== 1) { throw new RuntimeException('One genuine source-bound existing-policy Warning is required: '.$code.' '.$workspace); }
+        $issue = array_values($matches)[0];
+        $index = array_search($issue, $expected, true);
+        if ($index === false) { throw new RuntimeException('The genuine complete existing-policy Warning is missing.'); }
+        unset($expected[$index]);
+        $policyWarnings[] = $issue;
+    }
+    if ($wholeSignature($existingPolicies) !== $wholeSignature(array_values($expected))) {
+        throw new RuntimeException('The existing policy union changed more than its three source-bound genuine Warnings. '.$workspace);
+    }
+    $errors = static fn (array $issues): array => array_values(array_filter($issues, static fn (array $issue): bool => $issue['level'] === 'Error'));
+    if ($errors($proven) === [] || $wholeSignature($errors($proven)) !== $wholeSignature($errors($existingPolicies))) {
+        throw new RuntimeException('The existing policy union changed complete conditional-array Error records. '.$workspace);
+    }
+    foreach ([1, 3] as $workers) {
+        if ($wholeSignature($analyze('integrated', workers: $workers)) !== $wholeSignature($existingPolicies)) {
+            throw new RuntimeException('Integrated conditional array diagnostics differ from independently measured existing policies: '.$workers.' workers. '.$workspace);
+        }
+    }
+    file_put_contents($workspace.'/existing-policy-union.json', json_encode([
+        'status' => 'PASS', 'narrowConditionalMeasurementRetained' => true, 'genuineWholeWarningsRemoved' => $policyWarnings,
+        'existingPolicies' => ['DefensiveBoundaryGuardPlugin', 'OrdinaryMixedAssignmentPlugin'],
+        'extraRemovedWarnings' => 3, 'completeErrorsAndAllOtherIssuesPreserved' => true, 'productionOneAndThreeWorkerParity' => true,
+    ], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
 }
 if (file_exists($workspace.'/executed')) { throw new RuntimeException('Analyzed bootstrap executed.'); }
 file_put_contents($workspace.'/runtime-control.php', <<<'PHP'

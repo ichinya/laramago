@@ -1,0 +1,1 @@
+<?php namespace Illuminate\Support\Traits; trait Conditionable {}

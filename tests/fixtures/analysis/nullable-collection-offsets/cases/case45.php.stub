@@ -1,0 +1,5 @@
+<?php
+
+namespace NullableIndexCase45;
+class Holder { /** @var \NullableOffsetFixture\StableCollection<array-key, \NullableOffsetFixture\Record> */ public \NullableOffsetFixture\StableCollection $rows; public function run(?int $key): void { $this->rows[$key]->missing(); } }
+file_put_contents(__DIR__."/case-executed", "Scenario bodies must never execute.");

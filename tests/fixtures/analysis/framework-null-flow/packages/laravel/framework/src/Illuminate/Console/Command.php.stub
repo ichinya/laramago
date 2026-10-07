@@ -1,0 +1,20 @@
+<?php
+namespace Illuminate\Console;
+class Command {
+    use Concerns\InteractsWithIO;
+    protected $signature;
+    public function __construct() {
+        $this->configureFromAttributes();
+        if (isset($this->signature)) { $this->configureUsingFluentDefinition(); }
+        $this->configureDefaults();
+    }
+    protected function configureFromAttributes() {}
+    protected function configureUsingFluentDefinition() {
+        [$name, $arguments, $options] = Parser::parse($this->signature);
+        $this->getDefinition()->addArguments($arguments);
+        $this->getDefinition()->addOptions($options);
+    }
+    protected function configureDefaults(): void {}
+    protected function configureIsolation() {}
+    public function getDefinition(): Definition { return new Definition; }
+}

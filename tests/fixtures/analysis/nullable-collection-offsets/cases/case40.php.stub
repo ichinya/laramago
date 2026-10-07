@@ -1,0 +1,7 @@
+<?php
+
+namespace NullableIndexCase40;
+/** @param \NullableOffsetFixture\StableCollection<array-key, \NullableOffsetFixture\Record> $rows */
+function read(\NullableOffsetFixture\StableCollection $rows): \Closure { return function (\NullableOffsetFixture\AuditRecord $event) use ($rows): void { $label = $rows[$event->subject_id]->label ?? null; needsInteger($label); }; }
+function needsInteger(int $value): void {}
+file_put_contents(__DIR__."/case-executed", "Scenario bodies must never execute.");

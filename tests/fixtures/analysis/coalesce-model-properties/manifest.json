@@ -1,0 +1,221 @@
+{
+    "sourceCases": 18,
+    "caseCatalogue": {
+        "cases/case0.php": {
+            "label": "plain abstract model direct probe",
+            "candidate": true,
+            "exactTargets": 1,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case1.php": {
+            "label": "plain abstract model nullable direct probe",
+            "candidate": true,
+            "exactTargets": 1,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case2.php": {
+            "label": "typed relation carrier nested probe",
+            "candidate": true,
+            "exactTargets": 1,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case3.php": {
+            "label": "typed callback relation carrier probe",
+            "candidate": true,
+            "exactTargets": 1,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case4.php": {
+            "label": "unguarded unknown model field",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case5.php": {
+            "label": "misspelled field outside probe",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case6.php": {
+            "label": "collection field retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case7.php": {
+            "label": "coalesce right unknown field retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case8.php": {
+            "label": "compound left string concatenation retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 3
+        },
+        "cases/case9.php": {
+            "label": "coalesce assignment field retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 3
+        },
+        "cases/case10.php": {
+            "label": "literal write retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 3
+        },
+        "cases/case11.php": {
+            "label": "dynamic property retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case12.php": {
+            "label": "nullsafe syntax retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case13.php": {
+            "label": "method-produced receiver retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case14.php": {
+            "label": "array receiver retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case15.php": {
+            "label": "known physical field unsafe use retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case16.php": {
+            "label": "known documented field unsafe use retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        },
+        "cases/case17.php": {
+            "label": "foreign magic receiver retained",
+            "candidate": false,
+            "exactTargets": 0,
+            "unrelatedErrorsKept": 2
+        }
+    },
+    "fixtureFiles": {
+        "bootstrap.php": {
+            "dataFile": "bootstrap.php.stub",
+            "sha256": "4c609b581a054c792d7d299e576263dabb5b9ef36f0d0e4fa2bfbbe7a5841131"
+        },
+        "cases/case0.php": {
+            "dataFile": "cases/case0.php.stub",
+            "sha256": "8f0c12e86a79c08ff4b26c9d116801ab69c4f69d0fb759863fde703a45cf4b04"
+        },
+        "cases/case1.php": {
+            "dataFile": "cases/case1.php.stub",
+            "sha256": "46a3031e19ea33af62351fba4ffc1122dfbcc7a6ccd2a537838e12248117daa4"
+        },
+        "cases/case10.php": {
+            "dataFile": "cases/case10.php.stub",
+            "sha256": "a22a4a6b01d63e5c3100f485effa44e082fce6a973ca4f648c86cc4e67511dee"
+        },
+        "cases/case11.php": {
+            "dataFile": "cases/case11.php.stub",
+            "sha256": "7d91e8097d3261b146119161dfa76584744e6617c03cfac5ae7e6e6b243269a1"
+        },
+        "cases/case12.php": {
+            "dataFile": "cases/case12.php.stub",
+            "sha256": "0171f991761768cf0809627f64f2099c5f012b9eb058682266230dd97d0553aa"
+        },
+        "cases/case13.php": {
+            "dataFile": "cases/case13.php.stub",
+            "sha256": "731461cd21dcf543c39924ccb155798228e0009bad466382256a0b92e16dc15a"
+        },
+        "cases/case14.php": {
+            "dataFile": "cases/case14.php.stub",
+            "sha256": "7764f5cac9208786b11bee377fd600af760f6c2d9da30aef827735ec67458f62"
+        },
+        "cases/case15.php": {
+            "dataFile": "cases/case15.php.stub",
+            "sha256": "e63568b5eb674df38e6939cf17dba90c21d99f3faa4a2ad1cefde7cb79ae4c3d"
+        },
+        "cases/case16.php": {
+            "dataFile": "cases/case16.php.stub",
+            "sha256": "3b6e009b41f03780df569f32e0f981e995d953112cc6a7a00762f6b413f4f787"
+        },
+        "cases/case17.php": {
+            "dataFile": "cases/case17.php.stub",
+            "sha256": "7d7d4e0a18048dd35413f76541501b36563d712d3c552feb24d0d6a371287f14"
+        },
+        "cases/case2.php": {
+            "dataFile": "cases/case2.php.stub",
+            "sha256": "90dc79512cf7a1ae28792d1737287536133e4b1314c7bec13b0ad4dd1d20cd64"
+        },
+        "cases/case3.php": {
+            "dataFile": "cases/case3.php.stub",
+            "sha256": "2e31e12fadcf5fdc183db7de0c179de3a1416b9dfa012c1a3fa1c2e89dc94f57"
+        },
+        "cases/case4.php": {
+            "dataFile": "cases/case4.php.stub",
+            "sha256": "f05381daf9f3ab60c4b4699d3c6a975676e8c768e540f910a04d59950699582d"
+        },
+        "cases/case5.php": {
+            "dataFile": "cases/case5.php.stub",
+            "sha256": "754735e4ce428c167a2bb3a86b26a6230bd824daa9ec92c94bc5e2ac1bb6814b"
+        },
+        "cases/case6.php": {
+            "dataFile": "cases/case6.php.stub",
+            "sha256": "54912260ed2ddc0632806ebd554a67eed1cf8788a3583ff278cbf5451bf840e4"
+        },
+        "cases/case7.php": {
+            "dataFile": "cases/case7.php.stub",
+            "sha256": "4b80592a4184a6064072928ad61f355b2fce95aa02f2eda18e421aee3374a051"
+        },
+        "cases/case8.php": {
+            "dataFile": "cases/case8.php.stub",
+            "sha256": "3201aa8f9d914740a0817fcf226dd523c787100b9052740b801939d91775f6ca"
+        },
+        "cases/case9.php": {
+            "dataFile": "cases/case9.php.stub",
+            "sha256": "f628f511647953e80d18312844648d136a5727b44437c7c70ec4a4a7c587fad9"
+        },
+        "composer.json": {
+            "dataFile": "composer.json",
+            "sha256": "7a74cfdb07a737c7bebc6305c3eff3d3caf1b8ba9831b6fa9717bff8e9e2489f"
+        },
+        "contracts.php": {
+            "dataFile": "contracts.php.stub",
+            "sha256": "7f369f2e3322ba7e0c19084f2b41f3e4664f09d40b1994ff892d9bb1e750a219"
+        },
+        "database/migrations/001_trap.php": {
+            "dataFile": "database/migrations/001_trap.php.stub",
+            "sha256": "4c609b581a054c792d7d299e576263dabb5b9ef36f0d0e4fa2bfbbe7a5841131"
+        },
+        "focus.php": {
+            "dataFile": "focus.php.stub",
+            "sha256": "16e4a9f2434ac3ae4951906de1719aa6a0b6579dfffdd4e22c41adf0a254410e"
+        },
+        "packages/composer/autoload_files.php": {
+            "dataFile": "packages/composer/autoload_files.php.stub",
+            "sha256": "489234f3f3f3ece998b0ffb62d6516068da67176ba8a1911a85167bb5277603c"
+        },
+        "packages/composer/installed.json": {
+            "dataFile": "packages/composer/installed.json",
+            "sha256": "454eea274ef715bed0aef364fec823e04318850d28eb04f1c16a03a5127c071c"
+        },
+        "packages/composer/trap.php": {
+            "dataFile": "packages/composer/trap.php.stub",
+            "sha256": "4c609b581a054c792d7d299e576263dabb5b9ef36f0d0e4fa2bfbbe7a5841131"
+        }
+    },
+    "fixtureBodiesMustNeverExecute": true,
+    "nativeAcceptanceOfPortableNamespaceAdaptationPending": true
+}

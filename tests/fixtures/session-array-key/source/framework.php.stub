@@ -1,0 +1,164 @@
+<?php
+namespace Illuminate\Contracts\Session { interface Session {
+/**
+     * Get all of the session data.
+     *
+     * @return array
+     */
+public function all();
+/**
+     * Put a key / value pair or array of key / value pairs in the session.
+     *
+     * @param  string|array  $key
+     * @param  mixed  $value
+     * @return void
+     */
+public function put($key, $value = null);
+} }
+namespace Illuminate\Support { use Closure;
+/**
+ * @template TValue
+ * @template TDefault
+ * @param TValue $value
+ * @param TDefault|callable(TValue): TDefault $default
+ * @return ($value is empty ? TDefault : mixed)
+ */
+function enum_value($value, $default = null) {
+    return match (true) {
+        $value instanceof \BackedEnum => $value->value,
+        $value instanceof \UnitEnum => $value->name,
+        default => $value ?? value($default),
+    };
+}
+
+class Arr {
+/**
+     * Set an array item to a given value using "dot" notation.
+     *
+     * If no key is given to the method, the entire array will be replaced.
+     *
+     * @param  array  $array
+     * @param  string|int|null  $key
+     * @param  mixed  $value
+     * @return array
+     */
+public static function set(&$array, $key, $value)
+    {
+        if (is_null($key)) {
+            return $array = $value;
+        }
+
+        $keys = explode('.', $key);
+
+        foreach ($keys as $i => $key) {
+            if (count($keys) === 1) {
+                break;
+            }
+
+            unset($keys[$i]);
+
+            // If the key doesn't exist at this depth, we will just create an empty array
+            // to hold the next value, allowing us to create the arrays to hold final
+            // values at the correct depth. Then we'll keep digging into the array.
+            if (! isset($array[$key]) || ! is_array($array[$key])) {
+                $array[$key] = [];
+            }
+
+            $array = &$array[$key];
+        }
+
+        $array[array_shift($keys)] = $value;
+
+        return $array;
+    }
+} }
+namespace Illuminate\Session { use Illuminate\Support\Arr; use function Illuminate\Support\enum_value;
+class Store implements \Illuminate\Contracts\Session\Session {
+/**
+ * @var array
+ */
+protected $attributes=[];
+public function __construct($name=null,$handler=null,$id=null) {}
+/**
+     * Get all of the session data.
+     *
+     * @return array
+     */
+public function all()
+    {
+        return $this->attributes;
+    }
+/**
+     * Put a key / value pair or array of key / value pairs in the session.
+     *
+     * @param  \UnitEnum|string|array  $key
+     * @param  mixed  $value
+     * @return void
+     */
+public function put($key, $value = null)
+    {
+        if (! is_array($key)) {
+            $key = [enum_value($key) => $value];
+        }
+
+        foreach ($key as $arrayKey => $arrayValue) {
+            Arr::set($this->attributes, enum_value($arrayKey), $arrayValue);
+        }
+    }
+public function getName():string { throw new \RuntimeException('Fixture body must not execute.'); }
+public function getHandler():mixed { throw new \RuntimeException('Fixture body must not execute.'); }
+public function getId():string { throw new \RuntimeException('Fixture body must not execute.'); }
+public function start():bool { return true; }
+} }
+namespace Illuminate\Http { use RuntimeException;
+class Request {
+/** @var object */
+protected $session;
+public function hasSession():bool { return true; }
+/**
+     * Get the session associated with the request.
+     *
+     * @return \Illuminate\Contracts\Session\Session
+     *
+     * @throws \RuntimeException
+     */
+public function session()
+    {
+        if (! $this->hasSession()) {
+            throw new RuntimeException('Session store not set on request.');
+        }
+
+        return $this->session->store;
+    }
+} }
+namespace Fixture {
+use Illuminate\Session\Store;
+class ReplayStore extends Store {
+/**
+ * @param \UnitEnum|string|array<array-key,mixed> $key
+ * @param mixed $value
+ * @return void
+ */
+public function put($key,$value=null) { $this->checkFailure(); parent::put($key,$value); }
+private function checkFailure():void {}
+}
+class RewritingStore extends Store {
+/**
+ * @param \UnitEnum|string|array<array-key,mixed> $key
+ * @param mixed $value
+ * @return void
+ */
+public function put($key,$value=null) { $key='fixed'; parent::put($key,$value); }
+}
+class ForeignStore {
+/**
+ * @param string $key
+ * @param mixed $value
+ */
+public function put($key,$value=null):void {}
+}
+class ShadowStore extends ReplayStore {
+/** @var string */
+protected $attributes='bad';
+}
+}

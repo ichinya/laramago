@@ -45,7 +45,7 @@ class GenericCast implements CastsAttributes {
     public function set($model, string $key, mixed $value, array $attributes): array { return []; }
 }
 class PlainClass { public function get(): Money { return new Money; } }
-/** @property string $documented */
+/** @property-read string $documented */
 class Record extends Model {
     protected $table = 'cast_records';
     protected $casts = [

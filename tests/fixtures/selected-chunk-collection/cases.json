@@ -1,0 +1,56 @@
+{
+  "sourceOnly": true,
+  "nativeAcceptanceClaimed": false,
+  "sources": {
+    "collections.php": "3b2eb3bb137a77336398d48757945c0fbd5786c120873a18fcbbded9e23dfc6e",
+    "dependency tree/laravel/framework/src/Illuminate/Database/Concerns/BuildsQueries.php": "e3da1e07796cc0749333a610cca73409ed96d20f130369b1b5f267a651c4f5cb",
+    "dependency tree/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php": "14a2f087d3bc917a40770307afa961f0601d20d68b37fd9f6e48d96412800608",
+    "dependency tree/laravel/framework/src/Illuminate/Database/Eloquent/HasCollection.php": "56e0808b8703227cecfb2146926aabd717fe8f2f09bbe5b6fc28dcccb9c14532",
+    "dependency tree/laravel/framework/src/Illuminate/Database/Eloquent/Model.php": "94e01e6dfdc923a4fec5f06c74054fdd6d56b9ee992ed3ddbcaea3b76bfb08aa",
+    "models.php": "db2a538bdc90a9ac3efc9ef20af5e2de580b57e88fe9158690edd3febe2275ae",
+    "negative.php": "ad2186eebcc45f0ec1bfcb69a3a80df7f79d65f288ee2034e3d9d6c01d7ae273",
+    "positive.php": "444a10fc4dc56e6e6d53cf285dcfa6b194e726d787df4583a533aa9e67d06adf"
+  },
+  "positiveOwners": [
+    "positive.php::Projection::configured",
+    "positive.php::Projection::direct",
+    "positive.php::Projection::unrelatedReference",
+    "positive.php::Projection::nestedReceivingExpression"
+  ],
+  "negativeOwners": [
+    "NegativeProjection::queryAlias",
+    "NegativeProjection::queryReference",
+    "NegativeProjection::queryRebind",
+    "NegativeProjection::queryEscape",
+    "NegativeProjection::changedModel",
+    "NegativeProjection::whereCallback",
+    "NegativeProjection::eagerLoadCallback",
+    "NegativeProjection::collectionAlias",
+    "NegativeProjection::collectionReference",
+    "NegativeProjection::collectionWrite",
+    "NegativeProjection::collectionEscape",
+    "NegativeProjection::customBuilder",
+    "NegativeProjection::customQuery",
+    "NegativeProjection::customCollection",
+    "NegativeProjection::incompatibleReceivingModel",
+    "NegativeProjection::unknownQuery",
+    "NegativeProjection::conditionalOrigin",
+    "NegativeProjection::referenceFormal",
+    "NegativeProjection::wrongCount",
+    "NegativeProjection::arbitraryCollection",
+    "NegativeProjection::dynamicLocalMutation",
+    "NegativeProjection::storedCallback",
+    "NegativeProjection::wrongConcreteArgument",
+    "NegativeProjection::selectedModelConfiguration",
+    "NegativeProjection::strongerCallbackDocumentation",
+    "NegativeProjection::inlineCallbackDocumentation"
+  ],
+  "expectedOriginalIds": [
+    "E024"
+  ],
+  "expectedClosedStages": 8,
+  "expectedGenuinePositiveErrors": 4,
+  "expectedNativeNegativeOwners": 26,
+  "expectedGenuineControls": 219,
+  "expectedActualCacheMutations": 68
+}

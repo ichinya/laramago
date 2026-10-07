@@ -1,0 +1,25 @@
+<?php
+declare(strict_types=1);
+namespace Fixture\ArgumentClosureWrites;
+use Testo\Assert;
+function integerOnly(int $number): void {}
+function change(mixed &$value): void {}
+final class Negative
+{
+    public function byValue(): void { integerOnly('bad');$seen=false;(new Registry)->retain(function() use ($seen): void {$seen=true;});Assert::true($seen); }
+    public function storedLocal(): void { integerOnly('bad');$seen=false;$callback=function() use (&$seen): void {$seen=true;};(new Registry)->retain($callback);Assert::true($seen); }
+    public function referenceAlias(): void { integerOnly('bad');$seen=false;$alias=&$seen;(new Registry)->retain(function() use (&$seen): void {$seen=true;});Assert::true($seen); }
+    public function aliasBeforeFreshBinding(): void { integerOnly('bad');$seen=null;$alias=&$seen;$seen=false;(new Registry)->retain(function() use (&$seen): void {$seen=true;});Assert::true($seen); }
+    public function outerRebind(): void { integerOnly('bad');$seen=false;(new Registry)->retain(function() use (&$seen): void {$seen=true;});$seen=false;Assert::true($seen); }
+    public function unknownWrite(): void { integerOnly('bad');$seen=false;(new Registry)->retain(function() use (&$seen): void {$seen=1;});Assert::true($seen); }
+    public function referenceEscape(): void { integerOnly('bad');$seen=false;(new Registry)->retain(function() use (&$seen): void {change($seen);$seen=true;});Assert::true($seen); }
+    public function nestedLifetime(): void { integerOnly('bad');$seen=false;(new Registry)->retain(function() use (&$seen): void {$nested=function() use (&$seen): void {$seen=true;};});Assert::true($seen); }
+    public function unreachableWrite(): void { integerOnly('bad');$seen=false;(new Registry)->retain(function() use (&$seen): void {throw new \RuntimeException('stop');$seen=true;});Assert::true($seen); }
+    public function falseGuard(): void { integerOnly('bad');$seen=false;(new Registry)->retain(function() use (&$seen): void {if(false){$seen=true;}});Assert::true($seen); }
+    public function referenceFormal(): void { integerOnly('bad');$seen=false;(new Registry)->retain(function(string &$stage) use (&$seen): void {$seen=true;});Assert::true($seen); }
+    public function dynamicLocals(): void { integerOnly('bad');$seen=false;$name='seen';$$name=false;(new Registry)->retain(function() use (&$seen): void {$seen=true;});Assert::true($seen); }
+    public function removedBinding(): void { integerOnly('bad');$seen=false;(new Registry)->retain(function() use (&$seen): void {$seen=true;});unset($seen);Assert::true($seen); }
+    public function namedArgument(): void { integerOnly('bad');$seen=false;(new Registry)->retain(callback:function() use (&$seen): void {$seen=true;});Assert::true($seen); }
+    public function impossibleStringComparison(): void { integerOnly('bad');$seen=false;(new Registry)->retain(function(int $stage) use (&$seen): void {if(!$seen&&$stage==='commit'){$seen=true;}});Assert::true($seen); }
+    public function nonStringCapturedLoop(): void { integerOnly('bad');foreach([1,2] as $fault){$seen=false;(new Registry)->retain(function(string $stage) use (&$seen,$fault): void {if(!$seen&&$stage===$fault){$seen=true;}});Assert::true($seen);} }
+}

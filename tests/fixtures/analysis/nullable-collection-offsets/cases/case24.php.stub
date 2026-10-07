@@ -1,0 +1,9 @@
+<?php
+
+namespace NullableIndexCase24;
+/** @extends \Illuminate\Support\Collection<array-key, \NullableOffsetFixture\Record> */
+class Custom extends \Illuminate\Support\Collection {
+    public function &storage(): mixed { return $this->items; }
+}
+function read(Custom $rows, ?int $key): void { $storage =& $rows->storage(); $storage = new \NullableOffsetFixture\ForeignOffsets; $rows[$key]->missing(); }
+file_put_contents(__DIR__."/case-executed", "Scenario bodies must never execute.");

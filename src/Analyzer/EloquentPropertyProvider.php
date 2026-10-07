@@ -7,6 +7,7 @@ namespace Ichinya\Laramago\Analyzer;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\AttributeTypes;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\CustomCastTypes;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ModelReflection;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\ModelPropertyReadContracts;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\RelationDefaults;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\RelationMethodInference;
@@ -23,6 +24,7 @@ use Mago\Sdk\Analyzer\PropertyType;
 use Mago\Sdk\Analyzer\PropertyTypeProvider;
 use Mago\Sdk\Analyzer\PropertyTypeProviderContext;
 use Mago\Sdk\Analyzer\Type;
+use Mago\Sdk\Analyzer\TypeComparator;
 use Mago\Sdk\Analyzer\Type\NamedObjectType;
 use Mago\Sdk\Analyzer\Type\Visibility;
 use Mago\Sdk\Reporting\Issue;
@@ -33,6 +35,7 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
 {
     private ?PhpSource $source = null;
     private ?SchemaIndex $schema = null;
+    private ?ModelPropertyReadContracts $readContracts = null;
     /** @var array<string, PropertyType|null> */
     private array $properties = [];
     /** @var array<string, array<string, string|UnknownValue>|UnknownValue> */
@@ -54,6 +57,7 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
         // Initialization is replayed for every worker and analysis generation.
         $this->source = null;
         $this->schema = null;
+        $this->readContracts = null;
         $this->properties = $this->casts = $this->tables = [];
     }
 
@@ -61,6 +65,7 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
     {
         if ($this->source === null) {
             $this->source = new PhpSource($this->root);
+            $this->readContracts = new ModelPropertyReadContracts($this->source);
             $this->schema = new SchemaIndex($this->source);
             $this->schema->load();
         }
@@ -104,21 +109,46 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
         $class = $context->access->class;
         $property = $context->access->property;
         $key = strtolower($class).'::$'.$property;
+        if ($this->readContracts !== null && ! $this->readContracts->current()) {
+            return null;
+        }
         if (! array_key_exists($key, $this->properties)) {
-            $this->properties[$key] = $this->resolve($context->codebase, $class, $property);
+            $this->properties[$key] = $this->resolve($context->codebase, $class, $property, $context->types);
         }
 
         return $this->properties[$key];
     }
 
-    private function resolve(Codebase $codebase, string $class, string $property): ?PropertyType
+    /** Resolve the same current model contract for a genuine argument issue context. */
+    public function currentPropertyContract(\Mago\Sdk\Analyzer\IssueFilterContext $context, string $class, string $property): ?PropertyType
+    {
+        $context->cancellation->throwIfCancelled();
+        $composer = @hash_file('sha256', $this->root.'/composer.json');
+        $source = $this->source();
+        if ($composer === false || $source->warnings !== [] || ! $source->isCurrent() || ! $this->readContracts->current()
+            || ! \Ichinya\Laramago\Analyzer\StaticAnalysis\PhysicalModelDefaultContracts::admits($context, $source, $class)) {
+            return null;
+        }
+        $contract = $this->resolve($context->codebase, $class, $property, $context->types);
+
+        return $source->warnings === [] && $source->isCurrent() && $this->readContracts->current()
+            && @hash_file('sha256', $this->root.'/composer.json') === $composer ? $contract : null;
+    }
+    private function resolve(Codebase $codebase, string $class, string $property, TypeComparator $types): ?PropertyType
     {
         if (
             strcasecmp($class, ModelReflection::MODEL) === 0
             || $codebase->getDeclaringProperty($class, '$'.$property) !== null
-            || $codebase->getDeclaringMagicProperty($class, '$'.$property) !== null
         ) {
             return null;
+        }
+        $magic = $codebase->getDeclaringMagicProperty($class, '$'.$property)
+            ?? $codebase->getMagicProperty($class, '$'.$property);
+        if ($magic !== null) {
+            $this->source();
+            if ($this->readContracts?->general($codebase, $types, $class, $property) === null) {
+                return null;
+            }
         }
         $reflection = new ModelReflection($codebase, $this->source());
         foreach ([
@@ -147,6 +177,7 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
         $column = $this->schema?->column($this->tables[$class], $property);
         $casts = $this->casts[$class];
         $attribute = null;
+        $knownCast = false;
         if (is_array($casts)) {
             if (array_key_exists($property, $casts)) {
                 $cast = $casts[$property];
@@ -163,11 +194,16 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
                             : null
                     )
                     : AttributeTypes::nullable($type, $column?->nullable ?? true);
+                $knownCast = $attribute !== null;
             } elseif ($column !== null) {
                 $attribute = $reflection->automaticDate($class, $property)
                     ? AttributeTypes::nullable(AttributeTypes::date(), $column->nullable)
                     : AttributeTypes::column($column);
             }
+        }
+        // Unknown casts and schema-only inference retain the documented contract.
+        if ($magic !== null && ! $knownCast) {
+            return null;
         }
         $studly = ModelReflection::studly($property);
         $getter = $reflection->method($class, 'get'.$studly.'Attribute');
@@ -182,7 +218,11 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
         ) {
             $parameters = $modernType->atomicTypes[0]->parameters ?? [];
             if (count($parameters) === 2) {
-                return new PropertyType($parameters[0], $parameters[1]);
+                $actual = new PropertyType($parameters[0], $parameters[1]);
+
+                return $magic === null ? $actual : $this->readContracts?->metadataCastContract(
+                    $codebase, $types, $class, $property, $actual, true, true,
+                );
             }
 
             return null;
@@ -200,10 +240,19 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
                 return null;
             }
 
-            return $read === null && $write === null ? null : new PropertyType($read, $write);
+            if ($read === null && $write === null) {
+                return null;
+            }
+            $actual = new PropertyType($read, $write);
+
+            return $magic === null ? $actual : $this->readContracts?->metadataCastContract(
+                $codebase, $types, $class, $property, $actual, $setter !== null, $getter !== null,
+            );
         }
         if ($attribute !== null) {
-            return $attribute;
+            return $magic === null ? $attribute : $this->readContracts?->metadataCastContract(
+                $codebase, $types, $class, $property, $attribute,
+            );
         }
         // Casts and real columns take precedence over methods with the same name.
         if ($casts === UnknownValue::Value || array_key_exists($property, $casts) || $column !== null) {

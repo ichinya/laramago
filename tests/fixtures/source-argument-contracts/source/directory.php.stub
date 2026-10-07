@@ -1,0 +1,12 @@
+<?php
+namespace Fixture\ArgumentContracts;
+final class ProcessDirectory
+{
+    /** @param list<string> $command */
+    public function __construct(private readonly array $command, private readonly string $directory) {}
+    public function launch(): mixed
+    {
+        $pipes = [];
+        return proc_open($this->command, [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, $this->directory);
+    }
+}

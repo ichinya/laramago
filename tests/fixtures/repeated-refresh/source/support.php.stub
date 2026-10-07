@@ -1,0 +1,32 @@
+<?php
+namespace Illuminate\Database\Eloquent {
+    /** @template TModel of Model */
+    class Builder {
+        /** @return TModel */ public function firstOrFail(): Model { throw new \RuntimeException('Database execution is forbidden.'); }
+    }
+}
+namespace Illuminate\Database\Eloquent\Attributes {
+    #[\Attribute] final class UseEloquentBuilder { public function __construct(public string $builderClass) {} }
+}
+namespace Illuminate\Contracts\Database\Eloquent {
+    interface CastsAttributes {
+        public function get(\Illuminate\Database\Eloquent\Model $model, string $key, mixed $value, array $attributes): mixed;
+        public function set(\Illuminate\Database\Eloquent\Model $model, string $key, mixed $value, array $attributes): mixed;
+    }
+}
+namespace Testo\Assert\Internal {
+    final class StaticState {
+        public static function success(mixed $value, string $assertion, string $message): void {}
+        public static function fail(\Throwable $failure): never { throw $failure; }
+    }
+    final class Support { public static function stringify(mixed $value): string { return ''; } }
+}
+namespace Testo\Common\Attribute {
+    #[\Attribute] final class AssertMethod {}
+}
+namespace Testo\Assert\State\Assertion {
+    class AssertionException extends \RuntimeException {}
+    final class ComparisonFailure extends \RuntimeException {
+        public function __construct(mixed $expected, mixed $actual, string $value, string $assertion, string $context, string $reason) {}
+    }
+}

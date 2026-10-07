@@ -6,6 +6,7 @@ declare(strict_types=1);
 // cast reads as numeric-string: string comparisons and (float) casts stay sound,
 // other casts keep their mappings, and non-literal cast declarations defer natively.
 
+$strict = in_array('--strict', $argv, true);
 $package = str_replace('\\', '/', dirname(__DIR__));
 $workspace = str_replace('\\', '/', sys_get_temp_dir()).'/laramago decimal casts '.bin2hex(random_bytes(8));
 $framework = $workspace.'/laravel/framework/src/Illuminate';
@@ -90,7 +91,7 @@ file_put_contents($workspace.'/models.php', <<<'PHP'
         ];
     }
 
-    /** @property float $documented */
+    /** @property-read float $documented */
     class DocumentedLedger extends Model
     {
         protected $casts = ['documented' => 'decimal:2', 'name' => 'string'];
@@ -121,7 +122,7 @@ $cases = [
     'assert-same-decimal' => 'function assertSameDecimal(Example\Ledger $m): void { \Testo\Assert::same($m->hours, "8.00"); }',
     'strict-compare-decimal' => 'function strictCompareDecimal(Example\Ledger $m): bool { return $m->hours === "8.00"; }',
     'float-cast-decimal' => 'function floatCastDecimal(Example\Ledger $m): float { return (float) $m->hours; }',
-    'decimal-is-not-float' => 'function decimalIsNotFloat(Example\Ledger $m): float { return $m->hours; }',
+    'decimal-weak-float-conversion' => 'function decimalWeakFloatConversion(Example\Ledger $m): float { return $m->hours; }',
     'decimal-is-string-subtype' => 'function decimalIsStringSubtype(Example\Ledger $m): string { return $m->hours; }',
     'method-casts-decimal' => 'function methodCastsDecimal(Example\Metric $m): string { return $m->value; }',
     'integer-cast-unchanged' => 'function integerCastUnchanged(Example\Ledger $m): int { return $m->count; }',
@@ -136,7 +137,7 @@ $cases = [
     'dynamic-comparison-defers' => 'function dynamicComparisonDefers(Example\Dynamic $m): void { \Testo\Assert::same($m->whatever, "8.00"); }',
     'dynamic-float-cast-defers' => 'function dynamicFloatCastDefers(Example\Dynamic $m): float { return (float) $m->whatever; }',
 ];
-$source = "<?php\n\n".implode("\n", array_values($cases))."\n";
+$source = "<?php\n".($strict ? "declare(strict_types=1);\n" : "\n").implode("\n", array_values($cases))."\n";
 file_put_contents($workspace.'/cases.php', $source);
 $lines = [];
 $line = 3;
@@ -193,8 +194,8 @@ $summarize = static function (array $issues): array {
 $native = $summarize($run(true));
 $adapted = $summarize($run(false));
 
-// Decimal casts must be numeric-string: the reference project shows that models
-// documenting `@property float` keep native float behavior, so that must stay equal.
+// Decimal casts read as numeric-string. Explicit directional read declarations
+// retain priority; weak native float returns permit PHP's numeric conversion.
 $documented = ['documented-float-wins-comparison'];
 $deferred = [
     'documented-float-wins-return',
@@ -205,7 +206,7 @@ $expected = [
     'assert-same-decimal' => [],
     'strict-compare-decimal' => [],
     'float-cast-decimal' => [],
-    'decimal-is-not-float' => ['invalid-return-statement'],
+    'decimal-weak-float-conversion' => $strict ? ['invalid-return-statement'] : [],
     'decimal-is-string-subtype' => [],
     'method-casts-decimal' => [],
     'integer-cast-unchanged' => [],

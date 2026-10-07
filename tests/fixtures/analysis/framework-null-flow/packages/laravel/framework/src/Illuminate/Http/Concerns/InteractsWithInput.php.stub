@@ -1,0 +1,29 @@
+<?php namespace Illuminate\Http\Concerns; use Symfony\Component\HttpFoundation\InputBag; trait InteractsWithInput { /**
+ * Retrieve a header from the request.
+ *
+ * @param  string|null  $key
+ * @param  string|array|null  $default
+ * @return string|array|null
+ */
+public function header($key = null, $default = null)
+{
+    return $this->retrieveItem('headers', $key, $default);
+}
+/**
+ * Retrieve a parameter item from a given source.
+ *
+ * @param  string  $source
+ * @param  string|null  $key
+ * @param  string|array|null  $default
+ * @return string|array|null
+ */
+protected function retrieveItem($source, $key, $default)
+{
+    if (is_null($key)) {
+        return $this->{$source}->all();
+    }
+    if ($this->{$source} instanceof InputBag) {
+        return $this->{$source}->all()[$key] ?? $default;
+    }
+    return $this->{$source}->get($key, $default);
+} }

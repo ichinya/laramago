@@ -1,0 +1,645 @@
+{
+    "sourceOnly": true,
+    "sdkContextsConstructed": false,
+    "applicationExecuted": false,
+    "files": {
+        "vendor/fakerphp/faker/src/Faker/Factory.php": {
+            "sourceSha256": "fed3e4ca2896ea96325d52b956a49894b982618d091dba4dd8761b9b5fa9cb7f",
+            "bytes": 2043,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/fakerphp/faker/src/Faker/Generator.php": {
+            "sourceSha256": "7f59225a08e57dd6da5871038a39f1a71df66fd3d11b35b4c9792685f46db53a",
+            "bytes": 23044,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/fakerphp/faker/src/Faker/Provider/Base.php": {
+            "sourceSha256": "a7da99e4c9986f8f8e92fbc6ecc353cd580a878e30672d37f84da0e174074056",
+            "bytes": 22732,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/fakerphp/faker/src/Faker/Provider/Lorem.php": {
+            "sourceSha256": "bad1381ed0e58dfaeafc73452f1a09cbbc7b6de6a474db909be02bfa1ae57c8e",
+            "bytes": 7884,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Cache/CacheManager.php": {
+            "sourceSha256": "59870842273e881b430676643ae090af80fdc5bd40d6a476ef7e5fa80c3141b1",
+            "bytes": 15896,
+            "reason": "current-physical-receiver-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Cache/CacheServiceProvider.php": {
+            "sourceSha256": "8dca04071c1e46f7010d80823d973e10f2d01959ea8387c66b1e4cecf551ffe2",
+            "bytes": 1350,
+            "reason": "current-physical-receiver-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Collections/Collection.php": {
+            "sourceSha256": "ceafbf61a8fdc2ccf679b97bd7efcfa5bbef88c820af17650de3129c4271dffe",
+            "bytes": 55764,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Collections/Enumerable.php": {
+            "sourceSha256": "d42991536c9544b788509093e1feda7cff0a2e71236127d88650713c813e426f",
+            "bytes": 39908,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Collections/Traits/EnumeratesValues.php": {
+            "sourceSha256": "4bd8d0b083a86aaee34757c92d1ea4ea15fa8ee1e74b655dcbe2a18bb34ac710",
+            "bytes": 35688,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Collections/Traits/TransformsToResourceCollection.php": {
+            "sourceSha256": "e69612f8fa4668e951f8b17f3741da4a1364d369d67bb2f72c01860d17051c50",
+            "bytes": 4046,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Conditionable/Traits/Conditionable.php": {
+            "sourceSha256": "5697fdba0acb78ca0b4e122e5c459cd5d97d000ed9b14fed31271cb7ffd44225",
+            "bytes": 2256,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Container/Container.php": {
+            "sourceSha256": "8bbfbc5955205f817106077355a493952e685bc376653236a7188f20ff634ea8",
+            "bytes": 53736,
+            "reason": "current-physical-receiver-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Contracts/Broadcasting/HasBroadcastChannel.php": {
+            "sourceSha256": "4adf747bb1f0810b2a8aacd3ab55d59fe348bdb57a47130375264d5fc1002b43",
+            "bytes": 435,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Contracts/Cache/Factory.php": {
+            "sourceSha256": "f7100fac1674e11bb69c172bcf1f990358eab4948446831e532dfd974594462a",
+            "bytes": 273,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/laravel/framework/src/Illuminate/Contracts/Container/Container.php": {
+            "sourceSha256": "cca1c6c4c50aa8bf7007e786cde473cc9bab83317367f384ab711a0c4d305611",
+            "bytes": 6157,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/laravel/framework/src/Illuminate/Contracts/Database/Eloquent/Builder.php": {
+            "sourceSha256": "817073e06f03a18988be9f89d3b0f4c4fcdc53691542c63c82bbd67d52745c5c",
+            "bytes": 302,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Contracts/Database/Query/Builder.php": {
+            "sourceSha256": "068cd00298cdece3e3e06bce161894b798aa0f5bc2846b117c878252b54282ad",
+            "bytes": 209,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Contracts/Foundation/Application.php": {
+            "sourceSha256": "2eb6102cc426357abc3985b321010e904c2c48be94c3b6e21b1fee79cca48ab8",
+            "bytes": 5606,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/laravel/framework/src/Illuminate/Contracts/Foundation/CachesConfiguration.php": {
+            "sourceSha256": "305b3d0d91dd8540fcbdb191cb017b8b5fdec066822371f8a7dedae7d7502875",
+            "bytes": 520,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/laravel/framework/src/Illuminate/Contracts/Foundation/CachesRoutes.php": {
+            "sourceSha256": "cf84a535d1626958461e4ed9e4545c6758dce92a1c1800c0612f43d88123762c",
+            "bytes": 350,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/laravel/framework/src/Illuminate/Contracts/Queue/QueueableCollection.php": {
+            "sourceSha256": "81362155fbb9119746d60c87b924751eda7b13ce3e05fcab6eb796e31daf0b04",
+            "bytes": 684,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Contracts/Queue/QueueableEntity.php": {
+            "sourceSha256": "c081e746d19db452e6ba546cb2a9e1efb838fc81f6deeb9cd4d7d892d64a26fb",
+            "bytes": 481,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Contracts/Routing/UrlRoutable.php": {
+            "sourceSha256": "d8abf6cf9a7f35d0c1bed24bf26adef6bdb60cf0f3f9e0a0bc05639e17872c77",
+            "bytes": 881,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Contracts/Support/Arrayable.php": {
+            "sourceSha256": "118dd63e3c239eb4f078acdb9a5e1cce1119c51b30ddc30d210a31d43d549b01",
+            "bytes": 257,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Contracts/Support/CanBeEscapedWhenCastToString.php": {
+            "sourceSha256": "5258583536b1ed008cbb2779c6780816fe1c5b64faae786e0887608531870463",
+            "bytes": 329,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Contracts/Support/DeferrableProvider.php": {
+            "sourceSha256": "75a318f56724f12c750d3539b5d69f53871fd4ca02c5296cf8ef9c1e35835acb",
+            "bytes": 207,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/laravel/framework/src/Illuminate/Contracts/Support/Jsonable.php": {
+            "sourceSha256": "472aa9df71c593a21d5382d4ed9fe05997543d622da5f833ac443b0bf9f719fd",
+            "bytes": 241,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Concerns/BuildsQueries.php": {
+            "sourceSha256": "86cdd809eaa23e889a0af6511f05382ce11b02ec3abbd61b5fe970362c8ff110",
+            "bytes": 21634,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/ConnectionResolverInterface.php": {
+            "sourceSha256": "05e764edae3ec80a4db69f3fd2769b0baad8cb08472b6c86b6b01e33db642feb",
+            "bytes": 585,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/DatabaseManager.php": {
+            "sourceSha256": "d39f63ee3c559f6ead34cc7b73bf35438e80f40daadadc777c2ede53e85451a2",
+            "bytes": 14272,
+            "reason": "current-physical-receiver-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/DatabaseServiceProvider.php": {
+            "sourceSha256": "834a7ad0dd5f3ce41735fd02afaa69d85589e64cc7c5ca095f9816e1fc55b87d",
+            "bytes": 3822,
+            "reason": "current-physical-receiver-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php": {
+            "sourceSha256": "c4613c5480c40289af99647cd0c11ba8bc355e729e90bd18b9047c4b0c8cb9ac",
+            "bytes": 70153,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Collection.php": {
+            "sourceSha256": "f595b5029d751c5ca2d602247af4befd94d5bdc28b9c189b5b9af09bbfb0a01d",
+            "bytes": 26082,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/GuardsAttributes.php": {
+            "sourceSha256": "2e1b77306a0fbc050e1ae3c78d2b5b53d3033c347b4d0a9a2ada5160e1fb6d61",
+            "bytes": 7194,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasAttributes.php": {
+            "sourceSha256": "a0e8106eca79da6caedd151cf915c0cf17418c3e3ec120ef36d19d61b5681edb",
+            "bytes": 76014,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasEvents.php": {
+            "sourceSha256": "e86185a511f4e5099315df5cc3959679502d7c9a71157cedf31a302fefc313cf",
+            "bytes": 12282,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasGlobalScopes.php": {
+            "sourceSha256": "6fcea39ebf6836edd45e96a8d17a6a4cfca0add7a0287c2ea46f74a0d575073c",
+            "bytes": 4863,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasRelationships.php": {
+            "sourceSha256": "a7258ca67a51e13722a27ea62b9d3ed802a56c40d51920ffa23301acaf7b4059",
+            "bytes": 40155,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasTimestamps.php": {
+            "sourceSha256": "25ec1bf4a0be4595f82064e534fd42fdaa62013ef6ce5a79d5a136304f44aa7a",
+            "bytes": 6149,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasUniqueIds.php": {
+            "sourceSha256": "512851792103c356fb12ff6538dd910c381317faee414cd51e9f78cabb92b020",
+            "bytes": 1017,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HidesAttributes.php": {
+            "sourceSha256": "dcf48f883c8970de4481eed0029724e280766a3a0e7c6cce3016df849079353c",
+            "bytes": 4235,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/PreventsCircularRecursion.php": {
+            "sourceSha256": "f997a287dc9153687ef870b1f1ea23bf1ecba974567ab3c8a514ec3c9aaf01bf",
+            "bytes": 3142,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/QueriesRelationships.php": {
+            "sourceSha256": "33452e2d263e1a34caa0d5c243ba138724b88156482829a15b20c9cf4c75b321",
+            "bytes": 45139,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/TransformsToResource.php": {
+            "sourceSha256": "9550ce5b6c8072831814c0ca3dd7a310d50e4607d2b2548a364f66077823177d",
+            "bytes": 3035,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Factories/Factory.php": {
+            "sourceSha256": "43059722a8ab105b6656c041576d62d375e319f6f0942685ec8d2d6d3e68e47d",
+            "bytes": 35806,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/HasCollection.php": {
+            "sourceSha256": "56e0808b8703227cecfb2146926aabd717fe8f2f09bbe5b6fc28dcccb9c14532",
+            "bytes": 1645,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php": {
+            "sourceSha256": "ce1a8b5f13bcab6457b5d1cd0316bf957050cebbe00572df0b31a2e3c508d6a9",
+            "bytes": 81880,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Relations/Concerns/InteractsWithDictionary.php": {
+            "sourceSha256": "339952973ea62669745b6505c3bf1b887a7e4d39d25fd657d816e654ae7b1426",
+            "bytes": 1035,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Foundation/Application.php": {
+            "sourceSha256": "842ce90400eeba748b1821b3e33b5a23322e2ad9cc9381e0a980052fa0e352ba",
+            "bytes": 47493,
+            "reason": "current-physical-receiver-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Foundation/Configuration/ApplicationBuilder.php": {
+            "sourceSha256": "efa47f6eeb906833631fe643024036380e9b2c24b1c5ff4e7f3c4733da761830",
+            "bytes": 16158,
+            "reason": "current-physical-receiver-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Foundation/Configuration/Middleware.php": {
+            "sourceSha256": "c168fce389f0fe88ff85f89c10f6d50fed3d85da6f34efe03a68772ca8290b48",
+            "bytes": 22610,
+            "reason": "current-physical-receiver-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Foundation/helpers.php": {
+            "sourceSha256": "84a94be4f68fd0f749a87f05a7cb1b78ddc07c7d2121b56c6f05ff6ef80d34c6",
+            "bytes": 29821,
+            "reason": "current-physical-receiver-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Macroable/Traits/Macroable.php": {
+            "sourceSha256": "6dd85b1e28b55ebeee678f9ca423dfb8375e1342bc42d8658da6321bdf97b3c0",
+            "bytes": 3060,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Reflection/Traits/ReflectsClosures.php": {
+            "sourceSha256": "bf84433c121beb6267435ca7ff7bd48fd94d61624e4a8ecde6ed7665e6825fa5",
+            "bytes": 3652,
+            "reason": "current-physical-receiver-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Support/DefaultProviders.php": {
+            "sourceSha256": "2bfea842c62f91a0e4c7398bf8095b5cceff9503b58f5ee196ecf8b1b44be29c",
+            "bytes": 3371,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Support/Facades/DB.php": {
+            "sourceSha256": "b6b416e5a51759756494293dcf6bfe31a36a37b0d7afe464965abf5981671eb0",
+            "bytes": 8944,
+            "reason": "current-physical-receiver-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Support/Facades/Facade.php": {
+            "sourceSha256": "5d4eb0eee1be78b6c5dcf69e8907d5b85ecd4368716ff8a32f431848265c986b",
+            "bytes": 9367,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/laravel/framework/src/Illuminate/Support/Once.php": {
+            "sourceSha256": "61683d6fd67b1415ce1ffade9a9aa845508bd1cf033e034ae4ec6ee75595392f",
+            "bytes": 1905,
+            "reason": "current-physical-receiver-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Support/RebindsCallbacksToSelf.php": {
+            "sourceSha256": "383b935e55713b11f151d4ca3e669abbd1047f06702b2714e1deea28a6d0c29a",
+            "bytes": 860,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/laravel/framework/src/Illuminate/Support/ServiceProvider.php": {
+            "sourceSha256": "b7cd6aff28470694df2f3ec2ccc55a88a8c7f509fc651349bd2768d8f21a2643",
+            "bytes": 17144,
+            "reason": "current-physical-receiver-library"
+        },
+        "vendor/laravel/framework/src/Illuminate/Support/Traits/ForwardsCalls.php": {
+            "sourceSha256": "b90103bc7248a11bd7629c525e064a45a50dd93ae0d836bcb79937e63f0b3568",
+            "bytes": 1874,
+            "reason": "accepted-default-formatter-library"
+        },
+        "vendor/nesbot/carbon/src/Carbon/CarbonImmutable.php": {
+            "sourceSha256": "25112a2e7a79a2ef9a2b4ae2b1d97dc6111792bb2c90e74ac0cd5d7ee4ebce01",
+            "bytes": 291726,
+            "reason": "current-physical-receiver-library"
+        },
+        "vendor/nesbot/carbon/src/Carbon/CarbonInterface.php": {
+            "sourceSha256": "b0c85422ea45401d6ffb783a85b666b4f9a10d72b5fc74ccb6616f0e3489cde3",
+            "bytes": 443649,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Constants/DiffOptions.php": {
+            "sourceSha256": "b76d1f1e666be814870022240b38e2ff24de0778d6d49d6d060ff65787315e38",
+            "bytes": 942,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Constants/Format.php": {
+            "sourceSha256": "301f6429c3cee2ad89240d368e8766ea4ee5e3a0d9659f1621c8eb9006ef73e0",
+            "bytes": 1104,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Constants/TranslationOptions.php": {
+            "sourceSha256": "fcc6f781f18ac31b1bc5739c509825aa6cdf5bacb07525597cbadf484cf06a76",
+            "bytes": 983,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Constants/UnitValue.php": {
+            "sourceSha256": "f1f6ae92f37618ce154ecec50b1a1fc9400144d4bf45c5f5de529a6a0424f511",
+            "bytes": 1771,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Traits/Boundaries.php": {
+            "sourceSha256": "bc5c1520c19abcb8a3d04dec0b4b1c1ce223f2520ecb263b163eef730965f75d",
+            "bytes": 12438,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Traits/Cast.php": {
+            "sourceSha256": "6538462dc306eacf20262009bafc6fe11e015ad684ab96e5d0068a4b759a1bcd",
+            "bytes": 1187,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Traits/Comparison.php": {
+            "sourceSha256": "2238f1264439673c03b0f283618e7638718eb6a6f4aa6b9d74f58b59e9b5906b",
+            "bytes": 47200,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Traits/Converter.php": {
+            "sourceSha256": "cd21f3c4fef4aff09bacf22720ae49a3a8bc1fa63e4613fa244b7181c0e1ee1b",
+            "bytes": 14461,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Traits/Creator.php": {
+            "sourceSha256": "bfdda540e282954742db12b94a12ff23895ee04073682582089307c25d3a215b",
+            "bytes": 31927,
+            "reason": "current-physical-receiver-library"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Traits/Date.php": {
+            "sourceSha256": "30a1e37fe58316ddff144529f3239143ff6b2459547d086c361a09d0970199c1",
+            "bytes": 367114,
+            "reason": "current-physical-receiver-library"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Traits/Difference.php": {
+            "sourceSha256": "ce0d4db35c21ace424a014578bec04eca915e9a69710d106b483212b492f68c8",
+            "bytes": 43657,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Traits/IntervalRounding.php": {
+            "sourceSha256": "f8aa8b67c35ba4c9a2dd49784f246a1cecd2c8fb179c69934ddc5dd3a64f17b0",
+            "bytes": 1689,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Traits/LocalFactory.php": {
+            "sourceSha256": "dd91dfab65d71167276cb3430fb3887c496b14d145e537b7561565a038be1bdd",
+            "bytes": 1626,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Traits/Localization.php": {
+            "sourceSha256": "c9e5cba3a1609019a5e0b4b9e646f216d3fb28dcf914202b20ed74cdcb223efe",
+            "bytes": 29198,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Traits/Macro.php": {
+            "sourceSha256": "a253f4e36273051bae4f0c17c9975c51132a757b02eb53645dff0978c0ea5bf5",
+            "bytes": 2771,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Traits/MagicParameter.php": {
+            "sourceSha256": "98143b4ffa7ece214294714719f56630f236274ab14571cb5bac075ef22c9803",
+            "bytes": 747,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Traits/Mixin.php": {
+            "sourceSha256": "5491a7cc283a03fb2240d193acfab173081a4e4132b9c805aac34771d5a89fb6",
+            "bytes": 7450,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Traits/Modifiers.php": {
+            "sourceSha256": "3fa3b46a794e51ec6c6a84090c21a84103986d34c130a36cf56d96181bff839f",
+            "bytes": 13915,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Traits/Mutability.php": {
+            "sourceSha256": "927ec48583d6cb415b42637e33a592a719d6cc88b7081ec8d4ac8aa083b506ce",
+            "bytes": 1300,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Traits/ObjectInitialisation.php": {
+            "sourceSha256": "0e15bb605dca915b0c5d4415f530a564b2ef6a1ffa46cc78209a6ee1c7c2b544",
+            "bytes": 448,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Traits/Options.php": {
+            "sourceSha256": "05619d097672b095c39c163e2fa514326056301675005445534c8d2d89fd5603",
+            "bytes": 6064,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Traits/Rounding.php": {
+            "sourceSha256": "474a533e3a57c186a311e718357172b69c14f248b61ea9445334e1e78429d1bd",
+            "bytes": 7093,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Traits/Serialization.php": {
+            "sourceSha256": "de0e1ea1bc306ad603494d670590f23fb8049bf8800e10b933f59c028dbb1104",
+            "bytes": 6914,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Traits/StaticLocalization.php": {
+            "sourceSha256": "4f9f8e7535980a8d4c9d23d2d470fd35f76ae56468388e2db7698e582b721864",
+            "bytes": 2387,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Traits/StaticOptions.php": {
+            "sourceSha256": "0ef3d75f6f5a57a48e333a12b1e9ab47d204e78e97c7b80f156a2e6c93564501",
+            "bytes": 5403,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Traits/Test.php": {
+            "sourceSha256": "e93708ed000bee95cca3d33a74faa743321ca0cc5cf990408d791f8e1072d854",
+            "bytes": 6435,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Traits/Timestamp.php": {
+            "sourceSha256": "b4487b810e6a4b05fa5c9d338b6ec5d8339f3719521d6a28144c09ff0daaa4cf",
+            "bytes": 6606,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Traits/ToStringFormat.php": {
+            "sourceSha256": "5e9101f46dad47b860458d11b3309bae839546cbb419fbaf15fe93d861c62f19",
+            "bytes": 1450,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Traits/Units.php": {
+            "sourceSha256": "a8b988c0d72f7710d600e91b8e29d09af5c79eaaa5998eafb7148734a259e280",
+            "bytes": 20022,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/nesbot/carbon/src/Carbon/Traits/Week.php": {
+            "sourceSha256": "4383ba3a1e433349741853035ab0996c59c5227a51a657725389b92831183198",
+            "bytes": 7726,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/psr/container/src/ContainerInterface.php": {
+            "sourceSha256": "8c8f8d1a3dececb5f09514a35f7ad01afa5674faa2d08834bcbe5921a9f2e35b",
+            "bytes": 1046,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/symfony/console//Input/Input.php": {
+            "sourceSha256": "1274307e4db1bed18de3eea23094e2d2fdbef8e0f13d8e158134741c9739d417",
+            "bytes": 6174,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/symfony/console//Input/InputInterface.php": {
+            "sourceSha256": "5bafb407d514dd6182a4f2eef4555f52d24f475f39db9d57a83bdb3f48677aa7",
+            "bytes": 4540,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/symfony/console//Input/RawInputInterface.php": {
+            "sourceSha256": "f5c1ea51eb593ae28ac2503295274137dc808b8497dc3500e63ceff27e5f5bf9",
+            "bytes": 2090,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/symfony/console//Input/StreamableInputInterface.php": {
+            "sourceSha256": "6dba5d87ffae3f01fe6ab0322187902a1a9c72dd94880a5ab2d4d76446bf628c",
+            "bytes": 879,
+            "reason": "explicit-parent-interface-or-trait"
+        },
+        "vendor/symfony/console/Input/ArgvInput.php": {
+            "sourceSha256": "5bdc30e9b3838183ec1f8bff222bdf053a5156051606b5b6be51b4b01c8351d1",
+            "bytes": 13441,
+            "reason": "current-physical-receiver-library"
+        },
+        "vendor/symfony/console/Input/Input.php": {
+            "sourceSha256": "1274307e4db1bed18de3eea23094e2d2fdbef8e0f13d8e158134741c9739d417",
+            "bytes": 6174,
+            "reason": "current-physical-receiver-library"
+        },
+        "vendor/symfony/console/Input/InputDefinition.php": {
+            "sourceSha256": "ce2b348b82cbd988ecc93e068ad480f7daf82cffa2f27931a54828a479a74a1a",
+            "bytes": 11796,
+            "reason": "current-physical-receiver-library"
+        },
+        "vendor/symfony/http-kernel//HttpKernelInterface.php": {
+            "sourceSha256": "6653c14a3a32da7f1c21c0e8692e367d8a2e947b30b3f0006386673381e0038b",
+            "bytes": 1227,
+            "reason": "explicit-parent-interface-or-trait"
+        }
+    },
+    "totalBytes": 2342447,
+    "explicitInheritanceDependencies": {
+        "Carbon\\CarbonInterface": "vendor/nesbot/carbon/src/Carbon/CarbonInterface.php",
+        "Carbon\\Constants\\DiffOptions": "vendor/nesbot/carbon/src/Carbon/Constants/DiffOptions.php",
+        "Carbon\\Constants\\Format": "vendor/nesbot/carbon/src/Carbon/Constants/Format.php",
+        "Carbon\\Constants\\TranslationOptions": "vendor/nesbot/carbon/src/Carbon/Constants/TranslationOptions.php",
+        "Carbon\\Constants\\UnitValue": "vendor/nesbot/carbon/src/Carbon/Constants/UnitValue.php",
+        "Carbon\\Traits\\Boundaries": "vendor/nesbot/carbon/src/Carbon/Traits/Boundaries.php",
+        "Carbon\\Traits\\Cast": "vendor/nesbot/carbon/src/Carbon/Traits/Cast.php",
+        "Carbon\\Traits\\Comparison": "vendor/nesbot/carbon/src/Carbon/Traits/Comparison.php",
+        "Carbon\\Traits\\Converter": "vendor/nesbot/carbon/src/Carbon/Traits/Converter.php",
+        "Carbon\\Traits\\Creator": "vendor/nesbot/carbon/src/Carbon/Traits/Creator.php",
+        "Carbon\\Traits\\Date": "vendor/nesbot/carbon/src/Carbon/Traits/Date.php",
+        "Carbon\\Traits\\Difference": "vendor/nesbot/carbon/src/Carbon/Traits/Difference.php",
+        "Carbon\\Traits\\IntervalRounding": "vendor/nesbot/carbon/src/Carbon/Traits/IntervalRounding.php",
+        "Carbon\\Traits\\LocalFactory": "vendor/nesbot/carbon/src/Carbon/Traits/LocalFactory.php",
+        "Carbon\\Traits\\Localization": "vendor/nesbot/carbon/src/Carbon/Traits/Localization.php",
+        "Carbon\\Traits\\Macro": "vendor/nesbot/carbon/src/Carbon/Traits/Macro.php",
+        "Carbon\\Traits\\MagicParameter": "vendor/nesbot/carbon/src/Carbon/Traits/MagicParameter.php",
+        "Carbon\\Traits\\Mixin": "vendor/nesbot/carbon/src/Carbon/Traits/Mixin.php",
+        "Carbon\\Traits\\Modifiers": "vendor/nesbot/carbon/src/Carbon/Traits/Modifiers.php",
+        "Carbon\\Traits\\Mutability": "vendor/nesbot/carbon/src/Carbon/Traits/Mutability.php",
+        "Carbon\\Traits\\ObjectInitialisation": "vendor/nesbot/carbon/src/Carbon/Traits/ObjectInitialisation.php",
+        "Carbon\\Traits\\Options": "vendor/nesbot/carbon/src/Carbon/Traits/Options.php",
+        "Carbon\\Traits\\Rounding": "vendor/nesbot/carbon/src/Carbon/Traits/Rounding.php",
+        "Carbon\\Traits\\Serialization": "vendor/nesbot/carbon/src/Carbon/Traits/Serialization.php",
+        "Carbon\\Traits\\StaticLocalization": "vendor/nesbot/carbon/src/Carbon/Traits/StaticLocalization.php",
+        "Carbon\\Traits\\StaticOptions": "vendor/nesbot/carbon/src/Carbon/Traits/StaticOptions.php",
+        "Carbon\\Traits\\Test": "vendor/nesbot/carbon/src/Carbon/Traits/Test.php",
+        "Carbon\\Traits\\Timestamp": "vendor/nesbot/carbon/src/Carbon/Traits/Timestamp.php",
+        "Carbon\\Traits\\ToStringFormat": "vendor/nesbot/carbon/src/Carbon/Traits/ToStringFormat.php",
+        "Carbon\\Traits\\Units": "vendor/nesbot/carbon/src/Carbon/Traits/Units.php",
+        "Carbon\\Traits\\Week": "vendor/nesbot/carbon/src/Carbon/Traits/Week.php",
+        "Faker\\Provider\\Base": "vendor/fakerphp/faker/src/Faker/Provider/Base.php",
+        "Illuminate\\Container\\Container": "vendor/laravel/framework/src/Illuminate/Container/Container.php",
+        "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel": "vendor/laravel/framework/src/Illuminate/Contracts/Broadcasting/HasBroadcastChannel.php",
+        "Illuminate\\Contracts\\Cache\\Factory": "vendor/laravel/framework/src/Illuminate/Contracts/Cache/Factory.php",
+        "Illuminate\\Contracts\\Container\\Container": "vendor/laravel/framework/src/Illuminate/Contracts/Container/Container.php",
+        "Illuminate\\Contracts\\Database\\Eloquent\\Builder": "vendor/laravel/framework/src/Illuminate/Contracts/Database/Eloquent/Builder.php",
+        "Illuminate\\Contracts\\Database\\Query\\Builder": "vendor/laravel/framework/src/Illuminate/Contracts/Database/Query/Builder.php",
+        "Illuminate\\Contracts\\Foundation\\Application": "vendor/laravel/framework/src/Illuminate/Contracts/Foundation/Application.php",
+        "Illuminate\\Contracts\\Foundation\\CachesConfiguration": "vendor/laravel/framework/src/Illuminate/Contracts/Foundation/CachesConfiguration.php",
+        "Illuminate\\Contracts\\Foundation\\CachesRoutes": "vendor/laravel/framework/src/Illuminate/Contracts/Foundation/CachesRoutes.php",
+        "Illuminate\\Contracts\\Queue\\QueueableCollection": "vendor/laravel/framework/src/Illuminate/Contracts/Queue/QueueableCollection.php",
+        "Illuminate\\Contracts\\Queue\\QueueableEntity": "vendor/laravel/framework/src/Illuminate/Contracts/Queue/QueueableEntity.php",
+        "Illuminate\\Contracts\\Routing\\UrlRoutable": "vendor/laravel/framework/src/Illuminate/Contracts/Routing/UrlRoutable.php",
+        "Illuminate\\Contracts\\Support\\Arrayable": "vendor/laravel/framework/src/Illuminate/Contracts/Support/Arrayable.php",
+        "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString": "vendor/laravel/framework/src/Illuminate/Contracts/Support/CanBeEscapedWhenCastToString.php",
+        "Illuminate\\Contracts\\Support\\DeferrableProvider": "vendor/laravel/framework/src/Illuminate/Contracts/Support/DeferrableProvider.php",
+        "Illuminate\\Contracts\\Support\\Jsonable": "vendor/laravel/framework/src/Illuminate/Contracts/Support/Jsonable.php",
+        "Illuminate\\Database\\Concerns\\BuildsQueries": "vendor/laravel/framework/src/Illuminate/Database/Concerns/BuildsQueries.php",
+        "Illuminate\\Database\\ConnectionResolverInterface": "vendor/laravel/framework/src/Illuminate/Database/ConnectionResolverInterface.php",
+        "Illuminate\\Database\\Eloquent\\Concerns\\GuardsAttributes": "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/GuardsAttributes.php",
+        "Illuminate\\Database\\Eloquent\\Concerns\\HasAttributes": "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasAttributes.php",
+        "Illuminate\\Database\\Eloquent\\Concerns\\HasEvents": "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasEvents.php",
+        "Illuminate\\Database\\Eloquent\\Concerns\\HasGlobalScopes": "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasGlobalScopes.php",
+        "Illuminate\\Database\\Eloquent\\Concerns\\HasRelationships": "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasRelationships.php",
+        "Illuminate\\Database\\Eloquent\\Concerns\\HasTimestamps": "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasTimestamps.php",
+        "Illuminate\\Database\\Eloquent\\Concerns\\HasUniqueIds": "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasUniqueIds.php",
+        "Illuminate\\Database\\Eloquent\\Concerns\\HidesAttributes": "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HidesAttributes.php",
+        "Illuminate\\Database\\Eloquent\\Concerns\\PreventsCircularRecursion": "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/PreventsCircularRecursion.php",
+        "Illuminate\\Database\\Eloquent\\Concerns\\QueriesRelationships": "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/QueriesRelationships.php",
+        "Illuminate\\Database\\Eloquent\\Concerns\\TransformsToResource": "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/TransformsToResource.php",
+        "Illuminate\\Database\\Eloquent\\HasCollection": "vendor/laravel/framework/src/Illuminate/Database/Eloquent/HasCollection.php",
+        "Illuminate\\Database\\Eloquent\\Relations\\Concerns\\InteractsWithDictionary": "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Relations/Concerns/InteractsWithDictionary.php",
+        "Illuminate\\Support\\Collection": "vendor/laravel/framework/src/Illuminate/Collections/Collection.php",
+        "Illuminate\\Support\\Enumerable": "vendor/laravel/framework/src/Illuminate/Collections/Enumerable.php",
+        "Illuminate\\Support\\Facades\\Facade": "vendor/laravel/framework/src/Illuminate/Support/Facades/Facade.php",
+        "Illuminate\\Support\\RebindsCallbacksToSelf": "vendor/laravel/framework/src/Illuminate/Support/RebindsCallbacksToSelf.php",
+        "Illuminate\\Support\\ServiceProvider": "vendor/laravel/framework/src/Illuminate/Support/ServiceProvider.php",
+        "Illuminate\\Support\\Traits\\Conditionable": "vendor/laravel/framework/src/Illuminate/Conditionable/Traits/Conditionable.php",
+        "Illuminate\\Support\\Traits\\EnumeratesValues": "vendor/laravel/framework/src/Illuminate/Collections/Traits/EnumeratesValues.php",
+        "Illuminate\\Support\\Traits\\ForwardsCalls": "vendor/laravel/framework/src/Illuminate/Support/Traits/ForwardsCalls.php",
+        "Illuminate\\Support\\Traits\\Macroable": "vendor/laravel/framework/src/Illuminate/Macroable/Traits/Macroable.php",
+        "Illuminate\\Support\\Traits\\ReflectsClosures": "vendor/laravel/framework/src/Illuminate/Reflection/Traits/ReflectsClosures.php",
+        "Illuminate\\Support\\Traits\\TransformsToResourceCollection": "vendor/laravel/framework/src/Illuminate/Collections/Traits/TransformsToResourceCollection.php",
+        "Psr\\Container\\ContainerInterface": "vendor/psr/container/src/ContainerInterface.php",
+        "Symfony\\Component\\Console\\Input\\Input": "vendor/symfony/console//Input/Input.php",
+        "Symfony\\Component\\Console\\Input\\InputInterface": "vendor/symfony/console//Input/InputInterface.php",
+        "Symfony\\Component\\Console\\Input\\RawInputInterface": "vendor/symfony/console//Input/RawInputInterface.php",
+        "Symfony\\Component\\Console\\Input\\StreamableInputInterface": "vendor/symfony/console//Input/StreamableInputInterface.php",
+        "Symfony\\Component\\HttpKernel\\HttpKernelInterface": "vendor/symfony/http-kernel//HttpKernelInterface.php"
+    },
+    "selectedSharedPackageAutoloadMetadata": {
+        "laravel/framework": {
+            "sourceSha256": "cb54d7f279de2faf436e9a5becc5831f022788ad04e2d4d9d3bb1bf422282221",
+            "autoloadPsr4": {
+                "Illuminate\\": "src/Illuminate/",
+                "Illuminate\\Support\\": [
+                    "src/Illuminate/Macroable/",
+                    "src/Illuminate/Collections/",
+                    "src/Illuminate/Conditionable/",
+                    "src/Illuminate/Reflection/"
+                ]
+            }
+        },
+        "fakerphp/faker": {
+            "sourceSha256": "059af14c8b5d743a00382d6c23c771bcdee9c370291e9239d3759094de1b8942",
+            "autoloadPsr4": {
+                "Faker\\": "src/Faker/"
+            }
+        },
+        "nesbot/carbon": {
+            "sourceSha256": "d5c799b71e792b1880757bdf59c5e3089c1cf825a469d2ccf46e34a25d1e7b5b",
+            "autoloadPsr4": {
+                "Carbon\\": "src/Carbon/"
+            }
+        },
+        "symfony/console": {
+            "sourceSha256": "95e2bc5c4903b38068a1fe2ec59621baa286a52bb5f4d4b4375418c2aca41b2b",
+            "autoloadPsr4": {
+                "Symfony\\Component\\Console\\": ""
+            }
+        },
+        "symfony/http-kernel": {
+            "sourceSha256": "99ac269d99d19ac40a4bbf9ef8b8ce5299f7c3efdeb4c569fe883f543cc82da6",
+            "autoloadPsr4": {
+                "Symfony\\Component\\HttpKernel\\": ""
+            }
+        },
+        "psr/container": {
+            "sourceSha256": "56578be478733c8040dfe22a98c56ab63fa853eec024490ef6704b321844c222",
+            "autoloadPsr4": {
+                "Psr\\Container\\": "src/"
+            }
+        }
+    },
+    "nativeCompletenessClaimed": false
+}

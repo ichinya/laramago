@@ -1,0 +1,152 @@
+{
+    "sourceOnly": true,
+    "nativeRun": false,
+    "publicPrimarySourceOnly": true,
+    "selectedPhysicalDependencies": 41,
+    "files": {
+        "vendor/laravel/framework/src/Illuminate/Collections/Collection.php": {
+            "sourceSha256": "ceafbf61a8fdc2ccf679b97bd7efcfa5bbef88c820af17650de3129c4271dffe",
+            "bytes": 55764
+        },
+        "vendor/laravel/framework/src/Illuminate/Collections/Enumerable.php": {
+            "sourceSha256": "d42991536c9544b788509093e1feda7cff0a2e71236127d88650713c813e426f",
+            "bytes": 39908
+        },
+        "vendor/laravel/framework/src/Illuminate/Collections/Traits/EnumeratesValues.php": {
+            "sourceSha256": "4bd8d0b083a86aaee34757c92d1ea4ea15fa8ee1e74b655dcbe2a18bb34ac710",
+            "bytes": 35688
+        },
+        "vendor/laravel/framework/src/Illuminate/Collections/Traits/TransformsToResourceCollection.php": {
+            "sourceSha256": "e69612f8fa4668e951f8b17f3741da4a1364d369d67bb2f72c01860d17051c50",
+            "bytes": 4046
+        },
+        "vendor/laravel/framework/src/Illuminate/Conditionable/Traits/Conditionable.php": {
+            "sourceSha256": "5697fdba0acb78ca0b4e122e5c459cd5d97d000ed9b14fed31271cb7ffd44225",
+            "bytes": 2256
+        },
+        "vendor/laravel/framework/src/Illuminate/Contracts/Broadcasting/HasBroadcastChannel.php": {
+            "sourceSha256": "4adf747bb1f0810b2a8aacd3ab55d59fe348bdb57a47130375264d5fc1002b43",
+            "bytes": 435
+        },
+        "vendor/laravel/framework/src/Illuminate/Contracts/Database/Eloquent/Builder.php": {
+            "sourceSha256": "817073e06f03a18988be9f89d3b0f4c4fcdc53691542c63c82bbd67d52745c5c",
+            "bytes": 302
+        },
+        "vendor/laravel/framework/src/Illuminate/Contracts/Database/Query/Builder.php": {
+            "sourceSha256": "068cd00298cdece3e3e06bce161894b798aa0f5bc2846b117c878252b54282ad",
+            "bytes": 209
+        },
+        "vendor/laravel/framework/src/Illuminate/Contracts/Queue/QueueableCollection.php": {
+            "sourceSha256": "81362155fbb9119746d60c87b924751eda7b13ce3e05fcab6eb796e31daf0b04",
+            "bytes": 684
+        },
+        "vendor/laravel/framework/src/Illuminate/Contracts/Queue/QueueableEntity.php": {
+            "sourceSha256": "c081e746d19db452e6ba546cb2a9e1efb838fc81f6deeb9cd4d7d892d64a26fb",
+            "bytes": 481
+        },
+        "vendor/laravel/framework/src/Illuminate/Contracts/Routing/UrlRoutable.php": {
+            "sourceSha256": "d8abf6cf9a7f35d0c1bed24bf26adef6bdb60cf0f3f9e0a0bc05639e17872c77",
+            "bytes": 881
+        },
+        "vendor/laravel/framework/src/Illuminate/Contracts/Support/Arrayable.php": {
+            "sourceSha256": "118dd63e3c239eb4f078acdb9a5e1cce1119c51b30ddc30d210a31d43d549b01",
+            "bytes": 257
+        },
+        "vendor/laravel/framework/src/Illuminate/Contracts/Support/CanBeEscapedWhenCastToString.php": {
+            "sourceSha256": "5258583536b1ed008cbb2779c6780816fe1c5b64faae786e0887608531870463",
+            "bytes": 329
+        },
+        "vendor/laravel/framework/src/Illuminate/Contracts/Support/Jsonable.php": {
+            "sourceSha256": "472aa9df71c593a21d5382d4ed9fe05997543d622da5f833ac443b0bf9f719fd",
+            "bytes": 241
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Concerns/BuildsQueries.php": {
+            "sourceSha256": "86cdd809eaa23e889a0af6511f05382ce11b02ec3abbd61b5fe970362c8ff110",
+            "bytes": 21634
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Concerns/BuildsWhereDateClauses.php": {
+            "sourceSha256": "19d812e96ab058e535eb191413c62819da4aea74772c4cd2c1085b7f350830e0",
+            "bytes": 6761
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Concerns/ExplainsQueries.php": {
+            "sourceSha256": "c1aca7045d73d0d54dd97c0c9fe2456e8ccc152e9b8fbd16412b93da97196bd3",
+            "bytes": 452
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php": {
+            "sourceSha256": "c4613c5480c40289af99647cd0c11ba8bc355e729e90bd18b9047c4b0c8cb9ac",
+            "bytes": 70153
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Collection.php": {
+            "sourceSha256": "f595b5029d751c5ca2d602247af4befd94d5bdc28b9c189b5b9af09bbfb0a01d",
+            "bytes": 26082
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/GuardsAttributes.php": {
+            "sourceSha256": "2e1b77306a0fbc050e1ae3c78d2b5b53d3033c347b4d0a9a2ada5160e1fb6d61",
+            "bytes": 7194
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasAttributes.php": {
+            "sourceSha256": "a0e8106eca79da6caedd151cf915c0cf17418c3e3ec120ef36d19d61b5681edb",
+            "bytes": 76014
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasEvents.php": {
+            "sourceSha256": "e86185a511f4e5099315df5cc3959679502d7c9a71157cedf31a302fefc313cf",
+            "bytes": 12282
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasGlobalScopes.php": {
+            "sourceSha256": "6fcea39ebf6836edd45e96a8d17a6a4cfca0add7a0287c2ea46f74a0d575073c",
+            "bytes": 4863
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasRelationships.php": {
+            "sourceSha256": "a7258ca67a51e13722a27ea62b9d3ed802a56c40d51920ffa23301acaf7b4059",
+            "bytes": 40155
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasTimestamps.php": {
+            "sourceSha256": "25ec1bf4a0be4595f82064e534fd42fdaa62013ef6ce5a79d5a136304f44aa7a",
+            "bytes": 6149
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HasUniqueIds.php": {
+            "sourceSha256": "512851792103c356fb12ff6538dd910c381317faee414cd51e9f78cabb92b020",
+            "bytes": 1017
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/HidesAttributes.php": {
+            "sourceSha256": "dcf48f883c8970de4481eed0029724e280766a3a0e7c6cce3016df849079353c",
+            "bytes": 4235
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/PreventsCircularRecursion.php": {
+            "sourceSha256": "f997a287dc9153687ef870b1f1ea23bf1ecba974567ab3c8a514ec3c9aaf01bf",
+            "bytes": 3142
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/QueriesRelationships.php": {
+            "sourceSha256": "33452e2d263e1a34caa0d5c243ba138724b88156482829a15b20c9cf4c75b321",
+            "bytes": 45139
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/TransformsToResource.php": {
+            "sourceSha256": "9550ce5b6c8072831814c0ca3dd7a310d50e4607d2b2548a364f66077823177d",
+            "bytes": 3035
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/HasCollection.php": {
+            "sourceSha256": "56e0808b8703227cecfb2146926aabd717fe8f2f09bbe5b6fc28dcccb9c14532",
+            "bytes": 1645
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php": {
+            "sourceSha256": "ce1a8b5f13bcab6457b5d1cd0316bf957050cebbe00572df0b31a2e3c508d6a9",
+            "bytes": 81880
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Eloquent/Relations/Concerns/InteractsWithDictionary.php": {
+            "sourceSha256": "339952973ea62669745b6505c3bf1b887a7e4d39d25fd657d816e654ae7b1426",
+            "bytes": 1035
+        },
+        "vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php": {
+            "sourceSha256": "71ad1b8f043d710ab17cef4cf1902311ec2c737df17b44d5dacb8a1fc97da5a7",
+            "bytes": 151018
+        },
+        "vendor/laravel/framework/src/Illuminate/Macroable/Traits/Macroable.php": {
+            "sourceSha256": "6dd85b1e28b55ebeee678f9ca423dfb8375e1342bc42d8658da6321bdf97b3c0",
+            "bytes": 3060
+        },
+        "vendor/laravel/framework/src/Illuminate/Support/Traits/ForwardsCalls.php": {
+            "sourceSha256": "b90103bc7248a11bd7629c525e064a45a50dd93ae0d836bcb79937e63f0b3568",
+            "bytes": 1874
+        }
+    }
+}

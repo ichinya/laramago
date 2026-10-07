@@ -108,7 +108,7 @@ final class RefreshedModelProperties implements InitializationHook, CodebaseScan
                 || ! in_array(strtolower(ModelReflection::MODEL), array_map('strtolower', $metadata->parentClasses), true)
                 || $metadata->templates !== [] || ! $this->compatibleMixins($codebase, $metadata)
                 || ! $this->native->proves($codebase, $candidate)) { return false; }
-            if (! $this->updates($codebase, $candidate, $proof['updates'])) { return false; }
+            if (! $this->updates($codebase, $candidate, $proof['updates'], $proof['scope'], $types)) { return false; }
             if (! $this->native->reads($codebase, $candidate, $proof['reads'])) { return false; }
             foreach ($proof['reads'] as $property) {
                 $studly = ModelReflection::studly($property);
@@ -263,7 +263,7 @@ final class RefreshedModelProperties implements InitializationHook, CodebaseScan
     }
 
     /** Native update delegates to user-overridable save/fill/mutator hooks before the next refresh. */
-    private function updates(Codebase $codebase, string $class, array $updates): bool
+    private function updates(Codebase $codebase, string $class, array $updates, ?Node\Stmt\ClassMethod $scope = null, ?TypeComparator $types = null): bool
     {
         if ($updates === []) { return true; }
         if (! $this->native->update($codebase, $class)) { return false; }
@@ -271,9 +271,17 @@ final class RefreshedModelProperties implements InitializationHook, CodebaseScan
         if ($reflection->default($class, 'touches', []) !== []) { return false; }
         $casts = $reflection->casts($class);
         if (! is_array($casts)) { return false; }
+        $json = false;
         foreach ($casts as $cast) {
-            if (! is_string($cast) || ! in_array(strtolower(explode(':', $cast, 2)[0]), ['int', 'integer', 'bool', 'boolean', 'string', 'decimal'], true)) { return false; }
+            if (! is_string($cast)) { return false; }
+            if (in_array(strtolower(explode(':', $cast, 2)[0]), ['int', 'integer', 'bool', 'boolean', 'string', 'decimal'], true)) { continue; }
+            // This field is only read by the already audited native dirty chain.
+            // JSON writes, object/collection, encrypted and custom casts stay out.
+            if (in_array(strtolower($cast), ['array', 'json', 'json:unicode'], true)) { $json = true; continue; }
+            return false;
         }
+        if ($json && ($scope === null || $types === null || ! $this->native->jsonUpdateReads($codebase, $class, $types)
+            || ! self::ordinaryJsonContinuation($scope, $updates))) { return false; }
         if ($reflection->default($class, 'timestamps', true) !== false) {
             foreach (['CREATED_AT', 'UPDATED_AT'] as $constant) {
                 $key = $this->domains?->constantString($codebase, $class, $constant);
@@ -286,6 +294,7 @@ final class RefreshedModelProperties implements InitializationHook, CodebaseScan
             if (count($update->args) !== 1 || ! $update->args[0]->value instanceof Node\Expr\Array_) { return false; }
             foreach ($update->args[0]->value->items as $item) {
                 if ($item === null || $item->byRef || $item->unpack || ! $item->key instanceof Node\Scalar\String_) { return false; }
+                if (str_contains($item->key->value, '->')) { return false; }
                 $value = PhpSource::value($item->value);
                 if (! is_int($value) && ! is_string($value) && ! is_bool($value) && $value !== null) { return false; }
                 $cast = $casts[$item->key->value] ?? null;
@@ -295,6 +304,23 @@ final class RefreshedModelProperties implements InitializationHook, CodebaseScan
             }
         }
         return true;
+    }
+
+    /** Known callback activation is not evidence for the codec's ordinary branch. */
+    private static function ordinaryJsonContinuation(Node\Stmt\ClassMethod $scope, array $updates): bool
+    {
+        $last = max(array_map(static fn (Node\Expr\MethodCall $update): int => $update->getEndFilePos(), $updates));
+        return (new NodeFinder)->findFirst($scope->stmts ?? [], static function (Node $node) use ($last): bool {
+            if ($node->getStartFilePos() > $last) { return false; }
+            if ($node instanceof Node\Expr\StaticCall) {
+                // A source-bound decoder setter (including an alias/subclass), or
+                // uncertain static dispatch, cannot certify the ordinary branch.
+                return ! $node->class instanceof Node\Name || ! $node->name instanceof Node\Identifier
+                    || in_array(strtolower($node->name->name), ['decodeusing', 'encodeusing'], true);
+            }
+            return $node instanceof Node\Expr\StaticPropertyFetch && (! $node->class instanceof Node\Name
+                || ! $node->name instanceof Node\VarLikeIdentifier || in_array(strtolower($node->name->name), ['decoder', 'encoder'], true));
+        }) === null;
     }
 
     /** @return iterable<array<string,mixed>> */

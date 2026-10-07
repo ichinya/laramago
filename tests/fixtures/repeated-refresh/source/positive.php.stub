@@ -1,0 +1,21 @@
+<?php
+namespace Fixture;
+use Testo\Assert;
+
+final class RepeatedRefresh {
+    private Tenant $tenant;
+    private Partner $partner;
+    private function saved(): Row {
+        return (new Persistence)->save($this->tenant, ['partner_id' => $this->partner->id]);
+    }
+    public function check(): void {
+        $row = $this->saved();
+        Assert::same($row->cost, '17.00');
+        $row->refresh();
+        Assert::same($row->units, 17);
+        Assert::same($row->cost, '28.00');
+        $row->refresh();
+        Assert::same($row->units, 0);
+        Assert::same($row->cost, '17.00');
+    }
+}

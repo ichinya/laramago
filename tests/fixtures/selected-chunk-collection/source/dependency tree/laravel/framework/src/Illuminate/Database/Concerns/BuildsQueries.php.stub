@@ -1,0 +1,93 @@
+<?php
+namespace Illuminate\Database\Concerns;
+use RuntimeException;
+use SortDirection;
+/** @template TValue */
+trait BuildsQueries {
+/**
+     * Chunk the results of a query by comparing IDs.
+     *
+     * @param  int  $count
+     * @param  callable(\Illuminate\Support\Collection<int, TValue>, int): mixed  $callback
+     * @param  string|null  $column
+     * @param  string|null  $alias
+     * @return bool
+     */
+    public function chunkById($count, callable $callback, $column = null, $alias = null)
+    {
+        return $this->orderedChunkById($count, $callback, $column, $alias);
+    }
+/**
+     * Chunk the results of a query by comparing IDs in a given order.
+     *
+     * @param  int  $count
+     * @param  callable(\Illuminate\Support\Collection<int, TValue>, int): mixed  $callback
+     * @param  string|null  $column
+     * @param  string|null  $alias
+     * @param  SortDirection|bool  $descending
+     * @return bool
+     *
+     * @throws \RuntimeException
+     */
+    public function orderedChunkById($count, callable $callback, $column = null, $alias = null, $descending = false)
+    {
+        $column ??= $this->defaultKeyName();
+        $alias ??= $column;
+        $lastId = null;
+        $skip = $this->getOffset();
+        $remaining = $this->getLimit();
+
+        $page = 1;
+
+        do {
+            $clone = clone $this;
+
+            if ($skip && $page > 1) {
+                $clone->offset(0);
+            }
+
+            $limit = is_null($remaining) ? $count : min($count, $remaining);
+
+            if ($limit === 0) {
+                break;
+            }
+
+            // We'll execute the query for the given page and get the results. If there are
+            // no results we can just break and return from here. When there are results
+            // we will call the callback with the current chunk of these results here.
+            $results = match ($descending) {
+                SortDirection::Ascending, false => $clone->forPageAfterId($limit, $lastId, $column)->get(),
+                SortDirection::Descending, true => $clone->forPageBeforeId($limit, $lastId, $column)->get(),
+            };
+
+            $countResults = $results->count();
+
+            if ($countResults === 0) {
+                break;
+            }
+
+            if (! is_null($remaining)) {
+                $remaining = max($remaining - $countResults, 0);
+            }
+
+            // On each chunk result set, we will pass them to the callback and then let the
+            // developer take care of everything within the callback, which allows us to
+            // keep the memory low for spinning through large result sets for working.
+            if ($callback($results, $page) === false) {
+                return false;
+            }
+
+            $lastId = data_get($results->last(), $alias);
+
+            if ($lastId === null) {
+                throw new RuntimeException("The chunkById operation was aborted because the [{$alias}] column is not present in the query result.");
+            }
+
+            unset($results);
+
+            $page++;
+        } while ($countResults == $count);
+
+        return true;
+    }
+}

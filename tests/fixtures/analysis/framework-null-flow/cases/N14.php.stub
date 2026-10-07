@@ -1,0 +1,1 @@
+<?php namespace InputRouteFixture; final class CaseN14 {   public function probe(array $rows): void { foreach ($rows as $row) { DateReceiver::date($row['start']); DateReceiver::date($row['end']); } } public function unrelatedUnsafeUse(): void { requireInteger('text'); } }

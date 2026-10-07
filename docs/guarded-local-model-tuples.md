@@ -1,0 +1,7 @@
+# Guarded local models in callback tuples
+
+`GuardedLocalModelTuplePlugin` retains the concrete model domain when a literal standard Eloquent query is followed by an immediate null throw and the guarded local is written into a captured tuple that is later read by a typed method. It binds the caller, receiving method, query declarations, generic templates, physical defaults, complete trait closures, and current PHPDoc to genuine SDK metadata. The rule handles only the closed local query and tuple grammar; reference writes, rebinding, custom query dispatch, unresolved priority declarations, and unrelated diagnostics remain subject to the ordinary analyzer.
+
+The rule registers one issue filter after `LaravelPlugin`. Standard `first()` calls keep their native types; no return type provider or after-file fact authorizes this compatibility rule. Each filter invocation computes its own proof from current source and native declarations.
+
+Run `php -d memory_limit=512M -d opcache.enable_cli=0 tests/guarded-local-model-tuples.php` for the genuine native matrix. It uses 20 invented source cases, two isolated and two full-registry Error removals, complete remaining diagnostic equality with one and three host workers, 270 actual SDK cache mutations, and 25 physical source controls. Main runs use the default engine and cache-mutation controls use one engine thread, with a 512 MiB worker limit and 120-second requests. Every mutation must be restored before a fresh genuine positive is readmitted; any failed negative assertion fails the matrix.

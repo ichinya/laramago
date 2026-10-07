@@ -1,0 +1,21 @@
+<?php
+declare(strict_types=1);
+namespace Fixture\DefaultDateErrors;
+use Carbon\Carbon;
+use Carbon\CarbonInterface;
+class AlternateClock implements CarbonInterface {}
+function now($timezone=null): CarbonInterface { return new AlternateClock; }
+class Receiver
+{
+    public function accept(Carbon $date): void {}
+    public function onlyInteger(int $value): void {}
+    public function onlyString(string $value): void {}
+    public function argumentTimezone(): void { $this->accept(now('UTC')); }
+    public function savedInterface(CarbonInterface $date): void { $this->accept($date); }
+    public function integerBoundary(): void { $this->onlyInteger(now()); }
+    public function stringBoundary(): void { $this->onlyString(now()); }
+    public function arbitraryObject(object $date): void { $this->accept($date); }
+    public function whollyUnknown($date): void { $this->accept($date); }
+    public function wrongLiteral(): void { $this->accept('date'); }
+    public function shadowedHelper(): void { $this->accept(now()); }
+}

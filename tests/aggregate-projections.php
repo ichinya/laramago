@@ -84,6 +84,8 @@ file_put_contents($workspace.'/models.php', <<<'PHP'
 <?php
 use Illuminate\Database\Eloquent\Model;
 class ProjectionRecord extends Model {}
+interface ProjectionContract {}
+class ContractProjectionRecord extends Model implements ProjectionContract { protected $table = 'projection_records'; }
 /** @extends \Illuminate\Database\Eloquent\Builder<CustomBuilderProjectionRecord> */
 class CustomProjectionBuilder extends \Illuminate\Database\Eloquent\Builder {}
 class CustomBuilderProjectionRecord extends Model { protected $table = 'projection_records'; protected static string $builder = CustomProjectionBuilder::class; }
@@ -124,6 +126,8 @@ $cases = [
     'write event registration preserves projection' => ['return EventProjectionRecord::query()->selectRaw("SUM(amount) AS total")->get()->first()?->total;', 'int|float|numeric-string|null', []],
     'retrieval listener defers' => ['RetrievedProjectionRecord::query()->selectRaw("SUM(amount) AS total")->get()->first()?->total;', 'void', ['non-documented-property']],
     'count retains numeric driver types' => ['return ProjectionRecord::query()->selectRaw("COUNT(*) AS count")->get()->first()?->count;', 'int|numeric-string|null', []],
+    'interface ancestor retains numeric projection' => ['return ContractProjectionRecord::query()->selectRaw("SUM(amount) AS total")->get()->first()?->total;', 'int|float|numeric-string|null', []],
+    'interface ancestor preserves wrong return error' => ['return ContractProjectionRecord::query()->selectRaw("SUM(amount) AS total")->get()->first()?->total;', '?int', ['invalid-return-statement']],
     'alias typo remains unknown' => ['ProjectionRecord::query()->selectRaw("SUM(amount) AS total")->get()->first()?->totla;', 'void', ['non-documented-property']],
     'dynamic SQL defers' => ['$sql = "SUM(amount) AS total"; ProjectionRecord::query()->selectRaw($sql)->get()->first()?->total;', 'void', ['non-documented-property']],
     'join defers' => ['ProjectionRecord::query()->join("other", "id", "=", "other.id")->selectRaw("SUM(amount) AS total")->get()->first()?->total;', 'void', ['non-documented-property']],
@@ -194,7 +198,7 @@ if (! is_resource($process)) { throw new RuntimeException('Cannot start Mago.');
 fclose($pipes[0]);
 $exit = proc_close($process);
 $stderr = file_get_contents($workspace.'/stderr.log');
-if (! in_array($exit, [0, 1], true) || preg_match('/External analyzer provider failed|extension worker .*rejected request/i', $stderr)) { throw new RuntimeException('Unexpected analyzer result: '.$workspace.' '.$stderr); }
+if (! in_array($exit, [0, 1], true) || preg_match('/External analyzer provider failed|extension worker .*rejected request|(?:PHP )?Warning:|fatal error|orchestrator error|pars(?:e|ing) errors?/i', $stderr)) { throw new RuntimeException('Unexpected analyzer result: '.$workspace.' '.$stderr); }
 $report = json_decode(file_get_contents($workspace.'/report.json'), true, flags: JSON_THROW_ON_ERROR);
 $actual = [];
 foreach ($report['issues'] ?? [] as $issue) {

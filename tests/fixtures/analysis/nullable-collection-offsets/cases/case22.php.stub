@@ -1,0 +1,13 @@
+<?php
+
+namespace NullableIndexCase22;
+/** @extends \Illuminate\Support\Collection<array-key, \NullableOffsetFixture\Record> */
+class Custom extends \Illuminate\Support\Collection {
+    /**
+     * @param positive-int $offset
+     * @return \NullableOffsetFixture\Record
+     */
+    public function offsetGet($offset): mixed { return $this->items[$offset]; }
+}
+function read(Custom $rows, ?int $key): void { $rows[$key]->missing(); }
+file_put_contents(__DIR__."/case-executed", "Scenario bodies must never execute.");

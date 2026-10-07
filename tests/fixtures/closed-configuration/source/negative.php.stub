@@ -1,0 +1,36 @@
+<?php
+declare(strict_types=1);
+use Illuminate\Support\ConfigurationUrlParser;
+
+$integerKey=static function(array $configuration): array { return (new ConfigurationUrlParser())->parseConfiguration($configuration); };
+$integerKey([0=>'wrong']);
+
+$numericStringKey=static function(array $configuration): array { return (new ConfigurationUrlParser())->parseConfiguration($configuration); };
+$numericStringKey(['1'=>'wrong']);
+
+$escaped=static function(array $configuration): array { return (new ConfigurationUrlParser())->parseConfiguration($configuration); };
+$alias=$escaped;$alias(['driver'=>'sqlite']);
+
+$stored=static function(array $configuration): array { return (new ConfigurationUrlParser())->parseConfiguration($configuration); };
+$callbacks=[$stored];
+
+$rewritten=static function(array $configuration): array { $configuration=[0=>'changed'];return (new ConfigurationUrlParser())->parseConfiguration($configuration); };
+$rewritten(['driver'=>'sqlite']);
+
+$referenceFormal=static function(array &$configuration): array { return (new ConfigurationUrlParser())->parseConfiguration($configuration); };
+$referenceFormal(['driver'=>'sqlite']);
+
+$referenceEscape=static function(array $configuration): array { $alias=&$configuration;return (new ConfigurationUrlParser())->parseConfiguration($configuration); };
+$referenceEscape(['driver'=>'sqlite']);
+
+$unknownInvocation=static function(array $configuration): array { return (new ConfigurationUrlParser())->parseConfiguration($configuration); };
+function consumeUnknown(array $input): void { global $unknownInvocation;$unknownInvocation($input); }
+
+$unpacked=static function(array $configuration): array { return (new ConfigurationUrlParser())->parseConfiguration($configuration); };
+$source=['driver'=>'sqlite'];$unpacked([...$source]);
+
+$byReferenceItem=static function(array $configuration): array { return (new ConfigurationUrlParser())->parseConfiguration($configuration); };
+$driver='sqlite';$byReferenceItem(['driver'=>&$driver]);
+
+$unknownReceiver=static function(array $configuration): array { return (new ConfigurationUrlParser())->parseConfiguration($configuration); };
+$unknownReceiver=[];

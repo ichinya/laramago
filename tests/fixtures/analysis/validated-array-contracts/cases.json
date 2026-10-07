@@ -1,0 +1,290 @@
+{
+    "sources": {
+        "fixture-cases.php": {
+            "sourceSha256": "26b414f645ac059b9dcdbf42be002ca517032fbc0a5f0c992e77ce12fe528e8b",
+            "functionSpans": {
+                "sortedValidated": [
+                    256,
+                    861
+                ],
+                "alreadyTyped": [
+                    1005,
+                    1132
+                ],
+                "missingArrayGuard": [
+                    1166,
+                    1406
+                ],
+                "missingFieldGuard": [
+                    1439,
+                    1663
+                ],
+                "rootReset": [
+                    1696,
+                    1986
+                ],
+                "referenceAlias": [
+                    2019,
+                    2334
+                ],
+                "incompleteIteration": [
+                    2367,
+                    2596
+                ],
+                "comparatorDifferentField": [
+                    2629,
+                    2897
+                ],
+                "foreachReference": [
+                    2930,
+                    3187
+                ],
+                "bareArrayParameter": [
+                    3188,
+                    3376
+                ],
+                "explicitMixedParameter": [
+                    3377,
+                    3456
+                ],
+                "declaredRows": [
+                    3521,
+                    3703
+                ],
+                "groupedSelection": [
+                    3704,
+                    4224
+                ],
+                "missingNestedArrayGuard": [
+                    4225,
+                    4722
+                ],
+                "validatedBookkeeping": [
+                    5077,
+                    5902
+                ],
+                "scalarHelperReference": [
+                    6002,
+                    6469
+                ],
+                "incompatibleDeclaredReturn": [
+                    6572,
+                    6988
+                ],
+                "typedComparatorParameter": [
+                    7059,
+                    7351
+                ],
+                "unrelatedMixedOffset": [
+                    7352,
+                    7433
+                ]
+            }
+        },
+        "top-missing-array.php": {
+            "sourceSha256": "2d1753ccf95f0349e834cb4fd6cd20c9feba55040f8ddb866b501b213510162f",
+            "functionSpans": {
+                "suppliedText": [
+                    158,
+                    231
+                ],
+                "entries": [
+                    232,
+                    342
+                ]
+            }
+        },
+        "top-positive.php": {
+            "sourceSha256": "9ce5b9b363e2c9d4ee6d57fec4a5c5736a9adc97970207aadb040c4129b7bc84",
+            "functionSpans": {
+                "suppliedText": [
+                    151,
+                    224
+                ],
+                "entries": [
+                    225,
+                    335
+                ]
+            }
+        },
+        "top-reference-alias.php": {
+            "sourceSha256": "28343c4dd1d16b82b03663436d11d9af3b436158683e6ae84e498b5e6e12c912",
+            "functionSpans": {
+                "suppliedText": [
+                    160,
+                    233
+                ],
+                "entries": [
+                    234,
+                    344
+                ]
+            }
+        },
+        "top-reference-formal.php": {
+            "sourceSha256": "d7209fc8cae7bfeeb536585be82ec898211b499dd4823a818f34d7ffceb980e2",
+            "functionSpans": {
+                "suppliedText": [
+                    161,
+                    234
+                ],
+                "entries": [
+                    235,
+                    345
+                ]
+            }
+        },
+        "top-shadowed-getopt.php": {
+            "sourceSha256": "26333ed9fc3c78465f7898d12c937433dd1a570b72c3a53895cf68f6eb5f27c2",
+            "functionSpans": {
+                "getopt": [
+                    160,
+                    240
+                ],
+                "suppliedText": [
+                    241,
+                    314
+                ],
+                "entries": [
+                    315,
+                    425
+                ]
+            }
+        }
+    },
+    "positiveContracts": {
+        "sortedValidated": {
+            "file": "fixture-cases.php",
+            "scopeSpan": [
+                256,
+                861
+            ],
+            "mixedSpans": [
+                [
+                    666,
+                    680
+                ],
+                [
+                    683,
+                    698
+                ],
+                [
+                    711,
+                    726
+                ],
+                [
+                    729,
+                    745
+                ],
+                [
+                    749,
+                    764
+                ],
+                [
+                    775,
+                    791
+                ],
+                [
+                    802,
+                    817
+                ],
+                [
+                    820,
+                    836
+                ]
+            ],
+            "returnSpan": [
+                853,
+                858
+            ],
+            "expectedNativeRemovals": 7
+        },
+        "validatedBookkeeping": {
+            "file": "fixture-cases.php",
+            "scopeSpan": [
+                5077,
+                5902
+            ],
+            "mixedSpans": [
+                [
+                    5699,
+                    5714
+                ],
+                [
+                    5717,
+                    5733
+                ],
+                [
+                    5746,
+                    5762
+                ],
+                [
+                    5765,
+                    5782
+                ],
+                [
+                    5786,
+                    5802
+                ],
+                [
+                    5813,
+                    5830
+                ],
+                [
+                    5841,
+                    5857
+                ],
+                [
+                    5860,
+                    5877
+                ]
+            ],
+            "returnSpan": [
+                5894,
+                5899
+            ],
+            "expectedNativeRemovals": 7
+        },
+        "topLevelSelection": {
+            "file": "top-positive.php",
+            "scopeSpan": [
+                0,
+                982
+            ],
+            "mixedSpans": [
+                [
+                    897,
+                    925
+                ]
+            ],
+            "returnSpan": null,
+            "expectedNativeRemovals": 1
+        }
+    },
+    "negativeFunctions": [
+        "missingArrayGuard",
+        "missingFieldGuard",
+        "rootReset",
+        "referenceAlias",
+        "incompleteIteration",
+        "comparatorDifferentField",
+        "foreachReference",
+        "bareArrayParameter",
+        "explicitMixedParameter",
+        "missingNestedArrayGuard",
+        "scalarHelperReference",
+        "incompatibleDeclaredReturn",
+        "typedComparatorParameter",
+        "unrelatedMixedOffset"
+    ],
+    "negativeFiles": [
+        "top-missing-array.php",
+        "top-reference-alias.php",
+        "top-reference-formal.php",
+        "top-shadowed-getopt.php"
+    ],
+    "expectedControls": {
+        "sorted": 56,
+        "return": 50,
+        "script": 28
+    }
+}

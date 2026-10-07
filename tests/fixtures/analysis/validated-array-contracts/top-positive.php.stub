@@ -1,0 +1,17 @@
+<?php
+declare(strict_types=1);
+// Independently invented script declarations. Analyze only; never include or execute.
+namespace TopLevelArrayExamples;
+function suppliedText():string { return '{"entries":[],"sections":{}}'; }
+function entries(mixed $value):array { if(!is_array($value)) { throw new \RuntimeException; } return $value; }
+$text=suppliedText();
+try {
+$tree=json_decode($text,true,flags:JSON_THROW_ON_ERROR);
+if(!is_array($tree)) { throw new \RuntimeException; }
+$options=getopt('', ['bucket:']);
+if($options===false) { throw new \RuntimeException; }
+$selector=$options['bucket']??null;
+if($selector!==null&&!is_string($selector)) { throw new \RuntimeException; }
+if($selector!==null&&(!isset($tree['sections'])||!is_array($tree['sections'])||!array_key_exists($selector,$tree['sections']))) { throw new \RuntimeException; }
+$selected=entries($selector===null?($tree['entries']??null):$tree['sections'][$selector]);
+} catch (\Throwable $exception) { throw $exception; }

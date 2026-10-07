@@ -1,0 +1,157 @@
+<?php
+declare(strict_types=1);
+namespace Example\GuardedModelTuples;
+final class NegativeExamples
+{
+    public function unguarded():void
+    {
+        $rows=[];
+        DeferredCallbacks::invoke(function()use(&$rows):void {
+            $invoice=Invoice::query()->first();
+            $rows[]=[$invoice];
+        });
+        foreach($rows as [$value]){$this->acceptInvoice($value);}
+    }
+    public function nonTerminatingGuard():void
+    {
+        $rows=[];
+        DeferredCallbacks::invoke(function()use(&$rows):void {
+            $invoice=Invoice::query()->first();
+            if($invoice===null){$this->notice();}
+            $rows[]=[$invoice];
+        });
+        foreach($rows as [$value]){$this->acceptInvoice($value);}
+    }
+    public function wrongModel():void
+    {
+        $rows=[];
+        DeferredCallbacks::invoke(function()use(&$rows):void {
+            $invoice=OtherInvoice::query()->first();
+            if($invoice===null){throw new \RuntimeException('Missing other invoice.');}
+            $rows[]=[$invoice];
+        });
+        foreach($rows as [$value]){$this->acceptInvoice($value);}
+    }
+    public function rebind():void
+    {
+        $rows=[];
+        DeferredCallbacks::invoke(function()use(&$rows):void {
+            $invoice=Invoice::query()->first();
+            if($invoice===null){throw new \RuntimeException('Missing invoice.');}
+            $invoice=null;
+            $rows[]=[$invoice];
+        });
+        foreach($rows as [$value]){$this->acceptInvoice($value);}
+    }
+    public function byReferenceRead():void
+    {
+        $rows=[];
+        DeferredCallbacks::invoke(function()use(&$rows):void {
+            $invoice=Invoice::query()->first();
+            if($invoice===null){throw new \RuntimeException('Missing invoice.');}
+            $this->replace($invoice);
+            $rows[]=[$invoice];
+        });
+        foreach($rows as [$value]){$this->acceptInvoice($value);}
+    }
+    public function localReference():void
+    {
+        $rows=[];
+        DeferredCallbacks::invoke(function()use(&$rows):void {
+            $invoice=Invoice::query()->first();
+            if($invoice===null){throw new \RuntimeException('Missing invoice.');}
+            $alias=&$invoice;
+            $alias=null;
+            $rows[]=[$invoice];
+        });
+        foreach($rows as [$value]){$this->acceptInvoice($value);}
+    }
+    public function destructuredWrite():void
+    {
+        $rows=[];
+        DeferredCallbacks::invoke(function()use(&$rows):void {
+            $invoice=Invoice::query()->first();
+            if($invoice===null){throw new \RuntimeException('Missing invoice.');}
+            [$invoice]=[null];
+            $rows[]=[$invoice];
+        });
+        foreach($rows as [$value]){$this->acceptInvoice($value);}
+    }
+    public function foreachWrite():void
+    {
+        $rows=[];
+        DeferredCallbacks::invoke(function()use(&$rows):void {
+            $invoice=Invoice::query()->first();
+            if($invoice===null){throw new \RuntimeException('Missing invoice.');}
+            foreach([null] as $invoice){}
+            $rows[]=[$invoice];
+        });
+        foreach($rows as [$value]){$this->acceptInvoice($value);}
+    }
+    public function unknownProducer(mixed $input):void
+    {
+        $rows=[];
+        DeferredCallbacks::invoke(function()use($input,&$rows):void {
+            $invoice=$input;
+            if($invoice===null){throw new \RuntimeException('Missing input.');}
+            $rows[]=[$invoice];
+        });
+        foreach($rows as [$value]){$this->acceptInvoice($value);}
+    }
+    public function projectionRebind():void
+    {
+        $rows=[];
+        DeferredCallbacks::invoke(function()use(&$rows):void {
+            $invoice=Invoice::query()->first();
+            if($invoice===null){throw new \RuntimeException('Missing invoice.');}
+            $rows[]=[$invoice];
+        });
+        foreach($rows as [$value]){$value=null;$this->acceptInvoice($value);}
+    }
+    public function foreignRowWrite():void
+    {
+        $rows=[];
+        DeferredCallbacks::invoke(function()use(&$rows):void {
+            $invoice=Invoice::query()->first();
+            if($invoice===null){throw new \RuntimeException('Missing invoice.');}
+            $rows[]=[$invoice];
+        });
+        $rows[]=[null];
+        foreach($rows as [$value]){$this->acceptInvoice($value);}
+    }
+    public function referencedProjection():void
+    {
+        $rows=[];
+        DeferredCallbacks::invoke(function()use(&$rows):void {
+            $invoice=Invoice::query()->first();
+            if($invoice===null){throw new \RuntimeException('Missing invoice.');}
+            $rows[]=[$invoice];
+        });
+        foreach($rows as [&$value]){$this->acceptInvoice($value);}
+    }
+    public function earlierRowReferenceEffect():void
+    {
+        $rows=[];
+        DeferredCallbacks::invoke(function()use(&$rows):void {
+            $invoice=Invoice::query()->first();
+            if($invoice===null){throw new \RuntimeException('Missing invoice.');}
+            $rows[]=[$this->replace($invoice),$invoice];
+        });
+        foreach($rows as [$reason,$value]){$this->acceptInvoice($value);}
+    }
+    public function earlierRowUnknownEffect():void
+    {
+        $rows=[];
+        DeferredCallbacks::invoke(function()use(&$rows):void {
+            $invoice=Invoice::query()->first();
+            if($invoice===null){throw new \RuntimeException('Missing invoice.');}
+            $rows[]=[$this->notice(),$invoice];
+        });
+        foreach($rows as [$reason,$value]){$this->acceptInvoice($value);}
+    }
+    public function unrelatedMixed(mixed $input):void{$this->acceptInvoice($input);}
+    public function genuineNull():void{$this->acceptInvoice(null);}
+    private function replace(?Invoice &$invoice):void{$invoice=null;}
+    private function notice():void {}
+    private function acceptInvoice(Invoice $invoice):void {}
+}

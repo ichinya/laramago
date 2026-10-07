@@ -1,0 +1,1 @@
+<?php namespace Illuminate\Database\Eloquent\Concerns; /** @mixin \Illuminate\Database\Eloquent\Builder */ trait QueriesRelationships {}

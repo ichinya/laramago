@@ -1,0 +1,31 @@
+<?php
+namespace Illuminate\Support;
+use Illuminate\Support\Traits\EnumeratesValues;
+use Illuminate\Support\Traits\Macroable;
+use Illuminate\Support\Traits\TransformsToResourceCollection;
+/**
+ * @template TKey of array-key
+ * @template-covariant TValue
+ */
+class Collection
+{
+    /** @use \Illuminate\Support\Traits\EnumeratesValues<TKey, TValue> */
+    use EnumeratesValues, Macroable, TransformsToResourceCollection;
+    /** @var array<TKey,TValue> */
+    protected $items = [];
+    /** @param array<TKey,TValue> $items */
+    public function __construct(array $items = []) { $this->items = $items; }
+/**
+     * Get the first item from the collection passing the given truth test.
+     *
+     * @template TFirstDefault
+     *
+     * @param  (callable(TValue, TKey): bool)|null  $callback
+     * @param  TFirstDefault|(\Closure(): TFirstDefault)  $default
+     * @return TValue|TFirstDefault
+     */
+    public function first(?callable $callback = null, $default = null)
+    {
+        return Arr::first($this->items, $callback, $default);
+    }
+}

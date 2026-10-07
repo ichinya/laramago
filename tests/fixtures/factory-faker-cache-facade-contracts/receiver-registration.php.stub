@@ -1,0 +1,46 @@
+<?php
+namespace Example\FormatterRegistration;
+
+use Carbon\CarbonImmutable;
+use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Once;
+use Illuminate\Support\ServiceProvider;
+use Symfony\Component\Console\Input\ArgvInput;
+use Symfony\Component\Console\Input\InputDefinition;
+
+final class HandlerRegistry {}
+final class ExampleMiddleware {}
+
+// An analyzed declaration only. The fixture never invokes this function.
+function unrelatedRegistrations(): void
+{
+    CarbonImmutable::instance(new \DateTimeImmutable());
+    DB::extend('example-driver', static fn () => null);
+    app('cache')->extend('example-store', static fn () => null);
+    Application::configure()->withRouting(web: __FILE__)->withSchedule(function (): void {})->withMiddleware(function (Middleware $middleware): void {
+        $middleware->alias(['example' => ExampleMiddleware::class]);
+    });
+    Once::instance();
+}
+
+// Composer metadata declares this literal provider; no provider body runs.
+final class ReceiverCatalogueProvider extends ServiceProvider
+{
+    public function register(): void
+    {
+        $this->app->singleton(function (): HandlerRegistry {
+            return new HandlerRegistry();
+        });
+    }
+}
+
+// Match the physical source receiver lifetime; never invoke the closure.
+$consoleRegistration = function (): void {
+    $input = new ArgvInput();
+    try {
+        $input->bind(new InputDefinition());
+    } catch (\RuntimeException $exception) {
+    }
+};

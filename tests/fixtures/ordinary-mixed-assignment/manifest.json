@@ -1,0 +1,671 @@
+{
+    "script-function-result": {
+        "file": "app/script-function-result.php",
+        "role": "positive",
+        "sourceSha256": "dfe3a75aed1777995d3730c535bf1cbf9efd8119a1b344bf75b96d8a24c4413d",
+        "sourceCandidates": {
+            "389:396": {
+                "variable": "stored",
+                "kind": "ordinary-statement-assignment",
+                "primary": [
+                    389,
+                    396
+                ],
+                "rhs": [
+                    397,
+                    407
+                ],
+                "rhsKind": "Expr_FuncCall",
+                "sourceSha256": "dfe3a75aed1777995d3730c535bf1cbf9efd8119a1b344bf75b96d8a24c4413d",
+                "nativeTypeChanged": false
+            }
+        },
+        "nativeBaselinesMeasured": false
+    },
+    "script-method-result": {
+        "file": "app/script-method-result.php",
+        "role": "positive",
+        "sourceSha256": "87f8622250668bd57e59f6771464dd733c2ecf90e4f82b82664a05de3b8606c2",
+        "sourceCandidates": {
+            "415:422": {
+                "variable": "stored",
+                "kind": "ordinary-statement-assignment",
+                "primary": [
+                    415,
+                    422
+                ],
+                "rhs": [
+                    423,
+                    438
+                ],
+                "rhsKind": "Expr_MethodCall",
+                "sourceSha256": "87f8622250668bd57e59f6771464dd733c2ecf90e4f82b82664a05de3b8606c2",
+                "nativeTypeChanged": false
+            },
+            "389:396": {
+                "variable": "source",
+                "kind": "ordinary-statement-assignment",
+                "primary": [
+                    389,
+                    396
+                ],
+                "rhs": [
+                    397,
+                    414
+                ],
+                "rhsKind": "Expr_New",
+                "sourceSha256": "87f8622250668bd57e59f6771464dd733c2ecf90e4f82b82664a05de3b8606c2",
+                "nativeTypeChanged": false
+            }
+        },
+        "nativeBaselinesMeasured": false
+    },
+    "nested-try-include": {
+        "file": "app/nested-try-include.php",
+        "role": "positive",
+        "sourceSha256": "31d58715dc59841d3f49303a27048f68e2303ae8f7b59f32ae98417821579f58",
+        "sourceCandidates": {
+            "393:400": {
+                "variable": "stored",
+                "kind": "ordinary-statement-assignment",
+                "primary": [
+                    393,
+                    400
+                ],
+                "rhs": [
+                    401,
+                    431
+                ],
+                "rhsKind": "Expr_Include",
+                "sourceSha256": "31d58715dc59841d3f49303a27048f68e2303ae8f7b59f32ae98417821579f58",
+                "nativeTypeChanged": false
+            }
+        },
+        "nativeBaselinesMeasured": false
+    },
+    "nested-if-include": {
+        "file": "app/nested-if-include.php",
+        "role": "positive",
+        "sourceSha256": "dc10ab50ffc6f9802c3a3d411f7599e3f37a0194e0265a7d9bad9f6237fcaa88",
+        "sourceCandidates": {
+            "404:411": {
+                "variable": "stored",
+                "kind": "ordinary-statement-assignment",
+                "primary": [
+                    404,
+                    411
+                ],
+                "rhs": [
+                    412,
+                    442
+                ],
+                "rhsKind": "Expr_Include",
+                "sourceSha256": "dc10ab50ffc6f9802c3a3d411f7599e3f37a0194e0265a7d9bad9f6237fcaa88",
+                "nativeTypeChanged": false
+            }
+        },
+        "nativeBaselinesMeasured": false
+    },
+    "function-local": {
+        "file": "app/function-local.php",
+        "role": "positive",
+        "sourceSha256": "f278a9d38fb97b96639b8df511458e0ee3f9dd06632d82ce4bead69e2b2a270b",
+        "sourceCandidates": {
+            "431:438": {
+                "variable": "stored",
+                "kind": "ordinary-statement-assignment",
+                "primary": [
+                    431,
+                    438
+                ],
+                "rhs": [
+                    439,
+                    445
+                ],
+                "rhsKind": "Expr_Variable",
+                "sourceSha256": "f278a9d38fb97b96639b8df511458e0ee3f9dd06632d82ce4bead69e2b2a270b",
+                "nativeTypeChanged": false
+            }
+        },
+        "nativeBaselinesMeasured": false
+    },
+    "closure-local": {
+        "file": "app/closure-local.php",
+        "role": "positive",
+        "sourceSha256": "7e8f986b7a954b6140a16bbfafce06420f3d38818f5fa4875a4ab8a9e243f86e",
+        "sourceCandidates": {
+            "389:398": {
+                "variable": "callback",
+                "kind": "ordinary-statement-assignment",
+                "primary": [
+                    389,
+                    398
+                ],
+                "rhs": [
+                    399,
+                    473
+                ],
+                "rhsKind": "Expr_Closure",
+                "sourceSha256": "7e8f986b7a954b6140a16bbfafce06420f3d38818f5fa4875a4ab8a9e243f86e",
+                "nativeTypeChanged": false
+            },
+            "434:441": {
+                "variable": "stored",
+                "kind": "ordinary-statement-assignment",
+                "primary": [
+                    434,
+                    441
+                ],
+                "rhs": [
+                    442,
+                    448
+                ],
+                "rhsKind": "Expr_Variable",
+                "sourceSha256": "7e8f986b7a954b6140a16bbfafce06420f3d38818f5fa4875a4ab8a9e243f86e",
+                "nativeTypeChanged": false
+            }
+        },
+        "nativeBaselinesMeasured": false
+    },
+    "method-local": {
+        "file": "app/method-local.php",
+        "role": "positive",
+        "sourceSha256": "1f810f3bda211adb794fac79413d9749e36878d3bfbe58c24e335ed86222d083",
+        "sourceCandidates": {
+            "456:463": {
+                "variable": "stored",
+                "kind": "ordinary-statement-assignment",
+                "primary": [
+                    456,
+                    463
+                ],
+                "rhs": [
+                    464,
+                    470
+                ],
+                "rhsKind": "Expr_Variable",
+                "sourceSha256": "1f810f3bda211adb794fac79413d9749e36878d3bfbe58c24e335ed86222d083",
+                "nativeTypeChanged": false
+            }
+        },
+        "nativeBaselinesMeasured": false
+    },
+    "unrelated-reference": {
+        "file": "app/unrelated-reference.php",
+        "role": "positive",
+        "sourceSha256": "8cc12e49dd8f1168442404b2262fbbddfca91f212ffb02b1fb3f0302926297f0",
+        "sourceCandidates": {
+            "454:461": {
+                "variable": "stored",
+                "kind": "ordinary-statement-assignment",
+                "primary": [
+                    454,
+                    461
+                ],
+                "rhs": [
+                    462,
+                    472
+                ],
+                "rhsKind": "Expr_FuncCall",
+                "sourceSha256": "8cc12e49dd8f1168442404b2262fbbddfca91f212ffb02b1fb3f0302926297f0",
+                "nativeTypeChanged": false
+            },
+            "402:411": {
+                "variable": "callback",
+                "kind": "ordinary-statement-assignment",
+                "primary": [
+                    402,
+                    411
+                ],
+                "rhs": [
+                    412,
+                    453
+                ],
+                "rhsKind": "Expr_Closure",
+                "sourceSha256": "8cc12e49dd8f1168442404b2262fbbddfca91f212ffb02b1fb3f0302926297f0",
+                "nativeTypeChanged": false
+            }
+        },
+        "nativeBaselinesMeasured": false
+    },
+    "separate-frame-reference": {
+        "file": "app/separate-frame-reference.php",
+        "role": "positive",
+        "sourceSha256": "9f5c2f684b6a2f20a4a9475df24ce66834fc391ebb6c28f62257c2e7245be0c3",
+        "sourceCandidates": {
+            "431:438": {
+                "variable": "stored",
+                "kind": "ordinary-statement-assignment",
+                "primary": [
+                    431,
+                    438
+                ],
+                "rhs": [
+                    439,
+                    449
+                ],
+                "rhsKind": "Expr_FuncCall",
+                "sourceSha256": "9f5c2f684b6a2f20a4a9475df24ce66834fc391ebb6c28f62257c2e7245be0c3",
+                "nativeTypeChanged": false
+            }
+        },
+        "nativeBaselinesMeasured": false
+    },
+    "by-value-foreach": {
+        "file": "app/by-value-foreach.php",
+        "role": "positive",
+        "sourceSha256": "06cf4bd65e7a02a7a2704a16e7b3933b94383786e6e20662b05cad14f8a705ae",
+        "sourceCandidates": {
+            "408:415": {
+                "variable": "stored",
+                "kind": "ordinary-by-value-foreach",
+                "primary": [
+                    408,
+                    415
+                ],
+                "rhs": null,
+                "rhsKind": null,
+                "sourceSha256": "06cf4bd65e7a02a7a2704a16e7b3933b94383786e6e20662b05cad14f8a705ae",
+                "nativeTypeChanged": false
+            }
+        },
+        "nativeBaselinesMeasured": false
+    },
+    "by-value-foreach-list": {
+        "file": "app/by-value-foreach-list.php",
+        "role": "positive",
+        "sourceSha256": "59e774eb1cf2b964c80593f2a07b6575e6e3f83ec0b83e510a7fd9273f1223d3",
+        "sourceCandidates": {
+            "412:418": {
+                "variable": "first",
+                "kind": "ordinary-by-value-flat-list-leaf",
+                "primary": [
+                    412,
+                    418
+                ],
+                "rhs": null,
+                "rhsKind": null,
+                "sourceSha256": "59e774eb1cf2b964c80593f2a07b6575e6e3f83ec0b83e510a7fd9273f1223d3",
+                "nativeTypeChanged": false
+            },
+            "419:426": {
+                "variable": "second",
+                "kind": "ordinary-by-value-flat-list-leaf",
+                "primary": [
+                    419,
+                    426
+                ],
+                "rhs": null,
+                "rhsKind": null,
+                "sourceSha256": "59e774eb1cf2b964c80593f2a07b6575e6e3f83ec0b83e510a7fd9273f1223d3",
+                "nativeTypeChanged": false
+            },
+            "427:433": {
+                "variable": "third",
+                "kind": "ordinary-by-value-flat-list-leaf",
+                "primary": [
+                    427,
+                    433
+                ],
+                "rhs": null,
+                "rhsKind": null,
+                "sourceSha256": "59e774eb1cf2b964c80593f2a07b6575e6e3f83ec0b83e510a7fd9273f1223d3",
+                "nativeTypeChanged": false
+            }
+        },
+        "nativeBaselinesMeasured": false
+    },
+    "coalesce-result": {
+        "file": "app/coalesce-result.php",
+        "role": "positive",
+        "sourceSha256": "766a15f2ed965068a47869b969a5bacb2777b463c9fa98d8a1a6a2cf8d51c61e",
+        "sourceCandidates": {
+            "390:397": {
+                "variable": "stored",
+                "kind": "ordinary-statement-assignment",
+                "primary": [
+                    390,
+                    397
+                ],
+                "rhs": [
+                    398,
+                    421
+                ],
+                "rhsKind": "Expr_BinaryOp_Coalesce",
+                "sourceSha256": "766a15f2ed965068a47869b969a5bacb2777b463c9fa98d8a1a6a2cf8d51c61e",
+                "nativeTypeChanged": false
+            }
+        },
+        "nativeBaselinesMeasured": false
+    },
+    "alias-reference": {
+        "file": "app/alias-reference.php",
+        "role": "negative",
+        "sourceSha256": "fb6f270301bb36c44a203b7d13d0e2bd94191306a23175ba6e9316402cf19666",
+        "sourceCandidates": [],
+        "nativeBaselinesMeasured": false
+    },
+    "captured-reference": {
+        "file": "app/captured-reference.php",
+        "role": "negative",
+        "sourceSha256": "bdef1de4d38eb91aa543562b80f9ee99a92e3c39b89967b629c2a87ab295477b",
+        "sourceCandidates": {
+            "409:418": {
+                "variable": "callback",
+                "kind": "ordinary-statement-assignment",
+                "primary": [
+                    409,
+                    418
+                ],
+                "rhs": [
+                    419,
+                    449
+                ],
+                "rhsKind": "Expr_Closure",
+                "sourceSha256": "bdef1de4d38eb91aa543562b80f9ee99a92e3c39b89967b629c2a87ab295477b",
+                "nativeTypeChanged": false
+            }
+        },
+        "nativeBaselinesMeasured": false
+    },
+    "shared-closure-write": {
+        "file": "app/shared-closure-write.php",
+        "role": "negative",
+        "sourceSha256": "1e77b9d00287d8ad0c1060245e606f2a4cf30038c7ae0f4131a8b72db522b653",
+        "sourceCandidates": {
+            "403:412": {
+                "variable": "callback",
+                "kind": "ordinary-statement-assignment",
+                "primary": [
+                    403,
+                    412
+                ],
+                "rhs": [
+                    413,
+                    500
+                ],
+                "rhsKind": "Expr_Closure",
+                "sourceSha256": "1e77b9d00287d8ad0c1060245e606f2a4cf30038c7ae0f4131a8b72db522b653",
+                "nativeTypeChanged": false
+            }
+        },
+        "nativeBaselinesMeasured": false
+    },
+    "captured-value-write": {
+        "file": "app/captured-value-write.php",
+        "role": "negative",
+        "sourceSha256": "332e5df2dd38670ef89f114e94b7eed4bc215b30f37dd953d473d95a14314681",
+        "sourceCandidates": {
+            "403:412": {
+                "variable": "callback",
+                "kind": "ordinary-statement-assignment",
+                "primary": [
+                    403,
+                    412
+                ],
+                "rhs": [
+                    413,
+                    499
+                ],
+                "rhsKind": "Expr_Closure",
+                "sourceSha256": "332e5df2dd38670ef89f114e94b7eed4bc215b30f37dd953d473d95a14314681",
+                "nativeTypeChanged": false
+            },
+            "390:397": {
+                "variable": "stored",
+                "kind": "ordinary-statement-assignment",
+                "primary": [
+                    390,
+                    397
+                ],
+                "rhs": [
+                    398,
+                    402
+                ],
+                "rhsKind": "Expr_ConstFetch",
+                "sourceSha256": "332e5df2dd38670ef89f114e94b7eed4bc215b30f37dd953d473d95a14314681",
+                "nativeTypeChanged": false
+            }
+        },
+        "nativeBaselinesMeasured": false
+    },
+    "parameter-write": {
+        "file": "app/parameter-write.php",
+        "role": "negative",
+        "sourceSha256": "5d49aa0abdf6268d4e11b76d810739067dd99fc4758b04e493cd1771a16c4c26",
+        "sourceCandidates": [],
+        "nativeBaselinesMeasured": false
+    },
+    "reference-parameter-write": {
+        "file": "app/reference-parameter-write.php",
+        "role": "negative",
+        "sourceSha256": "8c71e93e9fc258fe12fe475043c1e282d963aa38974e3c7c028559826d032910",
+        "sourceCandidates": [],
+        "nativeBaselinesMeasured": false
+    },
+    "global-binding": {
+        "file": "app/global-binding.php",
+        "role": "negative",
+        "sourceSha256": "276ad9d7a3ea35a2d3941792984c4889a75d92149720a1f5d4076767a3c99c04",
+        "sourceCandidates": [],
+        "nativeBaselinesMeasured": false
+    },
+    "static-binding": {
+        "file": "app/static-binding.php",
+        "role": "negative",
+        "sourceSha256": "77c8894f2367e5d9701e84edbd2b3715812a801c79378027a1dbd0478fa3fbd2",
+        "sourceCandidates": [],
+        "nativeBaselinesMeasured": false
+    },
+    "reference-foreach": {
+        "file": "app/reference-foreach.php",
+        "role": "negative",
+        "sourceSha256": "14dd7ac194fdaa8a141438982267bad4b0e8d3c7d21bfacb5cbdf753766c69be",
+        "sourceCandidates": {
+            "390:395": {
+                "variable": "rows",
+                "kind": "ordinary-statement-assignment",
+                "primary": [
+                    390,
+                    395
+                ],
+                "rhs": [
+                    396,
+                    405
+                ],
+                "rhsKind": "Expr_FuncCall",
+                "sourceSha256": "14dd7ac194fdaa8a141438982267bad4b0e8d3c7d21bfacb5cbdf753766c69be",
+                "nativeTypeChanged": false
+            }
+        },
+        "nativeBaselinesMeasured": false
+    },
+    "reference-foreach-list": {
+        "file": "app/reference-foreach-list.php",
+        "role": "negative",
+        "sourceSha256": "e4854cd8048a3d390ec44f9de71e6047481369cefc941e82c882422f1fcbf992",
+        "sourceCandidates": {
+            "390:395": {
+                "variable": "rows",
+                "kind": "ordinary-statement-assignment",
+                "primary": [
+                    390,
+                    395
+                ],
+                "rhs": [
+                    396,
+                    407
+                ],
+                "rhsKind": "Expr_FuncCall",
+                "sourceSha256": "e4854cd8048a3d390ec44f9de71e6047481369cefc941e82c882422f1fcbf992",
+                "nativeTypeChanged": false
+            }
+        },
+        "nativeBaselinesMeasured": false
+    },
+    "nested-list": {
+        "file": "app/nested-list.php",
+        "role": "negative",
+        "sourceSha256": "ff33fab7afc944a0aadbcff7bfc43c12aa6fa129e0584a1297fd5118ff29a94b",
+        "sourceCandidates": [],
+        "nativeBaselinesMeasured": false
+    },
+    "keyed-list": {
+        "file": "app/keyed-list.php",
+        "role": "negative",
+        "sourceSha256": "190b77807af579338d2903043c2c869063ae3b1ff87f797596d3afc46311d2fa",
+        "sourceCandidates": [],
+        "nativeBaselinesMeasured": false
+    },
+    "duplicate-list": {
+        "file": "app/duplicate-list.php",
+        "role": "negative",
+        "sourceSha256": "d17ab07a41c76096e96d6efcc794093d69ca37ca41297e3552f0c18b9831d9cf",
+        "sourceCandidates": [],
+        "nativeBaselinesMeasured": false
+    },
+    "conditional-assignment": {
+        "file": "app/conditional-assignment.php",
+        "role": "negative",
+        "sourceSha256": "ddcfcd2f76000f0b86c8edcdc2b0f98a8f5452b063423703dda10feec4c99309",
+        "sourceCandidates": [],
+        "nativeBaselinesMeasured": false
+    },
+    "chained-assignment": {
+        "file": "app/chained-assignment.php",
+        "role": "negative",
+        "sourceSha256": "674e993272abba8f439ae037c9bba17262f5e4334487ca304921eecca106e40c",
+        "sourceCandidates": [],
+        "nativeBaselinesMeasured": false
+    },
+    "property-storage": {
+        "file": "app/property-storage.php",
+        "role": "negative",
+        "sourceSha256": "4e83872cb2ea9d1f46178c6fcbee1fe1bd14a6d4ec0ad64ae158aca74ee36940",
+        "sourceCandidates": {
+            "390:394": {
+                "variable": "box",
+                "kind": "ordinary-statement-assignment",
+                "primary": [
+                    390,
+                    394
+                ],
+                "rhs": [
+                    395,
+                    413
+                ],
+                "rhsKind": "Expr_New",
+                "sourceSha256": "4e83872cb2ea9d1f46178c6fcbee1fe1bd14a6d4ec0ad64ae158aca74ee36940",
+                "nativeTypeChanged": false
+            }
+        },
+        "nativeBaselinesMeasured": false
+    },
+    "static-property-storage": {
+        "file": "app/static-property-storage.php",
+        "role": "negative",
+        "sourceSha256": "fe559b521ce082a1e23ea2033c72a1803a16cd7f69e59b59d54b0ab98821cc62",
+        "sourceCandidates": [],
+        "nativeBaselinesMeasured": false
+    },
+    "array-storage": {
+        "file": "app/array-storage.php",
+        "role": "negative",
+        "sourceSha256": "5290c6d47c0c7c0a387e84befe866a5a4facfa2da44bc5373dc655d0b024ff50",
+        "sourceCandidates": {
+            "390:396": {
+                "variable": "items",
+                "kind": "ordinary-statement-assignment",
+                "primary": [
+                    390,
+                    396
+                ],
+                "rhs": [
+                    397,
+                    399
+                ],
+                "rhsKind": "Expr_Array",
+                "sourceSha256": "5290c6d47c0c7c0a387e84befe866a5a4facfa2da44bc5373dc655d0b024ff50",
+                "nativeTypeChanged": false
+            }
+        },
+        "nativeBaselinesMeasured": false
+    },
+    "superglobal-storage": {
+        "file": "app/superglobal-storage.php",
+        "role": "negative",
+        "sourceSha256": "c420af928ae5a8080222eff5c7d68603c38de1e97fbdede6b62ca00e2506590d",
+        "sourceCandidates": [],
+        "nativeBaselinesMeasured": false
+    },
+    "globals-storage": {
+        "file": "app/globals-storage.php",
+        "role": "negative",
+        "sourceSha256": "fe720b33a368a962343aaaed09a8913e3698f45b988f7068ddad7acf414fb267",
+        "sourceCandidates": [],
+        "nativeBaselinesMeasured": false
+    },
+    "strong-var": {
+        "file": "app/strong-var.php",
+        "role": "negative",
+        "sourceSha256": "3fb40a8b7adb1ccad0a88d15ec104e378a0761a3be42be185b9dec5ed83d9c1e",
+        "sourceCandidates": [],
+        "nativeBaselinesMeasured": false
+    },
+    "strong-var-prior": {
+        "file": "app/strong-var-prior.php",
+        "role": "negative",
+        "sourceSha256": "b1b2f413c35257074ff95f7fbb8e782cfb3180bcd9e9f7ff342e73ede7f0c580",
+        "sourceCandidates": [],
+        "nativeBaselinesMeasured": false
+    },
+    "extension-var": {
+        "file": "app/extension-var.php",
+        "role": "negative",
+        "sourceSha256": "4faebd245993a8b0db64e2be51ba2bc80513621a9f0907d3a3732008edb4fbbb",
+        "sourceCandidates": [],
+        "nativeBaselinesMeasured": false
+    },
+    "malformed-var": {
+        "file": "app/malformed-var.php",
+        "role": "negative",
+        "sourceSha256": "9e6c63796d600a9d56c5d8b0eab39d468244157236e4db9a7d8bae98b9e648be",
+        "sourceCandidates": [],
+        "nativeBaselinesMeasured": false
+    },
+    "dynamic-variable": {
+        "file": "app/dynamic-variable.php",
+        "role": "negative",
+        "sourceSha256": "9a8ce6daf449ae872087d51a9ad8682df1c83f59e3d79f61ba56b976fb28dbb7",
+        "sourceCandidates": [],
+        "nativeBaselinesMeasured": false
+    },
+    "extract-frame": {
+        "file": "app/extract-frame.php",
+        "role": "negative",
+        "sourceSha256": "1ba1de075103b729119063f2b96caace434ac42b33035692d5bc112960885cd2",
+        "sourceCandidates": [],
+        "nativeBaselinesMeasured": false
+    },
+    "imported-extract-frame": {
+        "file": "app/imported-extract-frame.php",
+        "role": "negative",
+        "sourceSha256": "4f6bf7dfe37674246eabe047af702a532a6c2970a25f71f9f86979d7a2d75a98",
+        "sourceCandidates": [],
+        "nativeBaselinesMeasured": false
+    },
+    "parse-str-frame": {
+        "file": "app/parse-str-frame.php",
+        "role": "negative",
+        "sourceSha256": "8fca19bc7d3c62dfe84b4430aff68a60d65c97f3c5943146491fef0883781f6b",
+        "sourceCandidates": [],
+        "nativeBaselinesMeasured": false
+    },
+    "eval-frame": {
+        "file": "app/eval-frame.php",
+        "role": "negative",
+        "sourceSha256": "5381f5528b1c37947b5ef42ce302b06c684c045526c93472765befda4e818272",
+        "sourceCandidates": [],
+        "nativeBaselinesMeasured": false
+    }
+}

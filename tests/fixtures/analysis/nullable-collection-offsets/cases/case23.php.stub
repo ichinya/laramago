@@ -1,0 +1,11 @@
+<?php
+
+namespace NullableIndexCase23;
+/** @extends \Illuminate\Support\Collection<array-key, \NullableOffsetFixture\Record> */
+class Custom extends \Illuminate\Support\Collection {
+    /** @var \NullableOffsetFixture\ForeignOffsets */
+    protected $items;
+    public function __construct() { $this->items = new \NullableOffsetFixture\ForeignOffsets; }
+}
+function read(Custom $rows, ?int $key): void { $rows[$key]->missing(); }
+file_put_contents(__DIR__."/case-executed", "Scenario bodies must never execute.");

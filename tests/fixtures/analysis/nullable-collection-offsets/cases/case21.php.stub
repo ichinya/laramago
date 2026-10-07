@@ -1,0 +1,10 @@
+<?php
+
+namespace NullableIndexCase21;
+/** @extends \Illuminate\Support\Collection<array-key, \NullableOffsetFixture\Record> */
+class Custom extends \Illuminate\Support\Collection {
+    /** @param array-key $offset */
+    public function offsetExists($offset): bool { if ($offset === null) { throw new \RuntimeException('No null offsets.'); } return parent::offsetExists($offset); }
+}
+function read(Custom $rows, ?int $key): void { if (isset($rows[$key])) { $rows[$key]->missing(); } }
+file_put_contents(__DIR__."/case-executed", "Scenario bodies must never execute.");

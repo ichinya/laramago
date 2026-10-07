@@ -1,0 +1,35 @@
+{
+  "sourceOnly": true,
+  "nativeAcceptanceClaimed": false,
+  "sources": {
+    "decimal-named.php": "83919133dd69efabd1ca690a6a0b554ffa0dcc606eaec6b5145ddb9a59d73327",
+    "decimal-top.php": "98dcad37feb9b33d1b53b9c95381b8b17aa062820cee2650463e5abf67499633",
+    "directory.php": "e33d5365d61bc9638879ad5a01c8da31d38e1f6bc3a1c87c02ed687b08c9d391",
+    "negative.php": "74736b9d21b2a95aa7e69bed488aa622b8e7392f95bfd5fc092b6dc9d0ee077e"
+  },
+  "positiveOwners": [
+    "decimal-top.php::top",
+    "decimal-named.php::boundedDelay",
+    "directory.php::ProcessDirectory::launch"
+  ],
+  "negativeOwners": [
+    "unknownDecimal",
+    "missingUpper",
+    "wrongConjunction",
+    "changedValue",
+    "referenceFormal",
+    "aliasedValue",
+    "unknownInterveningCall",
+    "overflowingProduct",
+    "wrongGuardValue",
+    "MutableDirectory::launch",
+    "UnknownDirectory::launch",
+    "ReferenceDirectory::launch",
+    "EarlierArgumentEffect::launch",
+    "shadowedDigit"
+  ],
+  "originalIds": [
+    "E063",
+    "E067"
+  ]
+}

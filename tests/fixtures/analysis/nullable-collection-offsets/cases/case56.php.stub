@@ -1,0 +1,5 @@
+<?php
+
+namespace NullableIndexCase56;
+trait Reader { /** @param array-key $offset @return \NullableOffsetFixture\Record */ public function offsetGet($offset): mixed { return $this->items[$offset]; } } /** @extends \Illuminate\Support\Collection<array-key, \NullableOffsetFixture\Record> */ final class Rows extends \Illuminate\Support\Collection { use Reader { offsetGet as alternate; } } function read(Rows $rows, ?int $key): void { $rows[$key]->missing(); }
+file_put_contents(__DIR__."/case-executed", "Scenario bodies must never execute.");

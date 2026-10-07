@@ -1,0 +1,3 @@
+<?php
+namespace Example\CacheFacadeRegistration;
+\Illuminate\Support\Facades\Cache::extend('example', static function () {});

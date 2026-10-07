@@ -1,0 +1,25 @@
+<?php
+namespace Illuminate\Support;
+/**
+ * @template TKey of array-key
+ * @template TValue
+ * @implements \IteratorAggregate<TKey, TValue>
+ */
+class Collection implements \IteratorAggregate {
+    /** @param array<TKey, TValue> $items */
+    public function __construct(array $items = []) {}
+    /** @return \Traversable<TKey, TValue> */
+    public function getIterator(): \Traversable { yield from []; }
+}
+namespace Illuminate\Database\Eloquent;
+/**
+ * @template TKey of array-key = array-key
+ * @template TModel of Model = Model
+ * @extends \Illuminate\Support\Collection<TKey, TModel>
+ */
+class Collection extends \Illuminate\Support\Collection {}
+namespace Illuminate\Database\Query;
+class Builder {
+    /** @use \Illuminate\Database\Concerns\BuildsQueries<\stdClass> */
+    use \Illuminate\Database\Concerns\BuildsQueries;
+}

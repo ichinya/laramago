@@ -1,0 +1,9 @@
+<?php
+namespace Illuminate\Support\Traits;
+trait ForwardsCalls
+{
+    protected function forwardCallTo(object $object,string $method,array $parameters):mixed
+    {
+        return $object->{$method}(...$parameters);
+    }
+}

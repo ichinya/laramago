@@ -264,7 +264,10 @@ PHP)) {
         if (! is_array($events) || array_key_exists('retrieved', $events)) {
             return false;
         }
-        foreach ($context->codebase->getMultipleClasses([$model, ...$context->codebase->getClassAncestors($model)]) as $class) {
+        foreach ($context->codebase->getMultipleClassLikes([$model, ...$context->codebase->getClassAncestors($model)]) as $class) {
+            if ($class === null) {
+                return false;
+            }
             foreach ($class->attributes as $attribute) {
                 if (str_ends_with($attribute->name, '\\ScopedBy') || str_ends_with($attribute->name, '\\ObservedBy')) {
                     return false;
