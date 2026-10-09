@@ -14,7 +14,7 @@ $catalogue=json_decode(file_get_contents($data.'/cases.json'),true,flags:JSON_TH
 if(count($catalogue['sources'])!==5||count($catalogue['positiveOwners'])!==6) { throw new RuntimeException('Expected five source files and six cast owners.'); }
 $held=[];$sites=[];$scopes=[];$finder=new \PhpParser\NodeFinder;$parser=(new \PhpParser\ParserFactory)->createForNewestSupportedVersion();
 foreach($catalogue['sources'] as $file=>$hash) {
-    $bytes=file_get_contents($data.'/source/'.$file.'.stub');if(hash('sha256',$bytes)!==$hash) { throw new RuntimeException('Guarded cast fixture source hash differs: '.$file); }
+    $bytes=str_replace("\r\n","\n",file_get_contents($data.'/source/'.$file.'.stub'));if(hash('sha256',$bytes)!==$hash) { throw new RuntimeException('Guarded cast fixture source hash differs: '.$file); }
     $write($workspace.'/'.$file,$bytes);$held[$workspace.'/'.$file]=$hash;
     $nodes=$parser->parse($bytes)??[];
     foreach($finder->find($nodes,static fn(\PhpParser\Node $node):bool=>$node instanceof \PhpParser\Node\Stmt\Function_||$node instanceof \PhpParser\Node\Stmt\ClassMethod) as $owner) {

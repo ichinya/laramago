@@ -19,6 +19,8 @@ final class SchemaIndex
     /** @var array<string, true> */
     private array $uncertain = [];
     private bool $unreadable = false;
+    /** @var list<array{file:string,line:int,scope:string,tables:list<string>}> */
+    private array $uncertainties = [];
 
     public function __construct(
         private readonly PhpSource $source,
@@ -94,10 +96,13 @@ final class SchemaIndex
                     || $connection !== null
                     || $class->getMethod('getConnection') !== null
                 ) {
+                    $before = [$this->unreadable, $this->uncertain];
                     $this->invalidateStatements($up);
+                    $this->recordUncertainty($file, $class->getMethod('up') ?? $class, $before);
                     continue;
                 }
                 foreach ($up as $statement) {
+                    $before = [$this->unreadable, $this->uncertain];
                     if (
                         $statement instanceof Node\Stmt\Expression
                         && $statement->expr instanceof Node\Expr\StaticCall
@@ -107,6 +112,7 @@ final class SchemaIndex
                     } else {
                         $this->invalidateStatements([$statement]);
                     }
+                    $this->recordUncertainty($file, $statement, $before);
                 }
             }
         }
@@ -117,6 +123,19 @@ final class SchemaIndex
         return $table === null || $this->unreadable || isset($this->uncertain[$table])
             ? null
             : $this->tables[$table][$property] ?? null;
+    }
+
+    /** Source-only reasons for lost schema precision; they do not relax invalidation. */
+    public function uncertainties(): array { return $this->uncertainties; }
+
+    /** @param array{bool,array<string,true>} $before */
+    private function recordUncertainty(string $file, Node $node, array $before): void
+    {
+        $global = $this->unreadable && ! $before[0];
+        $tables = array_keys(array_diff_key($this->uncertain, $before[1]));
+        if (! $global && $tables === []) { return; }
+        $this->uncertainties[] = ['file' => $file, 'line' => $node->getStartLine(),
+            'scope' => $global ? 'all-tables' : 'tables', 'tables' => $global ? [] : $tables];
     }
 
     /** @return list<string> */

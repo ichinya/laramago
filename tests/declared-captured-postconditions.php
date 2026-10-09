@@ -7,7 +7,7 @@ require $package.'/vendor/autoload.php';$sourceChecks=require $fixture.'/source-
 if(count($sourceChecks)!==36||in_array(false,$sourceChecks,true)) { throw new RuntimeException('All closed source grammar controls are required.'); }
 $catalogue=json_decode(file_get_contents($fixture.'/catalogue.json'),true,flags:JSON_THROW_ON_ERROR)['caseCatalogue'];$held=[];
 foreach(['contracts.php',...array_keys($catalogue)] as $relative) {
-    $bytes=file_get_contents($fixture.'/'.$relative);file_put_contents($root.'/'.$relative,$bytes);$held[$root.'/'.$relative]=hash('sha256',$bytes);
+    $bytes=str_replace("\r\n","\n",file_get_contents($fixture.'/'.$relative));file_put_contents($root.'/'.$relative,$bytes);$held[$root.'/'.$relative]=hash('sha256',$bytes);
 }
 file_put_contents($root.'/manifest.json',json_encode(['caseCatalogue'=>$catalogue,'heldHashes'=>$held],JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT));
 file_put_contents($root.'/composer.json','{}');

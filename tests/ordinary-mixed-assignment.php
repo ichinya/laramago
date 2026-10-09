@@ -5,7 +5,7 @@ require __DIR__.'/../vendor/autoload.php';
 $package=str_replace('\\','/',dirname(__DIR__));$fixtures=$package.'/tests/fixtures/ordinary-mixed-assignment';
 $workspace=str_replace('\\','/',sys_get_temp_dir()).'/laramago ordinary mixed '.bin2hex(random_bytes(8));
 foreach(['app','packages/composer','observe','controls','controls-three','controls-single']as$directory){mkdir($workspace.'/'.$directory,recursive:true);}
-foreach(glob($fixtures.'/app/*.php')as$file){copy($file,$workspace.'/app/'.basename($file));}
+foreach(glob($fixtures.'/app/*.php')as$file){file_put_contents($workspace.'/app/'.basename($file),str_replace("\r\n","\n",file_get_contents($file)));}
 file_put_contents($workspace.'/composer.json','{"config":{"vendor-dir":"packages"},"autoload":{"files":["bootstrap.php"]}}');
 file_put_contents($workspace.'/bootstrap.php','<?php file_put_contents(__DIR__."/bootstrap-executed.marker","executed"); throw new RuntimeException("Consumer bootstrap must never execute.");');
 file_put_contents($workspace.'/packages/composer/installed.json','{"packages":[]}');

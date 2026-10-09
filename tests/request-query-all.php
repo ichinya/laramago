@@ -7,6 +7,8 @@ $command = str_ends_with($binary, '.exe') ? [$binary] : [PHP_BINARY, $binary];
 $package = str_replace('\\', '/', dirname(__DIR__));
 $changedBody = in_array('--changed-body', $argv, true);
 $reformatted = in_array('--reformatted', $argv, true);
+$contractLf = in_array('--lf-contract', $argv, true);
+$contractCrlf = in_array('--crlf-contract', $argv, true);
 $workspace = str_replace('\\', '/', sys_get_temp_dir()).'/laramago request query '.bin2hex(random_bytes(8));
 $laravel = $workspace.'/laravel/framework/src/Illuminate/Http';
 $symfony = $workspace.'/symfony/http-foundation';
@@ -36,31 +38,55 @@ file_put_contents($workspace.'/bootstrap.php', '<?php throw new RuntimeException
 file_put_contents($workspace.'/composer.json', json_encode([
     'autoload' => ['files' => ['bootstrap.php']],
 ], JSON_THROW_ON_ERROR));
+$autoload = $package.'/vendor/autoload.php';
+if ($contractLf || $contractCrlf) {
+    $contract = file_get_contents($package.'/src/Analyzer/StaticAnalysis/NativeRequestQueryAll.php');
+    $contract = str_replace("\r\n", "\n", $contract);
+    if ($contractCrlf) {
+        $contract = str_replace("\n", "\r\n", $contract);
+    }
+    $contractPath = $workspace.'/NativeRequestQueryAll.php';
+    file_put_contents($contractPath, $contract);
+    $autoload = $workspace.'/worker-autoload.php';
+    file_put_contents(
+        $autoload,
+        '<?php require '
+        .var_export($package.'/vendor/autoload.php', true)
+        .'; require '
+        .var_export($contractPath, true)
+        .';',
+    );
+}
 
-$cases = $changedBody ? [
-    'changed Laravel body defers' => [
-        'acceptArray(request()->query());',
-        ['possibly-invalid-argument', 'possibly-null-argument'],
-    ],
-] : [
-    'no-argument query is array' => ['acceptArray(request()->query());', []],
-    'named key remains nullable' => [
-        "acceptArray(request()->query(key: 'id'));",
-        ['possibly-invalid-argument', 'possibly-null-argument'],
-    ],
-    'explicit default remains native' => [
-        'acceptArray(request()->query(default: []));',
-        ['possibly-invalid-argument', 'possibly-null-argument'],
-    ],
-    'concrete subclass override preserved' => [
-        'acceptArray((new CustomRequest)->query());',
-        ['invalid-argument'],
-    ],
-    'array cannot be used as string' => [
-        'acceptString(request()->query());',
-        ['invalid-argument'],
-    ],
-];
+$cases = $changedBody
+    ? [
+        'changed Laravel body defers' => [
+            'acceptArray(request()->query());',
+            ['possibly-invalid-argument', 'possibly-null-argument'],
+        ],
+    ] : [
+        'no-argument query is array' => ['acceptArray(request()->query());', []],
+        'positional key remains nullable' => [
+            "acceptArray(request()->query('id'));",
+            ['possibly-invalid-argument', 'possibly-null-argument'],
+        ],
+        'named key remains nullable' => [
+            "acceptArray(request()->query(key: 'id'));",
+            ['possibly-invalid-argument', 'possibly-null-argument'],
+        ],
+        'explicit default remains native' => [
+            'acceptArray(request()->query(default: []));',
+            ['possibly-invalid-argument', 'possibly-null-argument'],
+        ],
+        'concrete subclass override preserved' => [
+            'acceptArray((new CustomRequest)->query());',
+            ['invalid-argument'],
+        ],
+        'array cannot be used as string' => [
+            'acceptString(request()->query());',
+            ['invalid-argument'],
+        ],
+    ];
 $source = <<<'PHP'
     <?php
     use Illuminate\Http\Request;
@@ -74,7 +100,7 @@ $source = <<<'PHP'
     PHP;
 $lines = [];
 foreach ($cases as $name => [$body, $expected]) {
-    $source .= 'function scenario'.count($lines).'(): void { '.$body.' }' . "\n";
+    $source .= 'function scenario'.count($lines).'(): void { '.$body.' }'."\n";
     $lines[substr_count($source, "\n")] = [$name, $expected];
 }
 file_put_contents($workspace.'/cases.php', $source);
@@ -87,7 +113,7 @@ file_put_contents($workspace.'/mago.json', json_encode([
     ],
     'extension-hosts' => [
         'laramago' => [
-            'command' => [PHP_BINARY, $package.'/bin/laramago-worker.php', $package.'/vendor/autoload.php', $workspace],
+            'command' => [PHP_BINARY, $package.'/bin/laramago-worker.php', $autoload, $workspace],
             'workers' => 1,
         ],
     ],

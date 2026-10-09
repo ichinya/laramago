@@ -1,0 +1,56 @@
+<?php
+namespace Illuminate\Database\Migrations;
+use Illuminate\Support\Str;
+
+class Migrator {
+    private ?string $connection = null;
+    private Repository $repository;
+    private Resolver $resolver;
+    /**
+     * @template TReturn
+     * @param string $name
+     * @param (callable(): TReturn) $callback
+     * @return TReturn
+     */
+    public function usingConnection($name, callable $callback)
+    {
+        $previousConnection = $this->connection;
+        $previousDefaultConnection = $this->resolver->getDefaultConnection();
+        $this->setConnection($name);
+        try {
+            return $callback();
+        } finally {
+            $this->repository->setSource($previousConnection);
+            $this->resolver->setDefaultConnection($previousDefaultConnection);
+            $this->connection = $previousConnection;
+        }
+    }
+    /** @param string|null $name */
+    public function setConnection($name)
+    {
+        if (is_null($name)) {
+            $defaultName = $this->resolver->getDefaultConnection();
+            $directName = $this->directConnectionName($defaultName);
+            if ($directName === $defaultName) {
+                $this->repository->setSource(null);
+                $this->connection = null;
+                return;
+            }
+            $name = $directName;
+        } else {
+            $name = $this->directConnectionName($name);
+        }
+        $this->repository->setSource($name);
+        $this->resolver->setDefaultConnection($name);
+        $this->connection = $name;
+    }
+    /** @param string|null $name @return string */
+    protected function directConnectionName($name)
+    {
+        $name ??= $this->resolver->getDefaultConnection();
+        if (Str::endsWith($name, ['::read', '::write', '::direct'])) { return $name; }
+        return $this->resolver->connection($name)->hasDirectConnection() ? $name.'::direct' : $name;
+    }
+}
+class Repository { public function setSource(?string $name): void {} }
+class Resolver { public function getDefaultConnection(): string { return 'default'; } public function setDefaultConnection(?string $name): void {} }

@@ -105,7 +105,7 @@ $builder = substr($builder, 0, strrpos($builder, '}')).<<<'PHP'
     }
 }
 PHP;
-file_put_contents($framework.'/Database/Eloquent/Builder.php', $builder);
+file_put_contents($framework.'/Database/Eloquent/Builder.php', str_replace("\r\n", "\n", $builder));
 // The guarded methods below preserve the installed Laravel 13.31 native bodies. No body is executed.
 file_put_contents($framework.'/Database/Eloquent/Model.php', <<<'PHP'
 <?php

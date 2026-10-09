@@ -3,3 +3,5 @@
 /vendor export-ignore
 /vendor/** export-ignore
 /composer.lock export-ignore
+/.repowise export-ignore
+/.repowise/** export-ignore

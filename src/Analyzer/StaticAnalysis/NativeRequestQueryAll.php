@@ -89,8 +89,10 @@ final class NativeRequestQueryAll
 
         $reflection = new ModelReflection($codebase, $this->source);
 
-        return $this->matches($reflection, $query, self::QUERY_METHOD)
-            && $this->matches($reflection, $retrieve, self::RETRIEVE_FIRST_BRANCH, firstBranchOnly: true);
+        return (
+            $this->matches($reflection, $query, self::QUERY_METHOD)
+            && $this->matches($reflection, $retrieve, self::RETRIEVE_FIRST_BRANCH, firstBranchOnly: true)
+        );
     }
 
     private function matches(
@@ -114,16 +116,16 @@ final class NativeRequestQueryAll
         }
         $printed = (new Standard)->prettyPrint([$copy]);
 
-        // PhpParser preserves quote style; the two spellings are identical here.
-        return str_replace('"query"', "'query'", $printed) === $expected;
+        // Quote style and checkout line endings do not change the source contract.
+        return str_replace('"query"', "'query'", $printed) === str_replace("\r\n", "\n", $expected);
     }
 
     private function sourceFile(?string $path, string $suffix): bool
     {
         return $path !== null
-            && str_ends_with(
-                strtolower(str_replace('\\', '/', $this->source->path($path))),
-                strtolower($suffix),
-            );
+        && str_ends_with(
+            strtolower(str_replace('\\', '/', $this->source->path($path))),
+            strtolower($suffix),
+        );
     }
 }

@@ -164,7 +164,7 @@ final class IterablePropertyDocProvider implements PropertyTypeProvider, Initial
     private static function parseTag(string $doc, string $property, string $namespace, array $imports): array|false|null
     {
         preg_match_all(
-            '/^\h*(?:\/\*\*|\*)?\h*@property(?<kind>-read|-write)?\h+(?<type>[^\r\n$]+?)\h+\$(?<property>[A-Za-z_][A-Za-z0-9_]*)(?=\h|$)/m',
+            '/^\h*(?:\/\*\*|\*)?\h*@property(?<kind>-read|-write)?\h+(?<type>[^\r\n$]+?)\h+\$(?<property>[A-Za-z_][A-Za-z0-9_]*)(?=\h|\r?$)/m',
             $doc,
             $matches,
             PREG_SET_ORDER,

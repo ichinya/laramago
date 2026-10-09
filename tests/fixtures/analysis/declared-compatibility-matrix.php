@@ -9,7 +9,7 @@ if(file_exists($workspace)) { throw new RuntimeException('Preserve earlier evide
 $names=['coalesce'=>'coalesce-model-properties','collection'=>'nullable-collection-offsets','input'=>'framework-null-flow'];$data=__DIR__.'/'.$names[$family];
 $manifest=json_decode(file_get_contents($data.'/manifest.json'),true,flags:JSON_THROW_ON_ERROR);$catalogue=$manifest['caseCatalogue'];$held=[];
 foreach($manifest['fixtureFiles'] as $relative=>$record) {
-    $bytes=file_get_contents($data.'/'.$record['dataFile']);if(hash('sha256',$bytes)!==$record['sha256']||str_contains($relative,'..')||str_starts_with($relative,'/')) { throw new RuntimeException('Invented source manifest changed.'); }
+    $bytes=str_replace("\r\n","\n",file_get_contents($data.'/'.$record['dataFile']));if(hash('sha256',$bytes)!==$record['sha256']||str_contains($relative,'..')||str_starts_with($relative,'/')) { throw new RuntimeException('Invented source manifest changed.'); }
     if(str_ends_with($relative,'.php')) { (new PhpParser\ParserFactory)->createForNewestSupportedVersion()->parse($bytes); }
     $file=$workspace.'/'.$relative;if(!is_dir(dirname($file))) { mkdir(dirname($file),0777,true); }file_put_contents($file,$bytes);$held[$file]=$record['sha256'];
 }

@@ -2,7 +2,7 @@
 declare(strict_types=1);
 $package=dirname(__DIR__);$fixture=__DIR__.'/fixtures/defensive-boundary-guards';
 $workspace=$package.'/var/compatibility-defensive-boundary-guards-'.bin2hex(random_bytes(8));mkdir($workspace,recursive:true);
-foreach(require $fixture.'/sources.php' as $path=>$bytes){if(!is_dir(dirname($workspace.'/'.$path))){mkdir(dirname($workspace.'/'.$path),recursive:true);}file_put_contents($workspace.'/'.$path,$bytes);}
+foreach(require $fixture.'/sources.php' as $path=>$bytes){if(!is_dir(dirname($workspace.'/'.$path))){mkdir(dirname($workspace.'/'.$path),recursive:true);}file_put_contents($workspace.'/'.$path,str_replace("\r\n","\n",$bytes));}
 require __DIR__.'/fixtures/compatibility-gate-support.php';
 $worker=compatibilityProductionWorker($package,$workspace,$fixture,'BOUNDARY_GUARD_CLASSES_ONLY','BoundaryGuardDraftPlugin','DefensiveBoundaryGuardPlugin');
 $config=array (

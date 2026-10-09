@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 $package=dirname(__DIR__);$fixture=__DIR__.'/fixtures/factory-faker-contracts';$publicFixture=$fixture;$workspace=$package.'/var/compatibility-factory-faker-contracts-'.bin2hex(random_bytes(8));mkdir($workspace);$manifest=json_decode(file_get_contents($fixture.'/prepared-library/manifest.json'),true,flags:JSON_THROW_ON_ERROR);
-foreach($manifest['files'] as $path=>$entry){$bytes=file_get_contents($fixture.'/prepared-library/'.$path);if(hash('sha256',$bytes)!==$entry['sourceSha256']){throw new RuntimeException('Faker prepared primary source changed.');}if(!is_dir(dirname($workspace.'/'.$path))){mkdir(dirname($workspace.'/'.$path),recursive:true);}file_put_contents($workspace.'/'.$path,$bytes);}
+foreach($manifest['files'] as $path=>$entry){$bytes=str_replace("\r\n","\n",file_get_contents($fixture.'/prepared-library/'.$path));if(hash('sha256',$bytes)!==$entry['sourceSha256']){throw new RuntimeException('Faker prepared primary source changed.');}if(!is_dir(dirname($workspace.'/'.$path))){mkdir(dirname($workspace.'/'.$path),recursive:true);}file_put_contents($workspace.'/'.$path,$bytes);}
 $overridePath='vendor/example/faker-overrides/src/Registration.php';$overrideStub="<?php\n// Composer-declared autoload file without additional formatter or container registration.\n";mkdir(dirname($workspace.'/'.$overridePath),recursive:true);file_put_contents($workspace.'/'.$overridePath,$overrideStub);
 $packages=[
     ['name'=>'fakerphp/faker','install-path'=>'../fakerphp/faker','autoload'=>['psr-4'=>['Faker\\'=>'src/Faker/']]],
@@ -21,7 +21,7 @@ file_put_contents($workspace.'/'.$receiverPath,$receiverSource);
 $packages[1]['autoload']['files'][]='src/ReceiverCatalogueProvider.php';
 $packages[1]['autoload']['psr-4']['Example\\FormatterRegistration\\']='src/';
 $packages[1]['extra']=['laravel'=>['providers'=>['Example\\FormatterRegistration\\ReceiverCatalogueProvider']]];
-$helperPath='vendor/laravel/framework/src/Illuminate/Foundation/helpers.php';if(!is_dir(dirname($workspace.'/'.$helperPath))){mkdir(dirname($workspace.'/'.$helperPath),recursive:true);}file_put_contents($workspace.'/'.$helperPath,file_get_contents($fixture.'/prepared-library/'.$helperPath));
+$helperPath='vendor/laravel/framework/src/Illuminate/Foundation/helpers.php';if(!is_dir(dirname($workspace.'/'.$helperPath))){mkdir(dirname($workspace.'/'.$helperPath),recursive:true);}file_put_contents($workspace.'/'.$helperPath,str_replace("\r\n","\n",file_get_contents($fixture.'/prepared-library/'.$helperPath)));
 foreach($packages as $entry){$path=$workspace.'/vendor/'.$entry['name'].'/composer.json';file_put_contents($path,json_encode(array_diff_key($entry,['install-path'=>true]),JSON_PRETTY_PRINT|JSON_THROW_ON_ERROR));}
 mkdir($workspace.'/vendor/composer');file_put_contents($workspace.'/vendor/composer/installed.json',json_encode(['packages'=>$packages],JSON_PRETTY_PRINT|JSON_THROW_ON_ERROR));mkdir($workspace.'/bootstrap');$bootstrapProviders='<?php return [];';file_put_contents($workspace.'/bootstrap/providers.php',$bootstrapProviders);
 $cases=(static fn(string $path):string=>require $path)($publicFixture.'/fixture-cases.php');$rootComposer='{}';file_put_contents($workspace.'/cases.php',$cases);file_put_contents($workspace.'/composer.json',$rootComposer);require $package.'/vendor/autoload.php';require $package.'/tests/fixtures/compatibility-bounded-worker-support.php';

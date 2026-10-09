@@ -12,7 +12,7 @@ mkdir($workspace,0777,true);$write=static function(string $path,string $contents
 $matrix=json_decode(file_get_contents($data.'/cases.json'),true,flags:JSON_THROW_ON_ERROR);$held=[];$sites=[];$scopes=[];
 $finder=new \PhpParser\NodeFinder;$parser=(new \PhpParser\ParserFactory)->createForNewestSupportedVersion();
 foreach($matrix['sources'] as $file=>$hash) {
-    $contents=file_get_contents($data.'/source/'.$file.'.stub');if(hash('sha256',$contents)!==$hash) { throw new RuntimeException('Fixture source hash differs: '.$file); }
+    $contents=file_get_contents($data.'/source/'.$file.'.stub');if(hash('sha256',$contents)!==$hash){$contents=str_replace("\r\n","\n",$contents);}if(hash('sha256',$contents)!==$hash){$contents=str_replace("\n","\r\n",$contents);}if(hash('sha256',$contents)!==$hash) { throw new RuntimeException('Fixture source hash differs: '.$file); }
     $write($workspace.'/'.$file,$contents);$held[$workspace.'/'.$file]=$hash;$nodes=$parser->parse($contents)??[];
     foreach($finder->findInstanceOf($nodes,\PhpParser\Node\Stmt\Function_::class) as $owner) { $scopes[$file][$owner->name->name]=[$owner->getStartFilePos(),$owner->getEndFilePos()+1]; }
     foreach($finder->findInstanceOf($nodes,\PhpParser\Node\Stmt\Class_::class) as $class) {

@@ -27,6 +27,14 @@ final class LaravelPlugin implements Plugin
     public function register(PluginRegistry $registry): void
     {
         PhpSource::clearSharedCache();
+        $registry->registerMethodReturnTypeProvider(new FrameworkImplicitVariadicProvider($this->projectRoot));
+        $registry->registerMethodReturnTypeProvider(new ApplicationEnvironmentProvider($this->projectRoot));
+        $registry->registerFunctionReturnTypeProvider(new StringPredicateArrayProvider($this->projectRoot));
+        $registry->registerMethodReturnTypeProvider(new DomXPathResultProvider);
+        $registry->registerMethodReturnTypeProvider(new MigratorConnectionProvider($this->projectRoot));
+        $registry->registerFunctionReturnTypeProvider(new BackedEnumColumnProvider);
+        $registry->registerIssueFilterHook(new NeverCallReturnFilter);
+        $registry->registerIssueFilterHook(new ProcOpenDescriptorFilter);
         $mixedAssignments = new LocalMixedAssignmentFilter;
         $registry->registerIssueFilterHook($mixedAssignments);
         $registry->registerInitializationHook($mixedAssignments);

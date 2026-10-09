@@ -15,7 +15,8 @@ $catalogue=json_decode(file_get_contents($data.'/cases.json'),true,flags:JSON_TH
 if(count($catalogue['sources'])!==6||count($catalogue['positiveContracts'])!==3) { throw new RuntimeException('Expected six source files and three positive contracts.'); }
 $parser=(new PhpParser\ParserFactory)->createForNewestSupportedVersion();$held=[];
 foreach($catalogue['sources'] as $file=>$source) {
-    $bytes=file_get_contents($data.'/'.$file.'.stub');
+    // Portable source receipts describe the LF recipe, before native span allocation.
+    $bytes=str_replace("\r\n","\n",file_get_contents($data.'/'.$file.'.stub'));
     if(hash('sha256',$bytes)!==$source['sourceSha256']) { throw new RuntimeException('Portable fixture source hash mismatch.'); }
     $nodes=$parser->parse($bytes)??[];$functions=[];
     foreach((new PhpParser\NodeFinder)->findInstanceOf($nodes,PhpParser\Node\Stmt\Function_::class) as $function) { $functions[$function->name->name]=[$function->getStartFilePos(),$function->getEndFilePos()+1]; }

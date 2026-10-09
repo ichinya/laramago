@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 $package=dirname(__DIR__);$fixture=__DIR__.'/fixtures/installed-package-container-bindings';$workspace=$package.'/var/compatibility-installed-package-container-bindings-'.bin2hex(random_bytes(8));mkdir($workspace);
-foreach(require $fixture.'/sources.php' as $path=>$bytes){if(!is_dir(dirname($workspace.'/'.$path))){mkdir(dirname($workspace.'/'.$path),recursive:true);}file_put_contents($workspace.'/'.$path,$bytes);}
+foreach(require $fixture.'/sources.php' as $path=>$bytes){if(!is_dir(dirname($workspace.'/'.$path))){mkdir(dirname($workspace.'/'.$path),recursive:true);}file_put_contents($workspace.'/'.$path,str_replace("\r\n","\n",$bytes));}
 require $package.'/tests/fixtures/compatibility-bounded-worker-support.php';$config=require $fixture.'/config.php';
 $registrar=file_get_contents($package.'/src/Analyzer/LaravelPlugin.php');$registrar=str_replace('final class LaravelPlugin','final class FixtureLaravelContainerRegistrar',$registrar,$classChanges);
 $registrar=str_replace('$containerHelpers = new ContainerHelperProvider($this->projectRoot);','$containerHelpers = new \FortifyControlObserver(new \Example\Fortify\ContainerHelperProvider($this->projectRoot),$GLOBALS[\'fortifyFixtureMode\'],$GLOBALS[\'fortifyFixtureOutput\'],$this->projectRoot);',$registrar,$helperChanges);

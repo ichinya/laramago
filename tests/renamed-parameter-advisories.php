@@ -10,7 +10,7 @@ require $package.'/vendor/autoload.php';
 if(file_exists($workspace)) { throw new RuntimeException('Preserve existing gate evidence; choose a fresh fixture workspace.'); }mkdir($workspace,0o777,true);
 $write=static function(string $file,string $bytes):void { if(!is_dir(dirname($file))) { mkdir(dirname($file),0o777,true); }file_put_contents($file,$bytes); };
 $catalogue=json_decode(file_get_contents($data.'/renamed-parameter-cases.json'),true,flags:JSON_THROW_ON_ERROR);
-$bytes=file_get_contents($data.'/renamed-parameter-cases.php.stub');
+$bytes=str_replace("\r\n","\n",file_get_contents($data.'/renamed-parameter-cases.php.stub'));
 if(hash('sha256',$bytes)!==$catalogue['sourceSha256']) { throw new RuntimeException('Invented fixture source hash changed.'); }
 // Parsing validates source only. No fixture declarations are loaded into PHP.
 (new PhpParser\ParserFactory)->createForNewestSupportedVersion()->parse($bytes);

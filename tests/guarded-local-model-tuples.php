@@ -15,10 +15,23 @@ $write=static function(string $path,string $contents):void{if(!is_dir(dirname($p
 $catalogue=json_decode(file_get_contents($fixture.'/cases.json'),true,flags:JSON_THROW_ON_ERROR);
 $held=[];$scopes=[];$positiveSites=[];$sourcePaths=[];
 $parser=(new \PhpParser\ParserFactory)->createForNewestSupportedVersion();$finder=new \PhpParser\NodeFinder;
+$fixtureBytes=static function(string $bytes,string $hash):string {
+    $lf=str_replace("\r\n","\n",$bytes);$recipes=[$bytes,$lf,str_replace("\n","\r\n",$lf)];$offset=0;
+    // Captured declaration PHPDoc used CRLF within otherwise LF fixture recipes.
+    foreach(token_get_all($lf) as $token){
+        $text=is_array($token)?$token[1]:$token;
+        if(is_array($token)&&$token[0]===T_DOC_COMMENT&&str_contains($text,"\n")){
+            $recipes[]=substr_replace($lf,str_replace("\n","\r\n",$text),$offset,strlen($text));break;
+        }
+        $offset+=strlen($text);
+    }
+    foreach($recipes as $recipe){if(hash('sha256',$recipe)===$hash){return $recipe;}}
+    throw new RuntimeException('Frozen invented source changed.');
+};
 foreach($catalogue['sources'] as $file=>$hash){
-    $input=$fixture.'/source/'.$file.'.stub';$contents=file_get_contents($input);
+    $input=$fixture.'/source/'.$file.'.stub';$contents=$fixtureBytes(file_get_contents($input),$hash);
     if(hash('sha256',$contents)!==$hash){throw new RuntimeException('Frozen invented source changed.');}
-    $write($workspace.'/'.$file,$contents);$held[$input]=$hash;$held[$workspace.'/'.$file]=$hash;$sourcePaths[]=$file;
+    $write($workspace.'/'.$file,$contents);$held[$input]=hash_file('sha256',$input);$held[$workspace.'/'.$file]=$hash;$sourcePaths[]=$file;
     $nodes=$parser->parse($contents)??[];
     foreach($finder->findInstanceOf($nodes,\PhpParser\Node\Stmt\Class_::class) as $class){foreach($class->getMethods() as $owner){
         $name=$file.'::'.$class->name->name.'::'.$owner->name->name;

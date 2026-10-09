@@ -14,7 +14,7 @@ foreach($arrays[0]->items as $item){
     $values=$item->value->items;$path=$values[0]->value;$before=$values[1]->value;$after=$values[2]->value;
     if(!$path instanceof \PhpParser\Node\Expr\BinaryOp\Concat||!$path->right instanceof \PhpParser\Node\Scalar\String_
         ||!$before instanceof \PhpParser\Node\Scalar\String_||!$after instanceof \PhpParser\Node\Scalar\String_){throw new RuntimeException('A control anchor is not a literal source expression.');}
-    $bytes=file_get_contents(__DIR__.'/data'.$path->right->value);
+    $bytes=str_replace("\r\n","\n",file_get_contents(__DIR__.'/data'.$path->right->value));
     if(strpos($bytes,$before->value)===false||$before->value===$after->value){throw new RuntimeException('An actual source control anchor is absent or unchanged: '.$item->key->value);}
     $checks['current control anchor: '.$item->key->value]=true;
     if($item->key->value==='same-length malformed temporal documentation suffix'&&strlen($before->value)!==strlen($after->value)){throw new RuntimeException('The malformed suffix control must preserve every source byte offset.');}

@@ -13,8 +13,10 @@ $declarations = <<<'PHP'
         public function __set(string $name, mixed $value): void {}
     }
     /** @template TKey of array-key
-     * @template TValue */
+     * @template TValue
+     * @implements \IteratorAggregate<TKey, TValue> */
     class Collection implements \IteratorAggregate {
+        /** @return \Traversable<TKey, TValue> */
         public function getIterator(): \Traversable { return new \ArrayIterator([]); }
         public function contains(object $item): bool { return true; }
     }
@@ -52,6 +54,10 @@ $declarations = <<<'PHP'
     /** @property GroupedCollection|Item[] $items */
     class GroupedOwner extends Model {}
     PHP;
+if (in_array('--lf-docs', $argv, true) || in_array('--crlf-docs', $argv, true)) {
+    $declarations = str_replace("\r\n", "\n", $declarations);
+    if (in_array('--crlf-docs', $argv, true)) { $declarations = str_replace("\n", "\r\n", $declarations); }
+}
 $cases = [
     'iterable shorthand' => 'function items(Owner $owner): bool { return $owner->items->contains(new Item); }',
     'inherited shorthand' => 'function inherited(ChildOwner $owner): bool { return $owner->items->contains(new Item); }',

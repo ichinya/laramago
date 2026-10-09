@@ -4,7 +4,7 @@ A Composer package with a Laravel preset for the native Mago CLI.
 
 ```sh
 composer config repositories.laramago vcs https://github.com/ichinya/laramago
-composer require --dev ichinya/laramago:0.0.26
+composer require --dev ichinya/laramago:0.1.0
 vendor/bin/mago lint
 ```
 
@@ -15,13 +15,15 @@ uses that executable directly, without a wrapper or Laravel service provider.
 For editor integrations, `vendor/bin/laramago-metadata` exports [source-only
 configuration, route and translation metadata](docs/static-metadata-export.md) as versioned JSON.
 
-Version `0.0.26` corrects stale boolean comparisons after directly invoked
-callbacks change a local captured by reference, and combines declared input types
-for finite unions of console option names. Unknown effects and unsupported option
-names retain native diagnostics.
+Version `0.1.0` expands source-bound model, collection, container, callback and
+configuration type contracts. It adds guarded compatibility checks for array,
+string, null-flow, date, header, session, XML and factory/Faker patterns. Unknown
+dispatch and code outside the proven contracts retain native diagnostics.
+It also refines installed framework argument contracts, string predicates,
+backed enum value columns, structural XPath results, native `never` calls and
+process descriptor redirects, with LF/CRLF source regression checks.
 It includes the Laravel integrations from earlier releases.
-The GitHub VCS repository shown above provides this version directly. For local
-package development, see the path repository instructions below.
+For local package development, see the path repository instructions below.
 
 ## How it works
 
@@ -1293,6 +1295,17 @@ composer check
 
 This validates Composer metadata and runs every integration script registered in
 `composer.json`. Individual scripts can also be run directly while developing.
+
+`composer test:framework-native-contracts` runs the focused
+[native framework and PHP contract checks](docs/native-framework-contracts.md),
+including LF/CRLF source, changed framework declarations and retained diagnostics.
+
+Some integration scripts leave generated workspaces in `var/compatibility-*`
+for inspection. Completed workspaces can be deleted when their detailed reports
+are no longer needed; subsequent runs create fresh directories. Other files in
+`var`, including comparison reports and research scripts, should be assessed
+separately. `var` and the local `.repowise` index are excluded from Git and package
+archives.
 
 Installer tests cover configuration creation, custom vendor directories, repeated
 installation, preservation of all eight user configuration variants, and fallback

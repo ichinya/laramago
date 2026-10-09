@@ -237,7 +237,7 @@ NATIVE_GETTER_6,
 foreach ($native as $path => $contents) {
     $file = $workspace.'/packages/testo/assert/'.$path;
     if (! is_dir(dirname($file))) { mkdir(dirname($file), recursive: true); }
-    file_put_contents($file, $contents);
+    file_put_contents($file, str_replace("\r\n", "\n", $contents));
 }
 
 $types = <<<'PHP'
@@ -367,7 +367,7 @@ $cases = [
     'callback alias retains earlier callee' => [$origin.'$callback = static fn (): string => unknown($box); $alias = $callback; $callback = static fn (): string => "safe"; '.$assert.'$alias(); '.$read, false],
     'closure implicit method receiver' => ['$this->current = $input; $callback = function (): void { $this->clear(); }; A::notNull($this->path()); $callback(); return strlen($this->path());', false, 'int', 'implicit-this'],
 ];
-$source = "<?php\ndeclare(strict_types=1);\nnamespace Fixtures;\nuse Testo\\Assert as A;\n".$types."\n";
+$source = "<?php\ndeclare(strict_types=1);\nnamespace Fixtures;\nuse Testo\\Assert as A;\n".str_replace("\r\n", "\n", $types)."\n";
 $ranges = [];
 foreach ($cases as $label => $case) {
     $start = strlen($source);

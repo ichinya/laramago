@@ -21,6 +21,8 @@ foreach ([12.5, -3.25, 8.0] as $position => $number) {
 }
 return $chosen;
 PHP;
+// Mutation recipes below use LF anchors and must actually create each hostile source.
+$base = str_replace("\r\n", "\n", $base);
 $copy = str_replace('buildRecord()', 'Record::factory()->create(["amount" => $number, "label" => sprintf("item %02d", $position + 1)])', $base);
 $cases = [
     'direct producer' => [$base, true],

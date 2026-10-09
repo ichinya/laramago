@@ -13,7 +13,11 @@ register_shutdown_function(static function()use(&$parentReserve,$parentError):vo
     }
 });
 foreach(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($recipe,FilesystemIterator::SKIP_DOTS)) as $file){if(!$file->isFile()){continue;}
-    $relative=substr($file->getPathname(),strlen($recipe)+1);if(!is_dir(dirname($workspace.'/'.$relative))){mkdir(dirname($workspace.'/'.$relative),recursive:true);}copy($file->getPathname(),$workspace.'/'.$relative);
+    $relative=substr($file->getPathname(),strlen($recipe)+1);if(!is_dir(dirname($workspace.'/'.$relative))){mkdir(dirname($workspace.'/'.$relative),recursive:true);}
+    // The checked-in catalogue and literal mutation recipes use LF byte spans.
+    // Stage that exact fixture form before Mago scans it; production bytes stay raw.
+    if(strtolower($file->getExtension())==='php'){file_put_contents($workspace.'/'.$relative,str_replace("\r\n","\n",file_get_contents($file->getPathname())));}
+    else{copy($file->getPathname(),$workspace.'/'.$relative);}
 }
 $publicInputs=[];foreach(['bin/laramago-worker.php','tests/fixtures/compatibility-bounded-worker-support.php','vendor/autoload.php','presets/laravel.toml','tests/model-property-arguments.php'] as $relative){$publicInputs[$package.'/'.$relative]=hash_file('sha256',$package.'/'.$relative);}
 // Hold the actual current runtime and portable fixture bytes without retaining ASTs.

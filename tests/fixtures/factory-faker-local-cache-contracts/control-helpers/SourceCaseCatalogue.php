@@ -17,6 +17,7 @@ final class SourceCaseCatalogue
                 throw new \RuntimeException('A focused source case has an invalid or duplicate identity.');
             }
             $path = __DIR__.'/cases/'.$spec['filename']; $bytes = file_get_contents($path);
+            if (is_string($bytes)) { $bytes = str_replace("\r\n", "\n", $bytes); }
             if (!is_string($bytes) || hash('sha256', $bytes) !== $spec['sha256']) {
                 throw new \RuntimeException('The pinned neutral source case changed.');
             }

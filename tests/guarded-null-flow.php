@@ -8,7 +8,7 @@ $run=true;$observeOnly=in_array('--observe-only',$argv,true);$data=__DIR__.'/fix
 require $package.'/vendor/autoload.php';
 if(file_exists($workspace)) { throw new RuntimeException('Preserve prior evidence; choose a fresh workspace.'); }mkdir($workspace,0o777,true);
 $write=static function(string $file,string $bytes):void { if(!is_dir(dirname($file))) { mkdir(dirname($file),0o777,true); }file_put_contents($file,$bytes); };
-$catalogue=json_decode(file_get_contents($data.'/nullable-flow-cases.json'),true,flags:JSON_THROW_ON_ERROR);$bytes=file_get_contents($data.'/nullable-flow-cases.php.stub');
+$catalogue=json_decode(file_get_contents($data.'/nullable-flow-cases.json'),true,flags:JSON_THROW_ON_ERROR);$bytes=str_replace("\r\n","\n",file_get_contents($data.'/nullable-flow-cases.php.stub'));
 if(hash('sha256',$bytes)!==$catalogue['sourceSha256']) { throw new RuntimeException('Invented source hash changed.'); }(new PhpParser\ParserFactory)->createForNewestSupportedVersion()->parse($bytes);
 $write($workspace.'/cases.php',$bytes);$write($workspace.'/cases.json',json_encode($catalogue,JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT));
 $write($workspace.'/bootstrap.php','<?php file_put_contents(__DIR__."/bootstrap-executed","unexpected");throw new RuntimeException("Fixture bootstrap must remain unused.");');
