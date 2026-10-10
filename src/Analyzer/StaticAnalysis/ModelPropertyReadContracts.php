@@ -216,6 +216,21 @@ final class ModelPropertyReadContracts
         return $this->current() ? $metadata : null;
     }
 
+    /** A source-certified general scalar key tag, never a write-only contract. */
+    public function scalarKeyRead(Codebase $codebase, TypeComparator $types, string $class, string $property): ?Type
+    {
+        $metadata = $this->general($codebase, $types, $class, $property);
+        $tags = $metadata === null ? null : $this->tags($codebase, $class, $property);
+        $tag = $tags === null || $metadata->type === null ? null : $this->tagAt($tags, $metadata->type);
+        $read = $metadata?->type?->type;
+        if ($tag === null || $tag['kind'] !== 'general' || $read === null
+            || ! $types->isContainedBy($read, Type::union(Type::int(), Type::string(), Type::null()))) {
+            return null;
+        }
+
+        return $this->current() ? $read : null;
+    }
+
     /** @return list<array{owner:string, file:string, kind:string, type:string, start:int, end:int}>|null */
     private function tags(Codebase $codebase, string $class, string $property): ?array
     {

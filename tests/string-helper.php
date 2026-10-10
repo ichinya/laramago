@@ -32,6 +32,10 @@ file_put_contents($framework.'/Str.php', <<<'PHP'
         public static function count(string $value, int $times = 1): int { return strlen($value) * $times; }
         public static function reference(string &$value): string { return $value; }
         public static function contextual(): static { throw new \RuntimeException(); }
+        /** @param \DateTimeInterface|null $time
+         * @return \Symfony\Component\Uid\Ulid
+         */
+        public static function ulid($time = null) { return new \Symfony\Component\Uid\Ulid; }
         private static function hidden(): int { return 0; }
     }
     class Stringable {
@@ -39,6 +43,8 @@ file_put_contents($framework.'/Str.php', <<<'PHP'
         public function append(string $value): self { return $this; }
         public function __toString(): string { return ''; }
     }
+    namespace Symfony\Component\Uid;
+    class Ulid { public function __toString(): string { return 'ulid'; } }
     PHP);
 $cases = [
     'upper' => 'function upper(): string { return str()->upper("ok"); }',
@@ -56,6 +62,8 @@ $cases = [
     'callable' => 'function callableValue(): \\Closure { return str()->upper(...); }',
     'dynamic' => 'function dynamic(string $method): void { str()->$method("ok"); }',
     'unpacked' => '/** @param list<string> $args */ function unpacked(array $args): void { str(...$args)->append("ok"); }',
+    'ulid' => 'function ulid(): \\Symfony\\Component\\Uid\\Ulid { return str()->ulid(); }',
+    'invalid ulid return' => 'function invalidUlid(): int { return str()->ulid(); }',
 ];
 file_put_contents($workspace.'/cases.php', "<?php\n".implode("\n", $cases)."\n");
 $enabledExpected = [
@@ -69,6 +77,7 @@ $enabledExpected = [
     12 => ['non-documented-method'],
     14 => ['string-member-selector'],
     15 => ['ambiguous-object-method-access'],
+    17 => ['invalid-return-statement'],
 ];
 $disabledExpected = [
     1 => ['ambiguous-object-method-access', 'mixed-return-statement'],
@@ -85,15 +94,23 @@ $disabledExpected = [
     13 => ['ambiguous-object-method-access'],
     14 => ['string-member-selector'],
     15 => ['ambiguous-object-method-access'],
+    16 => ['ambiguous-object-method-access', 'mixed-return-statement'],
+    17 => ['ambiguous-object-method-access', 'mixed-return-statement'],
 ];
-foreach (['enabled', 'disabled', 'custom-helper', 'changed-dispatch', 'native-declaration', 'native-doc'] as $mode) {
+$aliasedHelper = str_replace(
+    ['<?php', 'return \\Illuminate\\Support\\Str::$method', 'return new \\Illuminate\\Support\\Stringable($string);'],
+    ["<?php\nuse Illuminate\\Support\\Str;\nuse Illuminate\\Support\\Stringable as SupportStringable;\nif (!function_exists('str')) {", 'return Str::$method', 'return new SupportStringable($string);'],
+    $helper,
+)."\n}";
+foreach (['enabled', 'framework-aliases', 'framework-aliases-three-workers', 'disabled', 'custom-helper', 'changed-dispatch', 'native-declaration', 'native-doc'] as $mode) {
     $enabled = $mode !== 'disabled';
     $helperFile = $mode === 'custom-helper' ? $workspace.'/custom.php' : $framework.'/helpers.php';
     file_put_contents(
         $framework.'/helpers.php',
         $mode === 'custom-helper'
             ? '<?php'
-            : ($mode === 'changed-dispatch' ? str_replace('Str::$method', 'Str::upper', $helper) : $helper),
+            : ($mode === 'changed-dispatch' ? str_replace('Str::$method', 'Str::upper', $helper)
+                : (str_starts_with($mode, 'framework-aliases') ? $aliasedHelper : $helper)),
     );
     if ($mode === 'native-declaration') {
         file_put_contents($helperFile, str_replace(
@@ -125,7 +142,7 @@ foreach (['enabled', 'disabled', 'custom-helper', 'changed-dispatch', 'native-de
                         $package.'/vendor/autoload.php',
                         $workspace,
                     ],
-                    'workers' => 1,
+                    'workers' => $mode === 'framework-aliases-three-workers' ? 3 : 1,
                 ],
             ] : new stdClass,
     ];
@@ -154,7 +171,7 @@ foreach (['enabled', 'disabled', 'custom-helper', 'changed-dispatch', 'native-de
             }
         }
     }
-    $expected = $mode === 'enabled' ? $enabledExpected : $disabledExpected;
+    $expected = $mode === 'enabled' || str_starts_with($mode, 'framework-aliases') ? $enabledExpected : $disabledExpected;
     if ($mode === 'native-doc') {
         $expected[8] = ['ambiguous-object-method-access', 'mixed-return-statement'];
     }
@@ -171,5 +188,5 @@ foreach (['enabled', 'disabled', 'custom-helper', 'changed-dispatch', 'native-de
     if ($actual !== $expected) {
         throw new RuntimeException($mode.': '.json_encode($actual));
     }
-    echo 'PASS: string helper '.$mode.' ('.count($cases).' cases)'."\n";
+    echo 'PASS: string helper '.$mode.' ('.count($cases).' cases; native exit '.$exit.')'."\n";
 }

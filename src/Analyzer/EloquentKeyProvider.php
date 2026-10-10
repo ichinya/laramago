@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ModelReflection;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\ModelPropertyReadContracts;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Mago\Sdk\Analyzer\InitializationContext;
 use Mago\Sdk\Analyzer\InitializationHook;
@@ -23,6 +24,7 @@ use PhpParser\Node;
 final class EloquentKeyProvider implements MethodReturnTypeProvider, InitializationHook
 {
     private ?PhpSource $source = null;
+    private ?ModelPropertyReadContracts $readContracts = null;
 
     public function __construct(
         private readonly string $root,
@@ -32,6 +34,7 @@ final class EloquentKeyProvider implements MethodReturnTypeProvider, Initializat
     public function initialize(InitializationContext $context): void
     {
         $this->source = null;
+        $this->readContracts = null;
     }
 
     public function getTargets(): array
@@ -80,9 +83,25 @@ final class EloquentKeyProvider implements MethodReturnTypeProvider, Initializat
             || ! self::nativeBody($reflection->returnExpression($method))
             || $reflection->customMethod($atom->name, 'getAttribute') !== null
             || $context->codebase->getDeclaringProperty($atom->name, '$'.$key) !== null
-            || $context->codebase->getDeclaringMagicProperty($atom->name, '$'.$key) !== null
         ) {
             return null;
+        }
+
+        $documented = $context->codebase->getDeclaringMagicProperty($atom->name, '$'.$key)
+            ?? $context->codebase->getMagicProperty($atom->name, '$'.$key);
+        if ($documented !== null) {
+            $contracts = $this->readContracts ??= new ModelPropertyReadContracts($this->source);
+            $read = $contracts->scalarKeyRead($context->codebase, $context->types, $atom->name, $key);
+            // A general scalar read tag remains usable without schema metadata.
+            // Preserve custom attribute dispatch and the possibility of an unsaved key.
+            foreach (['getAttributeValue', 'castAttribute', 'getClassCastableAttributeValue'] as $name) {
+                if ($reflection->customMethod($atom->name, $name) !== null) {
+                    return null;
+                }
+            }
+
+            return $read === null || ! $contracts->current() || ! $this->source->isCurrent()
+                ? null : Type::union($read, Type::int(), Type::string(), Type::null());
         }
 
         $property = $this->properties->getPropertyType(new PropertyTypeProviderContext(

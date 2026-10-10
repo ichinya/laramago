@@ -45,6 +45,16 @@ file_put_contents($workspace.'/models.php', <<<'PHP'
     class CustomAttribute extends Record { public function getAttribute($key): mixed { return new \stdClass; } }
     /** @property int $id */
     class Documented extends Record {}
+    /** @property string $id */
+    class DocumentedString extends Unknown {}
+    /** @property-write int $id */
+    class WriteOnly extends Unknown {}
+    /** @property array<int, int> $id */
+    class ArrayKey extends Unknown {}
+    /** @property int $id */
+    class CustomDocumented extends CustomAttribute {}
+    /** @property-read string $id */
+    class ReadTag extends Unknown {}
     PHP);
 file_put_contents($workspace.'/database/migrations/001_create.php', <<<'PHP'
     <?php
@@ -66,8 +76,14 @@ $cases = [
     'unknown schema deferred' => 'function unknown(Unknown $model): string { return $model->getKey(); }',
     'custom key method wins' => 'function custom(Custom $model): string { return $model->getKey(); }',
     'custom attribute reader deferred' => 'function customAttribute(CustomAttribute $model): string { return $model->getKey(); }',
-    'documented key property wins' => 'function documented(Documented $model): string { return $model->getKey(); }',
+    'documented key preserves scalar and null alternatives' => 'function documented(Documented $model): string { return $model->getKey(); }',
     'native argument error retained' => 'function argument(Record $model): void { $model->getKey("extra"); }',
+    'general key tag supplies scalar contract' => 'function documentedScalar(Documented $model): int|string|null { return $model->getKey(); }',
+    'string key without schema supplies scalar contract' => 'function documentedString(DocumentedString $model): int|string|null { return $model->getKey(); }',
+    'write-only key cannot supply read' => 'function writeOnly(WriteOnly $model): int|string|null { return $model->getKey(); }',
+    'array key cannot supply scalar read' => 'function arrayKey(ArrayKey $model): int|string|null { return $model->getKey(); }',
+    'custom attribute method still wins' => 'function customDocumented(CustomDocumented $model): int|string|null { return $model->getKey(); }',
+    'directional read tag remains deferred' => 'function readTag(ReadTag $model): int|string|null { return $model->getKey(); }',
 ];
 file_put_contents($workspace.'/cases.php', "<?php\nnamespace App;\n".implode("\n", $cases)."\n");
 foreach (['enabled', 'disabled', 'changed-body'] as $mode) {
@@ -120,8 +136,12 @@ foreach (['enabled', 'disabled', 'changed-body'] as $mode) {
             2 => ['invalid-return-statement', 'nullable-return-statement'],
             4 => ['mixed-return-statement'],
             6 => ['mixed-return-statement'],
-            7 => ['mixed-return-statement'],
+            7 => ['invalid-return-statement', 'nullable-return-statement'],
             8 => ['too-many-arguments'],
+            11 => ['mixed-return-statement'],
+            12 => ['mixed-return-statement'],
+            13 => ['mixed-return-statement'],
+            14 => ['mixed-return-statement'],
         ]
         : [
             0 => ['mixed-return-statement'],
@@ -132,6 +152,12 @@ foreach (['enabled', 'disabled', 'changed-body'] as $mode) {
             6 => ['mixed-return-statement'],
             7 => ['mixed-return-statement'],
             8 => ['too-many-arguments'],
+            9 => ['mixed-return-statement'],
+            10 => ['mixed-return-statement'],
+            11 => ['mixed-return-statement'],
+            12 => ['mixed-return-statement'],
+            13 => ['mixed-return-statement'],
+            14 => ['mixed-return-statement'],
         ];
     if ($actual !== $expected) {
         throw new RuntimeException($mode.': '.json_encode($actual).' workspace '.$workspace);
@@ -139,5 +165,5 @@ foreach (['enabled', 'disabled', 'changed-body'] as $mode) {
     if (is_file($workspace.'/migration-executed') || is_file($workspace.'/bootstrap-executed')) {
         throw new RuntimeException('Application source was executed.');
     }
-    echo 'PASS: model key '.$mode.' ('.count($cases).' cases)' . "\n";
+    echo 'PASS: model key '.$mode.' ('.count($cases).' cases; native exit '.$exit.')' . "\n";
 }

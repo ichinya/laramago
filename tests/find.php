@@ -8,8 +8,26 @@ $command = str_ends_with($binary, '.exe') ? [$binary] : [PHP_BINARY, $binary];
 $package = str_replace('\\', '/', dirname(__DIR__));
 $workspace = str_replace('\\', '/', sys_get_temp_dir()).'/laramago lookups '.bin2hex(random_bytes(8));
 mkdir($workspace);
-copy(__DIR__.'/fixtures/analysis/framework.php.stub', $workspace.'/framework.php');
-copy(__DIR__.'/fixtures/analysis/find.php.stub', $workspace.'/models.php');
+$framework = file_get_contents(__DIR__.'/fixtures/analysis/framework.php.stub');
+$keyMethods = <<<'PHP'
+    /** @return mixed */
+    public function getKey() { return $this->getAttribute($this->getKeyName()); }
+    public function getKeyName(): string { return $this->primaryKey; }
+    /** @return mixed */
+    public function getAttribute($key) { return null; }
+    PHP;
+file_put_contents($workspace.'/framework.php', str_replace('protected $casts = [];', 'protected $casts = [];'.$keyMethods, $framework));
+file_put_contents($workspace.'/models.php', file_get_contents(__DIR__.'/fixtures/analysis/find.php.stub').<<<'PHP'
+
+    /** @property int $id */
+    class DocumentedScalarRecord extends Model {}
+    /** @property string $id */
+    class DocumentedStringRecord extends Model { public $incrementing = false; }
+    /** @property-write int $id */
+    class WriteKeyRecord extends Model { public $incrementing = false; }
+    /** @property int $id */
+    class CustomKeyRecord extends Model { public function getKey(): array { return [1]; } }
+    PHP);
 $cases = [
     'custom collection method' => ['return CustomCollectionRecord::findMany([1])->marker();', 'string', []],
     'custom builder lookup collection' => [
@@ -53,6 +71,12 @@ $cases = [
     'collection method beats attribute' => ['return MethodPriorityRecord::findMany([1])->marker();', 'string', []],
     'scalar find' => ['return Record::find(1);', 'Record|null', []],
     'string find' => ['return Record::find("example-id");', 'Record|null', []],
+    'broad string find or fail' => ['return Record::query()->findOrFail($stringId);', 'Record', []],
+    'scalar nullable key find or fail' => ['return Record::query()->findOrFail($scalarKey);', 'Record', []],
+    'documented integer key lookup' => ['return DocumentedScalarRecord::query()->findOrFail((new DocumentedScalarRecord)->getKey());', 'DocumentedScalarRecord', []],
+    'documented string key lookup' => ['return DocumentedStringRecord::query()->findOrFail((new DocumentedStringRecord)->getKey());', 'DocumentedStringRecord', []],
+    'write-only key lookup stays ambiguous' => ['return WriteKeyRecord::query()->findOrFail((new WriteKeyRecord)->getKey());', 'WriteKeyRecord', ['invalid-return-statement']],
+    'custom array key selects collection' => ['return CustomKeyRecord::query()->findOrFail((new CustomKeyRecord)->getKey());', 'Collection<int, CustomKeyRecord>', []],
     'null find' => ['return Record::find(null);', 'Record|null', []],
     'scalar find or fail' => ['return Record::findOrFail(1);', 'Record', []],
     'scalar find or new' => ['return Record::findOrNew(1);', 'Record', []],
@@ -178,7 +202,7 @@ foreach ($cases as $name => [$body, $return, $codes]) {
     $source .=
         'function scenario'
         .count($lines)
-        .'(mixed $unknown, int|array $oneOrMany, ?int $nullable, Builder $builder, Builder $models, Arrayable $ids, object $object) { '
+        .'(mixed $unknown, int|array $oneOrMany, ?int $nullable, Builder $builder, Builder $models, Arrayable $ids, object $object, string $stringId, int|string|null $scalarKey) { '
         .$body
         .' }'
         ."\n";
@@ -234,6 +258,7 @@ foreach ($lines as $line => [$name, $expected]) {
 if ($actual !== []) {
     throw new RuntimeException('Unexpected diagnostics outside lookup scenarios; inspect '.$workspace);
 }
+echo 'PASS: native lookup exit '.$exit."\n";
 $resolvedWorkspace = realpath($workspace);
 foreach (glob($workspace.'/*') ?: [] as $file) {
     $resolvedFile = realpath($file);

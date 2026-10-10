@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ConfigurationIndex;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\ConfigurationWrites;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\EvaluatedRuntime;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
@@ -33,6 +34,7 @@ final class ConfigurationProvider implements FunctionReturnTypeProvider, Initial
     private ?ConfigurationIndex $index = null;
     private ?ContainerBindings $bindings = null;
     private ?bool $nativeEnvironment = null;
+    private ?ConfigurationWrites $writes = null;
 
     public function __construct(
         private readonly string $root,
@@ -43,6 +45,7 @@ final class ConfigurationProvider implements FunctionReturnTypeProvider, Initial
         $this->index = null;
         $this->bindings = null;
         $this->nativeEnvironment = null;
+        $this->writes = null;
     }
 
     public function getTargets(): array
@@ -106,6 +109,13 @@ final class ConfigurationProvider implements FunctionReturnTypeProvider, Initial
             return null;
         }
         $index = $this->index ??= new ConfigurationIndex(new PhpSource($this->root));
+
+        $this->writes ??= new ConfigurationWrites(new PhpSource($this->root), $context->codebase);
+        if ($this->writes->affects($key)) {
+            // Neither a source default nor an evaluated snapshot proves the value
+            // after possible runtime replacement. Keep the native mixed contract.
+            return null;
+        }
 
         $defaultType = $default?->type ?? Type::null();
         foreach ($defaultType->atomicTypes as $atom) {
