@@ -35,7 +35,11 @@ For recursive iterators, check `instanceof SplFileInfo` before calling file meth
 
 A facade's magic `shouldHaveReceived` call depends on its current root. Capture the actual Mockery object and check `instanceof Mockery\MockInterface` before relying on its verification API. `Facade::spy()` can fall through when already mocked, despite its PHPDoc; neither the facade root nor its return receives an unconditional Mockery guarantee.
 
-## Testing an unpublished local package
+## Testing local package changes
+
+Published releases are available on [Packagist](https://packagist.org/packages/ichinya/laramago);
+see the [installation guide](installation.md). Use the following path repository
+workflow when testing changes from a local checkout before release.
 
 Keep the application's portable `composer.json` and committed lock unchanged. Use an isolated consumer, or an ignored copy of its manifest with a path repository for `ichinya/laramago`, `options.symlink: false`, and a development requirement in that copy only. An explicit `options.versions` entry can align the local repository version with that development requirement. Select the copy using the `COMPOSER` environment variable; Composer writes its corresponding alternate lock file. Restore the prior environment variable after the local install/update operation.
 

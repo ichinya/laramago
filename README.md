@@ -2,11 +2,17 @@
 
 A Composer package with a Laravel preset for the native Mago CLI.
 
+Available on [Packagist](https://packagist.org/packages/ichinya/laramago).
+Install it in your Laravel application:
+
 ```sh
-composer config repositories.laramago vcs https://github.com/ichinya/laramago
-composer require --dev ichinya/laramago:0.1.1
+composer require --dev ichinya/laramago
 vendor/bin/mago lint
 ```
+
+Composer uses Packagist by default; no custom repository is required.
+See the [installation guide](docs/installation.md) for requirements, updates,
+CI setup, and migration from the earlier VCS installation.
 
 During installation, Composer asks for permission to run the `ichinya/laramago`
 plugin. Once allowed, the plugin creates `mago.dist.json` in the application root.
@@ -1222,6 +1228,9 @@ own settings before running Mago again.
 
 ## Local development installation
 
+For a published release, use the [Packagist installation](docs/installation.md).
+To test changes from a local checkout, use a path repository instead.
+
 Add a path repository to the test Laravel application's `composer.json`:
 
 ```json
@@ -1246,7 +1255,6 @@ vendor/bin/mago lint
 
 Use `symlink: false` to test a regular package copy inside vendor.
 For CI, store plugin permission in the application's `config.allow-plugins`.
-GitHub releases do not automatically register the package on Packagist.
 
 ## Development
 
