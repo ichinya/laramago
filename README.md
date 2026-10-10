@@ -4,7 +4,7 @@ A Composer package with a Laravel preset for the native Mago CLI.
 
 ```sh
 composer config repositories.laramago vcs https://github.com/ichinya/laramago
-composer require --dev ichinya/laramago:0.1.0
+composer require --dev ichinya/laramago:0.1.1
 vendor/bin/mago lint
 ```
 
@@ -15,7 +15,12 @@ uses that executable directly, without a wrapper or Laravel service provider.
 For editor integrations, `vendor/bin/laramago-metadata` exports [source-only
 configuration, route and translation metadata](docs/static-metadata-export.md) as versioned JSON.
 
-Version `0.1.0` expands source-bound model, collection, container, callback and
+Version `0.1.1` preserves native diagnostics when runtime writes can change
+configuration values and corrects Eloquent key contracts. Configuration scanning
+stops once an unknown write invalidates all keys, avoiding unnecessary metadata
+requests while retaining conservative results for unreadable source files.
+
+Version `0.1.0` expanded source-bound model, collection, container, callback and
 configuration type contracts. It adds guarded compatibility checks for array,
 string, null-flow, date, header, session, XML and factory/Faker patterns. Unknown
 dispatch and code outside the proven contracts retain native diagnostics.

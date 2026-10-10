@@ -1,6 +1,7 @@
 # Native framework contracts
 
-These contracts and the focused test command are part of release `0.1.0`.
+These contracts and the focused test command were introduced in `0.1.0` and remain
+available in release `0.1.1`.
 
 Laramago corrects specific native analyzer contracts using installed declarations and analyzed types. Run `composer test:framework-native-contracts` for the focused regression suite; `composer test` also includes it. Fixtures contain intentional errors, so individual native analyzer processes exit with status 1 while the regression wrappers require the exact expected diagnostics and exit with status 0.
 

@@ -34,6 +34,13 @@ final class ConfigurationWrites
                 }
             }
         }
+        // An unknown local write already invalidates every key. Scan these
+        // inexpensive paths before requesting metadata for the entire codebase.
+        $this->scanPaths(array_keys($paths));
+        if ($this->unknown) {
+            return;
+        }
+        $scanned = $paths;
         foreach ($codebase->getClassLikeNames() as $name) {
             $path = $codebase->getClassLike($name)?->location->file;
             if ($path !== null && $this->applicationPath($path)) {
@@ -46,11 +53,17 @@ final class ConfigurationWrites
                 $paths[$path] = true;
             }
         }
-        foreach (array_keys($paths) as $path) {
-            $nodes = $source->read($path);
+        $this->scanPaths(array_keys(array_diff_key($paths, $scanned)));
+    }
+
+    /** @param list<string> $paths */
+    private function scanPaths(array $paths): void
+    {
+        foreach ($paths as $path) {
+            $nodes = $this->source->read($path);
             if ($nodes === null) {
                 $this->unknown = true;
-                continue;
+                return;
             }
             $calls = (new NodeFinder)->find($nodes, static fn (Node $node): bool => $node instanceof Node\Expr\FuncCall || $node instanceof Node\Expr\StaticCall || $node instanceof Node\Expr\MethodCall);
             $directReceivers = [];
@@ -75,6 +88,9 @@ final class ConfigurationWrites
                     $this->unknown = true;
                 }
                 $this->call($call);
+                if ($this->unknown) {
+                    return;
+                }
             }
         }
     }
