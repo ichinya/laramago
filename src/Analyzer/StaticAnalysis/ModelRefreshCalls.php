@@ -9,9 +9,6 @@ use Mago\Sdk\Analyzer\CodebaseScanHook;
 use Mago\Sdk\Span;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
-use PhpParser\NodeTraverser;
-use PhpParser\NodeVisitor\NameResolver;
-use PhpParser\ParserFactory;
 
 /** Recover lexical parameter identity only for an unescaped first-statement reload. */
 final class ModelRefreshCalls implements CodebaseScanHook
@@ -43,8 +40,7 @@ final class ModelRefreshCalls implements CodebaseScanHook
                     $this->failed = true;
                     break;
                 }
-                $nodes = (new ParserFactory)->createForNewestSupportedVersion()->parse($file->contents) ?? [];
-                $nodes = (new NodeTraverser(new NameResolver))->traverse($nodes);
+                $nodes = CodebaseScanSyntax::parse($file->contents);
             } catch (\PhpParser\Error) {
                 $this->failed = true;
                 break;

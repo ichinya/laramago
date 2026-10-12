@@ -9,9 +9,6 @@ use Mago\Sdk\Analyzer\CodebaseScanHook;
 use Mago\Sdk\Span;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
-use PhpParser\NodeTraverser;
-use PhpParser\NodeVisitor\NameResolver;
-use PhpParser\ParserFactory;
 
 /** Only direct, positive instanceof branches can select a kernel contract. */
 final class KernelIntersectionCalls implements CodebaseScanHook
@@ -47,8 +44,7 @@ final class KernelIntersectionCalls implements CodebaseScanHook
                 break;
             }
             try {
-                $nodes = (new ParserFactory)->createForNewestSupportedVersion()->parse($file->contents) ?? [];
-                $nodes = (new NodeTraverser(new NameResolver))->traverse($nodes);
+                $nodes = CodebaseScanSyntax::parse($file->contents);
             } catch (\PhpParser\Error) {
                 $this->failed = true;
                 break;

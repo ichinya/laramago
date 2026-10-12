@@ -58,8 +58,7 @@ final class DirectCallbackReferenceEffects implements InitializationHook, Codeba
             $this->bytes += strlen($file->contents);
             if ($this->failed || isset($this->files[$path]) || strlen($file->contents) > 2_000_000 || count($this->files) >= 100_000 || $this->bytes > 67_108_864) { $this->failed = true; break; }
             try {
-                $nodes = (new ParserFactory)->createForNewestSupportedVersion()->parse($file->contents) ?? [];
-                $nodes = (new NodeTraverser(new NameResolver))->traverse($nodes);
+                $nodes = CodebaseScanSyntax::parse($file->contents);
             } catch (\PhpParser\Error) { $this->failed = true; break; }
             $entry = ['file' => $file->path, 'diskFile' => $this->disk($file->path), 'hash' => hash('sha256', $file->contents), 'proofs' => []];
             $this->files[$path] = $entry;

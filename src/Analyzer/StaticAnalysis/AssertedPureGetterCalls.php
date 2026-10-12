@@ -9,9 +9,6 @@ use Mago\Sdk\Analyzer\CodebaseScanHook;
 use Mago\Sdk\Span;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
-use PhpParser\NodeTraverser;
-use PhpParser\NodeVisitor\NameResolver;
-use PhpParser\ParserFactory;
 
 /** Index a repeated getter in the next statement after a successful scalar assertion. */
 final class AssertedPureGetterCalls implements CodebaseScanHook
@@ -53,8 +50,7 @@ final class AssertedPureGetterCalls implements CodebaseScanHook
             if ($size > 2_000_000 || $this->bytes > 64 * 1024 * 1024 || isset($this->sources[$path])
                 || count($this->sources) >= 100_000) { $this->failed = true; break; }
             try {
-                $nodes = (new ParserFactory)->createForNewestSupportedVersion()->parse($file->contents) ?? [];
-                $nodes = (new NodeTraverser(new NameResolver))->traverse($nodes);
+                $nodes = CodebaseScanSyntax::parse($file->contents);
             } catch (\PhpParser\Error) { $this->failed = true; break; }
             $this->sources[$path] = hash('sha256', $file->contents);
             $candidates = [];

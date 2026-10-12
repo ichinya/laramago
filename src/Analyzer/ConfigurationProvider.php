@@ -27,6 +27,9 @@ use Mago\Sdk\Analyzer\Type\ScalarType;
 use Mago\Sdk\Analyzer\Type\SimpleAtomicType;
 use Mago\Sdk\Reporting\Issue;
 use Mago\Sdk\Reporting\Level;
+use Revolt\EventLoop;
+use Revolt\EventLoop\Suspension;
+use Throwable;
 
 /** Refines literal config reads without executing configuration or environment helpers. */
 final class ConfigurationProvider implements FunctionReturnTypeProvider, InitializationHook, BeforeAnalysisHook
@@ -35,6 +38,10 @@ final class ConfigurationProvider implements FunctionReturnTypeProvider, Initial
     private ?ContainerBindings $bindings = null;
     private ?bool $nativeEnvironment = null;
     private ?ConfigurationWrites $writes = null;
+    private bool $buildingWrites = false;
+    private int $writeGeneration = 0;
+    /** @var list<Suspension<ConfigurationWrites>> */
+    private array $writeWaiters = [];
 
     public function __construct(
         private readonly string $root,
@@ -42,6 +49,13 @@ final class ConfigurationProvider implements FunctionReturnTypeProvider, Initial
 
     public function initialize(InitializationContext $context): void
     {
+        ++$this->writeGeneration;
+        $waiters = $this->writeWaiters;
+        $this->writeWaiters = [];
+        $this->buildingWrites = false;
+        foreach ($waiters as $waiter) {
+            $waiter->throw(new \RuntimeException('Configuration state reset during index preparation.'));
+        }
         $this->index = null;
         $this->bindings = null;
         $this->nativeEnvironment = null;
@@ -60,6 +74,10 @@ final class ConfigurationProvider implements FunctionReturnTypeProvider, Initial
             return;
         }
         $index = $this->index ??= new ConfigurationIndex(new PhpSource($this->root));
+        // Metadata requests suspend the SDK fiber. Lazy construction in a
+        // return-type callback can therefore build this index concurrently
+        // before ??= assigns it. Prepare it at the lifecycle barrier instead.
+        $this->writeIndex($context->codebase);
         $anchor = $this->frameworkHelper($context->codebase)?->location;
         if ($anchor !== null) {
             foreach ($index->source->warnings as $path => $message) {
@@ -110,8 +128,7 @@ final class ConfigurationProvider implements FunctionReturnTypeProvider, Initial
         }
         $index = $this->index ??= new ConfigurationIndex(new PhpSource($this->root));
 
-        $this->writes ??= new ConfigurationWrites(new PhpSource($this->root), $context->codebase);
-        if ($this->writes->affects($key)) {
+        if ($this->writeIndex($context->codebase)->affects($key)) {
             // Neither a source default nor an evaluated snapshot proves the value
             // after possible runtime replacement. Keep the native mixed contract.
             return null;
@@ -140,6 +157,54 @@ final class ConfigurationProvider implements FunctionReturnTypeProvider, Initial
         }
 
         return $this->evaluatedRead($key);
+    }
+
+    /** Prepare once per generation, including workers without a lifecycle callback. */
+    private function writeIndex(Codebase $codebase): ConfigurationWrites
+    {
+        if ($this->writes !== null) {
+            return $this->writes;
+        }
+        if ($this->buildingWrites) {
+            $generation = $this->writeGeneration;
+            /** @var Suspension<ConfigurationWrites> $waiter */
+            $waiter = EventLoop::getSuspension();
+            $this->writeWaiters[] = $waiter;
+
+            $writes = $waiter->suspend();
+            if ($generation !== $this->writeGeneration) {
+                throw new \RuntimeException('Configuration generation changed before index delivery.');
+            }
+
+            return $writes;
+        }
+        $this->buildingWrites = true;
+        $generation = $this->writeGeneration;
+        try {
+            $writes = new ConfigurationWrites(new PhpSource($this->root), $codebase);
+            if ($generation !== $this->writeGeneration) {
+                throw new \RuntimeException('Configuration generation changed during index preparation.');
+            }
+        } catch (Throwable $error) {
+            if ($generation === $this->writeGeneration) {
+                $this->buildingWrites = false;
+                $waiters = $this->writeWaiters;
+                $this->writeWaiters = [];
+                foreach ($waiters as $waiter) {
+                    $waiter->throw($error);
+                }
+            }
+            throw $error;
+        }
+        $this->writes = $writes;
+        $this->buildingWrites = false;
+        $waiters = $this->writeWaiters;
+        $this->writeWaiters = [];
+        foreach ($waiters as $waiter) {
+            $waiter->resume($writes);
+        }
+
+        return $writes;
     }
 
     /**

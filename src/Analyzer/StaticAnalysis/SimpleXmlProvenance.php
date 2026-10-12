@@ -20,9 +20,7 @@ use Mago\Sdk\Span;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
 use PhpParser\NodeTraverser;
-use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\NodeVisitor\ParentConnectingVisitor;
-use PhpParser\ParserFactory;
 
 /** Recover actual element parents without assuming that opaque XML parameters are nonempty. */
 final class SimpleXmlProvenance implements CodebaseScanHook, InitializationHook
@@ -66,8 +64,7 @@ final class SimpleXmlProvenance implements CodebaseScanHook, InitializationHook
                     $this->failed = true;
                     break;
                 }
-                $nodes = (new ParserFactory)->createForNewestSupportedVersion()->parse($file->contents) ?? [];
-                $nodes = (new NodeTraverser(new NameResolver))->traverse($nodes);
+                $nodes = CodebaseScanSyntax::parse($file->contents);
             } catch (\PhpParser\Error) {
                 $this->failed = true;
                 break;

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax;
 use Mago\Sdk\Analyzer\Plugin;
 use Mago\Sdk\Analyzer\PluginDefinition;
 use Mago\Sdk\Analyzer\PluginRegistry;
@@ -27,6 +28,7 @@ final class LaravelPlugin implements Plugin
     public function register(PluginRegistry $registry): void
     {
         PhpSource::clearSharedCache();
+        CodebaseScanSyntax::clear();
         $registry->registerMethodReturnTypeProvider(new FrameworkImplicitVariadicProvider($this->projectRoot));
         $registry->registerMethodReturnTypeProvider(new ApplicationEnvironmentProvider($this->projectRoot));
         $registry->registerFunctionReturnTypeProvider(new StringPredicateArrayProvider($this->projectRoot));

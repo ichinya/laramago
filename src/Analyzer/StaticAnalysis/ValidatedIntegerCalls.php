@@ -9,9 +9,6 @@ use Mago\Sdk\Analyzer\CodebaseScanHook;
 use Mago\Sdk\Span;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
-use PhpParser\NodeTraverser;
-use PhpParser\NodeVisitor\NameResolver;
-use PhpParser\ParserFactory;
 
 /** Index adjacent validation/guard pairs; a fileless span must identify exactly one host call. */
 final class ValidatedIntegerCalls implements CodebaseScanHook
@@ -43,8 +40,7 @@ final class ValidatedIntegerCalls implements CodebaseScanHook
                     $this->failed = true;
                     break;
                 }
-                $nodes = (new ParserFactory)->createForNewestSupportedVersion()->parse($file->contents) ?? [];
-                $nodes = (new NodeTraverser(new NameResolver))->traverse($nodes);
+                $nodes = CodebaseScanSyntax::parse($file->contents);
             } catch (\PhpParser\Error) {
                 $this->failed = true;
                 break;

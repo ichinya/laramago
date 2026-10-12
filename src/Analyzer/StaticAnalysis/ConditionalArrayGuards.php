@@ -53,8 +53,7 @@ final class ConditionalArrayGuards implements CodebaseScanHook, InitializationHo
                 break;
             }
             try {
-                $nodes = (new ParserFactory)->createForNewestSupportedVersion()->parse($file->contents) ?? [];
-                $nodes = (new NodeTraverser(new NameResolver))->traverse($nodes);
+                $nodes = CodebaseScanSyntax::parse($file->contents);
             } catch (\PhpParser\Error) {
                 $this->failed = true;
                 break;

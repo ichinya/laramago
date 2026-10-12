@@ -3,8 +3,7 @@
 declare (strict_types=1);
 namespace Ichinya\Laramago\Analyzer;
 
-use PhpParser\{Node, NodeFinder, NodeTraverser, ParserFactory};
-use PhpParser\NodeVisitor\NameResolver;
+use PhpParser\{Node, NodeFinder};
 /** A bounded lexical certificate. It does not infer native values or execute a caller. */
 final class DefensiveBoundaryGuardSource
 {
@@ -16,7 +15,7 @@ final class DefensiveBoundaryGuardSource
         if (strlen($contents) > 2000000) {
             throw new \RuntimeException('Selected source exceeds the bound.');
         }
-        return (new NodeTraverser(new NameResolver()))->traverse((new ParserFactory())->createForNewestSupportedVersion()->parse($contents) ?? []);
+        return \Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax::parse($contents);
     }
     public static function compile(array $nodes): array
     {
