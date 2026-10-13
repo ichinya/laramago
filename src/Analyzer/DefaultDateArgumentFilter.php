@@ -6,9 +6,6 @@ use Mago\Sdk\Analyzer\{CodebaseScanContext,CodebaseScanHook,IssueFilterContext,I
 use Mago\Sdk\Analyzer\Metadata\{ClassLikeKind,MetadataFlags};
 use PhpParser\Node;
 use PhpParser\NodeFinder;
-use PhpParser\NodeTraverser;
-use PhpParser\NodeVisitor\NameResolver;
-use PhpParser\ParserFactory;
 
 /** Offline framework-default date creation, with source-visible replacement configurations vetoed. */
 final class DefaultDateArgumentFilter implements IssueFilterHook,CodebaseScanHook
@@ -38,7 +35,7 @@ final class DefaultDateArgumentFilter implements IssueFilterHook,CodebaseScanHoo
             if ($path==='') { continue; } // Builtin virtual source cannot configure a user Date facade.
             if (isset($this->files[$path]) && $this->files[$path]!==hash('sha256',$entry->contents)) { $this->blocked=true;break; }
             $this->files[$path]=hash('sha256',$entry->contents);
-            try { $nodes=(new ParserFactory)->createForNewestSupportedVersion()->parse($entry->contents)??[];$nodes=(new NodeTraverser(new NameResolver))->traverse($nodes); }
+            try { $nodes = \Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax::parse($entry->contents); }
             catch (\PhpParser\Error) { $this->blocked=true;break; }
             // Declaration of the audited swap implementation does not itself replace the Date handler.
             // Its callers remain subject to the selected facade/container override vetoes below.

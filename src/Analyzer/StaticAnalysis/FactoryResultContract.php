@@ -10,9 +10,6 @@ use Mago\Sdk\Analyzer\CodebaseScanHook;
 use Mago\Sdk\Analyzer\Type;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
-use PhpParser\NodeTraverser;
-use PhpParser\NodeVisitor\NameResolver;
-use PhpParser\ParserFactory;
 use PhpParser\PrettyPrinter\Standard;
 
 /** Independent syntax and native-contract proof for an uncounted model factory create. */
@@ -93,14 +90,17 @@ final class FactoryResultContract implements CodebaseScanHook
                     break;
                 }
                 try {
-                    $nodes = (new ParserFactory)->createForNewestSupportedVersion()->parse($file->contents) ?? [];
-                    $nodes = (new NodeTraverser(new NameResolver))->traverse($nodes);
                     // Native setter declarations do not execute during inclusion.
                     // Actual top-level configuration in a native host file still poisons the proof.
-                    if (str_contains(str_replace('\\', '/', $file->path), '/laravel/framework/src/')) {
-                        $nodes = self::outsideClasses($nodes);
-                    }
-                    $this->mappingConfigured = (new NodeFinder)->findFirst($nodes, self::knownMappingMutation(...)) !== null;
+                    $nativeDeclarations = str_contains(str_replace('\\', '/', $file->path), '/laravel/framework/src/');
+                    $this->mappingConfigured = CodebaseScanSyntax::query(
+                        $file->contents,
+                        self::class.($nativeDeclarations ? '::outside-class-mapping' : '::all-mapping'),
+                        static fn (array $nodes): bool => (new NodeFinder)->findFirst(
+                            $nativeDeclarations ? self::outsideClasses($nodes) : $nodes,
+                            self::knownMappingMutation(...),
+                        ) !== null,
+                    );
                 } catch (\PhpParser\Error) {
                     $this->scanFailed = true;
                     break;

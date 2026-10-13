@@ -21,6 +21,13 @@ uses that executable directly, without a wrapper or Laravel service provider.
 For editor integrations, `vendor/bin/laramago-metadata` exports [source-only
 configuration, route and translation metadata](docs/static-metadata-export.md) as versioned JSON.
 
+Source scans reuse bounded, isolated syntax and extraction results across plugins.
+Configuration write indexes also share one in-flight construction per generation,
+so concurrent SDK callbacks do not repeat the full metadata traversal.
+Factory, model refresh and defensive boundary scanners share source work while
+keeping their own path policy, scan lifecycle and native contracts. See the
+[source query cache contract](docs/source-query-cache.md) for limits and controls.
+
 Version `0.1.1` preserves native diagnostics when runtime writes can change
 configuration values and corrects Eloquent key contracts. Configuration scanning
 stops once an unknown write invalidates all keys, avoiding unnecessary metadata

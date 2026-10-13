@@ -7,8 +7,7 @@ use Mago\Sdk\Analyzer\{Codebase, CodebaseScanContext, CodebaseScanHook, Initiali
 use Mago\Sdk\Analyzer\Metadata\{ClassLikeKind, FunctionLikeKind, FunctionLikeMetadata, MetadataFlags, TypeMetadata};
 use Mago\Sdk\Reporting\{AnnotationKind, Level};
 use Mago\Sdk\SourceLocation;
-use PhpParser\{Node, NodeFinder, NodeTraverser, ParserFactory};
-use PhpParser\NodeVisitor\NameResolver;
+use PhpParser\{Node, NodeFinder};
 /** Diagnostic compatibility only: native method types and actual deprecation status remain authoritative. */
 final class DeprecatedMethodCompatibilityProof implements InitializationHook, CodebaseScanHook
 {
@@ -220,7 +219,7 @@ final class DeprecatedMethodCompatibilityProof implements InitializationHook, Co
     public static function parse(string $bytes): ?array
     {
         try {
-            return (new NodeTraverser(new NameResolver()))->traverse((new ParserFactory())->createForNewestSupportedVersion()->parse($bytes) ?? []);
+            return \Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax::parse($bytes);
         } catch (\PhpParser\Error|\LogicException) {
             return null;
         }

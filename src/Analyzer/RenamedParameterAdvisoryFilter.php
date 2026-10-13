@@ -6,8 +6,7 @@ namespace Ichinya\Laramago\Analyzer;
 use Mago\Sdk\Analyzer\{CodebaseScanContext,CodebaseScanHook,InitializationContext,InitializationHook,IssueFilterContext,IssueFilterDecision,IssueFilterHook,Plugin,PluginDefinition,PluginRegistry};
 use Mago\Sdk\Analyzer\Metadata\{ClassLikeMetadata,FunctionLikeMetadata,MetadataFlags};
 use Mago\Sdk\Reporting\AnnotationKind;
-use PhpParser\{Node,NodeFinder,NodeTraverser,ParserFactory};
-use PhpParser\NodeVisitor\NameResolver;
+use PhpParser\{Node,NodeFinder};
 
 /** Remove a source/native declaration-name advisory while preserving every call/signature Error. */
 final class RenamedParameterAdvisoryFilter implements Plugin,InitializationHook,CodebaseScanHook,IssueFilterHook
@@ -178,7 +177,7 @@ final class RenamedParameterAdvisoryFilter implements Plugin,InitializationHook,
         $key=hash('sha256',$file."\0".$bytes);
         if(isset($this->sources[$key])) { return $this->sources[$key]; }
         if(count($this->sources)>=8) { unset($this->sources[array_key_first($this->sources)]); }
-        try { $nodes=(new NodeTraverser(new NameResolver))->traverse((new ParserFactory)->createForNewestSupportedVersion()->parse($bytes)??[]); }
+        try { $nodes=\Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax::parse($bytes); }
         catch(\PhpParser\Error) { return $this->sources[$key]=[]; }
         $result=[];
         foreach((new NodeFinder)->find($nodes,static fn(Node $node):bool=>$node instanceof Node\Stmt\Class_||$node instanceof Node\Stmt\Interface_) as $class) {

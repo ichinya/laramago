@@ -19,9 +19,6 @@ use Mago\Sdk\Analyzer\Type\NamedObjectType;
 use Mago\Sdk\Analyzer\Type\Visibility;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
-use PhpParser\NodeTraverser;
-use PhpParser\NodeVisitor\NameResolver;
-use PhpParser\ParserFactory;
 /** One adjacent successful instanceof fact for a source-owned direct getter. */
 final class RememberedGuardedGetterProvider implements MethodReturnTypeProvider, InitializationHook
 {
@@ -60,7 +57,7 @@ final class RememberedGuardedGetterProvider implements MethodReturnTypeProvider,
                 break;
             }
             try {
-                $nodes = (new NodeTraverser(new NameResolver()))->traverse((new ParserFactory())->createForNewestSupportedVersion()->parse($file->contents) ?? []);
+                $nodes = \Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax::parse($file->contents);
             } catch (\PhpParser\Error) {
                 $this->failed = true;
                 break;

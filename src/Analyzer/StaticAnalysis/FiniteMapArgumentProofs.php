@@ -27,9 +27,6 @@ use Mago\Sdk\Analyzer\Type\Visibility;
 use Mago\Sdk\SourceLocation;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
-use PhpParser\NodeTraverser;
-use PhpParser\NodeVisitor\NameResolver;
-use PhpParser\ParserFactory;
 
 /** Certify an unchanged mapper formal from every element of its fresh literal input. */
 final class FiniteMapArgumentProofs implements InitializationHook, CodebaseScanHook
@@ -94,7 +91,7 @@ final class FiniteMapArgumentProofs implements InitializationHook, CodebaseScanH
             $entry = ['file' => $file->path, 'diskFile' => $this->disk($file->path), 'hash' => hash('sha256', $file->contents), 'proofs' => []];
             $this->files[$path] = $entry;
             try {
-                $nodes = (new NodeTraverser(new NameResolver))->traverse((new ParserFactory)->createForNewestSupportedVersion()->parse($file->contents) ?? []);
+                $nodes = CodebaseScanSyntax::parse($file->contents);
             } catch (\PhpParser\Error) { $this->failed = true; break; }
             foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Stmt\ClassLike::class) as $class) {
                 if ($class->name === null || $class->namespacedName === null) { continue; }
@@ -293,7 +290,7 @@ final class FiniteMapArgumentProofs implements InitializationHook, CodebaseScanH
         $analyzed = $this->files[$this->path($file)] ?? null;
         if ($analyzed !== null && $analyzed['hash'] !== $hash) { return null; }
         try {
-            $nodes = (new NodeTraverser(new NameResolver))->traverse((new ParserFactory)->createForNewestSupportedVersion()->parse($contents) ?? []);
+            $nodes = CodebaseScanSyntax::parse($contents);
         } catch (\PhpParser\Error) { return null; }
         $classes = (new NodeFinder)->find($nodes, static fn (Node $node): bool => $node instanceof Node\Stmt\Class_
             && strcasecmp($node->namespacedName?->toString() ?? '', $class) === 0);

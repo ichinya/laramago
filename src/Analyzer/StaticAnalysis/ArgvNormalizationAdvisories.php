@@ -17,9 +17,6 @@ use Mago\Sdk\Reporting\Level;
 use Mago\Sdk\Reporting\ReportedIssue;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
-use PhpParser\NodeTraverser;
-use PhpParser\ParserFactory;
-use PhpParser\NodeVisitor\NameResolver;
 
 /** Source-bound Warning policy for ordinary argv normalization; native types remain unchanged. */
 final class ArgvNormalizationAdvisories implements InitializationHook, CodebaseScanHook
@@ -44,8 +41,7 @@ final class ArgvNormalizationAdvisories implements InitializationHook, CodebaseS
             $this->bytes += strlen($file->contents);
             if (strlen($file->contents) > 2_000_000 || $this->bytes > 64_000_000 || count($this->files) > 100_000 || isset($this->files[$file->path])) { $this->failed = true; break; }
             try {
-                $nodes = (new ParserFactory())->createForNewestSupportedVersion()->parse($file->contents) ?? [];
-                $nodes = (new NodeTraverser(new NameResolver()))->traverse($nodes);
+                $nodes = CodebaseScanSyntax::parse($file->contents);
                 $proofs = self::sourceProofs($nodes);
             } catch (\PhpParser\Error) { $this->failed = true; break; }
             $this->files[$file->path] = ['sha256' => hash('sha256', $file->contents), 'proofs' => $proofs];

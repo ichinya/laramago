@@ -16,9 +16,6 @@ use Mago\Sdk\Analyzer\Type\NamedObjectType;
 use Mago\Sdk\Analyzer\TypeComparator;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
-use PhpParser\NodeTraverser;
-use PhpParser\NodeVisitor\NameResolver;
-use PhpParser\ParserFactory;
 
 /** Index stable local attribute observations separated by an unconditional native refresh. */
 final class RefreshedModelProperties implements InitializationHook, CodebaseScanHook
@@ -58,26 +55,37 @@ final class RefreshedModelProperties implements InitializationHook, CodebaseScan
             $path = self::path($file->path);
             if ($this->failed || isset($this->files[$path]) || strlen($file->contents) > 2_000_000 || count($this->files) >= 100_000) { $this->failed = true; break; }
             try {
-                $nodes = (new ParserFactory)->createForNewestSupportedVersion()->parse($file->contents) ?? [];
-                $nodes = (new NodeTraverser(new NameResolver))->traverse($nodes);
+                $sourceProofs = CodebaseScanSyntax::query($file->contents, self::class.'::source-proofs', self::sourceProofs(...));
             } catch (\PhpParser\Error) { $this->failed = true; break; }
-            $proofs = [];
-            if ((new NodeFinder)->findFirst($nodes, static fn (Node $node): bool => $node instanceof Node\DeclareItem && strtolower($node->key->name) === 'ticks') === null) {
-                foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Stmt\Class_::class) as $class) {
-                    if ($class->name === null || $class->namespacedName === null) { continue; }
-                    foreach ($class->getMethods() as $scope) {
-                        if ($scope->stmts === null || ! self::localScope($scope)) { continue; }
-                        foreach (self::candidates($scope) as $proof) {
-                            $proofs[] = $proof + ['scope' => $scope, 'owner' => $class->namespacedName->toString(), 'callerClass' => $class,
-                                'file' => $file->path, 'diskFile' => $this->disk($file->path), 'hash' => hash('sha256', $file->contents)];
-                        }
-                    }
-                }
-            }
-            $this->files[$path] = ['hash' => hash('sha256', $file->contents), 'proofs' => $proofs];
+            $hash = hash('sha256', $file->contents);
+            $proofs = array_map(fn (array $proof): array => $proof + [
+                'file' => $file->path, 'diskFile' => $this->disk($file->path), 'hash' => $hash,
+            ], $sourceProofs);
+            $this->files[$path] = ['hash' => $hash, 'proofs' => $proofs];
         }
         if ($this->failed) { $this->files = []; }
         $this->complete = $context->lastBatch && ! $this->failed;
+    }
+
+    /** @param array<array-key, Node> $nodes
+     * @return list<array<string,mixed>>
+     */
+    private static function sourceProofs(array $nodes): array
+    {
+        $proofs = [];
+        if ((new NodeFinder)->findFirst($nodes, static fn (Node $node): bool => $node instanceof Node\DeclareItem && strtolower($node->key->name) === 'ticks') !== null) {
+            return $proofs;
+        }
+        foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Stmt\Class_::class) as $class) {
+            if ($class->name === null || $class->namespacedName === null) { continue; }
+            foreach ($class->getMethods() as $scope) {
+                if ($scope->stmts === null || ! self::localScope($scope)) { continue; }
+                foreach (self::candidates($scope) as $proof) {
+                    $proofs[] = $proof + ['scope' => $scope, 'owner' => $class->namespacedName->toString(), 'callerClass' => $class];
+                }
+            }
+        }
+        return $proofs;
     }
 
     /** @return list<array<string,mixed>> */

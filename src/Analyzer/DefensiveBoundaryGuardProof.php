@@ -52,27 +52,38 @@ final class DefensiveBoundaryGuardProof implements InitializationHook, CodebaseS
                 break;
             }
             try {
-                $nodes = DefensiveBoundaryGuardSource::parse($file->contents);
-                $proofs = DefensiveBoundaryGuardSource::compile($nodes);
+                if (strlen($file->contents) > 2000000) {
+                    throw new \RuntimeException('Selected source exceeds the bound.');
+                }
+                $source = \Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax::query(
+                    $file->contents, self::class.'::source-certificates', self::sourceCertificates(...),
+                );
             } catch (\Throwable) {
                 $this->failed = true;
                 break;
             }
-            foreach ((new NodeFinder())->find($nodes, static fn(Node $node): bool => $node instanceof Node\Expr\StaticCall || $node instanceof Node\Expr\MethodCall) as $call) {
-                if (!$call->name instanceof Node\Identifier || !in_array(strtolower($call->name->toString()), ['macro', 'mixin', 'flushmacros'], true)) {
-                    continue;
-                }
-                if (str_ends_with(DefensiveBoundarySourceProfile::path($file->path), '/vendor/laravel/framework/src/Illuminate/Foundation/Providers/FoundationServiceProvider.php')) {
-                    continue;
-                }
-                if ($call instanceof Node\Expr\MethodCall || !$call->class instanceof Node\Name || strcasecmp($call->class->toString(), 'Illuminate\Http\Request') === 0) {
-                    $this->requestRegistrationHazard = true;
-                }
+            if ($source['requestRegistrationHazard'] && !str_ends_with(DefensiveBoundarySourceProfile::path($file->path), '/vendor/laravel/framework/src/Illuminate/Foundation/Providers/FoundationServiceProvider.php')) {
+                $this->requestRegistrationHazard = true;
             }
             // Retain compact scalar certificates and hashes, never complete ASTs.
-            $this->files[$file->path] = ['sha256' => hash('sha256', $file->contents), 'proofs' => $proofs];
+            $this->files[$file->path] = ['sha256' => hash('sha256', $file->contents), 'proofs' => $source['proofs']];
         }
         $this->complete = $context->lastBatch && !$this->failed;
+    }
+
+    /** @param array<array-key, Node> $nodes
+     * @return array{proofs:array, requestRegistrationHazard:bool}
+     */
+    private static function sourceCertificates(array $nodes): array
+    {
+        $proofs = DefensiveBoundaryGuardSource::compile($nodes);
+        $hazard = (new NodeFinder())->findFirst($nodes, static fn(Node $call): bool =>
+            ($call instanceof Node\Expr\StaticCall || $call instanceof Node\Expr\MethodCall)
+            && $call->name instanceof Node\Identifier
+            && in_array(strtolower($call->name->toString()), ['macro', 'mixin', 'flushmacros'], true)
+            && ($call instanceof Node\Expr\MethodCall || !$call->class instanceof Node\Name || strcasecmp($call->class->toString(), 'Illuminate\Http\Request') === 0)
+        ) !== null;
+        return ['proofs' => $proofs, 'requestRegistrationHazard' => $hazard];
     }
     public function prove(IssueFilterContext $context): array
     {

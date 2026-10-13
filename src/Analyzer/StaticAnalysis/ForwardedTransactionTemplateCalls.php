@@ -9,9 +9,6 @@ use Mago\Sdk\Analyzer\CodebaseScanHook;
 use Mago\Sdk\Analyzer\Invocation;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
-use PhpParser\NodeTraverser;
-use PhpParser\NodeVisitor\NameResolver;
-use PhpParser\ParserFactory;
 
 /** Unique, current source provenance for an inline transaction forwarding a formal. */
 final class ForwardedTransactionTemplateCalls implements CodebaseScanHook
@@ -56,8 +53,7 @@ final class ForwardedTransactionTemplateCalls implements CodebaseScanHook
                     || array_key_exists($path, $this->sources)) { $this->failed = true; break; }
                 $this->sources[$path] = hash('sha256', $file->contents);
                 try {
-                    $nodes = (new ParserFactory)->createForNewestSupportedVersion()->parse($file->contents) ?? [];
-                    $nodes = (new NodeTraverser(new NameResolver))->traverse($nodes);
+                    $nodes = CodebaseScanSyntax::parse($file->contents);
                 } catch (\PhpParser\Error) { $this->failed = true; break; }
                 // A framework-default dispatch is supplemented only without visible replacements.
                 foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Expr\StaticCall::class) as $dispatch) {

@@ -21,9 +21,6 @@ use Mago\Sdk\Analyzer\Type\FunctionLikeKind as IdentifierKind;
 use Mago\Sdk\Analyzer\Type\KeyedArrayType;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
-use PhpParser\NodeTraverser;
-use PhpParser\NodeVisitor\NameResolver;
-use PhpParser\ParserFactory;
 
 /** Prove a fresh scalar record reconstructed after an exhaustive native discriminator guard. */
 final class ReconstructedArrayShapes implements CodebaseScanHook, InitializationHook
@@ -57,8 +54,7 @@ final class ReconstructedArrayShapes implements CodebaseScanHook, Initialization
                 break;
             }
             try {
-                $nodes = (new ParserFactory)->createForNewestSupportedVersion()->parse($file->contents) ?? [];
-                $nodes = (new NodeTraverser(new NameResolver))->traverse($nodes);
+                $nodes = CodebaseScanSyntax::parse($file->contents);
             } catch (\PhpParser\Error) {
                 $this->failed = true;
                 break;

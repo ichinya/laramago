@@ -9,9 +9,6 @@ use Mago\Sdk\Analyzer\CodebaseScanHook;
 use Mago\Sdk\Span;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
-use PhpParser\NodeTraverser;
-use PhpParser\NodeVisitor\NameResolver;
-use PhpParser\ParserFactory;
 
 /** Source provenance for documented model members in a bare native chunk callback. */
 final class ContextualCollectionMembers implements CodebaseScanHook
@@ -58,8 +55,7 @@ final class ContextualCollectionMembers implements CodebaseScanHook
                 || array_key_exists($path, $this->sources)) { $this->failed = true; break; }
             $this->sources[$path] = hash('sha256', $file->contents);
             try {
-                $nodes = (new ParserFactory)->createForNewestSupportedVersion()->parse($file->contents) ?? [];
-                $nodes = (new NodeTraverser(new NameResolver))->traverse($nodes);
+                $nodes = CodebaseScanSyntax::parse($file->contents);
             } catch (\PhpParser\Error) { $this->failed = true; break; }
             $candidates = [];
             foreach (self::scopes($nodes) as [$owner, $scope]) {
