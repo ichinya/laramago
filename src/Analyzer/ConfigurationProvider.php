@@ -9,6 +9,8 @@ use Ichinya\Laramago\Analyzer\StaticAnalysis\ConfigurationWrites;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ContainerBindings;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\EvaluatedRuntime;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
+use Mago\Sdk\Analyzer\AfterAnalysisContext;
+use Mago\Sdk\Analyzer\AfterAnalysisHook;
 use Mago\Sdk\Analyzer\BeforeAnalysisContext;
 use Mago\Sdk\Analyzer\BeforeAnalysisHook;
 use Mago\Sdk\Analyzer\Codebase;
@@ -27,12 +29,14 @@ use Mago\Sdk\Analyzer\Type\ScalarType;
 use Mago\Sdk\Analyzer\Type\SimpleAtomicType;
 use Mago\Sdk\Reporting\Issue;
 use Mago\Sdk\Reporting\Level;
+use Mago\Sdk\SourceLocation;
+use Mago\Sdk\Span;
 use Revolt\EventLoop;
 use Revolt\EventLoop\Suspension;
 use Throwable;
 
 /** Refines literal config reads without executing configuration or environment helpers. */
-final class ConfigurationProvider implements FunctionReturnTypeProvider, InitializationHook, BeforeAnalysisHook
+final class ConfigurationProvider implements FunctionReturnTypeProvider, InitializationHook, BeforeAnalysisHook, AfterAnalysisHook
 {
     private ?ConfigurationIndex $index = null;
     private ?ContainerBindings $bindings = null;
@@ -42,6 +46,7 @@ final class ConfigurationProvider implements FunctionReturnTypeProvider, Initial
     private int $writeGeneration = 0;
     /** @var list<Suspension<ConfigurationWrites>> */
     private array $writeWaiters = [];
+    private bool $stale = false;
 
     public function __construct(
         private readonly string $root,
@@ -60,11 +65,34 @@ final class ConfigurationProvider implements FunctionReturnTypeProvider, Initial
         $this->bindings = null;
         $this->nativeEnvironment = null;
         $this->writes = null;
+        $this->stale = false;
     }
 
     public function getTargets(): array
     {
         return [FunctionTarget::exact('config')];
+    }
+
+    public function afterAnalysis(AfterAnalysisContext $context): void
+    {
+        // The final hook may run on a coordinator that did not handle any reads.
+        if (($this->index !== null || $this->bindings !== null) && (
+            $this->stale
+            || ! ($this->bindings?->current() ?? true)
+            || ! ($this->bindings?->dependenciesCurrent() ?? true)
+            || ! ($this->index?->allCurrent() ?? true)
+        )) {
+            $file = $context->analysis->files[0]->file ?? null;
+            if ($file === null) {
+                throw new \RuntimeException('Configuration sources changed during analysis; rerun with unchanged sources.');
+            }
+            $context->report(
+                Level::Error,
+                'configuration-source-changed',
+                Issue::at('Configuration sources changed during analysis; rerun with unchanged sources.', new SourceLocation($file, new Span(0, 0)))
+                    ->withNote('Configuration or declared binding files, directory membership, composer.json, or composer.lock no longer match the prepared metadata.'),
+            );
+        }
     }
 
     public function beforeAnalysis(BeforeAnalysisContext $context): void
@@ -113,6 +141,11 @@ final class ConfigurationProvider implements FunctionReturnTypeProvider, Initial
     public function literalRead(ReturnTypeProviderContext $context): ?Type
     {
         $this->bindings ??= new ContainerBindings($this->root);
+        if (! $this->bindings->current()) {
+            $this->stale = true;
+
+            return null;
+        }
         if ($this->bindings->configured('config')) {
             return null;
         }
@@ -150,6 +183,12 @@ final class ConfigurationProvider implements FunctionReturnTypeProvider, Initial
 
         if ($this->nativeEnvironment === null) {
             $this->nativeEnvironment = EnvironmentValueProvider::nativeSource($context->codebase, $index->source);
+        }
+        // Metadata requests above can suspend a Fiber; validate after the last one.
+        if (! $this->bindings->current() || ! $index->current($key)) {
+            $this->stale = true;
+
+            return null;
         }
         $static = $index->lookup($key, $defaultType, $this->nativeEnvironment);
         if ($static !== null) {

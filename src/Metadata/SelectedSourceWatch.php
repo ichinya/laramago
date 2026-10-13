@@ -96,7 +96,10 @@ final class SelectedSourceWatch
                 if ($metadata === null) {
                     throw new \UnexpectedValueException('Exporter returned no metadata.');
                 }
-                $errors = is_array($metadata['errors'] ?? null) ? $metadata['errors'] : [];
+                $errors = MetadataEnvelope::errors($metadata);
+                if ($errors === []) {
+                    $errors = $metadata['errors'];
+                }
                 if (($metadata['truncated'] ?? false) === true) {
                     $errors[] = [
                         'code' => 'truncated-export',

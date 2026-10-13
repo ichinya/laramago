@@ -20,11 +20,19 @@ final class ContainerBindings
     /** @var array<string, true> */
     private array $blocked = [];
     private bool $unknown = false;
+    private readonly string $root;
+    private readonly string|false $manifestHash;
+    private readonly string|false $lockHash;
+    /** @var array<string, string|false> */
+    private array $sourceHashes = [];
 
     public function __construct(string $root)
     {
+        $this->root = $root;
         $source = new PhpSource($root);
         $json = @file_get_contents($root.'/composer.json');
+        $this->manifestHash = $json === false ? false : hash('sha256', $json);
+        $this->lockHash = @hash_file('sha256', $root.'/composer.lock');
         /** @var mixed $composer */
         $composer = $json === false ? null : json_decode($json, true);
         /** @var mixed $extra */
@@ -53,7 +61,9 @@ final class ContainerBindings
                 $this->unknown = true;
                 continue;
             }
+            $path = $source->path($file);
             $nodes = $source->read($file);
+            $this->sourceHashes[$path] = $source->contentHash($file) ?? false;
             if ($nodes === null) {
                 $this->unknown = true;
                 continue;
@@ -62,6 +72,27 @@ final class ContainerBindings
                 $this->scan($node, true);
             }
         }
+    }
+
+    /** The manifest and explicitly selected binding sources still match this snapshot. */
+    public function current(): bool
+    {
+        if (@hash_file('sha256', $this->root.'/composer.json') !== $this->manifestHash) {
+            return false;
+        }
+        foreach ($this->sourceHashes as $path => $hash) {
+            if (@hash_file('sha256', $path) !== $hash) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** Dependency revisions are checked once before publishing the merged analysis. */
+    public function dependenciesCurrent(): bool
+    {
+        return @hash_file('sha256', $this->root.'/composer.lock') === $this->lockHash;
     }
 
     public function configured(string $abstract): bool

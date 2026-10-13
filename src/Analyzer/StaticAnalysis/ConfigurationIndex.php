@@ -49,6 +49,34 @@ final class ConfigurationIndex
         }
     }
 
+    /** Check only the namespace contributing to a literal read. */
+    public function current(string $key): bool
+    {
+        $namespace = explode('.', $key, 2)[0];
+        $path = $this->filePaths[$namespace] ?? null;
+        if ($path !== null) {
+            return @hash_file('sha256', $path) === ($this->source->contentHash($path) ?? false);
+        }
+        foreach (glob($this->source->path('config/*.php')) ?: [] as $candidate) {
+            if (pathinfo($candidate, PATHINFO_FILENAME) === $namespace) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** Final publication also checks directory membership and unused namespaces. */
+    public function allCurrent(): bool
+    {
+        $paths = glob($this->source->path('config/*.php')) ?: [];
+        $original = array_values($this->filePaths);
+        sort($paths, SORT_STRING);
+        sort($original, SORT_STRING);
+
+        return $paths === $original && $this->source->isCurrent();
+    }
+
     /** Unknown namespaces and dynamic branches defer, including their defaults. */
     public function lookup(string $key, ?Type $default, bool $nativeEnvironment = false): ?Type
     {

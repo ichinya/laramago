@@ -33,6 +33,14 @@ snapshot and then when watched source state or error status changes. It polls
 `event: "snapshot"`, a revision and source hash, `status: "ready"` with full replacement
 `metadata`, or `status: "error"` with `metadata: null` and generic `errors`.
 Parse/read failures and truncated exports invalidate the prior ready snapshot.
+Watch also rejects unsupported `schemaVersion` values and malformed envelopes.
+The common envelope requires integer `schemaVersion: 1`, a nonempty string
+`projectRoot`, a `scope` with nonempty string `kind` and `evidence`, a list of
+error records (`code`, `file`, `message`), and boolean `truncated`. Kind-specific
+metadata remains opaque. Rejected snapshots have `metadata: null` and
+`unsupported-metadata-version` or `invalid-metadata-envelope` errors. A corrected
+export can recover without another source edit; unchanged errors are not emitted
+repeatedly. One-shot exports retain the partial-result contract described below.
 Stop the command with Ctrl+C or the host process interrupt. `--output` is not
 accepted in watch mode, and invalid options exit with status 2. This default mode
 refreshes static configuration metadata; it does not run incremental Mago
@@ -68,6 +76,15 @@ Unfiltered traversal is bounded to 4,096 catalogs, 100,000 declarations, and
 32 nested array levels. `truncated` and `truncationReasons` disclose when a
 limit is reached. Consumers should check `schemaVersion`, source hashes, and
 `truncated` before reusing spans or treating the export as a complete snapshot.
+
+Run `composer test:worker-metadata` for envelope rejection/recovery, native worker
+faults, and configuration source-revision controls. The regular `composer test`
+command includes this suite. Fixtures use synthetic files and do not load a real
+application, read records, or run migrations. Worker fault tests cover exit,
+timeout, exceptions, incomplete/malformed frames and unsupported protocol versions,
+including corrupted responses after a successful capability exchange. `MAGO_BINARY`
+and `MAGO_SDK_AUTOLOAD` can select a matching alternative native binary and SDK for
+compatibility checks.
 
 ## Route and translation source exports
 
