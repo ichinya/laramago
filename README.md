@@ -33,6 +33,13 @@ configuration values and corrects Eloquent key contracts. Configuration scanning
 stops once an unknown write invalidates all keys, avoiding unnecessary metadata
 requests while retaining conservative results for unreadable source files.
 
+Configuration refinements also check the contributing config file, manifest and
+explicit binding sources against their prepared snapshots. A final revision check
+also checks `composer.lock` and rejects changed files or config directory membership with
+`ichinya/laramago/configuration-source-changed`; rerun analysis with unchanged
+sources. Native declarations and PHPDoc retain priority. See
+[metadata reliability checks](docs/static-metadata-export.md).
+
 Version `0.1.0` expanded source-bound model, collection, container, callback and
 configuration type contracts. It adds guarded compatibility checks for array,
 string, null-flow, date, header, session, XML and factory/Faker patterns. Unknown

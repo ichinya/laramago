@@ -99,7 +99,9 @@ try {
     file_put_contents($outside, "<?php return [];\n");
 
     $opaque = [
+        'schemaVersion' => 1,
         'projectRoot' => 'opaque-root',
+        'scope' => ['kind' => 'opaque', 'evidence' => 'source-only'],
         'declarations' => [['name' => 'opaque-name', 'file' => 'opaque-file']],
         'errors' => [],
         'truncated' => false,
@@ -122,10 +124,10 @@ try {
     );
 
     file_put_contents($route, $routeSource('second'));
-    $changedDuringExport = $watch->refresh(static function () use ($route, $routeSource): array {
+    $changedDuringExport = $watch->refresh(static function () use ($route, $routeSource, $opaque): array {
         file_put_contents($route, $routeSource('third'));
 
-        return ['errors' => [], 'truncated' => false];
+        return $opaque;
     });
     $check(
         $changedDuringExport['status'] === 'error'
@@ -160,7 +162,7 @@ try {
     );
 
     file_put_contents($route, $routeSource('truncated'));
-    $truncated = $watch->refresh(static fn (): array => ['errors' => [], 'truncated' => true]);
+    $truncated = $watch->refresh(static fn (): array => [...$opaque, 'truncated' => true]);
     $check(
         $truncated['status'] === 'error'
         && $truncated['metadata'] === null
@@ -168,7 +170,7 @@ try {
         'A truncated export invalidates previous metadata.',
     );
     $check(
-        $watch->refresh(static fn (): array => ['errors' => [], 'truncated' => true]) === null,
+        $watch->refresh(static fn (): array => [...$opaque, 'truncated' => true]) === null,
         'A stable truncated export emits no duplicate event.',
     );
 
@@ -243,7 +245,7 @@ try {
     );
     file_put_contents($json, '{}');
     $jsonEvent = (new SelectedSourceWatch($fixtureRoot, ['selected.json'], ['php', 'json']))->refresh(
-        static fn (): array => ['format' => 'json', 'errors' => [], 'truncated' => false],
+        static fn (): array => [...$opaque, 'format' => 'json'],
     );
     $check(
         $jsonEvent['status'] === 'ready' && $jsonEvent['metadata']['format'] === 'json',
