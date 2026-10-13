@@ -14,6 +14,7 @@ final class LaravelPlugin implements Plugin
 {
     public function __construct(
         private readonly string $projectRoot = '.',
+        private readonly ?string $runtimeMetadata = null,
     ) {}
 
     public function getDefinition(): PluginDefinition
@@ -107,7 +108,7 @@ final class LaravelPlugin implements Plugin
         $middlewareParameters = new MiddlewareParametersHook($this->projectRoot);
         $registry->registerMethodCallAnalysisHook($middlewareParameters);
         $registry->registerInitializationHook($middlewareParameters);
-        $properties = new EloquentPropertyProvider($this->projectRoot);
+        $properties = new EloquentPropertyProvider($this->projectRoot, $this->runtimeMetadata);
         $registry->registerMethodCallAnalysisHook(new PipelineDispatchHook($this->projectRoot));
         $registry->registerMethodCallAnalysisHook(new PipelineArityHook($this->projectRoot));
         $registry->registerMethodCallAnalysisHook(new ContainerSelfAliasHook($this->projectRoot));
@@ -381,6 +382,7 @@ final class LaravelPlugin implements Plugin
         $registry->registerPropertyTypeProvider($properties);
         $registry->registerInitializationHook($properties);
         $registry->registerBeforeAnalysisHook($properties);
+        $registry->registerAfterAnalysisHook($properties);
         $registry->enableProviderMemoization();
     }
 }

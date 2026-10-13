@@ -1,0 +1,93 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Ichinya\Laramago\Runtime\RuntimeSchemaCollector;
+use Ichinya\Laramago\Runtime\RuntimeSchemaSnapshot;
+
+// Deliberately do not load the package SDK in the application's runtime process.
+require_once dirname(__DIR__) . '/src/Runtime/RuntimeSchemaSnapshot.php';
+require_once dirname(__DIR__) . '/src/Runtime/RuntimeSchemaCollector.php';
+require_once dirname(__DIR__) . '/src/Runtime/RuntimeFiles.php';
+
+$options = ['project-root' => null, 'autoload' => null, 'output' => null];
+$models = [];
+try {
+    for ($index = 1, $length = count($argv); $index < $length; ++$index) {
+        $argument = $argv[$index];
+        if ($argument === '--help') {
+            echo
+                "Usage: laramago-runtime --project-root PATH --model FQN [--model FQN ...] [--autoload PATH] [--output PATH]\n"
+            ;
+            exit(0);
+        }
+        if (!str_starts_with($argument, '--')) {
+            throw new RuntimeException('Invalid argument.');
+        }
+        [$option, $value] = array_pad(explode('=', substr($argument, 2), 2), 2, null);
+        if ($value === null) {
+            $value = $argv[++$index] ?? null;
+        }
+        if (!is_string($value) || $value === '' || str_starts_with($value, '--')) {
+            throw new RuntimeException('Invalid argument.');
+        }
+        if ($option === 'model') {
+            $models[] = ltrim($value, '\\');
+        } elseif (array_key_exists($option, $options) && $options[$option] === null) {
+            $options[$option] = $value;
+        } else {
+            throw new RuntimeException('Invalid argument.');
+        }
+    }
+    if ($options['project-root'] === null || $models === []) {
+        throw new RuntimeException('Missing runtime model selection.');
+    }
+    ini_set('display_errors', '0');
+    ini_set('log_errors', '0');
+    set_error_handler(static function (int $severity): bool {
+        if ((error_reporting() & $severity) !== 0) {
+            throw new RuntimeException('Runtime application warning.');
+        }
+
+        return false;
+    });
+    $applicationOutput = false;
+    ob_start(static function (string $buffer) use (&$applicationOutput): string {
+        if ($buffer !== '') {
+            $applicationOutput = true;
+        }
+
+        return '';
+    }, 8192);
+    try {
+        $snapshot = RuntimeSchemaCollector::collect($options['project-root'], $options['autoload'], $models);
+    } finally {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        restore_error_handler();
+    }
+    if ($applicationOutput) {
+        $snapshot['errors'][] = [
+            'code' => 'runtime-output-rejected',
+            'file' => null,
+            'message' => 'Application output was rejected during runtime collection.',
+        ];
+    }
+    $json = json_encode($snapshot, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES) . "\n";
+    if (strlen($json) > RuntimeSchemaSnapshot::MAX_BYTES) {
+        throw new RuntimeException('Runtime output limit exceeded.');
+    }
+    if ($options['output'] !== null) {
+        if (file_put_contents($options['output'], $json, LOCK_EX) !== strlen($json)) {
+            throw new RuntimeException('Runtime snapshot write failed.');
+        }
+    } else {
+        echo $json;
+    }
+    exit($snapshot['errors'] === [] && !$snapshot['truncated'] ? 0 : 1);
+} catch (Throwable) {
+    fwrite(STDERR, "Runtime schema collection failed.\n");
+    exit(2);
+}

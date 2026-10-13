@@ -83,6 +83,13 @@ $bin = $fixture.'/custom vendor/bin/laramago-metadata';
 if (! is_file($bin)) {
     throw new RuntimeException('Composer did not create the metadata bin proxy.');
 }
+
+$runtimeBin = $fixture.'/custom vendor/bin/laramago-runtime';
+[$runtimeHelpExit, $runtimeHelp, $runtimeHelpError] = $run([PHP_BINARY, $runtimeBin, '--help'], $fixture);
+if (! is_file($runtimeBin) || $runtimeHelpExit !== 0 || ! str_contains($runtimeHelp, 'Usage: laramago-runtime')
+    || $runtimeHelpError !== '' || is_file($fixture.'/autoload-executed')) {
+    throw new RuntimeException('Installed runtime collector help loaded application code or lacked its bin proxy.');
+}
 $command = [PHP_BINARY, '-d', 'opcache.enable_cli=0', $bin, '--project-root', $fixture];
 [$exit, $stdout, $stderr] = $run([
     ...$command,

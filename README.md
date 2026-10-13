@@ -902,6 +902,14 @@ environment you want analyzed.
 `php tests/evaluated-runtime.php` and `php tests/evaluated-config.php` cover
 the flag semantics, deferral paths and contract priority.
 
+For actual database schema metadata, use the separate opt-in
+[`laramago-runtime` collector](docs/runtime-schema.md). It prepares an explicit
+model snapshot from file-backed SQLite in a child process; enable it with
+`LARAMAGO_RUNTIME_METADATA` or the worker's `--runtime-metadata=...` option.
+Named connections, schema revisions and separate property read/write contracts
+are checked. Failed or stale metadata prevents a clean analysis result. The
+default analyzer and native lint do not run the collector or require a database.
+
 ### Selected query fields
 
 Direct model calls can refine known physical columns:
