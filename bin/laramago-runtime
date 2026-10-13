@@ -7,9 +7,21 @@ use Ichinya\Laramago\Runtime\RuntimeSchemaCollector;
 use Ichinya\Laramago\Runtime\RuntimeSchemaSnapshot;
 
 // Deliberately do not load the package SDK in the application's runtime process.
-require_once dirname(__DIR__) . '/src/Runtime/RuntimeSchemaSnapshot.php';
-require_once dirname(__DIR__) . '/src/Runtime/RuntimeSchemaCollector.php';
-require_once dirname(__DIR__) . '/src/Runtime/RuntimeFiles.php';
+$runtimeDirectory = dirname(__DIR__) . '/src/Runtime/';
+spl_autoload_register(
+    static function (string $class) use ($runtimeDirectory): void {
+        $prefix = 'Ichinya\\Laramago\\Runtime\\';
+        if (!str_starts_with($class, $prefix)) {
+            return;
+        }
+        $file = $runtimeDirectory . str_replace('\\', '/', substr($class, strlen($prefix))) . '.php';
+        if (is_file($file)) {
+            require_once $file;
+        }
+    },
+    true,
+    true,
+);
 
 $options = ['project-root' => null, 'autoload' => null, 'output' => null];
 $models = [];
