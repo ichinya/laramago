@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\AttributeTypes;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\Column;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\CustomCastTypes;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ModelReflection;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ModelPropertyReadContracts;
@@ -12,8 +13,11 @@ use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\RelationDefaults;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\RelationMethodInference;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\SchemaIndex;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\RuntimeSchemaMetadata;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\UnknownValue;
 use Mago\Sdk\Analyzer\BeforeAnalysisContext;
+use Mago\Sdk\Analyzer\AfterAnalysisContext;
+use Mago\Sdk\Analyzer\AfterAnalysisHook;
 use Mago\Sdk\Analyzer\BeforeAnalysisHook;
 use Mago\Sdk\Analyzer\Codebase;
 use Mago\Sdk\Analyzer\InitializationContext;
@@ -29,9 +33,11 @@ use Mago\Sdk\Analyzer\Type\NamedObjectType;
 use Mago\Sdk\Analyzer\Type\Visibility;
 use Mago\Sdk\Reporting\Issue;
 use Mago\Sdk\Reporting\Level;
+use Mago\Sdk\SourceLocation;
+use Mago\Sdk\Span;
 use PhpParser\Node;
 
-final class EloquentPropertyProvider implements PropertyTypeProvider, InitializationHook, BeforeAnalysisHook
+final class EloquentPropertyProvider implements PropertyTypeProvider, InitializationHook, BeforeAnalysisHook, AfterAnalysisHook
 {
     private ?PhpSource $source = null;
     private ?SchemaIndex $schema = null;
@@ -42,10 +48,14 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
     private array $casts = [];
     /** @var array<string, string|null> */
     private array $tables = [];
+    private readonly RuntimeSchemaMetadata $runtime;
 
     public function __construct(
         private readonly string $root,
-    ) {}
+        ?string $runtimeMetadata = null,
+    ) {
+        $this->runtime = new RuntimeSchemaMetadata($root, $runtimeMetadata);
+    }
 
     public function getTargets(): array
     {
@@ -59,6 +69,7 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
         $this->schema = null;
         $this->readContracts = null;
         $this->properties = $this->casts = $this->tables = [];
+        $this->runtime->reset();
     }
 
     private function source(): PhpSource
@@ -75,6 +86,7 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
 
     public function beforeAnalysis(BeforeAnalysisContext $context): void
     {
+        $this->runtime->prepare();
         $source = $this->source();
         $models = $context->codebase->getMultipleClasses($context->codebase->getClassDescendants(ModelReflection::MODEL));
         $anchor = null;
@@ -104,10 +116,31 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
         }
     }
 
+    public function afterAnalysis(AfterAnalysisContext $context): void
+    {
+        // The coordinator may not have served a property callback. Always check
+        // the supplied snapshot, its sources and live schema before publication.
+        if (!$this->runtime->enabled()) {
+            return;
+        }
+        $this->runtime->prepare();
+        $this->runtime->revalidate();
+        foreach ($this->runtime->errors() as $code => $message) {
+            $file = $context->analysis->files[0]->file ?? null;
+            if ($file === null) {
+                throw new \RuntimeException($message);
+            }
+            $context->report(Level::Error, $code, Issue::at($message, new SourceLocation($file, new Span(0, 0))));
+        }
+    }
+
     public function getPropertyType(PropertyTypeProviderContext $context): ?PropertyType
     {
         $class = $context->access->class;
         $property = $context->access->property;
+        if (! $this->runtime->current()) {
+            return null;
+        }
         $key = strtolower($class).'::$'.$property;
         if ($this->readContracts !== null && ! $this->readContracts->current()) {
             return null;
@@ -116,13 +149,17 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
             $this->properties[$key] = $this->resolve($context->codebase, $class, $property, $context->types);
         }
 
-        return $this->properties[$key];
+        // SDK queries may suspend a Fiber; recheck after the final query.
+        return $this->runtime->current() ? $this->properties[$key] : null;
     }
 
     /** Resolve the same current model contract for a genuine argument issue context. */
     public function currentPropertyContract(\Mago\Sdk\Analyzer\IssueFilterContext $context, string $class, string $property): ?PropertyType
     {
         $context->cancellation->throwIfCancelled();
+        if (! $this->runtime->current()) {
+            return null;
+        }
         $composer = @hash_file('sha256', $this->root.'/composer.json');
         $source = $this->source();
         if ($composer === false || $source->warnings !== [] || ! $source->isCurrent() || ! $this->readContracts->current()
@@ -131,7 +168,7 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
         }
         $contract = $this->resolve($context->codebase, $class, $property, $context->types);
 
-        return $source->warnings === [] && $source->isCurrent() && $this->readContracts->current()
+        return $this->runtime->current() && $source->warnings === [] && $source->isCurrent() && $this->readContracts->current()
             && @hash_file('sha256', $this->root.'/composer.json') === $composer ? $contract : null;
     }
     private function resolve(Codebase $codebase, string $class, string $property, TypeComparator $types): ?PropertyType
@@ -169,12 +206,18 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
         if (! array_key_exists($class, $this->tables)) {
             // SDK metadata queries may yield to another request in the same worker.
             // Publish both cache entries only after every nested request completes.
-            $table = $reflection->table($class);
-            $casts = $reflection->casts($class);
+            $runtimeModel = $this->runtime->enabled() ? $this->runtime->model($class) : null;
+            $table = $runtimeModel === null ? $reflection->table($class) : $runtimeModel['table'];
+            $casts = $runtimeModel === null ? $reflection->casts($class) : $runtimeModel['casts'];
             $this->tables[$class] = $table;
             $this->casts[$class] = $casts;
         }
-        $column = $this->schema?->column($this->tables[$class], $property);
+        $runtimeModel = $this->runtime->enabled() ? $this->runtime->model($class) : null;
+        $runtimeColumn = $runtimeModel['columns'][$property] ?? null;
+        // A selected model uses its own resolved connection and table metadata.
+        $column = $runtimeModel === null
+            ? $this->schema?->column($this->tables[$class], $property)
+            : ($runtimeColumn === null ? null : new Column(self::runtimeColumnType($runtimeColumn) ?? 'unknown', $runtimeColumn['nullable']));
         $casts = $this->casts[$class];
         $attribute = null;
         $knownCast = false;
@@ -188,17 +231,23 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
                             ? CustomCastTypes::resolve(
                                 $cast,
                                 $codebase,
-                                $column,
+                                $runtimeModel !== null && $column?->type === 'unknown' ? null : $column,
                                 $this->source(),
                             )
                             : null
                     )
-                    : AttributeTypes::nullable($type, $column?->nullable ?? true);
+                    : ($runtimeModel === null
+                        ? AttributeTypes::nullable($type, $column?->nullable ?? true)
+                        : self::runtimeBuiltinCast($type, $column?->nullable ?? true));
                 $knownCast = $attribute !== null;
             } elseif ($column !== null) {
                 $attribute = $reflection->automaticDate($class, $property)
-                    ? AttributeTypes::nullable(AttributeTypes::date(), $column->nullable)
-                    : AttributeTypes::column($column);
+                    ? ($runtimeModel === null
+                        ? AttributeTypes::nullable(AttributeTypes::date(), $column->nullable)
+                        : self::runtimeBuiltinCast(AttributeTypes::date(), $column->nullable))
+                    : ($runtimeModel !== null && $column->type === 'unknown'
+                        ? null
+                        : ($runtimeModel === null ? AttributeTypes::column($column) : self::runtimeBuiltinCast(AttributeTypes::column(new Column($column->type)), $column->nullable)));
             }
         }
         // Unknown casts and schema-only inference retain the documented contract.
@@ -261,6 +310,34 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
         $relation = $reflection->method($class, $property);
 
         return $relation === null ? null : $this->relation($codebase, $reflection, $class, $relation);
+    }
+
+    /** @param array<string, mixed> $column */
+    private static function runtimeColumnType(array $column): ?string
+    {
+        // SQLite affinity permits other storage classes unless STRICT is proven.
+        if (($column['strict'] ?? false) !== true) {
+            return null;
+        }
+
+        return match (strtolower($column['typeName'])) {
+            'int', 'integer' => 'int',
+            'real' => 'float',
+            'text', 'blob' => 'string',
+            default => null,
+        };
+    }
+
+    private static function runtimeBuiltinCast(PropertyType $type, bool $nullable): PropertyType
+    {
+        $write = AttributeTypes::nullable($type, $nullable)->writeType;
+
+        return new PropertyType(
+            $type->readType === null
+                ? null
+                : \Mago\Sdk\Analyzer\Type::union($type->readType, \Mago\Sdk\Analyzer\Type::null()),
+            $write,
+        );
     }
 
     private function relation(
