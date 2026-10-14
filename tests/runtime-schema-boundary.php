@@ -194,3 +194,5 @@ foreach ($faults as $name => [$source, $code]) {
     }
     echo 'PASS: actual collector ' . $name . ' (' . round($elapsed, 2) . 's)' . PHP_EOL;
 }
+
+require __DIR__ . '/runtime-cli-startup.php';

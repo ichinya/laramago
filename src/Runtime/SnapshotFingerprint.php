@@ -18,9 +18,10 @@ final class SnapshotFingerprint
             ksort($value, SORT_STRING);
         }
         foreach ($value as $key => $item) {
-            if (is_array($item)) {
-                $value[$key] = self::sorted($item);
+            if (!is_array($item)) {
+                continue;
             }
+            $value[$key] = self::sorted($item);
         }
 
         return $value;

@@ -10,7 +10,7 @@ final class SnapshotModels
     public static function validate(array $models, array $plan): void
     {
         foreach ($models as $name => $model) {
-            SnapshotValue::require(SnapshotValue::className($name) && in_array($name, $plan, true));
+            SnapshotValue::require(SnapshotValue::className($name) && in_array($name, $plan, strict: true));
             SnapshotFields::validate($model, [
                 'connection' => SnapshotValue::name(...),
                 'table' => SnapshotValue::name(...),

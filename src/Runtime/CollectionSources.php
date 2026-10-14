@@ -11,10 +11,10 @@ final class CollectionSources
 {
     public static function file(CollectionState $state, string $file): void
     {
-        $file = str_replace('\\', '/', $file);
+        $file = str_replace('\\', replace: '/', subject: $file);
         if (
             count($state->snapshot['sources']) >= RuntimeSchemaSnapshot::MAX_SOURCES
-            && !isset($state->snapshot['sources'][$file])
+            && ($state->snapshot['sources'][$file] ?? null) === null
         ) {
             $state->snapshot['truncated'] = true;
             $state->error('runtime-source-limit', 'Runtime source collection limit exceeded.');
@@ -25,7 +25,7 @@ final class CollectionSources
             $state->error('runtime-source-failed', 'A runtime source could not be read.');
             return;
         }
-        if (isset($state->snapshot['sources'][$file]) && $state->snapshot['sources'][$file] !== $digest) {
+        if (($state->snapshot['sources'][$file] ?? null) !== null && $state->snapshot['sources'][$file] !== $digest) {
             $state->error('runtime-source-changed', 'Runtime inputs changed during collection.');
         }
         $state->snapshot['sources'][$file] = $digest;

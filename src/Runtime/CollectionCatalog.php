@@ -29,7 +29,10 @@ final class CollectionCatalog
 
         return [
             'columns' => CollectionColumns::read($pdo, $table, (int) $row['strict'] === 1),
-            'databaseIdentity' => hash('sha256', str_replace('\\', '/', $path) . "\0" . $connection->getTablePrefix()),
+            'databaseIdentity' => hash(
+                'sha256',
+                str_replace('\\', replace: '/', subject: $path) . "\0" . $connection->getTablePrefix(),
+            ),
         ];
     }
 }

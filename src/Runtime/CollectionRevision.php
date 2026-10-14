@@ -21,12 +21,13 @@ final class CollectionRevision
         CollectionSources::included($state);
         CollectionSourceSets::capture($state);
         foreach ($this->sources as $file => $digest) {
-            if (($state->snapshot['sources'][$file] ?? null) !== $digest) {
-                $state->error('runtime-source-changed', 'Runtime inputs changed during collection.');
-                break;
+            if (($state->snapshot['sources'][$file] ?? null) === $digest) {
+                continue;
             }
+            $state->error('runtime-source-changed', 'Runtime inputs changed during collection.');
+            break;
         }
-        if (array_slice($state->snapshot['sourceSets'], 0, count($this->sets)) !== $this->sets) {
+        if (array_slice($state->snapshot['sourceSets'], offset: 0, length: count($this->sets)) !== $this->sets) {
             $state->error('runtime-source-changed', 'Runtime inputs changed during collection.');
         }
         ksort($state->snapshot['sources'], SORT_STRING);

@@ -26,7 +26,7 @@ final class RuntimeSchemaSnapshot
     {
         SnapshotValue::require(strlen($contents) <= self::MAX_BYTES);
         try {
-            $snapshot = json_decode($contents, true, 32, JSON_THROW_ON_ERROR);
+            $snapshot = json_decode($contents, associative: true, depth: 32, flags: JSON_THROW_ON_ERROR);
         } catch (\Throwable) {
             SnapshotValue::require(false);
         }

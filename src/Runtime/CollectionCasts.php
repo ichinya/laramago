@@ -17,8 +17,8 @@ final class CollectionCasts
                 throw new RuntimeException('Invalid model casts.');
             }
             $safe[$attribute] = self::declaration($cast);
-            $class = explode(':', $cast, 2)[0];
-            CollectionAutoloadSources::capture($state, $loader, ltrim($class, '\\'));
+            $class = explode(':', $cast, limit: 2)[0];
+            CollectionAutoloadSources::capture($state, $loader, ltrim($class, characters: '\\'));
         }
         ksort($safe, SORT_STRING);
 
@@ -27,14 +27,14 @@ final class CollectionCasts
 
     private static function declaration(string $cast): string
     {
-        [$base, $arguments] = array_pad(explode(':', $cast, 2), 2, null);
+        [$base, $arguments] = array_pad(explode(':', $cast, limit: 2), length: 2, value: null);
         if ($base === '' || preg_match('/\A[A-Za-z_\\\\][A-Za-z0-9_\\\\]*\z/', $base) !== 1) {
             throw new RuntimeException('Invalid cast declaration.');
         }
         if ($base === 'decimal' && is_string($arguments) && preg_match('/\A[0-9]{1,3}\z/', $arguments) === 1) {
             return $base . ':' . $arguments;
         }
-        if ($base === 'encrypted' && in_array($arguments, ['array', 'collection', 'object', 'json'], true)) {
+        if ($base === 'encrypted' && in_array($arguments, ['array', 'collection', 'object', 'json'], strict: true)) {
             return $base . ':' . $arguments;
         }
 

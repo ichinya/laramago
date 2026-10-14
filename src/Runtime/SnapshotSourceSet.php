@@ -12,7 +12,13 @@ final class SnapshotSourceSet
         SnapshotFields::validate($set, [
             'files' => static fn(mixed $v): bool => SnapshotCollection::list($v, RuntimeSchemaSnapshot::MAX_SOURCES),
         ]);
-        if (isset($set['paths'])) {
+        SnapshotCollection::validate(
+            $set['files'],
+            RuntimeSchemaSnapshot::MAX_SOURCES,
+            is_int(...),
+            static fn(mixed $path): bool => SnapshotPath::absolute($path) && ($sources[$path] ?? null) !== null,
+        );
+        if (($set['paths'] ?? null) !== null) {
             SnapshotValue::require(SnapshotCollection::list($set['paths'], RuntimeSchemaSnapshot::MAX_SOURCES));
             SnapshotCollection::validate(
                 $set['paths'],
@@ -20,17 +26,11 @@ final class SnapshotSourceSet
                 is_int(...),
                 SnapshotPath::absolute(...),
             );
-        } else {
-            SnapshotFields::validate($set, [
-                'directory' => SnapshotPath::absolute(...),
-                'pattern' => static fn(mixed $v): bool => in_array($v, ['*.php', '.env*'], true),
-            ]);
+            return;
         }
-        SnapshotCollection::validate(
-            $set['files'],
-            RuntimeSchemaSnapshot::MAX_SOURCES,
-            is_int(...),
-            static fn(mixed $path): bool => SnapshotPath::absolute($path) && isset($sources[$path]),
-        );
+        SnapshotFields::validate($set, [
+            'directory' => SnapshotPath::absolute(...),
+            'pattern' => static fn(mixed $v): bool => in_array($v, ['*.php', '.env*'], strict: true),
+        ]);
     }
 }

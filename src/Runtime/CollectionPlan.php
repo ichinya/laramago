@@ -39,7 +39,7 @@ final class CollectionPlan
         if (!CollectionPaths::absolute($autoload)) {
             $autoload = $this->root . '/' . $autoload;
         }
-        $this->autoload = str_replace('\\', '/', $autoload);
+        $this->autoload = str_replace('\\', replace: '/', subject: $autoload);
         $this->resolvedAutoload = RuntimeSchemaSnapshot::canonical($this->autoload);
     }
 }

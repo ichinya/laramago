@@ -21,6 +21,6 @@ final class SnapshotPath
     {
         $resolved = realpath($path);
 
-        return $resolved === false ? null : rtrim(str_replace('\\', '/', $resolved), '/');
+        return $resolved === false ? null : rtrim(str_replace('\\', replace: '/', subject: $resolved), characters: '/');
     }
 }

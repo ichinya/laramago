@@ -17,6 +17,20 @@ The application must have its Laravel dependencies installed. The collector uses
 the application's Composer autoloader, including a configured custom `vendor-dir`;
 `--autoload /absolute/path/autoload.php` selects it explicitly.
 
+PHP error display and logging are disabled before application code runs. If needed,
+the CLI starts PHP again with the same effective INI settings, including command-line
+overrides. Configuration values travel through a temporary file restricted to the
+current user and removed on completion. This requires `proc_open`; Windows also uses
+its built-in `whoami` and `icacls` tools to restrict access before writing the file.
+A writable temporary directory permitted by PHP's filesystem restrictions is
+required for this relaunch; failure stops collection before application autoload.
+Analyzer revalidation supplies the privacy flags directly and keeps its collector
+as one immediate child process under the existing deadline.
+
+When using PHP startup hooks such as `auto_prepend_file` or `auto_append_file`, set
+`-d display_errors=0 -d log_errors=0` on the PHP command to avoid relaunching those
+hooks. The same flags also avoid the extra process for direct collection.
+
 Enable the snapshot for an analysis by setting `LARAMAGO_RUNTIME_METADATA` to its
 absolute path, or by appending `--runtime-metadata=/absolute/path/snapshot.json`
 to the PHP worker command in the application's Mago configuration. Every worker

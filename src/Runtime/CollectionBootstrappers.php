@@ -16,8 +16,8 @@ final class CollectionBootstrappers
             'Illuminate\\Foundation\\Bootstrap\\RegisterFacades',
         ] as $bootstrapper) {
             $cachedPaths = [
-                str_replace('\\', '/', $app->getCachedConfigPath()),
-                str_replace('\\', '/', $app->getCachedPackagesPath()),
+                str_replace('\\', replace: '/', subject: $app->getCachedConfigPath()),
+                str_replace('\\', replace: '/', subject: $app->getCachedPackagesPath()),
             ];
             if (
                 $bootstrapper === 'Illuminate\\Foundation\\Bootstrap\\LoadEnvironmentVariables'

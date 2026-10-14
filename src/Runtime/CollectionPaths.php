@@ -22,7 +22,9 @@ final class CollectionPaths
     public static function defaultAutoload(string $root): string
     {
         $composer = RuntimeFiles::read($root . '/composer.json', 1_048_577);
-        $manifest = is_string($composer) && strlen($composer) <= 1_048_576 ? json_decode($composer, true) : null;
+        $manifest = is_string($composer) && strlen($composer) <= 1_048_576
+            ? json_decode($composer, associative: true)
+            : null;
         $vendor = is_array($manifest) ? $manifest['config']['vendor-dir'] ?? 'vendor' : 'vendor';
         if (!is_string($vendor) || $vendor === '' || str_contains($vendor, "\0")) {
             throw new RuntimeException('Invalid Composer vendor directory.');

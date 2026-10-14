@@ -11,23 +11,30 @@ final class CollectionSourceSets
     {
         $state->snapshot['sourceSets'] = [];
         foreach ($state->sets as $set) {
-            $files = isset($set['paths'])
+            $files = ($set['paths'] ?? null) !== null
                 ? array_filter($set['paths'], is_file(...))
-                : (glob($set['directory'] . '/' . $set['pattern']) ?: []);
+                : glob($set['directory'] . '/' . $set['pattern']);
+            if ($files === false) {
+                $files = [];
+            }
             $files = array_values(array_filter($files, is_file(...)));
-            $files = array_map(static fn(string $file): string => str_replace('\\', '/', $file), $files);
+            $files = array_map(static fn(string $file): string => str_replace(
+                '\\',
+                replace: '/',
+                subject: $file,
+            ), $files);
             sort($files, SORT_STRING);
             if (count($files) > RuntimeSchemaSnapshot::MAX_SOURCES) {
                 $state->snapshot['truncated'] = true;
                 $state->error('runtime-source-limit', 'Runtime source collection limit exceeded.');
-                $files = array_slice($files, 0, RuntimeSchemaSnapshot::MAX_SOURCES);
+                $files = array_slice($files, offset: 0, length: RuntimeSchemaSnapshot::MAX_SOURCES);
             }
             foreach ($files as $file) {
                 CollectionSources::file($state, $file);
             }
             $files = array_values(array_filter(
                 $files,
-                static fn(string $file): bool => isset($state->snapshot['sources'][$file]),
+                static fn(string $file): bool => ($state->snapshot['sources'][$file] ?? null) !== null,
             ));
             $state->snapshot['sourceSets'][] = $set + ['files' => $files];
         }
@@ -35,11 +42,11 @@ final class CollectionSourceSets
 
     public static function application(CollectionState $state, object $app): void
     {
-        $configPath = str_replace('\\', '/', $app->configPath());
+        $configPath = str_replace('\\', replace: '/', subject: $app->configPath());
         if ($configPath !== $state->plan->root . '/config') {
             $state->sets[] = ['directory' => $configPath, 'pattern' => '*.php'];
         }
-        $environmentPath = str_replace('\\', '/', $app->environmentPath());
+        $environmentPath = str_replace('\\', replace: '/', subject: $app->environmentPath());
         if ($environmentPath !== $state->plan->root) {
             $state->sets[] = ['directory' => $environmentPath, 'pattern' => '.env*'];
         }

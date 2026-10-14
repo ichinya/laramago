@@ -36,7 +36,7 @@ final class CollectionState
     public function error(string $code, string $message): void
     {
         $error = ['code' => $code, 'file' => null, 'message' => $message];
-        if (!in_array($error, $this->snapshot['errors'], true)) {
+        if (!in_array($error, $this->snapshot['errors'], strict: true)) {
             $this->snapshot['errors'][] = $error;
         }
     }
