@@ -19,13 +19,14 @@ final class CollectionModelMetadata
     ): array {
         $before = RuntimeQueryGuard::$blocked;
         CollectionAutoloadSources::capture($state, $loader, $name);
-        if (!class_exists($name) || !is_subclass_of($name, 'Illuminate\\Database\\Eloquent\\Model')) {
+        if (!class_exists($name) || !is_subclass_of($name, class: 'Illuminate\\Database\\Eloquent\\Model')) {
             throw new RuntimeException('Invalid model selection.');
         }
         CollectionSources::hierarchy($state, new ReflectionClass($name));
         CollectionSources::included($state);
         // The caller retains the instance through its catch blocks and catalog collection.
-        $model = $instance = new $name();
+        $instance = new $name();
+        $model = $instance;
         $table = $model->getTable();
         $connection = $model->getConnectionName() ?? $database->getDefaultConnection();
         $casts = $model->getCasts();

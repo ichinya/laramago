@@ -16,8 +16,14 @@ final class RuntimeSchemaOutput
 
     public static function open(): self
     {
-        $stdout = RuntimeSchemaFiles::attempt(static fn() => tempnam(sys_get_temp_dir(), 'laramago-runtime-out-'));
-        $stderr = RuntimeSchemaFiles::attempt(static fn() => tempnam(sys_get_temp_dir(), 'laramago-runtime-err-'));
+        $stdout = RuntimeSchemaFiles::attempt(static fn() => tempnam(
+            sys_get_temp_dir(),
+            prefix: 'laramago-runtime-out-',
+        ));
+        $stderr = RuntimeSchemaFiles::attempt(static fn() => tempnam(
+            sys_get_temp_dir(),
+            prefix: 'laramago-runtime-err-',
+        ));
         if (!is_string($stdout) || !is_string($stderr)) {
             RuntimeSchemaFiles::attempt(static fn() => unlink((string) $stdout));
             RuntimeSchemaFiles::attempt(static fn() => unlink((string) $stderr));
@@ -46,10 +52,10 @@ final class RuntimeSchemaOutput
         $this->checkBounds();
         $output = RuntimeSchemaFiles::attempt(fn() => file_get_contents(
             $this->stdout,
-            false,
-            null,
-            0,
-            self::MAX_BYTES + 1,
+            use_include_path: false,
+            context: null,
+            offset: 0,
+            length: self::MAX_BYTES + 1,
         ));
         if (!is_string($output) || strlen($output) > self::MAX_BYTES) {
             throw new RuntimeSchemaCollectionFailure('runtime-metadata-collector-output-limit');

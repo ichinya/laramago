@@ -9,9 +9,10 @@ use RuntimeException;
 /** Scalar constraints shared by the versioned snapshot schema. */
 final class SnapshotValue
 {
-    public static function require(bool $valid): void
+    /** Only a proven predicate is accepted; truthy values are not proofs. */
+    public static function require(mixed $valid): void
     {
-        if (!$valid) {
+        if ($valid !== true) {
             throw new RuntimeException('Invalid runtime schema snapshot.');
         }
     }

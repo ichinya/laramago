@@ -19,7 +19,7 @@ final class SnapshotPlan
             SnapshotValue::className(...),
         );
         SnapshotValue::require(count(array_unique($plan['models'])) === count($plan['models']));
-        if (isset($plan['autoload'])) {
+        if (($plan['autoload'] ?? null) !== null) {
             SnapshotValue::require(SnapshotPath::absolute($plan['autoload']));
         }
     }

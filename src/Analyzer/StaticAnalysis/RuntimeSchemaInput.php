@@ -51,14 +51,18 @@ final class RuntimeSchemaInput
 
     public function model(string $class): ?array
     {
-        return $this->models[strtolower(ltrim($class, '\\'))] ?? null;
+        return $this->models[strtolower(ltrim($class, characters: '\\'))] ?? null;
     }
 
     private static function read(string $path): ?string
     {
-        $contents = RuntimeSchemaFiles::attempt(
-            static fn() => file_get_contents($path, false, null, 0, RuntimeSchemaSnapshot::MAX_BYTES + 1),
-        );
+        $contents = RuntimeSchemaFiles::attempt(static fn() => file_get_contents(
+            $path,
+            use_include_path: false,
+            context: null,
+            offset: 0,
+            length: RuntimeSchemaSnapshot::MAX_BYTES + 1,
+        ));
 
         return is_string($contents) ? $contents : null;
     }

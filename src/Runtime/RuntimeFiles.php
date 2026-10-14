@@ -9,7 +9,13 @@ final class RuntimeFiles
 {
     public static function read(string $path, int $limit): string|false
     {
-        return self::attempt(static fn(): string|false => file_get_contents($path, false, null, 0, $limit));
+        return self::attempt(static fn(): string|false => file_get_contents(
+            $path,
+            use_include_path: false,
+            context: null,
+            offset: 0,
+            length: $limit,
+        ));
     }
 
     public static function digest(string $path): string|false
