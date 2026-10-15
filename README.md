@@ -1282,6 +1282,10 @@ For CI, store plugin permission in the application's `config.allow-plugins`.
 
 ### Comparing with Larastan
 
+See the [anonymous real-application benchmark](docs/benchmarks/anonymous-laravel-case-01-2026-10-15.md)
+for PHPStan/Larastan and Mago observations, incremental-cache measurements,
+and the Laramago 0.1.5 request-timeout limitation.
+
 Larastan is an independent reference for Laravel behavior. Its code and PHPStan
 extensions are not copied into this package. Our providers use Mago's native PHP
 extension SDK; comparison results guide their development and verification.
