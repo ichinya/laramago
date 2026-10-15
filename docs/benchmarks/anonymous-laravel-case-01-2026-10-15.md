@@ -1,17 +1,83 @@
 # Anonymous Laravel application benchmark: case 01
 
 Measured on 15 October 2026 using a real application and the published Laramago
-0.1.5 release. **Laramago did not complete this workload with either the default
-30-second extension-request deadline or an increased 120-second deadline.**
-PHPStan/Larastan completed the configured analysis. The failed Laramago elapsed
-times are times until termination, not faster completed analyses or zero-error
-results.
+0.1.5 release. **The full Laramago analysis completed in an isolated Linux control.**
+Windows attempts remain unsuccessful: the 30/120-second request deadlines were
+insufficient, and a 600-second diagnostic repeat encountered a worker transport
+I/O error with Windows status 10053. Completed Linux observations and unsuccessful
+Windows attempts are reported separately; no cross-platform speedup is claimed.
 
 The application's name, repository, source, file identifiers, diagnostic messages
 and business domain are not published. This is one case on one workstation,
 not a general performance or correctness ranking.
 
-## Environment and scope
+## Completed Linux control
+
+The same disposable application copy, PHP 8.5.4, dependency versions, selected
+roots and Laramago release were used in a network-disabled Linux/amd64 container
+on the same workstation. The official PHP image is pinned by digest in JSON.
+The source copy was prepared in a Docker Linux volume before timing. Each
+profile ran sequentially in a fresh container with a two-CPU quota and a 6 GiB container
+memory limit; PHP children retained the inherited 2G limit and OPcache/JIT-off
+settings. Mago used two analysis threads and two extension workers; PHPStan
+was limited to two analyzer processes. The Mago extension request deadline was 600,000 ms. Each analyzer had a
+3,600-second whole-command deadline. The container was
+removed between profiles. Instrumented diagnostic runs ended before these
+sequential case-01 profiles; the measured extension worker was unmodified.
+The source configuration is standalone and extends only Laramago's Laravel
+preset. Dependency metadata is selected from Composer's generated PSR-4, PSR-0,
+classmap and autoload-files maps. The original root config is deliberately not
+inherited: Mago appends inherited source lists, so that config reintroduced a
+blanket `vendor` include. The effective Mago config was checked to retain exactly
+the four application roots and no blanket `vendor` include. No dependency source
+was modified for these completed controls. A nested read-only vendor mount
+was checked by the runner before each timed profile; only benchmark configs and
+cache locations outside vendor were writable.
+Each row is one observation. Workstation background load and OS caches were
+not controlled.
+
+| Linux profile | Wall time, s | CPU time, s | Largest child RSS, MiB | Container peak, MiB | Exit | Diagnostics |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Mago + Laramago 0.1.5 | 388.04 | 668.28 | 868.91 | 2208.29 | 1 | 13196 |
+| PHPStan + Larastan, configured level 5 | 62.93 | 111.05 | 497.96 | 1208.93 | 0 | 0 |
+| Mago, no extensions | 7.89 | 5.21 | 839.31 | 841.88 | 1 | 21519 |
+
+Largest child RSS is Linux `RUSAGE_CHILDREN.ru_maxrss`, the largest individual
+child peak; it is not the sum or simultaneous peak of the process tree. Container
+peak is cgroup v2 `memory.peak`, which includes the runner, all container
+processes and charged file cache. It is read before JSON diagnostic aggregation.
+These counters are different from Windows Job Object committed memory and must
+not be compared as if they measured the same quantity.
+
+| Completed Linux profile | Severity counts |
+| --- | --- |
+| Mago + Laramago 0.1.5 | Error: 10393, Help: 124, Warning: 2679 |
+| PHPStan + Larastan, configured level 5 | No diagnostics |
+| Mago, no extensions | Error: 13229, Help: 187, Warning: 8103 |
+
+Exit 1 denotes completed analysis with diagnostics, rather than an infrastructure
+failure. The complete JSON issue report was parsed, severity/code totals were
+collected, and dependency-parse and extension-failure markers were rejected.
+Counts are observations, not a triage of true/false positives. Full messages,
+source paths and source excerpts are not exported.
+
+The completed control changes the environment, dependency selection and
+parallelism. Single-thread Linux runs with the original full-vendor include and
+the corrected Composer-autoload include both reached a 1,200-second whole-command
+deadline without a complete report. Disabling PHP cycle collection also produced
+no complete report within a shorter 300-second diagnostic trial. Those are
+separate unsuccessful controls in JSON. Their child CPU accounting is incomplete
+after forced termination, so it must not be used as total worker CPU time.
+
+These controls cannot isolate any one of these differences as the sole cause of the earlier failures. Mago 1.48.1
+uses a localhost TCP input on Windows and process stdin on other platforms
+([pinned upstream worker source](https://github.com/carthage-software/mago/blob/1.48.1/crates/extension/src/worker.rs)).
+This is a successful configuration/environment control, not a demonstrated fix of the Windows
+failure or proof of its underlying cause. PHP's native-stack checking also used
+the image default (`0`); the Windows installation had it disabled (`-1`). Neither
+the Laramago implementation nor the application source was patched.
+
+## Windows environment and shared source scope
 
 - Windows 11, build 10.0.26300; Intel Core i9-11900K, 8 physical / 16 logical cores; 63.9 GiB RAM.
 - PHP 8.5.4; CLI OPcache/JIT disabled for all PHP children using an inherited INI scan directory.
@@ -33,7 +99,7 @@ Laramago runtime configuration evaluation and runtime schema collection were
 disabled. Larastan boots Laravel in its normal analysis; default Laramago analysis
 loads the Composer autoloader and reads source metadata.
 
-## Measured full-run observations
+## Original Windows full-run observations
 
 These rows each contain **one** full-run observation, not repeated estimates.
 PHPStan used a new `tmpDir` for each full profile. The OS file cache was not
@@ -60,7 +126,7 @@ from additional diagnostics at stricter settings. Their levels and checks are
 different from Mago's. Diagnostic counts do not prove correctness or classify
 findings as true/false positives.
 
-## Laramago completion limitation
+## Windows Laramago completion failures
 
 The default-host attempt failed on extension request 3 after the 30,000 ms
 request deadline. It terminated after **50.42 s**, reaching **1,412.73 MiB** peak
@@ -78,6 +144,19 @@ analysis must not be reported as a successful fast run or an error-free project.
 The whole-command safety deadline is 900 seconds; the extension request deadline
 is a separate limit. This case identifies a completion/performance boundary to
 investigate in Laramago 0.1.5 on a larger application.
+
+A further unmodified-release attempt increased the extension request deadline
+to 600,000 ms. It exited 2 after **419.02 s**, with
+**1793.84 MiB** peak job commit. Its raw stderr was not
+retained, so its recorded classification remains infrastructure failure.
+
+A diagnostic repeat with a transparent worker-process proxy exited 2 after
+**476.47 s**, with **1770.28 MiB**
+peak job commit. It explicitly reported extension protocol I/O failure and
+Windows error **10053** (connection aborted by the host). It produced no complete
+issue report. The proxy adds processes and is a diagnostic control, not a
+performance replacement for the original run. No antivirus or firewall settings
+were changed. These later attempts are retained in `completion_controls`.
 
 ## PHPStan incremental result-cache observations
 
@@ -156,6 +235,39 @@ uses inherited `PHP_INI_SCAN_DIR` overrides and a no-`-d` child-environment prob
 to apply OPcache-off / 2G memory settings consistently. Preflight timings are not
 mixed into the measured table. No analyzer implementation or application code
 was patched as part of this benchmark.
+
+## Reproducing the completion control
+
+[`scripts/benchmark-anonymous-linux.php`](../../scripts/benchmark-anonymous-linux.php)
+collects aggregate-only Linux results. Obtain the Mago 1.48.1 Linux/amd64 binary
+from its official release. Use a disposable application copy with the same
+locked dependencies and synthetic environment. Mount this script directory
+read-only at `/runner` and the disposable application at `/case` in a fresh
+container for each profile. Prepare the source in a Docker Linux volume before
+timing; the canceled Windows bind-mount preflight is excluded. For the documented measurement, use the pinned PHP
+image, `--network none --cpus 2 --memory 6g`. Add a nested read-only
+mount of the same volume with `target=/case/vendor,volume-subpath=vendor,readonly`.
+The runner rejects a writable vendor directory. Run:
+
+```sh
+php -d memory_limit=2G -d opcache.enable_cli=0 \
+  /runner/benchmark-anonymous-linux.php \
+  --project=/case --mago=/case/.benchmark-linux/mago \
+  --output=/case/laramago-linux.json --profile=mago-laramago \
+  --request-timeout-ms=600000 --timeout=3600 \
+  --dependency-scope=composer-autoload --threads=2 --extension-workers=2 \
+  --phpstan-processes=2 --php-gc=on
+```
+
+The other measured profiles are `phpstan-level5-configured` and `mago-native`.
+Keep a separate output file and a fresh container for each. Do not reuse a
+container's cgroup peak across profiles. The source is private; these commands
+reproduce the method, not an independently available workload.
+
+The Windows runner also accepts `--profiles mago-laramago` and
+`--extension-request-timeout-ms 600000 --timeout 1200` for a targeted repeat.
+Changing either deadline is rejected by `--resume`; use a separate output to
+preserve prior unsuccessful observations.
 
 ## References
 

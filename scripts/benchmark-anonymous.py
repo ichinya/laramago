@@ -97,6 +97,7 @@ def aggregate(body, stderr, is_mago):
             raise RuntimeError('Dependency parsing was incomplete')
         failed = any(s in lower for s in ('external analyzer provider failed', 'rejected request',
                                          'extension worker failed', 'extension host failed',
+                                         'external plugin error', 'violated the protocol', 'protocol i/o failed',
                                          'provider timed out', 'worker timed out'))
         if failed:
             raise RuntimeError('Extension failed; fallback is not a valid extension benchmark')
@@ -132,9 +133,14 @@ def main():
     ap.add_argument('--control-runs', type=int, default=1)
     ap.add_argument('--warm-runs', type=int, default=3)
     ap.add_argument('--timeout', type=int, default=900)
+    ap.add_argument('--extension-request-timeout-ms', type=int, default=120000)
+    ap.add_argument('--profiles', nargs='+', choices=['phpstan-level5-configured', 'mago-laramago',
+                    'phpstan-level5-unfiltered', 'phpstan-max-unfiltered', 'mago-native'])
     ap.add_argument('--resume', action='store_true')
     ap.add_argument('--forbid-token', action='append', default=[])
     args = ap.parse_args()
+    if args.timeout <= 0 or args.extension_request_timeout_ms <= 0:
+        ap.error('Timeouts must be positive')
     if not K:
         ap.error('This benchmark measures Windows Job Object memory; Windows is required')
     root = args.project.resolve()
@@ -176,12 +182,15 @@ def main():
                    'version': '1.48.1', 'php-version': '8.5', 'threads': 1,
                    'source': {'paths': roots, 'includes': ['vendor'],
                               'excludes': ['vendor/laravel/framework/tests/Foundation/Fixtures/bad-syntax-strategy.php']},
-                   'extension-hosts': {'laramago': {'command': worker, 'workers': 1, 'request-timeout-ms': 120000}}}
+                   'extension-hosts': {'laramago': {'command': worker, 'workers': 1,
+                                                  'request-timeout-ms': args.extension_request_timeout_ms}}}
     mago_path = root / 'benchmark-mago.json'
     mago_path.write_text(json.dumps(mago_config, indent=2), encoding='utf-8')
     base_phpstan = [*php, str(vendor / 'bin/phpstan'), 'analyse', '--memory-limit=2G', '--error-format=json', '--no-progress', '--no-ansi']
     base_mago = [str(mago), '--config', str(mago_path), '--threads', '1', 'analyze', *roots, '--reporting-format=json']
     profiles = ['phpstan-level5-configured', 'mago-laramago', 'phpstan-level5-unfiltered', 'phpstan-max-unfiltered', 'mago-native']
+    if args.profiles:
+        profiles = list(dict.fromkeys(args.profiles))
     primary_profiles = {'phpstan-level5-configured', 'mago-laramago'}
     report = {'case': 'anonymous-laravel-case-01', 'date': datetime.now(timezone.utc).date().isoformat(),
               'environment': {'os': platform.system(), 'os_release': platform.release(), 'architecture': platform.machine(),
@@ -193,7 +202,7 @@ def main():
                          'incremental_runs': args.warm_runs,
                          'php_child_settings': 'PHP_INI_SCAN_DIR propagates OPcache off and 2G memory limit to PHPStan child and Laramago worker',
                          'php_child_ini_probe': {'opcache_enable_cli': False, 'memory_limit': '2G'},
-                         'extension_request_timeout_ms': 120000,
+                         'extension_request_timeout_ms': args.extension_request_timeout_ms,
                          'dependency_fixture_exclusions': ['vendor/laravel/framework/tests/Foundation/Fixtures/bad-syntax-strategy.php'],
                          'full_run_cache': 'fresh PHPStan tmpDir for each full run; OS file cache is not flushed',
                          'memory': 'Windows Job Object PeakJobMemoryUsed (process-tree peak committed memory), MiB',
@@ -204,6 +213,8 @@ def main():
     if args.resume and args.output.exists():
         previous = json.loads(args.output.read_text(encoding='utf-8'))
         assert previous['environment'] == report['environment'] and previous['scope'] == report['scope'], 'Cannot mix benchmark environments or workloads'
+        assert previous['method']['extension_request_timeout_ms'] == args.extension_request_timeout_ms, 'Cannot resume with a different extension request deadline'
+        assert previous['method']['timeout_seconds'] == args.timeout, 'Cannot resume with a different whole-command deadline'
         report['runs'] = previous['runs']
         report['setup_probes'] = previous.get('setup_probes', [])
     configs = {}
@@ -248,7 +259,7 @@ def main():
             report['runs'].append(record)
             save(args.output, report, args.forbid_token)
             print(json.dumps({k: record[k] for k in ('profile', 'run', 'wall_seconds', 'peak_job_commit_mib', 'exit_code', 'valid')}), flush=True)
-    for iteration in range(args.warm_runs):
+    for iteration in range(args.warm_runs if 'phpstan-level5-configured' in profiles else 0):
         profile = 'phpstan-level5-configured-warm'
         if any(r['profile'] == profile and r['run'] == iteration + 1 for r in report['runs']):
             continue
@@ -264,6 +275,8 @@ def main():
         save(args.output, report, args.forbid_token)
     for profile in profiles + ['phpstan-level5-configured-warm']:
         rows = [r for r in report['runs'] if r['profile'] == profile]
+        if not rows:
+            continue
         valid_rows = [r for r in rows if r['valid']]
         summary = {'runs': len(rows), 'successful_runs': len(valid_rows),
                    'complete': len(valid_rows) == len(rows),
