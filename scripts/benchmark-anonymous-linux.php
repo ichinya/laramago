@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 // Aggregate-only Linux completion control. Use a disposable application copy.
-$options = getopt('', ['project:', 'mago:', 'output:', 'profile:', 'request-timeout-ms::', 'timeout::', 'dependency-scope::', 'php-gc::', 'threads::', 'extension-workers::', 'phpstan-processes::', 'forbid-token:']);
+$options = getopt('', ['project:', 'mago:', 'output:', 'profile:', 'request-timeout-ms::', 'timeout::', 'dependency-scope::', 'php-gc::', 'threads::', 'extension-workers::', 'phpstan-processes::', 'phpstan-level::', 'source-seal::', 'forbid-token:']);
 foreach (['project', 'mago', 'output', 'profile'] as $required) {
     if (! isset($options[$required]) || ! is_string($options[$required])) {
         throw new InvalidArgumentException('Required: --project --mago --output --profile');
@@ -14,7 +14,7 @@ if ($root === false || PHP_OS_FAMILY !== 'Linux') {
     throw new RuntimeException('A disposable Linux application directory is required.');
 }
 $profile = $options['profile'];
-if (! in_array($profile, ['mago-laramago', 'mago-native', 'phpstan-level5-configured'], true)) {
+if (! in_array($profile, ['mago-laramago', 'mago-native', 'phpstan-level5-configured', 'phpstan-unfiltered'], true)) {
     throw new InvalidArgumentException('Unknown profile.');
 }
 $requestTimeout = (int) ($options['request-timeout-ms'] ?? 600000);
@@ -22,6 +22,10 @@ $timeout = (int) ($options['timeout'] ?? 1200);
 $threads = (int) ($options['threads'] ?? 1);
 $workers = (int) ($options['extension-workers'] ?? 1);
 $phpstanProcesses = (int) ($options['phpstan-processes'] ?? 1);
+$phpstanLevel = $profile === 'phpstan-level5-configured' ? 5 : (int) ($options['phpstan-level'] ?? 10);
+if ($phpstanLevel < 0 || $phpstanLevel > 10) {
+    throw new InvalidArgumentException('PHPStan level must be between 0 and 10.');
+}
 if ($requestTimeout <= 0 || $timeout <= 0 || $threads <= 0 || $workers <= 0 || $phpstanProcesses <= 0) {
     throw new InvalidArgumentException('Timeouts must be positive.');
 }
@@ -95,6 +99,7 @@ if ($dependencyScope === 'composer-autoload') {
     throw new InvalidArgumentException('Dependency scope must be vendor or composer-autoload.');
 }
 $scope = ['roots' => $roots, 'php_files' => 0, 'physical_lines' => 0, 'bytes' => 0];
+$sourceHashes = [];
 foreach ($roots as $relative) {
     $entries = is_dir($root.'/'.$relative)
         ? new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root.'/'.$relative, FilesystemIterator::SKIP_DOTS))
@@ -103,6 +108,7 @@ foreach ($roots as $relative) {
         if ($entry->isFile() && $entry->getExtension() === 'php') {
             ++$scope['php_files'];
             $bytes = file_get_contents($entry->getPathname());
+            $sourceHashes[$entry->getPathname()] = hash('sha256', $bytes);
             $scope['bytes'] += strlen($bytes);
             $lines = preg_split('/\r\n|\r|\n/', $bytes);
             if (end($lines) === '') {
@@ -110,6 +116,30 @@ foreach ($roots as $relative) {
             }
             $scope['physical_lines'] += count($lines);
         }
+    }
+}
+$inputHashes = $sourceHashes;
+foreach (['config', 'database/migrations'] as $directory) {
+    if (! is_dir($root.'/'.$directory)) { continue; }
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root.'/'.$directory, FilesystemIterator::SKIP_DOTS)) as $entry) {
+        if ($entry->isFile() && $entry->getExtension() === 'php') {
+            $inputHashes[$entry->getPathname()] = hash_file('sha256', $entry->getPathname());
+        }
+    }
+}
+foreach (['composer.json', 'composer.lock', 'phpstan.neon', 'mago.toml', 'bootstrap/app.php', 'bootstrap/providers.php'] as $relative) {
+    if (is_file($root.'/'.$relative)) { $inputHashes[$root.'/'.$relative] = hash_file('sha256', $root.'/'.$relative); }
+}
+if (isset($options['source-seal'])) {
+    ksort($inputHashes);
+    $fingerprint = hash('sha256', json_encode($inputHashes, JSON_THROW_ON_ERROR));
+    $sealPath = $options['source-seal'];
+    if (is_file($sealPath)) {
+        if (trim(file_get_contents($sealPath)) !== $fingerprint) {
+            throw new RuntimeException('Source differs from the sealed workload.');
+        }
+    } else {
+        file_put_contents($sealPath, $fingerprint."\n", LOCK_EX);
     }
 }
 $baseConfigs = $dependencyScope === 'composer-autoload'
@@ -142,12 +172,38 @@ $fullVendor = in_array('vendor', $effective['includes'], true) || in_array($root
 if ($dependencyScope === 'composer-autoload' && ($fullVendor || $effective['paths'] !== $roots)) {
     throw new RuntimeException('Inherited source lists expanded the requested analysis scope.');
 }
-if ($profile === 'phpstan-level5-configured') {
+if (str_starts_with($profile, 'phpstan-')) {
     $cache = sys_get_temp_dir().'/anonymous-phpstan-'.bin2hex(random_bytes(8));
-    file_put_contents($root.'/benchmark-linux-phpstan.neon', "includes:\n    - phpstan.neon\nparameters:\n    tmpDir: ".$cache."\n    parallel:\n        maximumNumberOfProcesses: ".$phpstanProcesses."\n");
+    if (file_exists($cache)) {
+        throw new RuntimeException('Full-run cache directory must not exist.');
+    }
+    $phpstanConfig = "includes:\n    - phpstan.neon\nparameters:\n    tmpDir: ".$cache."\n    parallel:\n        maximumNumberOfProcesses: ".$phpstanProcesses."\n";
+    if ($profile === 'phpstan-unfiltered') {
+        $phpstanConfig .= "    ignoreErrors!: []\n";
+    }
+    $probeConfig = str_replace($cache, $cache.'-configuration-probe', $phpstanConfig);
+    file_put_contents($root.'/benchmark-linux-phpstan-probe.neon', $probeConfig);
+    $probe = proc_open([PHP_BINARY, $root.'/vendor/bin/phpstan', 'dump-parameters',
+        '-c', $root.'/benchmark-linux-phpstan-probe.neon', '--level='.$phpstanLevel, '--json'],
+        [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $probePipes, $root);
+    if (! is_resource($probe)) {
+        throw new RuntimeException('Cannot verify PHPStan parameters.');
+    }
+    fclose($probePipes[0]);
+    $parameters = json_decode(stream_get_contents($probePipes[1]), true, flags: JSON_THROW_ON_ERROR);
+    stream_get_contents($probePipes[2]);
+    fclose($probePipes[1]);
+    fclose($probePipes[2]);
+    if (proc_close($probe) !== 0 || ($profile === 'phpstan-unfiltered' && $parameters['ignoreErrors'] !== [])) {
+        throw new RuntimeException('PHPStan ignore reset was not effective.');
+    }
+    if (file_exists($cache)) {
+        throw new RuntimeException('Configuration probe polluted the measured cache.');
+    }
+    file_put_contents($root.'/benchmark-linux-phpstan.neon', $phpstanConfig);
     $command = [PHP_BINARY, '-d', 'opcache.enable_cli=0', '-d', 'memory_limit=2G',
         $root.'/vendor/bin/phpstan', 'analyse', '-c', $root.'/benchmark-linux-phpstan.neon',
-        '--level=5', '--memory-limit=2G', '--error-format=json', '--no-progress', '--no-ansi'];
+        '--level='.$phpstanLevel, '--memory-limit=2G', '--error-format=json', '--no-progress', '--no-ansi', '-vv'];
 } else {
     $command = [$options['mago'], '--config', $configPath, '--threads', (string) $threads, 'analyze', ...$roots, '--reporting-format=json'];
     if ($profile === 'mago-native') {
@@ -155,6 +211,7 @@ if ($profile === 'phpstan-level5-configured') {
     }
 }
 $usageBefore = getrusage(1);
+$tmpDirAbsent = isset($cache) ? ! file_exists($cache) : null;
 $start = hrtime(true);
 $process = proc_open($command, [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, $root);
 if (! is_resource($process)) {
@@ -189,7 +246,13 @@ $report = ['profile' => $profile, 'platform' => 'Linux', 'php' => PHP_VERSION, '
     'effective_configuration_probe' => ['verified' => true, 'full_vendor_include' => $fullVendor, 'source_roots' => count($effective['paths'])],
     'extension_request_timeout_ms' => $requestTimeout, 'whole_command_timeout_seconds' => $timeout,
     'mago_threads' => $threads, 'extension_workers' => $workers, 'phpstan_maximum_processes' => $phpstanProcesses,
+    'phpstan_level' => str_starts_with($profile, 'phpstan-') ? $phpstanLevel : null,
+    'phpstan_config_ignore_count' => isset($parameters) ? count($parameters['ignoreErrors']) : null,
+    'phpstan_probe_cache_separate' => isset($parameters) ? true : null,
+    'phpstan_tmp_dir_absent_before_start' => $tmpDirAbsent,
+    'configuration_probe_max_child_rss_mib' => round($usageBefore['ru_maxrss'] / 1024, 2),
     'vendor_read_only' => true,
+    'sealed_workload' => isset($options['source-seal']),
     'wall_seconds' => round((hrtime(true) - $start) / 1e9, 4),
     'cpu_seconds' => round(($usage['ru_utime.tv_sec'] - $usageBefore['ru_utime.tv_sec'])
         + ($usage['ru_utime.tv_usec'] - $usageBefore['ru_utime.tv_usec']) / 1e6
@@ -201,6 +264,12 @@ $report = ['profile' => $profile, 'platform' => 'Linux', 'php' => PHP_VERSION, '
     'exit_code' => $status['exitcode'], 'timed_out' => $timedOut,
     'cpu_accounting_complete' => ! $timedOut, 'valid' => false];
 try {
+    foreach ($inputHashes as $path => $hash) {
+        if (@hash_file('sha256', $path) !== $hash) {
+            throw new RuntimeException('Source changed during measurement.');
+        }
+    }
+    $report['source_unchanged'] = true;
     if ($timedOut || ! in_array($status['exitcode'], [0, 1], true)) {
         throw new RuntimeException('analyzer-infrastructure-failure');
     }
@@ -212,7 +281,11 @@ try {
     }
     $body = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
     $issues = [];
-    if ($profile === 'phpstan-level5-configured') {
+    if (str_starts_with($profile, 'phpstan-')) {
+        $report['fresh_result_cache_confirmed'] = str_contains($stderr, 'Result cache not used because the cache file does not exist.');
+        if (! $report['fresh_result_cache_confirmed']) {
+            throw new RuntimeException('Fresh result cache was not confirmed.');
+        }
         if (! isset($body['totals']) || $body['totals']['errors'] !== 0) {
             throw new RuntimeException('incomplete-phpstan-report');
         }
