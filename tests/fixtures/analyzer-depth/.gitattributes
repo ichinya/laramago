@@ -1,0 +1,3 @@
+# Corpus and oracle hashes describe the exact bytes executed by the harness.
+cases.php -text
+expectations.json -text

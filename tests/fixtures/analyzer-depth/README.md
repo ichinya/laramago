@@ -6,6 +6,9 @@ migration, SQLite `:memory:` configuration and read-only dependencies. Function
 and migration bodies are not invoked by the harness. Larastan boots this minimal
 application normally, and an explicit reflection control verifies model loading.
 
+The local `.gitattributes` preserves exact corpus/oracle bytes so Git newline
+normalization cannot invalidate the recorded execution hashes.
+
 Each `DEPTH id bad|good` comment identifies the source line to inspect. The PHPDoc
 witness also includes the immediately following declaration line. Findings
 elsewhere are not attributed to that target; these controls are not an exhaustive
