@@ -1,3 +1,4 @@
 # Corpus and oracle hashes describe the exact bytes executed by the harness.
-cases.php -text
-expectations.json -text
+# Retain normal whitespace checks while accepting the executed CRLF bytes.
+cases.php -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+expectations.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
