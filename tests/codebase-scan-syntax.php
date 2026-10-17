@@ -6,7 +6,7 @@ use Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
 
-require dirname(__DIR__).'/vendor/autoload.php';
+require getenv('LARAMAGO_TEST_AUTOLOAD') ?: dirname(__DIR__).'/vendor/autoload.php';
 
 $check = static function (bool $condition, string $label): void {
     if (! $condition) {

@@ -21,7 +21,7 @@ final class ModelPropertyArgumentFilter implements IssueFilterHook
         $certificate=[];$dependencies=[];
         $contracts=new SourceArgumentDeclarationContracts($this->root);
         try {
-            $receiving=$contracts->receiving($context,['mixed-argument']);
+            $receiving=$contracts->receiving($context,['mixed-argument'],'property');
             if($receiving===null){return IssueFilterDecision::Keep;}
             ['source'=>$source,'file'=>$file,'argument'=>$argument,'call'=>$call]=$receiving;
             $field=$argument->value;
