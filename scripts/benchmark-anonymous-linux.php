@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 // Aggregate-only Linux completion control. Use a disposable application copy.
-$options = getopt('', ['project:', 'mago:', 'output:', 'profile:', 'request-timeout-ms::', 'timeout::', 'dependency-scope::', 'php-gc::', 'threads::', 'extension-workers::', 'phpstan-processes::', 'phpstan-level::', 'source-seal::', 'forbid-token:']);
+$options = getopt('', ['project:', 'mago:', 'output:', 'profile:', 'request-timeout-ms::', 'timeout::', 'dependency-scope::', 'php-gc::', 'threads::', 'extension-workers::', 'phpstan-processes::', 'phpstan-level::', 'source-seal::', 'forbid-token:', 'worker:', 'diagnostic-seal:', 'create-diagnostic-seal']);
 foreach (['project', 'mago', 'output', 'profile'] as $required) {
     if (! isset($options[$required]) || ! is_string($options[$required])) {
         throw new InvalidArgumentException('Required: --project --mago --output --profile');
@@ -99,7 +99,6 @@ if ($dependencyScope === 'composer-autoload') {
     throw new InvalidArgumentException('Dependency scope must be vendor or composer-autoload.');
 }
 $scope = ['roots' => $roots, 'php_files' => 0, 'physical_lines' => 0, 'bytes' => 0];
-$sourceHashes = [];
 foreach ($roots as $relative) {
     $entries = is_dir($root.'/'.$relative)
         ? new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root.'/'.$relative, FilesystemIterator::SKIP_DOTS))
@@ -108,7 +107,6 @@ foreach ($roots as $relative) {
         if ($entry->isFile() && $entry->getExtension() === 'php') {
             ++$scope['php_files'];
             $bytes = file_get_contents($entry->getPathname());
-            $sourceHashes[$entry->getPathname()] = hash('sha256', $bytes);
             $scope['bytes'] += strlen($bytes);
             $lines = preg_split('/\r\n|\r|\n/', $bytes);
             if (end($lines) === '') {
@@ -118,20 +116,38 @@ foreach ($roots as $relative) {
         }
     }
 }
-$inputHashes = $sourceHashes;
-foreach (['config', 'database/migrations'] as $directory) {
-    if (! is_dir($root.'/'.$directory)) { continue; }
-    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root.'/'.$directory, FilesystemIterator::SKIP_DOTS)) as $entry) {
-        if ($entry->isFile() && $entry->getExtension() === 'php') {
-            $inputHashes[$entry->getPathname()] = hash_file('sha256', $entry->getPathname());
+$collectInputHashes = static function () use ($root, $roots): array {
+    // Rediscover paths as well as bytes: a newly generated input changes the workload.
+    clearstatcache();
+    $hashes = [];
+    foreach ([...$roots, 'config', 'database/migrations'] as $relative) {
+        $entries = is_dir($root.'/'.$relative)
+            ? new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root.'/'.$relative, FilesystemIterator::SKIP_DOTS))
+            : [new SplFileInfo($root.'/'.$relative)];
+        foreach ($entries as $entry) {
+            if ($entry->isFile() && $entry->getExtension() === 'php') {
+                $hash = hash_file('sha256', $entry->getPathname());
+                if ($hash === false) {
+                    throw new RuntimeException('Cannot hash a workload input.');
+                }
+                $hashes[$entry->getPathname()] = $hash;
+            }
         }
     }
-}
-foreach (['composer.json', 'composer.lock', 'phpstan.neon', 'mago.toml', 'bootstrap/app.php', 'bootstrap/providers.php'] as $relative) {
-    if (is_file($root.'/'.$relative)) { $inputHashes[$root.'/'.$relative] = hash_file('sha256', $root.'/'.$relative); }
-}
+    foreach (['composer.json', 'composer.lock', 'phpstan.neon', 'mago.toml', 'bootstrap/app.php', 'bootstrap/providers.php'] as $relative) {
+        if (is_file($root.'/'.$relative)) {
+            $hash = hash_file('sha256', $root.'/'.$relative);
+            if ($hash === false) {
+                throw new RuntimeException('Cannot hash a workload input.');
+            }
+            $hashes[$root.'/'.$relative] = $hash;
+        }
+    }
+    ksort($hashes);
+    return $hashes;
+};
+$inputHashes = $collectInputHashes();
 if (isset($options['source-seal'])) {
-    ksort($inputHashes);
     $fingerprint = hash('sha256', json_encode($inputHashes, JSON_THROW_ON_ERROR));
     $sealPath = $options['source-seal'];
     if (is_file($sealPath)) {
@@ -145,13 +161,17 @@ if (isset($options['source-seal'])) {
 $baseConfigs = $dependencyScope === 'composer-autoload'
     ? ['vendor/ichinya/laramago/presets/laravel.toml']
     : ['mago.toml', 'vendor/ichinya/laramago/presets/laravel.toml'];
+$worker = $options['worker'] ?? $root.'/vendor/ichinya/laramago/bin/laramago-worker.php';
+if (isset($options['worker']) && ! is_file($worker)) {
+    throw new RuntimeException('The experiment worker does not exist.');
+}
 $config = ['extends' => $baseConfigs,
     'version' => '1.48.1', 'php-version' => '8.5', 'threads' => $threads,
     'source' => ['paths' => $roots, 'includes' => $includes,
         'excludes' => ['vendor/laravel/framework/tests/Foundation/Fixtures/bad-syntax-strategy.php',
             'vendor/testo/bridge-symfony-console/resources/stubs/testo.php']],
     'extension-hosts' => ['laramago' => ['command' => [PHP_BINARY, '-d', 'opcache.enable_cli=0', '-d', 'memory_limit=2G',
-        $root.'/vendor/ichinya/laramago/bin/laramago-worker.php', $root.'/vendor/autoload.php', $root],
+        $worker, $root.'/vendor/autoload.php', $root],
         'workers' => $workers, 'request-timeout-ms' => $requestTimeout]]];
 $configPath = $root.'/benchmark-linux-mago.json';
 file_put_contents($configPath, json_encode($config, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
@@ -212,6 +232,7 @@ if (str_starts_with($profile, 'phpstan-')) {
 }
 $usageBefore = getrusage(1);
 $tmpDirAbsent = isset($cache) ? ! file_exists($cache) : null;
+$startedAt = gmdate(DATE_ATOM);
 $start = hrtime(true);
 $process = proc_open($command, [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, $root);
 if (! is_resource($process)) {
@@ -237,8 +258,10 @@ $stderr .= stream_get_contents($pipes[2]);
 fclose($pipes[1]);
 fclose($pipes[2]);
 proc_close($process);
+$finished = hrtime(true);
 $usage = getrusage(1);
 $report = ['profile' => $profile, 'platform' => 'Linux', 'php' => PHP_VERSION, 'versions' => $versions, 'scope' => $scope,
+    'started_at_utc' => $startedAt, 'finished_at_utc' => gmdate(DATE_ATOM),
     'laramago_commit' => '1a96f889fcd0d382079da11c500179bffc5d5ea2',
     'mago_binary_sha256' => hash_file('sha256', $options['mago']),
     'dependency_scope' => $dependencyScope, 'dependency_include_roots' => count($includes),
@@ -253,7 +276,7 @@ $report = ['profile' => $profile, 'platform' => 'Linux', 'php' => PHP_VERSION, '
     'configuration_probe_max_child_rss_mib' => round($usageBefore['ru_maxrss'] / 1024, 2),
     'vendor_read_only' => true,
     'sealed_workload' => isset($options['source-seal']),
-    'wall_seconds' => round((hrtime(true) - $start) / 1e9, 4),
+    'wall_seconds' => round(($finished - $start) / 1e9, 4),
     'cpu_seconds' => round(($usage['ru_utime.tv_sec'] - $usageBefore['ru_utime.tv_sec'])
         + ($usage['ru_utime.tv_usec'] - $usageBefore['ru_utime.tv_usec']) / 1e6
         + ($usage['ru_stime.tv_sec'] - $usageBefore['ru_stime.tv_sec'])
@@ -262,12 +285,10 @@ $report = ['profile' => $profile, 'platform' => 'Linux', 'php' => PHP_VERSION, '
     'peak_container_memory_mib' => is_readable('/sys/fs/cgroup/memory.peak') ? round((float) file_get_contents('/sys/fs/cgroup/memory.peak') / 1048576, 2) : null,
     'memory_note' => 'RUSAGE_CHILDREN maxrss is the largest individual child RSS, not a process-tree sum. Cgroup memory.peak includes all container processes and charged file cache.',
     'exit_code' => $status['exitcode'], 'timed_out' => $timedOut,
-    'cpu_accounting_complete' => ! $timedOut, 'valid' => false];
+    'cpu_accounting_complete' => ! $timedOut, 'source_unchanged' => false, 'valid' => false];
 try {
-    foreach ($inputHashes as $path => $hash) {
-        if (@hash_file('sha256', $path) !== $hash) {
-            throw new RuntimeException('Source changed during measurement.');
-        }
+    if ($collectInputHashes() !== $inputHashes) {
+        throw new RuntimeException('Source changed during measurement.');
     }
     $report['source_unchanged'] = true;
     if ($timedOut || ! in_array($status['exitcode'], [0, 1], true)) {
@@ -310,6 +331,30 @@ try {
     ksort($codes);
     ksort($levels);
     $report += ['diagnostics' => count($issues), 'codes' => (object) $codes, 'levels' => (object) $levels];
+    if (isset($options['diagnostic-seal'])) {
+        $report['diagnostic_multiset_verified'] = false;
+        // Keep identities/messages and their fingerprints inside the private volume.
+        $canonical = static function (mixed $value) use (&$canonical): mixed {
+            if (! is_array($value)) { return $value; }
+            if (! array_is_list($value)) { ksort($value); }
+            return array_map($canonical, $value);
+        };
+        $issueHashes = array_map(static fn (array $issue): string => hash('sha256',
+            json_encode($canonical($issue), JSON_THROW_ON_ERROR)), $issues);
+        sort($issueHashes, SORT_STRING);
+        $multiset = hash('sha256', implode("\n", $issueHashes));
+        $seal = $options['diagnostic-seal'];
+        if (isset($options['create-diagnostic-seal'])) {
+            $handle = fopen($seal, 'x');
+            if ($handle === false) { throw new RuntimeException('Diagnostic seal already exists.'); }
+            $written = fwrite($handle, $multiset."\n");
+            fclose($handle);
+            if ($written !== strlen($multiset) + 1) { throw new RuntimeException('Cannot seal diagnostics.'); }
+        } elseif (! is_file($seal) || trim(file_get_contents($seal)) !== $multiset) {
+            throw new RuntimeException('Diagnostic multiset differs from the baseline.');
+        }
+        $report['diagnostic_multiset_verified'] = true;
+    }
     $report['valid'] = true;
 } catch (Throwable) {
     $report['failure'] = 'incomplete-analyzer-report';

@@ -103,7 +103,15 @@ def main():
                         'profile': profile, 'valid': False, 'container_exit': result.returncode})
                     args.output.write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
                     raise RuntimeError(f'Container failed with exit {result.returncode}; raw streams are private')
-                row = json.loads(result.stdout)
+                try:
+                    row = json.loads(result.stdout)
+                    if not isinstance(row, dict):
+                        raise ValueError('Expected an observation object')
+                except ValueError:
+                    report.setdefault('failures', []).append({'stage': stage, 'round': iteration + 1,
+                        'profile': profile, 'valid': False, 'failure': 'invalid-analyzer-json'})
+                    args.output.write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+                    raise RuntimeError('Malformed analyzer report retained as failure; raw streams are private') from None
                 row.update(stage=stage, round=iteration + 1, position=position + 1)
                 if row.get('valid') and (not row.get('source_unchanged') or not row.get('sealed_workload')):
                     row.update(valid=False, failure='source-control-failed')

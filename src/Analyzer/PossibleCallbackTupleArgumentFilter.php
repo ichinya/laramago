@@ -19,7 +19,7 @@ final class PossibleCallbackTupleArgumentFilter implements IssueFilterHook
     {
         $receivingProof=new SourceArgumentDeclarationContracts($this->root);$tuple=new PossibleCallbackTupleContracts($this->root);
         try {
-            $receiving=$receivingProof->receiving($context,['mixed-argument']);if($receiving===null) { return IssueFilterDecision::Keep; }
+            $receiving=$receivingProof->receiving($context,['mixed-argument'],'variable');if($receiving===null) { return IssueFilterDecision::Keep; }
             ['source'=>$source,'file'=>$file,'argument'=>$argument,'call'=>$call]=$receiving;
             if(!$tuple->receivingDeclaration($context,$source,$receiving)) { return IssueFilterDecision::Keep; }
             $value=$argument->value;

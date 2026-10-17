@@ -66,6 +66,10 @@ Wall/CPU timing covers the analyzer command, after configuration preparation. CP
 
 ## Optimization evidence
 
+The [optimization follow-up](optimization-check-2026-10-16.md) records subsequent bounded cache/reader pilots, their correctness controls and an incomplete release baseline. Its single observations are separate from the repeated timings below.
+
+The later [per-handler CPU study](cpu-profile-and-optimization-2026-10-16.md) measures individual callbacks, validates a conservative argument-filter shortcut and has a separate before/after timing series. It retains the archived depth matrix as the PHPStan reference and checks the candidate Mago matrices independently.
+
 A separate diagnostic control wraps the release worker with passive first/last phase hooks and a metrics-only copy of its syntax cache outside vendor. Cache limits and decisions are unchanged; the benchmark samples use uninstrumented release code. It preserves the completed diagnostic count, but its timings are not mixed into the benchmark samples. PHP CPU is measured within each worker; wall intervals across workers overlap.
 
 | Phase | Worker | Wall interval, s | PHP CPU, s |
@@ -106,10 +110,13 @@ Priorities for a subsequent optimization change:
 
 ```text
 python tests/benchmark-protocol.py
+LARAMAGO_BENCHMARK_LINUX_TESTS=1 python tests/benchmark-protocol.py
 python tests/analyzer-depth-results.py --result depth.json --summary depth-summary.json
 python scripts/benchmark-suite.py --volume DISPOSABLE_CASE_VOLUME --output timings.json --runs 3
 python scripts/benchmark-phases.py --volume DISPOSABLE_CASE_VOLUME --output-dir NEW_PROBE_DIRECTORY
 ```
+
+The optional Docker controls run the real Linux runner against a synthetic analyzer, testing additions, removals, renames and edits of workload inputs. They are protocol tests, not analyzer acceptance or timing samples. The runner now re-enumerates the complete selected input set after analysis; malformed or non-object JSON is retained as a failure and cannot be resumed. Historical measurements and their runner hashes remain unchanged. A changed runner requires a new timing series.
 
 Run the fixture harness in a disposable Linux container. Mount the installed dependencies read-only at `/fixture/vendor`, set `/fixture` as the working directory and use `--dependencies=/fixture --root=/fixture`; mount the pinned Mago binary separately. Keep the fixture app and output directory writable, and provide the pinned dependency versions listed in JSON. The full application remains private, so external readers can reproduce the method and the public corpus, not independently rerun the exact private workload.
 

@@ -9,13 +9,14 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--result', required=True, type=Path)
     ap.add_argument('--summary', required=True, type=Path)
+    ap.add_argument('--harness', type=Path, default=Path(__file__).parents[1] / 'scripts/benchmark-depth.php')
     args = ap.parse_args()
     fixtures = Path(__file__).parent / 'fixtures/analyzer-depth'
     report = json.loads(args.result.read_text(encoding='utf-8'))
     expected = json.loads((fixtures / 'expectations.json').read_text(encoding='utf-8'))
     assert report['complete']
     assert report['model_autoload_control']
-    assert report['harness_sha256'] == hashlib.sha256((Path(__file__).parents[1] / 'scripts/benchmark-depth.php').read_bytes()).hexdigest(), 'Changed harness'
+    assert report['harness_sha256'] == hashlib.sha256(args.harness.read_bytes()).hexdigest(), 'Changed harness'
     assert report['fixture_sha256'] == hashlib.sha256((fixtures / 'cases.php').read_bytes()).hexdigest(), 'Stale corpus'
     assert report['expectations_sha256'] == hashlib.sha256((fixtures / 'expectations.json').read_bytes()).hexdigest(), 'Changed oracle'
     levels = report['phpstan_levels']
