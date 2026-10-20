@@ -66,9 +66,9 @@ Wall/CPU timing covers the analyzer command, after configuration preparation. CP
 
 ## Optimization evidence
 
-The [optimization follow-up](optimization-check-2026-10-16.md) records subsequent bounded cache/reader pilots, their correctness controls and an incomplete release baseline. Its single observations are separate from the repeated timings below.
+The [optimization follow-up](https://github.com/ichinya/laramago/blob/3eb08dc8c930aa162ae0b63e88f9ce6b1cd59020/docs/benchmarks/optimization-check-2026-10-16.md) records subsequent bounded cache/reader pilots, their correctness controls and an incomplete release baseline. Its single observations are separate from the repeated timings below.
 
-The later [per-handler CPU study](cpu-profile-and-optimization-2026-10-16.md) measures individual callbacks, validates a conservative argument-filter shortcut and has a separate before/after timing series. It retains the archived depth matrix as the PHPStan reference and checks the candidate Mago matrices independently.
+The later [per-handler CPU study](https://github.com/ichinya/laramago/blob/3eb08dc8c930aa162ae0b63e88f9ce6b1cd59020/docs/benchmarks/cpu-profile-and-optimization-2026-10-16.md) measures individual callbacks, validates a conservative argument-filter shortcut and has a separate before/after timing series. It retains the archived depth matrix as the PHPStan reference and checks the candidate Mago matrices independently.
 
 A separate diagnostic control wraps the release worker with passive first/last phase hooks and a metrics-only copy of its syntax cache outside vendor. Cache limits and decisions are unchanged; the benchmark samples use uninstrumented release code. It preserves the completed diagnostic count, but its timings are not mixed into the benchmark samples. PHP CPU is measured within each worker; wall intervals across workers overlap.
 

@@ -37,7 +37,7 @@ Admission rules were fixed before measurements: elapsed and CPU medians improve,
 The exact measured candidate is promoted locally, uncommitted and unpublished.
 All valid slow observations and pressure records remain in JSON. Shared-host load and CPU frequency remain uncontrolled. Different rule sets prevent a universal PHPStan-level equivalence. The exact admitted candidate passes strict Composer validation and the complete 502-command script, including the new public replay regression. Hosted CI is NOTRUN.
 
-[Complete observations](cpu-memory-runtime-combination-and-larastan-2026-10-20.json). [Previous admitted study](cpu-coalesce-facts-and-larastan-2026-10-20.md).
+[Complete observations](cpu-memory-runtime-combination-and-larastan-2026-10-20.json). [Previous admitted study](https://github.com/ichinya/laramago/blob/3eb08dc8c930aa162ae0b63e88f9ce6b1cd59020/docs/benchmarks/cpu-coalesce-facts-and-larastan-2026-10-20.md).
 
 The exact admitted sources additionally pass the refreshed 33-pair/14-configuration marked depth matrix and all 23 PHPStan threshold oracles. See [final-source depth verification](analyzer-depth-memory-runtime-2026-10-20.md).
 
