@@ -50,6 +50,7 @@ final class BenchCpu
         ++self::$sections[$key]['calls'];
         self::$sections[$key]['cpu_seconds'] += $cpu;
         self::$sections[$key]['wall_seconds'] += $wall;
+        if ($section === 'nullable-current' || microtime(true) - self::$lastFlush >= 2) { self::flush(); }
     }
 
     public static function invoke(object $callback, string $method, callable $call): mixed

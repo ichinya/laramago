@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
 
@@ -32,6 +33,9 @@ $class = static function (?array $nodes): ?Node\Stmt\Class_ {
 };
 
 try {
+    CodebaseScanSyntax::clear();
+    $scanned = CodebaseScanSyntax::parse($first);
+    $class($scanned)->name->name = 'MutatedScan';
     file_put_contents($path, $first);
     $original = new PhpSource($root);
     $originalNodes = $original->read('source.php');
@@ -39,10 +43,20 @@ try {
     $readClass = $class($reader->read('source.php'));
     $originalClass = $class($originalNodes);
     $assert(
+        $originalClass?->name?->toString() === 'Demo'
+        && $class($scanned)?->name?->toString() === 'MutatedScan',
+        'physical readers reuse scanned syntax without sharing mutable scan nodes',
+    );
+    $assert(
         $readClass?->getMethod('make')?->returnType?->toString() === 'Vendor\\Widget'
         && $readClass->getDocComment()?->getText() === '/** Keep this comment for other readers. */'
         && $readClass !== $originalClass,
         'shared resolved source retains imports and comments in an independent AST',
+    );
+    $originalClass->getMethod('make')->setDocComment(new \PhpParser\Comment\Doc('/** Reader mutation. */'));
+    $assert(
+        $class(CodebaseScanSyntax::parse($first))?->getMethod('make')?->getDocComment() === null,
+        'physical reader mutations cannot poison later scan syntax',
     );
 
     $readClass->getMethod('make')->returnType = new Node\Name('Changed');
@@ -128,4 +142,5 @@ try {
         }
     }
     rmdir($root);
+    CodebaseScanSyntax::clear();
 }

@@ -37,6 +37,7 @@ final class RememberedGuardedGetterProvider implements MethodReturnTypeProvider,
     public function initialize(InitializationContext $context): void
     {
         $this->reset();
+        self::registerProjection();
     }
     private function reset(): void
     {
@@ -48,6 +49,7 @@ final class RememberedGuardedGetterProvider implements MethodReturnTypeProvider,
     {
         if ($context->firstBatch) {
             $this->reset();
+            self::registerProjection();
         }
         $this->complete = false;
         foreach ($context->files as $file) {
@@ -57,14 +59,37 @@ final class RememberedGuardedGetterProvider implements MethodReturnTypeProvider,
                 break;
             }
             try {
-                $nodes = \Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax::parse($file->contents);
+                $facts = \Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax::query($file->contents, self::class.'::scan-candidates:v1', self::scanCandidates(...));
             } catch (\PhpParser\Error) {
                 $this->failed = true;
                 break;
             }
-            $finder = new NodeFinder();
             $local = [];
-            foreach ($finder->findInstanceOf($nodes, Node\Stmt\If_::class) as $if) {
+            foreach ($facts['local'] as $key => $candidate) {
+                $local[$key] = ['file' => $file->path, 'hash' => hash('sha256', $file->contents), ...$candidate];
+            }
+            foreach ($facts['calls'] === '' ? [] : explode(',', $facts['calls']) as $key) {
+                $this->candidates[$key] = array_key_exists($key, $this->candidates) ? null : $local[$key] ?? null;
+                if (count($this->candidates) > 100000) {
+                    $this->failed = true;
+                    break;
+                }
+            }
+        }
+        if ($this->failed) {
+            $this->candidates = [];
+        }
+        $this->complete = $context->lastBatch && !$this->failed;
+    }
+    /** @internal No paths, hashes, root or native metadata enter these cached facts. */
+    public static function registerProjection(): void
+    {
+        \Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax::registerProjection(self::class.'::scan-candidates:v1', self::scanCandidates(...));
+    }
+    private static function scanCandidates(array $nodes): array
+    {
+            $local = [];
+            foreach (\Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax::findInstanceOf($nodes, Node\Stmt\If_::class) as $if) {
                 $or = $if->cond instanceof Node\Expr\BinaryOp\BooleanOr || $if->cond instanceof Node\Expr\BinaryOp\LogicalOr;
                 $and = $if->cond instanceof Node\Expr\BinaryOp\BooleanAnd || $if->cond instanceof Node\Expr\BinaryOp\LogicalAnd;
                 if (!$or && !$and) {
@@ -80,22 +105,13 @@ final class RememberedGuardedGetterProvider implements MethodReturnTypeProvider,
                     if ($use === null || !self::sameGetter($guard->expr, $use)) {
                         continue;
                     }
-                    $local[self::key($use)] = ['file' => $file->path, 'hash' => hash('sha256', $file->contents), 'observed' => $guard->expr, 'call' => $use, 'asserted' => $guard->class->toString()];
+                    $local[self::key($use)] = ['observed' => $guard->expr, 'call' => $use, 'asserted' => $guard->class->toString()];
                 }
             }
-            foreach ($finder->findInstanceOf($nodes, Node\Expr\CallLike::class) as $call) {
-                $key = self::key($call);
-                $this->candidates[$key] = array_key_exists($key, $this->candidates) ? null : $local[$key] ?? null;
-                if (count($this->candidates) > 100000) {
-                    $this->failed = true;
-                    break;
-                }
-            }
-        }
-        if ($this->failed) {
-            $this->candidates = [];
-        }
-        $this->complete = $context->lastBatch && !$this->failed;
+        $keys = [];
+        foreach (\Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax::findInstanceOf($nodes, Node\Expr\CallLike::class) as $call) { $keys[] = self::key($call); }
+        // Span keys contain decimal offsets and a colon, so comma separation is lossless.
+        return ['local' => $local, 'calls' => implode(',', $keys)];
     }
     public function getReturnType(ReturnTypeProviderContext $context): ?Type
     {

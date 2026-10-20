@@ -19,6 +19,10 @@ final class PossibleCallbackTupleArgumentFilter implements IssueFilterHook
     {
         $receivingProof=new SourceArgumentDeclarationContracts($this->root);$tuple=new PossibleCallbackTupleContracts($this->root);
         try {
+            $primary=$context->issue->annotations[0]??null;
+            if($primary!==null&&!$tuple::mayProjectArgument($context->contents,$primary->span->start,$primary->span->end)) {
+                $receivingProof->stage('selected argument cannot be inside a positional tuple loop',false);return IssueFilterDecision::Keep;
+            }
             $receiving=$receivingProof->receiving($context,['mixed-argument'],'variable');if($receiving===null) { return IssueFilterDecision::Keep; }
             ['source'=>$source,'file'=>$file,'argument'=>$argument,'call'=>$call]=$receiving;
             if(!$tuple->receivingDeclaration($context,$source,$receiving)) { return IssueFilterDecision::Keep; }

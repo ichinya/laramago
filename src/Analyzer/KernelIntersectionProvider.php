@@ -48,6 +48,7 @@ final class KernelIntersectionProvider implements MethodReturnTypeProvider, Call
 
     public function initialize(InitializationContext $context): void
     {
+        KernelIntersectionCalls::registerProjection();
         $this->source = null;
         $this->verified = null;
     }

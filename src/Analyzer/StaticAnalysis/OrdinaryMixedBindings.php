@@ -2,8 +2,7 @@
 declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer\StaticAnalysis;
 
-use PhpParser\{Node,NodeTraverser,ParserFactory};
-use PhpParser\NodeVisitor\NameResolver;
+use PhpParser\Node;
 
 /** Source-only advisory certificate. It never infers or replaces an expression or storage type. */
 final class OrdinaryMixedBindings
@@ -15,12 +14,12 @@ final class OrdinaryMixedBindings
     {
         $this->nodes=0;$this->failed=false;$this->bindings=[];
         if(strlen($contents)>1024*1024){return null;}
-        try{$nodes=(new NodeTraverser(new NameResolver()))->traverse((new ParserFactory())->createForNewestSupportedVersion()->parse($contents)??[]);}
+        try{$nodes=CodebaseScanSyntax::parse($contents);}
         catch(\PhpParser\Error){return null;}
-        $this->frame($nodes,[],[],false,$contents);
+        $this->frame($nodes,[],[],false,$contents,hash('sha256',$contents));
         return$this->failed?null:$this->bindings;
     }
-    private function frame(array $nodes,array $parameters,array $captures,bool $referenceReturn,string $contents):void
+    private function frame(array $nodes,array $parameters,array $captures,bool $referenceReturn,string $contents,string $sourceHash):void
     {
         $forbidden=[];$uncertain=$referenceReturn;$pending=$nodes;$candidates=[];$children=[];
         foreach([...$parameters,...$captures]as$binding){if($binding->var instanceof Node\Expr\Variable&&is_string($binding->var->name)){$forbidden[$binding->var->name]=true;}else{$uncertain=true;}}
@@ -71,11 +70,11 @@ final class OrdinaryMixedBindings
             $key=$start.':'.$end;if(isset($this->bindings[$key])){$this->failed=true;return;}
             $this->bindings[$key]=['variable'=>$name,'kind'=>$kind,'primary'=>[$start,$end],
                 'rhs'=>$rhs===null?null:[$rhs->getStartFilePos(),$rhs->getEndFilePos()+1],'rhsKind'=>$rhs?->getType(),
-                'sourceSha256'=>hash('sha256',$contents),'nativeTypeChanged'=>false];
+                'sourceSha256'=>$sourceHash,'nativeTypeChanged'=>false];
         }}
         foreach($children as$child){$childNodes=$child->getStmts()??[];$captures=$child instanceof Node\Expr\Closure?$child->uses:[];
             // Physical parameters and captures remain shared/contract-bearing bindings, regardless of body narrowing.
-            $this->frame($childNodes,$child->getParams(),$captures,$child->byRef,$contents);
+            $this->frame($childNodes,$child->getParams(),$captures,$child->byRef,$contents,$sourceHash);
             if($this->failed){return;}
         }
     }

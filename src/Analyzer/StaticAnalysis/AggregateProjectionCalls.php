@@ -8,7 +8,6 @@ use Mago\Sdk\Analyzer\CodebaseScanContext;
 use Mago\Sdk\Analyzer\CodebaseScanHook;
 use Mago\Sdk\Span;
 use PhpParser\Node;
-use PhpParser\NodeFinder;
 
 /** Match a provider's fileless span only when every host source agrees on its identity. */
 final class AggregateProjectionCalls implements CodebaseScanHook
@@ -19,6 +18,25 @@ final class AggregateProjectionCalls implements CodebaseScanHook
     private array $calls = [];
     private bool $complete = false;
     private bool $failed = false;
+
+    /** @internal Register only from the active owning provider. */
+    public static function registerProjection(): void
+    {
+        StoredCallbackSourceDeclarations::registerSourceIndex();
+        CodebaseScanSyntax::registerProjection(self::class.'::get-calls:v1', self::getCalls(...));
+    }
+
+    private static function getCalls(array $nodes): array
+    {
+        $calls = [];
+        foreach (CodebaseScanSyntax::find($nodes, static fn (Node $node): bool =>
+            $node instanceof Node\Expr\MethodCall && $node->name instanceof Node\Identifier
+            && strcasecmp($node->name->name, 'get') === 0) as $call) {
+            $calls[$call->getStartFilePos().':'.($call->getEndFilePos() + 1)] = $call;
+            if (count($calls) > self::MAX_CALLS) { break; }
+        }
+        return $calls;
+    }
 
     public function getTargets(): array
     {
@@ -38,25 +56,16 @@ final class AggregateProjectionCalls implements CodebaseScanHook
                 break;
             }
             try {
-                $nodes = CodebaseScanSyntax::parse($file->contents);
+                $calls = CodebaseScanSyntax::query($file->contents, self::class.'::get-calls:v1', self::getCalls(...));
+                $reservations = StoredCallbackSourceDeclarations::sourceIndexSnapshot($file->contents)['dispatchReservations'];
             } catch (\PhpParser\Error) {
                 $this->failed = true;
                 break;
             }
-            foreach ((new NodeFinder)->find($nodes, static fn (Node $node): bool =>
-                $node instanceof Node\Expr\MethodCall
-                || $node instanceof Node\Expr\NullsafeMethodCall
-                || $node instanceof Node\Expr\StaticCall) as $call) {
-                $key = $call->getStartFilePos().':'.($call->getEndFilePos() + 1);
-                if (array_key_exists($key, $this->calls)) {
-                    // A collision is uncertain even when one of the calls is not a projection.
-                    $this->calls[$key] = null;
-                } else {
-                    $this->calls[$key] = $call instanceof Node\Expr\MethodCall
-                        && $call->name instanceof Node\Identifier
-                        && strcasecmp($call->name->name, 'get') === 0
-                        ? $call : null;
-                }
+            foreach ($reservations as $key => $duplicate) {
+                // Unsupported dispatches and every repeated span remain uncertain.
+                $this->calls[$key] = $duplicate || array_key_exists($key, $this->calls)
+                    ? null : ($calls[$key] ?? null);
                 if (count($this->calls) > self::MAX_CALLS) {
                     $this->failed = true;
                     break;

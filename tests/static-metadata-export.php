@@ -215,6 +215,7 @@ foreach ([
     copy($package.'/src/Metadata/'.$class.'.php', $linkedPackage.'/src/Metadata/'.$class.'.php');
 }
 foreach ([
+    'CodebaseScanSyntax',
     'ConfigurationIndex',
     'ConfigurationDeclaration',
     'ConfigurationDeclarationCatalog',

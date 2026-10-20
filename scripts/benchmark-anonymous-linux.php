@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 // Aggregate-only Linux completion control. Use a disposable application copy.
-$options = getopt('', ['project:', 'mago:', 'output:', 'profile:', 'request-timeout-ms::', 'timeout::', 'dependency-scope::', 'php-gc::', 'threads::', 'extension-workers::', 'phpstan-processes::', 'phpstan-level::', 'source-seal::', 'forbid-token:', 'worker:', 'diagnostic-seal:', 'create-diagnostic-seal']);
+$options = getopt('', ['project:', 'mago:', 'output:', 'profile:', 'request-timeout-ms::', 'timeout::', 'dependency-scope::', 'php-gc::', 'threads::', 'extension-workers::', 'phpstan-processes::', 'phpstan-level::', 'source-seal::', 'forbid-token:', 'worker:', 'diagnostic-seal:', 'create-diagnostic-seal', 'native-host', 'expected-laramago-version::']);
 foreach (['project', 'mago', 'output', 'profile'] as $required) {
     if (! isset($options[$required]) || ! is_string($options[$required])) {
         throw new InvalidArgumentException('Required: --project --mago --output --profile');
@@ -37,8 +37,9 @@ foreach (['LARAMAGO_EVALUATE_RUNTIME', 'LARAMAGO_RUNTIME_METADATA', 'MAGO_THREAD
     putenv($key);
 }
 foreach (['APP_ENV' => 'testing', 'APP_DEBUG' => 'false', 'APP_URL' => 'http://example.invalid',
-    'DB_CONNECTION' => 'sqlite', 'DB_DATABASE' => ':memory:', 'CACHE_STORE' => 'array',
-    'SESSION_DRIVER' => 'array', 'QUEUE_CONNECTION' => 'sync', 'MAIL_MAILER' => 'array'] as $key => $value) {
+    'DB_CONNECTION' => 'sqlite', 'DB_DATABASE' => ':memory:', 'DB_URL' => 'null', 'CACHE_STORE' => 'array',
+    'SESSION_DRIVER' => 'array', 'SESSION_CONNECTION' => 'sqlite', 'SESSION_STORE' => 'array',
+    'QUEUE_CONNECTION' => 'sync', 'MAIL_MAILER' => 'array'] as $key => $value) {
     putenv($key.'='.$value);
 }
 $phpGc = $options['php-gc'] ?? 'on';
@@ -53,12 +54,15 @@ file_put_contents($ini.'/99-benchmark.ini', "opcache.enable_cli=0\nopcache.jit=d
 putenv('PHP_INI_SCAN_DIR='.$ini);
 $installed = json_decode(file_get_contents($root.'/vendor/composer/installed.json'), true, flags: JSON_THROW_ON_ERROR)['packages'];
 $versions = [];
+$laramagoCommit = null;
 foreach ($installed as $package) {
     if (in_array($package['name'], ['phpstan/phpstan', 'larastan/larastan', 'laravel/framework', 'ichinya/laramago', 'carthage-software/mago'], true)) {
         $versions[$package['name']] = $package['version'];
+        if ($package['name'] === 'ichinya/laramago') { $laramagoCommit = $package['source']['reference'] ?? null; }
     }
 }
-if (($versions['ichinya/laramago'] ?? null) !== '0.1.5') {
+$expectedLaramagoVersion = $options['expected-laramago-version'] ?? '0.1.5';
+if (($versions['ichinya/laramago'] ?? null) !== $expectedLaramagoVersion) {
     throw new RuntimeException('Expected the pinned published Laramago release.');
 }
 $roots = ['app', 'tests', 'scripts/testing', 'testo.php'];
@@ -230,6 +234,41 @@ if (str_starts_with($profile, 'phpstan-')) {
         $command[] = '--no-extensions';
     }
 }
+$resourceRoot = '/sys/fs/cgroup';
+if (isset($options['native-host'])) {
+    $groups = file_get_contents('/proc/self/cgroup');
+    if (preg_match('/^0::(\/.*)$/m', $groups, $group) !== 1
+        || ($resolved = realpath('/sys/fs/cgroup'.$group[1])) === false
+        || ! str_starts_with($resolved, '/sys/fs/cgroup/')) {
+        throw new RuntimeException('Native measurements require a dedicated cgroup v2 scope.');
+    }
+    $resourceRoot = $resolved;
+    $quota = preg_split('/\s+/', trim(file_get_contents($resourceRoot.'/cpu.max')));
+    if (trim(file_get_contents($resourceRoot.'/memory.max')) !== (string) (6 * 1024 * 1024 * 1024)
+        || count($quota) !== 2 || ! ctype_digit($quota[0]) || (int) $quota[0] !== 2 * (int) $quota[1]) {
+        throw new RuntimeException('Native measurements require a 2 CPU / 6 GiB resource scope.');
+    }
+}
+$readPressure = static function () use ($resourceRoot): array {
+    $snapshot = [];
+    foreach (['system' => '/proc/pressure/', 'cgroup' => $resourceRoot.'/'] as $scope => $prefix) {
+        foreach (['cpu', 'memory', 'io'] as $resource) {
+            $path = $prefix.$resource.($scope === 'cgroup' ? '.pressure' : '');
+            $raw = @file_get_contents($path);
+            $rows = null;
+            if ($raw !== false && preg_match_all('/^(some|full) avg10=([0-9.]+) avg60=([0-9.]+) avg300=([0-9.]+) total=(\d+)$/m', trim($raw), $matches, PREG_SET_ORDER)) {
+                $rows = [];
+                foreach ($matches as $match) {
+                    $rows[$match[1]] = ['avg10' => (float) $match[2], 'avg60' => (float) $match[3],
+                        'avg300' => (float) $match[4], 'total_us' => (int) $match[5]];
+                }
+            }
+            $snapshot[$scope][$resource] = $rows;
+        }
+    }
+    return $snapshot;
+};
+$pressureBefore = $readPressure();
 $usageBefore = getrusage(1);
 $tmpDirAbsent = isset($cache) ? ! file_exists($cache) : null;
 $startedAt = gmdate(DATE_ATOM);
@@ -260,9 +299,10 @@ fclose($pipes[2]);
 proc_close($process);
 $finished = hrtime(true);
 $usage = getrusage(1);
+$pressureAfter = $readPressure();
 $report = ['profile' => $profile, 'platform' => 'Linux', 'php' => PHP_VERSION, 'versions' => $versions, 'scope' => $scope,
     'started_at_utc' => $startedAt, 'finished_at_utc' => gmdate(DATE_ATOM),
-    'laramago_commit' => '1a96f889fcd0d382079da11c500179bffc5d5ea2',
+    'laramago_commit' => $laramagoCommit,
     'mago_binary_sha256' => hash_file('sha256', $options['mago']),
     'dependency_scope' => $dependencyScope, 'dependency_include_roots' => count($includes),
     'php_cycle_collector' => $phpGc,
@@ -275,6 +315,9 @@ $report = ['profile' => $profile, 'platform' => 'Linux', 'php' => PHP_VERSION, '
     'phpstan_tmp_dir_absent_before_start' => $tmpDirAbsent,
     'configuration_probe_max_child_rss_mib' => round($usageBefore['ru_maxrss'] / 1024, 2),
     'vendor_read_only' => true,
+    'execution_environment' => isset($options['native-host']) ? 'native-linux-resource-scope' : 'linux-container',
+    'resource_pressure' => ['before' => $pressureBefore, 'after' => $pressureAfter],
+    'pressure_note' => 'Linux PSI endpoint snapshots outside the timed command. System metrics cover the VM; cgroup metrics cover the dedicated resource scope. Averages are trailing 10/60/300 second windows, not measurement-wide averages; absent interfaces are null.',
     'sealed_workload' => isset($options['source-seal']),
     'wall_seconds' => round(($finished - $start) / 1e9, 4),
     'cpu_seconds' => round(($usage['ru_utime.tv_sec'] - $usageBefore['ru_utime.tv_sec'])
@@ -282,8 +325,8 @@ $report = ['profile' => $profile, 'platform' => 'Linux', 'php' => PHP_VERSION, '
         + ($usage['ru_stime.tv_sec'] - $usageBefore['ru_stime.tv_sec'])
         + ($usage['ru_stime.tv_usec'] - $usageBefore['ru_stime.tv_usec']) / 1e6, 4),
     'maximum_child_rss_mib' => round($usage['ru_maxrss'] / 1024, 2),
-    'peak_container_memory_mib' => is_readable('/sys/fs/cgroup/memory.peak') ? round((float) file_get_contents('/sys/fs/cgroup/memory.peak') / 1048576, 2) : null,
-    'memory_note' => 'RUSAGE_CHILDREN maxrss is the largest individual child RSS, not a process-tree sum. Cgroup memory.peak includes all container processes and charged file cache.',
+    'peak_container_memory_mib' => is_readable($resourceRoot.'/memory.peak') ? round((float) file_get_contents($resourceRoot.'/memory.peak') / 1048576, 2) : null,
+    'memory_note' => 'RUSAGE_CHILDREN maxrss is the largest individual child RSS, not a process-tree sum. The legacy peak_container_memory_mib field reports memory.peak of this dedicated container or native resource scope, including charged file cache.',
     'exit_code' => $status['exitcode'], 'timed_out' => $timedOut,
     'cpu_accounting_complete' => ! $timedOut, 'source_unchanged' => false, 'valid' => false];
 try {

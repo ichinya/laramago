@@ -21,6 +21,10 @@ final class ModelPropertyArgumentFilter implements IssueFilterHook
         $certificate=[];$dependencies=[];
         $contracts=new SourceArgumentDeclarationContracts($this->root);
         try {
+            $primary=$context->issue->annotations[0]??null;
+            if($primary!==null&&!self::mayHaveSourceContract($context->contents,$primary->span->start,$primary->span->end)) {
+                $contracts->stage('selected field cannot be a last-argument typed model formal',false);return IssueFilterDecision::Keep;
+            }
             $receiving=$contracts->receiving($context,['mixed-argument'],'property');
             if($receiving===null){return IssueFilterDecision::Keep;}
             ['source'=>$source,'file'=>$file,'argument'=>$argument,'call'=>$call]=$receiving;
@@ -82,6 +86,34 @@ final class ModelPropertyArgumentFilter implements IssueFilterHook
             $certificate=['class'=>$class,'property'=>$property,'span'=>$span,'readDomain'=>(string)$domain,'nativeTypesChanged'=>false,'fakeAccessContextUsed'=>false];
             return IssueFilterDecision::Remove;
         } finally {$this->stages=$contracts->stages;$this->certificate=$certificate;$this->dependencies=$dependencies;}
+    }
+    /** Necessary source syntax only; native contracts and physical freshness remain downstream. */
+    public static function mayHaveSourceContract(string $contents,int $start,int $end):bool
+    {
+        if($start<0||$end<=$start||$end>strlen($contents)||strlen($contents)>1024*1024){return true;}
+        try{
+            $spans=StaticAnalysis\CodebaseScanSyntax::query($contents,self::class.'::last-model-formal-v1',static function(array $nodes):array{
+                $spans=[];
+                $walk=static function(mixed $node,?Node\FunctionLike $scope=null)use(&$walk,&$spans):void{
+                    if(is_array($node)){foreach($node as $child){$walk($child,$scope);}return;}
+                    if(!$node instanceof Node){return;}
+                    if($node instanceof Node\FunctionLike){$scope=$node;}
+                    if($node instanceof Node\Expr\CallLike&&($scope instanceof Node\Stmt\Function_||$scope instanceof Node\Stmt\ClassMethod)
+                        &&SourceArgumentDeclarationContracts::plain($node)&&$node->args!==[]){
+                        $call=$node;
+                        $field=$call->args[count($call->args)-1]->value;
+                        if($field instanceof Node\Expr\PropertyFetch&&$field->var instanceof Node\Expr\Variable&&is_string($field->var->name)&&$field->name instanceof Node\Identifier){
+                            $formals=array_values(array_filter($scope->params,static fn(Node\Param $parameter):bool=>$parameter->var instanceof Node\Expr\Variable&&$parameter->var->name===$field->var->name&&$parameter->type instanceof Node\Name));
+                            if(count($formals)===1&&!$formals[0]->byRef&&!$formals[0]->variadic){$spans[]=SourceArgumentDeclarationContracts::span($field);}
+                        }
+                    }
+                    foreach($node->getSubNodeNames() as $name){$walk($node->$name,$scope);}
+                };
+                $walk($nodes);$walk=null;
+                return $spans;
+            });
+        }catch(\PhpParser\Error){return true;}
+        return in_array([$start,$end],$spans,true);
     }
     private static function earlierArguments(GuardedStringCastContracts $source,array $file,Node\FunctionLike $scope,
         \Mago\Sdk\Analyzer\Metadata\FunctionLikeMetadata $caller,Node\Expr\CallLike $call,array $receiving):bool

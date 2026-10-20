@@ -25,6 +25,9 @@ final class ClosedConfigurationArgumentFilter implements IssueFilterHook
     {
         $contracts=new SourceArgumentDeclarationContracts($this->root);
         try {
+            if (! $contracts->stage('selected diagnostic can describe the configuration parser argument',
+                str_contains($context->issue->message,' of `Illuminate\\Support\\ConfigurationUrlParser::parseConfiguration`: expected `')
+                && str_contains($context->issue->message,'provided type `array<array-key, mixed>` is less specific.'))) { return IssueFilterDecision::Keep; }
             $receiving=$contracts->receiving($context,['less-specific-argument']);
             if ($receiving===null) { return IssueFilterDecision::Keep; }
             ['source'=>$source,'file'=>$file,'call'=>$call,'argument'=>$argument,'native'=>$native]=$receiving;

@@ -26,7 +26,7 @@ final class ArgvNormalizationAdvisories implements InitializationHook, CodebaseS
     private bool $complete = false;
     private bool $failed = false;
     private int $bytes = 0;
-    public function initialize(InitializationContext $context): void { $this->reset(); }
+    public function initialize(InitializationContext $context): void { $this->reset(); self::registerProjection(); }
 
     public function reset(): void { $this->files = []; $this->started = $this->complete = $this->failed = false; $this->bytes = 0; }
 
@@ -34,15 +34,14 @@ final class ArgvNormalizationAdvisories implements InitializationHook, CodebaseS
 
     public function scan(CodebaseScanContext $context): void
     {
-        if ($context->firstBatch) { $this->reset(); $this->started = true; }
+        if ($context->firstBatch) { $this->reset(); $this->started = true; self::registerProjection(); }
         elseif (! $this->started || $this->complete) { $this->failed = true; }
         foreach ($context->files as $file) {
             if ($context->cancellation->isCancelled()) { $this->failed = true; break; }
             $this->bytes += strlen($file->contents);
             if (strlen($file->contents) > 2_000_000 || $this->bytes > 64_000_000 || count($this->files) > 100_000 || isset($this->files[$file->path])) { $this->failed = true; break; }
             try {
-                $nodes = CodebaseScanSyntax::parse($file->contents);
-                $proofs = self::sourceProofs($nodes);
+                $proofs = CodebaseScanSyntax::query($file->contents, self::class.'::source-proofs:v1', self::sourceProofs(...));
             } catch (\PhpParser\Error) { $this->failed = true; break; }
             $this->files[$file->path] = ['sha256' => hash('sha256', $file->contents), 'proofs' => $proofs];
         }
@@ -157,6 +156,12 @@ final class ArgvNormalizationAdvisories implements InitializationHook, CodebaseS
             && $facts['parameterDefault'] === null && $facts['parameterOut'] === null && $facts['parameterClosureThis'] === null
             && $facts['parameterTypeMixed'] === true && $facts['parameterPhysicalMixed'] === true && $facts['returnCompatible'] === true && $facts['physicalReturnBool'] === true
             && $facts['templates'] === [] && $facts['globals'] === [] && $facts['methodStatic'] === false;
+    }
+
+    /** @internal A read-only source policy: native and lifecycle authority stays outside. */
+    public static function registerProjection(): void
+    {
+        CodebaseScanSyntax::registerProjection(self::class.'::source-proofs:v1', self::sourceProofs(...));
     }
 
     public static function sourceProofs(array $nodes): array

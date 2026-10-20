@@ -10,6 +10,8 @@ use Mago\Sdk\Analyzer\Assertion\TypeAssertionKind;
 use Mago\Sdk\Analyzer\AssertionProviderContext;
 use Mago\Sdk\Analyzer\FunctionAssertionProvider;
 use Mago\Sdk\Analyzer\FunctionTarget;
+use Mago\Sdk\Analyzer\InitializationContext;
+use Mago\Sdk\Analyzer\InitializationHook;
 use Mago\Sdk\Analyzer\InvocationAssertions;
 use Mago\Sdk\Analyzer\InvocationKind;
 use Mago\Sdk\Analyzer\Metadata\MetadataFlags;
@@ -21,9 +23,14 @@ use Mago\Sdk\Analyzer\Type\ScalarTypeKind;
 use PhpParser\Node;
 
 /** Successful integer checks retain literal bounds from a fresh filter_var assignment. */
-final class ValidatedIntegerAssertionProvider implements FunctionAssertionProvider
+final class ValidatedIntegerAssertionProvider implements FunctionAssertionProvider, InitializationHook
 {
     public function __construct(public readonly ValidatedIntegerCalls $calls = new ValidatedIntegerCalls) {}
+
+    public function initialize(InitializationContext $context): void
+    {
+        ValidatedIntegerCalls::registerProjection();
+    }
 
     public function getTargets(): array
     {

@@ -4,8 +4,7 @@ declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer\StaticAnalysis;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ConditionalArrayGuards;
-use PhpParser\{Node,NodeFinder,NodeTraverser,ParserFactory};
-use PhpParser\NodeVisitor\NameResolver;
+use PhpParser\{Node,NodeFinder};
 
 /** Source candidates only. No analyzer registration, type replacement, or issue removal. */
 final class ValidatedSortedArrayProofs
@@ -15,15 +14,20 @@ final class ValidatedSortedArrayProofs
     private int $steps=0;
     public function inspect(string $bytes):array {
         if(strlen($bytes)>1024*1024) { return ['refusal'=>'source-size']; }
-        $nodes=(new NodeTraverser(new NameResolver))->traverse((new ParserFactory)->createForNewestSupportedVersion()->parse($bytes)??[]);
+        $result=CodebaseScanSyntax::query($bytes,self::class.'::source-proofs-v1',static fn(array $nodes):array=>(new self)->sourceProofs($nodes));
+        $hash=hash('sha256',$bytes);
+        foreach($result['candidates'] as &$candidate) { $candidate['sourceSha256']=$hash; }unset($candidate);
+        return $result;
+    }
+    private function sourceProofs(array $nodes):array {
         $finder=new NodeFinder; $results=[];
         foreach($finder->find($nodes,static fn(Node $n):bool=>$n instanceof Node\Stmt\Function_||$n instanceof Node\Stmt\ClassMethod) as $scope) {
             if($finder->findFirst($scope->stmts??[],static fn(Node $n):bool=>$n instanceof Node\Expr\FuncCall&&$n->name instanceof Node\Name&&strtolower($n->name->getLast())==='usort')===null) { continue; }
             $this->helpers=$this->reads=[];$this->steps=0;$owner=null;
             foreach($finder->findInstanceOf($nodes,Node\Stmt\Class_::class) as $class) { if(in_array($scope,$class->getMethods(),true)) { $owner=$class->namespacedName?->toString();break; } }
             try { $results[]=$this->scope($scope)+['owner'=>$owner,'name'=>$scope instanceof Node\Stmt\Function_?$scope->namespacedName->toString():$scope->name->name,'scopeSpan'=>self::span($scope),'sourceDeclarationStarts'=>array_values(array_unique([$scope->getStartFilePos(),$scope->getDocComment()?->getStartFilePos()??$scope->getStartFilePos()])),
-                'nameSpan'=>self::span($scope->name),'formalSpan'=>self::span($scope->params[0]),'formalVariableSpan'=>self::span($scope->params[0]->var),'sourceSha256'=>hash('sha256',$bytes)]; }
-            catch(WorkerIndependentArrayProofRefusal $error) { $results[]=['owner'=>$owner,'name'=>$scope->name->name,'scopeSpan'=>self::span($scope),'sourceSha256'=>hash('sha256',$bytes),'sourceStructureAccepted'=>false,'refusal'=>$error->getMessage()]; }
+                'nameSpan'=>self::span($scope->name),'formalSpan'=>self::span($scope->params[0]),'formalVariableSpan'=>self::span($scope->params[0]->var)]; }
+            catch(WorkerIndependentArrayProofRefusal $error) { $results[]=['owner'=>$owner,'name'=>$scope->name->name,'scopeSpan'=>self::span($scope),'sourceStructureAccepted'=>false,'refusal'=>$error->getMessage()]; }
         }
         return ['sourceOnly'=>true,'policy'=>'PHPStan default lexical flow; runtime hidden alias/destructor safety is not claimed','candidates'=>$results];
     }

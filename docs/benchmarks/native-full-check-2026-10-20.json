@@ -1,0 +1,72 @@
+{
+  "complete": true,
+  "overall_goal_complete": false,
+  "native_full_composer_check_passed": true,
+  "hosted_ci": "NOTRUN",
+  "delivery": {
+    "committed": false,
+    "pushed": false
+  },
+  "composer_version": "Composer version 2.9.2 2025-11-19 21:57:25",
+  "php_sha256": "f508e90a7e19b69d919c4b7e4ff084e33fa1bfaa5b7211a6ee099d03d0b7f062",
+  "mago_sha256": "2d21c51fe6ca87778c6e9af237008122a9779e457b4eabbc3706d4fa865c8a66",
+  "composer_phar_sha256": "471f2d857abf0ec18af7b055e61472214d91adb24f9bdbbb864c1c64faad7dd6",
+  "composer_test_entries": 490,
+  "expanded_php_commands": 501,
+  "syntax_only_commands": 6,
+  "exact_command_order_verified": true,
+  "strict_validation_exit_code": 0,
+  "composer_test_exit_code": 0,
+  "scope_limits": {
+    "CPUQuota": "200%",
+    "MemoryMax": "6G"
+  },
+  "dependency_versions": {
+    "carthage-software/mago": "1.48.1",
+    "nikic/php-parser": "5.8.0",
+    "doctrine/inflector": "2.1.0",
+    "revolt/event-loop": "1.0.9"
+  },
+  "mirrored_dependency_php_config_files": 612,
+  "dependency_inputs_count": 624,
+  "application_autoload_files_excluded": true,
+  "frozen_snapshot_and_dependency_inputs_unchanged": true,
+  "working_inputs_unchanged_at_completion": true,
+  "production_source_count": 587,
+  "production_source_inventory_sha256": "4ac058ef5b765873d23e4d98aee3e00767d019198be69db979bc30c392951e56",
+  "same_587_sources_as_admitted_n8_candidate": true,
+  "ordinary_timing_observations_repeated": 0,
+  "explicit_skip_or_notrun_notices": [],
+  "incidental_keyword_notice_count": 10,
+  "failed_attempts": [
+    {
+      "attempt": "01",
+      "complete": false,
+      "failed_php_command_number": 77,
+      "previous_successful_php_commands": 76,
+      "cause": "External manually assembled fixture omitted the shared syntax-reader dependency",
+      "receipt_sha256": "367c3ba18eef5a9179694806e09227cc592b37fa622f316f7043c3b933719209",
+      "failure_retained": true
+    },
+    {
+      "attempt": "02",
+      "complete": false,
+      "failed_php_command_number": 283,
+      "previous_successful_php_commands": 282,
+      "cause": "Application vendor autoload defined Laravel env() before an isolated fake runtime bootstrap",
+      "receipt_sha256": "f410c406d818affbc95ce270289ea1ea171e5cc2961adc1e11a01e68ddb225e7",
+      "failure_retained": true
+    }
+  ],
+  "corrections": {
+    "external_fixture_includes_shared_reader": true,
+    "only_test_fixture_source_changed": true,
+    "production_analyzer_changed_for_corrections": false,
+    "dependency_autoload_isolation_corrected": true,
+    "unchanged_runtime_test_passes_all_eight_reported_branches": true,
+    "external_fixture_before_failure_and_after_success_verified": true,
+    "fixture_control_crlf_postprocessing_failure_recovered_without_repeating_before_after_controls": true
+  },
+  "full_check_receipt_sha256": "a371ec7362caecca1cdc0588f6c7beb9aff25b1728d053ea7d83bdcf6bc9992d",
+  "completed_at_unix": 1792450521.7115462
+}

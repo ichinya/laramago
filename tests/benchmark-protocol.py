@@ -165,7 +165,7 @@ class ProtocolTests(unittest.TestCase):
 class LinuxInputInventoryTests(unittest.TestCase):
     """Real Linux runner with a synthetic analyzer; not analyzer acceptance evidence."""
 
-    def run_linux_runner(self, mutation='', extra_arguments=(), initial_files=None):
+    def run_linux_runner(self, mutation='', extra_arguments=(), initial_files=None, installed_version='0.1.5'):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
             project = base / 'project'
@@ -174,7 +174,8 @@ class LinuxInputInventoryTests(unittest.TestCase):
                 (project / relative).mkdir(parents=True)
             (vendor / 'composer').mkdir(parents=True)
             (vendor / 'composer/installed.json').write_text(json.dumps({
-                'packages': [{'name': 'ichinya/laramago', 'version': '0.1.5'}]}), encoding='utf-8')
+                'packages': [{'name': 'ichinya/laramago', 'version': installed_version,
+                              'source': {'reference': '1' * 40}}]}), encoding='utf-8')
             for relative in ['app/existing.php', 'testo.php', 'bootstrap/app.php']:
                 (project / relative).write_text('<?php', encoding='utf-8')
             (project / 'composer.json').write_text('{}', encoding='utf-8')
@@ -182,6 +183,9 @@ class LinuxInputInventoryTests(unittest.TestCase):
                 (project / relative).write_text(contents, encoding='utf-8')
             fake = '''#!/usr/local/bin/php
 <?php
+foreach (['APP_ENV'=>'testing','DB_URL'=>'null','SESSION_CONNECTION'=>'sqlite','SESSION_STORE'=>'array'] as $key=>$value) {
+    if (getenv($key) !== $value) { throw new RuntimeException('Inherited environment was not isolated'); }
+}
 if (in_array('config', $argv, true)) {
     echo json_encode(['includes' => [], 'paths' => ['app', 'tests', 'scripts/testing', 'testo.php']]);
     exit;
@@ -189,6 +193,8 @@ if (in_array('config', $argv, true)) {
 ''' + mutation + "\necho '{\"issues\":[]}';\n"
             (project / 'fake-mago').write_bytes(fake.encode('utf-8'))
             command = ['docker', 'run', '--rm', '--network', 'none',
+                       '-e', 'APP_ENV=production', '-e', 'DB_URL=mysql://invalid.example/test',
+                       '-e', 'SESSION_CONNECTION=mysql', '-e', 'SESSION_STORE=database',
                        '--mount', f'type=bind,source={project.as_posix()},target=/case',
                        '--mount', f'type=bind,source={vendor.as_posix()},target=/case/vendor,readonly',
                        '--mount', f'type=bind,source={Path(__file__).resolve().parents[1].as_posix()},target=/runner,readonly',
@@ -205,6 +211,22 @@ if (in_array('config', $argv, true)) {
         self.assertTrue(report['valid'])
         self.assertTrue(report['source_unchanged'])
         self.assertTrue(report['sealed_workload'])
+        pressure = report['resource_pressure']
+        self.assertEqual(set(pressure), {'before', 'after'})
+        for snapshot in pressure.values():
+            self.assertEqual(set(snapshot), {'system', 'cgroup'})
+            for resources in snapshot.values():
+                self.assertEqual(set(resources), {'cpu', 'memory', 'io'})
+                for rows in resources.values():
+                    if rows is None:  # Optional kernel/cgroup interfaces.
+                        continue
+                    self.assertIn('some', rows)
+                    for row in rows.values():
+                        self.assertEqual(set(row), {'avg10', 'avg60', 'avg300', 'total_us'})
+                        for key in ['avg10', 'avg60', 'avg300']:
+                            self.assertGreaterEqual(row[key], 0)
+                            self.assertLessEqual(row[key], 100)
+                        self.assertGreaterEqual(row['total_us'], 0)
 
     def test_input_additions_removals_renames_and_edits_are_rejected(self):
         mutations = {
@@ -229,6 +251,13 @@ if (in_array('config', $argv, true)) {
         report = self.run_linux_runner("file_put_contents('/case/.benchmark-cache.json', '{}');")
         self.assertTrue(report['valid'])
         self.assertTrue(report['source_unchanged'])
+
+    def test_explicit_installed_package_version_and_commit_are_reported(self):
+        report = self.run_linux_runner(installed_version='0.1.6',
+                                       extra_arguments=['--expected-laramago-version=0.1.6'])
+        self.assertTrue(report['valid'])
+        self.assertEqual(report['versions']['ichinya/laramago'], '0.1.6')
+        self.assertEqual(report['laramago_commit'], '1' * 40)
 
     def test_diagnostic_seal_cannot_be_recreated_during_verification(self):
         for initial in [{}, {'diagnostic.seal': 'different-multiset'}]:

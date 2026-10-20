@@ -23,9 +23,6 @@ use Mago\Sdk\Analyzer\Type\VariableType;
 use Mago\Sdk\SourceLocation;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
-use PhpParser\NodeTraverser;
-use PhpParser\NodeVisitor\NameResolver;
-use PhpParser\ParserFactory;
 
 /** Fresh physical source plus exact declaration locations; no after-file authority. */
 final class GuardedStringCastContracts
@@ -51,8 +48,7 @@ final class GuardedStringCastContracts
         $contents = @file_get_contents($path);
         if ($contents === false || strlen($contents) > 1024 * 1024 || $analyzed !== null && $contents !== $analyzed) { return null; }
         try {
-            $nodes = (new ParserFactory)->createForNewestSupportedVersion()->parse($contents) ?? [];
-            $nodes = (new NodeTraverser(new NameResolver))->traverse($nodes);
+            $nodes = StaticAnalysis\CodebaseScanSyntax::parse($contents);
         } catch (\PhpParser\Error) { return null; }
         $parents = [];
         $visit = static function (mixed $value, ?Node $parent) use (&$visit, &$parents): void {

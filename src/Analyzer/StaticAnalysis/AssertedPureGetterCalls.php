@@ -26,6 +26,42 @@ final class AssertedPureGetterCalls implements CodebaseScanHook
 
     public function __construct(private readonly string $root = '.') {}
 
+    /** @internal Register only while the owning hook is active. */
+    public static function registerProjection(): void
+    {
+        StoredCallbackSourceDeclarations::registerSourceIndex();
+        CodebaseScanSyntax::registerProjection(self::class.'::source-proofs:v2', self::sourceRecords(...));
+    }
+
+    private static function sourceRecords(array $nodes): array
+    {
+        $candidates = [];
+        $finder = new NodeFinder;
+        $ticks = CodebaseScanSyntax::findFirst($nodes, static fn (Node $node): bool => $node instanceof Node\Stmt\Declare_
+            && array_filter($node->declares, static fn ($directive): bool => strtolower($directive->key->name) !== 'strict_types') !== []) !== null;
+        if (! $ticks) {
+            foreach (self::scopes($nodes) as [$owner, $name, $scope]) {
+                if ($scope->byRef || $finder->findFirst([$scope], static fn (Node $node): bool =>
+                    $node instanceof Node\Stmt\Goto_ || $node instanceof Node\Stmt\Label || $node instanceof Node\Stmt\Global_
+                    || $node instanceof Node\Param && $node->byRef) !== null) { continue; }
+                foreach (self::lists($scope->stmts ?? []) as $statements) {
+                    for ($index = 1; $index < count($statements); $index++) {
+                        $assertion = $statements[$index - 1] instanceof Node\Stmt\Expression ? $statements[$index - 1]->expr : null;
+                        $observed = self::assertionGetter($assertion);
+                        if ($observed === null) { continue; }
+                        $next = $statements[$index];
+                        $expression = $next instanceof Node\Stmt\Expression ? $next->expr : ($next instanceof Node\Stmt\Return_ ? $next->expr : null);
+                        $getter = $expression === null ? null : self::firstGetter($expression, $observed->var->name);
+                        if ($getter === null || $getter->var->name !== $observed->var->name
+                            || strcasecmp($getter->name->name, $observed->name->name) !== 0) { continue; }
+                        $candidates[self::key($getter)] = compact('owner', 'name', 'scope', 'assertion', 'observed', 'getter');
+                    }
+                }
+            }
+        }
+        return $candidates;
+    }
+
     public function getTargets(): array { return ['**']; }
 
     public function reset(): void
@@ -50,38 +86,18 @@ final class AssertedPureGetterCalls implements CodebaseScanHook
             if ($size > 2_000_000 || $this->bytes > 64 * 1024 * 1024 || isset($this->sources[$path])
                 || count($this->sources) >= 100_000) { $this->failed = true; break; }
             try {
-                $nodes = CodebaseScanSyntax::parse($file->contents);
+                $records = CodebaseScanSyntax::query($file->contents, self::class.'::source-proofs:v2', self::sourceRecords(...));
+                $reservations = StoredCallbackSourceDeclarations::sourceIndexSnapshot($file->contents)['callReservations'];
             } catch (\PhpParser\Error) { $this->failed = true; break; }
             $this->sources[$path] = hash('sha256', $file->contents);
-            $candidates = [];
-            $finder = new NodeFinder;
-            $ticks = $finder->findFirst($nodes, static fn (Node $node): bool => $node instanceof Node\Stmt\Declare_
-                && array_filter($node->declares, static fn ($directive): bool => strtolower($directive->key->name) !== 'strict_types') !== []) !== null;
-            if (! $ticks) {
-                foreach (self::scopes($nodes) as [$owner, $name, $scope]) {
-                    if ($scope->byRef || $finder->findFirst([$scope], static fn (Node $node): bool =>
-                        $node instanceof Node\Stmt\Goto_ || $node instanceof Node\Stmt\Label || $node instanceof Node\Stmt\Global_
-                        || $node instanceof Node\Param && $node->byRef) !== null) { continue; }
-                    foreach (self::lists($scope->stmts ?? []) as $statements) {
-                        for ($index = 1; $index < count($statements); $index++) {
-                            $assertion = $statements[$index - 1] instanceof Node\Stmt\Expression ? $statements[$index - 1]->expr : null;
-                            $observed = self::assertionGetter($assertion);
-                            if ($observed === null) { continue; }
-                            $next = $statements[$index];
-                            $expression = $next instanceof Node\Stmt\Expression ? $next->expr : ($next instanceof Node\Stmt\Return_ ? $next->expr : null);
-                            $getter = $expression === null ? null : self::firstGetter($expression, $observed->var->name);
-                            if ($getter === null || $getter->var->name !== $observed->var->name
-                                || strcasecmp($getter->name->name, $observed->name->name) !== 0) { continue; }
-                            $candidates[self::key($getter)] = compact('owner', 'name', 'scope', 'assertion', 'observed', 'getter') + ['file' => $file->path];
-                        }
-                    }
+            foreach ($reservations as $key => $duplicate) {
+                $proof = $duplicate ? null : ($records[$key] ?? null);
+                $proof = $proof === null ? null : $proof + ['file' => $file->path];
+                $this->calls[$key] = array_key_exists($key, $this->calls) ? null : $proof;
+                if (count($this->calls) > 100_000) {
+                    $this->failed = true;
+                    break;
                 }
-            }
-            // The SDK invocation span is fileless: every unrelated call participates in collisions.
-            foreach ($finder->findInstanceOf($nodes, Node\Expr\CallLike::class) as $call) {
-                $key = self::key($call);
-                $this->calls[$key] = array_key_exists($key, $this->calls) ? null : ($candidates[$key] ?? null);
-                if (count($this->calls) > 100_000) { $this->failed = true; break; }
             }
         }
         if ($this->failed) { $this->calls = []; }

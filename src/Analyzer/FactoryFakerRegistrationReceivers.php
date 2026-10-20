@@ -71,7 +71,17 @@ final class FactoryFakerRegistrationReceivers
     {
         $finder=new NodeFinder;
         if($this->cacheFacadeSource!==null){$this->cacheFacadeFacts[]=FactoryFakerCacheFacadeRegistrationContracts::observeSource($nodes,$this->nativePath($path),$this->cacheFacadeSource);}
-        foreach($finder->findInstanceOf($nodes,Node\Stmt\ClassLike::class) as $class){
+        // Preserve each catalogue's preorder and update order with one source walk.
+        $groups=[[],[],[],[],[]];
+        $finder->find($nodes,static function(Node $node)use(&$groups):bool{
+            if($node instanceof Node\Stmt\ClassLike){$groups[0][]=$node;}
+            elseif($node instanceof Node\Stmt\Function_){$groups[1][]=$node;}
+            elseif($node instanceof Node\Expr\Assign){$groups[2][]=$node;}
+            elseif($node instanceof Node\Expr\MethodCall||$node instanceof Node\Expr\StaticCall){$groups[3][]=$node;}
+            elseif($node instanceof Node\Expr\FuncCall){$groups[4][]=$node;}
+            return false;
+        });
+        foreach($groups[0] as $class){
             foreach($class->getMethods() as $method){
                 if(in_array(strtolower($method->name->name),['markconfigcached','markroutescached'],true)){
                     $this->cacheMarkerDeclarations[]=['class'=>$class->namespacedName?->toString(),
@@ -88,16 +98,16 @@ final class FactoryFakerRegistrationReceivers
                 }
             }
         }
-        foreach($finder->findInstanceOf($nodes,Node\Stmt\Function_::class) as $function){
+        foreach($groups[1] as $function){
             if(in_array(strtolower($function->name->name),['class_uses_recursive','trait_uses_recursive'],true)
                 &&!$this->standardFile($path,'vendor/laravel/framework/src/Illuminate/Support/helpers.php')){$this->hazards['trait-index-helper-shadow']=true;}
             if(strcasecmp($function->name->name,'app')===0&&!$this->standardFile($path,'vendor/laravel/framework/src/Illuminate/Foundation/helpers.php')){$this->hazards['app-helper-shadow']=true;}
         }
-        foreach($finder->findInstanceOf($nodes,Node\Expr\Assign::class) as $assignment){
+        foreach($groups[2] as $assignment){
             if($assignment->var instanceof Node\Expr\StaticPropertyFetch&&$assignment->var->name instanceof Node\VarLikeIdentifier
                 &&strtolower($assignment->var->name->name)==='applicationbuilder'){$this->hazards['application-builder-write']=true;}
         }
-        foreach($finder->find($nodes,static fn(Node $node):bool=>$node instanceof Node\Expr\MethodCall||$node instanceof Node\Expr\StaticCall) as $dynamic){
+        foreach($groups[3] as $dynamic){
             if($dynamic->name instanceof Node\Identifier){continue;}
             $selected=$dynamic instanceof Node\Expr\MethodCall&&($dynamic->var instanceof Node\Expr\PropertyFetch
                 &&$dynamic->var->var instanceof Node\Expr\Variable&&$dynamic->var->var->name==='this'
@@ -105,7 +115,7 @@ final class FactoryFakerRegistrationReceivers
                 ||$dynamic->var instanceof Node\Expr\FuncCall&&self::globalFunction($dynamic->var,'app'));
             if($selected){$this->hazards['dynamic-container-api']=true;}
         }
-        foreach($finder->findInstanceOf($nodes,Node\Expr\FuncCall::class) as $call){
+        foreach($groups[4] as $call){
             if(!self::globalFunction($call,'class_alias')||$call->isFirstClassCallable()){continue;}
             $target=$call->args[1]->value??null;$literal=self::literalKey($target);
             if($literal!==null){$this->classAliasKeys[strtolower($literal)]=true;}

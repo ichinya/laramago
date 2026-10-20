@@ -8,7 +8,6 @@ use Mago\Sdk\Analyzer\Codebase;
 use Mago\Sdk\Analyzer\Metadata\FunctionLikeMetadata;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
-use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\NodeVisitorAbstract;
 
@@ -184,6 +183,17 @@ final class FactoryReflection
         if ($file === null || str_starts_with($file, '@')) {
             return null;
         }
+
+        return $this->source->project(
+            $file,
+            self::class.'::binding:v1:'.strlen($class).':'.$class.':'.$base,
+            static fn (array $nodes): ?string => self::bindingFromNodes($nodes, $class, $base),
+        );
+    }
+
+    /** Resolve PHPDoc bindings without resolving every already-resolved body again. */
+    private static function bindingFromNodes(array $nodes, string $class, string $base): ?string
+    {
         $resolver = new NameResolver;
         $visitor = new class($resolver, $class, $base) extends NodeVisitorAbstract {
             public ?string $binding = null;
@@ -230,7 +240,18 @@ final class FactoryReflection
                 return null;
             }
         };
-        (new NodeTraverser($resolver, $visitor))->traverse($this->source->read($file) ?? []);
+        $resolver->beforeTraverse($nodes);
+        // Replay the original preorder of namespace/import/class events. Class
+        // events inside function bodies still affect the visitor's current owner.
+        foreach ((new NodeFinder)->find($nodes, static fn (Node $node): bool =>
+            $node instanceof Node\Stmt\Namespace_
+            || $node instanceof Node\Stmt\Use_
+            || $node instanceof Node\Stmt\GroupUse
+            || $node instanceof Node\Stmt\ClassLike
+            || $node instanceof Node\Stmt\TraitUse) as $node) {
+            $resolver->enterNode($node);
+            $visitor->enterNode($node);
+        }
 
         return $visitor->binding;
     }

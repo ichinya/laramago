@@ -10,6 +10,7 @@ use Mago\Sdk\Analyzer\FunctionReturnTypeProvider;
 use Mago\Sdk\Analyzer\FunctionTarget;
 use Mago\Sdk\Analyzer\InitializationContext;
 use Mago\Sdk\Analyzer\InitializationHook;
+use Mago\Sdk\Analyzer\Metadata\MethodFields;
 use Mago\Sdk\Analyzer\ReturnTypeProviderContext;
 use Mago\Sdk\Analyzer\Type;
 use PhpParser\Node;
@@ -133,7 +134,24 @@ final class StringHelperProvider implements FunctionReturnTypeProvider, Initiali
         if ($printer->prettyPrint($node->stmts) !== $printer->prettyPrint($expected ?? [])) {
             return null;
         }
-        foreach (array_chunk($codebase->getClassNames(), 200) as $names) {
+        // The audited body declares __call in its single anonymous class. Find
+        // its physical method first, instead of materializing every class in the
+        // frozen codebase. Keep the original class order and final shape checks.
+        $owners = [];
+        foreach ($codebase->findMethods(name: '__call', fields: MethodFields::LOCATIONS, declaredOnly: true) as $method) {
+            if ($method->location !== null && $method->location->file === $file
+                && $function->location->span->contains($method->location->span)) {
+                $owners[strtolower($method->method->class)] = true;
+            }
+        }
+        $classNames = $codebase->getClassNames();
+        $selected = [];
+        foreach ($classNames as $name) {
+            if (isset($owners[strtolower($name)])) { $selected[] = $name; }
+        }
+        // Unknown or inconsistent projection coverage keeps the complete lookup.
+        if ($selected !== []) { $classNames = $selected; }
+        foreach (array_chunk($classNames, 200) as $names) {
             foreach ($codebase->getMultipleClasses($names) as $class) {
                 if (
                     $class !== null
