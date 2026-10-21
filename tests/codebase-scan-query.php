@@ -6,7 +6,7 @@ use Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
 
-require dirname(__DIR__).'/vendor/autoload.php';
+require getenv('LARAMAGO_TEST_AUTOLOAD') ?: dirname(__DIR__).'/vendor/autoload.php';
 
 $check = static function (bool $condition, string $label): void {
     if (! $condition) {
@@ -137,15 +137,15 @@ $entry = static function (string $policy) use (&$entryCalls): int {
         return $entryCalls[$policy];
     });
 };
-for ($index = 0; $index < 8192; $index++) {
+for ($index = 0; $index < 16384; $index++) {
     $entry('entry:'.$index);
 }
 $entry('entry:0');
-$entry('entry:8192');
+$entry('entry:16384');
 $check($entry('entry:0') === 1 && $entry('entry:1') === 2,
     'entry eviction preserves a recently read result and recomputes the least recently used one');
 [$queries, $bytes] = $state();
-$check(count($queries) === 8192 && $bytes === array_sum(array_map('strlen', $queries)) && $bytes <= 8 * 1024 * 1024,
+$check(count($queries) === 16384 && $bytes === array_sum(array_map('strlen', $queries)) && $bytes <= 8 * 1024 * 1024,
     'query entry retention is bounded with exact serialized byte accounting');
 
 CodebaseScanSyntax::clear();

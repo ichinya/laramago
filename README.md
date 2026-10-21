@@ -1282,6 +1282,10 @@ For CI, store plugin permission in the application's `config.allow-plugins`.
 
 ### Comparing with Larastan
 
+See the [benchmark method and result summary](docs/benchmarks/README.md)
+for Linux and native Windows comparisons, diagnostic-preservation checks and limitations.
+Full observations, CPU profiles and depth matrices are available as verified release assets linked there.
+
 Larastan is an independent reference for Laravel behavior. Its code and PHPStan
 extensions are not copied into this package. Our providers use Mago's native PHP
 extension SDK; comparison results guide their development and verification.

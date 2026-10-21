@@ -95,14 +95,45 @@ final class ModelReflection
         if ($file === null || str_starts_with($file, '@')) {
             return null;
         }
-        foreach ((new NodeFinder)->findInstanceOf(
-            $this->source->read($file) ?? [],
-            Node\Stmt\ClassMethod::class,
-        ) as $node) {
+        return self::findMethod($this->source->read($file) ?? [], $method->originalName, $method->location->span->start, $method->location->span->end);
+    }
+
+    /**
+     * @internal Extract pure, serializable method facts; native metadata checks stay with the caller.
+     *
+     * @template TResult
+     * @param callable(Node\Stmt\ClassMethod): TResult $extractor
+     * @return TResult|null
+     */
+    public function projectMethod(FunctionLikeMetadata $method, string $policyId, callable $extractor): mixed
+    {
+        $file = $method->location->file;
+        if ($file === null || str_starts_with($file, '@')) {
+            return null;
+        }
+        $name = $method->originalName;
+        $start = $method->location->span->start;
+        $end = $method->location->span->end;
+
+        return $this->source->project(
+            $file,
+            self::class.'::method:v1:'.strlen($name).':'.$name.':'.$start.':'.$end.':'.$policyId,
+            static function (array $nodes) use ($name, $start, $end, $extractor): mixed {
+                $node = self::findMethod($nodes, $name, $start, $end);
+
+                return $node === null ? null : $extractor($node);
+            },
+        );
+    }
+
+    /** Preserve the original preorder, case-insensitive name and half-open location selection. */
+    private static function findMethod(array $nodes, string $name, int $start, int $end): ?Node\Stmt\ClassMethod
+    {
+        foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Stmt\ClassMethod::class) as $node) {
             if (
-                strcasecmp($node->name->toString(), $method->originalName) === 0
-                && $node->getStartFilePos() >= $method->location->span->start
-                && $node->getStartFilePos() < $method->location->span->end
+                strcasecmp($node->name->toString(), $name) === 0
+                && $node->getStartFilePos() >= $start
+                && $node->getStartFilePos() < $end
             ) {
                 return $node;
             }

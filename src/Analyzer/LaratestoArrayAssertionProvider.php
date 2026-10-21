@@ -45,6 +45,7 @@ final class LaratestoArrayAssertionProvider implements MethodAssertionProvider, 
 
     public function initialize(InitializationContext $context): void
     {
+        ArrayAssertionCalls::registerProjection();
         $this->assertions->initialize($context);
         $this->arrays->initialize($context);
         $this->keyMethods = [];

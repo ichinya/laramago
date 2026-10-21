@@ -6,10 +6,6 @@ namespace Ichinya\Laramago\Analyzer\StaticAnalysis;
 
 use PhpParser\Error;
 use PhpParser\Node;
-use PhpParser\NodeTraverser;
-use PhpParser\NodeVisitor\NameResolver;
-use PhpParser\Parser;
-use PhpParser\ParserFactory;
 
 /** Reads syntax only. Files, expressions and application classes are never executed. */
 final class PhpSource
@@ -22,9 +18,10 @@ final class PhpSource
     private static array $sharedFiles = [];
     private static int $sharedBytes = 0;
 
-    private readonly Parser $parser;
     /** @var array<string, array<array-key, Node>|null> */
     private array $files = [];
+    /** @var array<string, string> Unexposed snapshots that need no expanded AST yet. */
+    private array $projectionSources = [];
     /** @var array<string, string> */
     private array $contentHashes = [];
     /** @var array<string, string> */
@@ -32,9 +29,7 @@ final class PhpSource
 
     public function __construct(
         public readonly string $root,
-    ) {
-        $this->parser = (new ParserFactory)->createForNewestSupportedVersion();
-    }
+    ) {}
 
     public function path(string $path): string
     {
@@ -72,6 +67,12 @@ final class PhpSource
     {
         $path = $this->path($path);
         if (array_key_exists($path, $this->files)) {
+            if (isset($this->projectionSources[$path])) {
+                $contents = $this->projectionSources[$path];
+                unset($this->projectionSources[$path], $this->files[$path]);
+
+                return $this->parseSnapshot($path, $contents);
+            }
             $nodes = $this->files[$path];
             unset($this->files[$path]);
 
@@ -80,7 +81,7 @@ final class PhpSource
         // Free the oldest AST before allocating another resolved tree. Retaining
         // it until after unserialize() or parse() increases the worker's peak.
         while (count($this->files) >= self::INSTANCE_CACHE_ENTRIES) {
-            unset($this->files[array_key_first($this->files)]);
+            $this->evictInstance();
         }
         $contents = @file_get_contents($path);
         if ($contents === false) {
@@ -88,6 +89,62 @@ final class PhpSource
 
             return $this->files[$path] = null;
         }
+
+        return $this->parseSnapshot($path, $contents);
+    }
+
+    /**
+     * @internal Project pure, serializable syntax facts without expanding cached trees.
+     * The policy must include every extraction option. A previously exposed mutable
+     * reader tree always takes the original extraction path, including its edits.
+     *
+     * @template TResult
+     * @param callable(array<array-key, Node>): TResult $extractor
+     * @return TResult|null
+     */
+    public function project(string $path, string $policyId, callable $extractor): mixed
+    {
+        $path = $this->path($path);
+        if (array_key_exists($path, $this->files)) {
+            if (! isset($this->projectionSources[$path])) {
+                $nodes = $this->read($path);
+
+                return $nodes === null ? null : $extractor($nodes);
+            }
+            $contents = $this->projectionSources[$path];
+            unset($this->files[$path]);
+        } else {
+            while (count($this->files) >= self::INSTANCE_CACHE_ENTRIES) {
+                $this->evictInstance();
+            }
+            $contents = @file_get_contents($path);
+            if ($contents === false) {
+                $this->warnings[$path] = 'Cannot read PHP source for static model metadata.';
+
+                return $this->files[$path] = null;
+            }
+            $this->contentHashes[$path] = hash('sha256', $contents);
+            $this->projectionSources[$path] = $contents;
+        }
+        $this->files[$path] = null;
+        try {
+            return CodebaseScanSyntax::query($contents, $policyId, $extractor);
+        } catch (Error $error) {
+            // Extractor/serialization failures must not become source-parse warnings.
+            try { CodebaseScanSyntax::parse($contents); }
+            catch (Error) {
+                unset($this->projectionSources[$path]);
+                $this->warnings[$path] = 'Cannot parse PHP source for static model metadata: '.$error->getMessage();
+
+                return null;
+            }
+            throw $error;
+        }
+    }
+
+    /** Resolve either fresh bytes or an unexposed reader snapshot. */
+    private function parseSnapshot(string $path, string $contents): ?array
+    {
         $hash = $this->contentHashes[$path] = hash('sha256', $contents);
         $key = hash('sha256', $path."\0".$hash);
         if (isset(self::$sharedFiles[$key])) {
@@ -101,8 +158,7 @@ final class PhpSource
             return $this->retain($path, $nodes);
         }
         try {
-            $nodes = $this->parser->parse($contents) ?? [];
-            $resolved = (new NodeTraverser(new NameResolver))->traverse($nodes);
+            $resolved = CodebaseScanSyntax::parse($contents);
             $serialized = serialize($resolved);
             $size = strlen($serialized);
             if ($size <= self::SHARED_CACHE_BYTES) {
@@ -139,10 +195,16 @@ final class PhpSource
     private function retain(string $path, ?array $nodes): ?array
     {
         while (count($this->files) >= self::INSTANCE_CACHE_ENTRIES) {
-            unset($this->files[array_key_first($this->files)]);
+            $this->evictInstance();
         }
 
         return $this->files[$path] = $nodes;
+    }
+
+    private function evictInstance(): void
+    {
+        $oldest = array_key_first($this->files);
+        unset($this->files[$oldest], $this->projectionSources[$oldest]);
     }
 
     /**

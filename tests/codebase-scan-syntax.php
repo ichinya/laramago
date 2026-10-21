@@ -6,7 +6,7 @@ use Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
 
-require dirname(__DIR__).'/vendor/autoload.php';
+require getenv('LARAMAGO_TEST_AUTOLOAD') ?: dirname(__DIR__).'/vendor/autoload.php';
 
 $check = static function (bool $condition, string $label): void {
     if (! $condition) {
@@ -45,7 +45,8 @@ for ($index = 0; $index < 1100; $index++) {
 }
 $trees = (new ReflectionProperty(CodebaseScanSyntax::class, 'trees'))->getValue();
 $bytes = (new ReflectionProperty(CodebaseScanSyntax::class, 'bytes'))->getValue();
-$check(count($trees) <= 1024 && $bytes <= 64 * 1024 * 1024 && $bytes === array_sum(array_map('strlen', $trees)),
+$limit = (new ReflectionMethod(CodebaseScanSyntax::class, 'treeByteLimit'))->invoke(null);
+$check(count($trees) <= 1024 && $bytes <= $limit && $bytes === array_sum(array_map('strlen', $trees)),
     'long-lived scans retain a bounded cache with accurate byte accounting');
 $check(! isset($trees[hash('sha256', $source)]), 'least recently used snapshots are evicted');
 $check($method(CodebaseScanSyntax::parse($source))->returnType->toString() === 'Vendor\Widget', 'eviction preserves parsing behavior');
@@ -53,11 +54,13 @@ CodebaseScanSyntax::clear();
 $check((new ReflectionProperty(CodebaseScanSyntax::class, 'trees'))->getValue() === [], 'new registrations release old cache entries');
 
 $largeLiteral = str_repeat('x', 1024 * 1024);
-for ($index = 0; $index < 40; $index++) {
+// Literal value and raw token text are both serialized; exceed the live budget.
+$largeCount = intdiv($limit, 2 * 1024 * 1024) + 8;
+for ($index = 0; $index < $largeCount; $index++) {
     CodebaseScanSyntax::parse('<?php $value = \''.$index.$largeLiteral.'\';');
 }
 $trees = (new ReflectionProperty(CodebaseScanSyntax::class, 'trees'))->getValue();
 $bytes = (new ReflectionProperty(CodebaseScanSyntax::class, 'bytes'))->getValue();
-$check(count($trees) < 40 && $bytes <= 64 * 1024 * 1024 && $bytes === array_sum(array_map('strlen', $trees)),
+$check(count($trees) < $largeCount && $bytes <= $limit && $bytes === array_sum(array_map('strlen', $trees)),
     'large snapshots trigger byte eviction before the entry-count limit');
 CodebaseScanSyntax::clear();

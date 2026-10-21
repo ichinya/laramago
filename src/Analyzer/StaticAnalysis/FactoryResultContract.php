@@ -69,6 +69,8 @@ final class FactoryResultContract implements CodebaseScanHook
 
     public function scan(CodebaseScanContext $context): void
     {
+        CodebaseScanSyntax::registerProjection(self::class.'::all-mapping', self::allMapping(...));
+        CodebaseScanSyntax::registerProjection(self::class.'::outside-class-mapping', self::outsideMapping(...));
         if ($context->firstBatch) {
             $this->source = new PhpSource($this->source->root);
             $this->analyzedSources = [];
@@ -112,6 +114,15 @@ final class FactoryResultContract implements CodebaseScanHook
             }
         }
         $this->scanComplete = $context->lastBatch && ! $this->scanFailed;
+    }
+
+    private static function allMapping(array $nodes): bool
+    {
+        return CodebaseScanSyntax::findFirst($nodes, self::knownMappingMutation(...)) !== null;
+    }
+    private static function outsideMapping(array $nodes): bool
+    {
+        return (new NodeFinder)->findFirst(self::outsideClasses($nodes), self::knownMappingMutation(...)) !== null;
     }
 
     /** Keep the provider's existing subclass/state contract shared with source proofs. */

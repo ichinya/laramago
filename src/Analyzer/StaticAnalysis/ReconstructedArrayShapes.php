@@ -36,8 +36,39 @@ final class ReconstructedArrayShapes implements CodebaseScanHook, Initialization
 
     public function initialize(InitializationContext $context): void
     {
+        self::registerProjection();
         $this->files = [];
         $this->complete = $this->failed = false;
+    }
+
+    /** @internal Register only while the owning hook is active. */
+    public static function registerProjection(): void
+    {
+        CodebaseScanSyntax::registerProjection(self::class.'::source-proofs:v1', self::sourceProofs(...));
+    }
+
+    /** Pure syntax; paths, lifecycle and native decisions stay in scan()/consumers. */
+    private static function sourceProofs(array $nodes): array
+    {
+        $proofs = [];
+        // Tick declarations defer: the proof does not model callbacks at statement boundaries.
+        if (CodebaseScanSyntax::findFirst($nodes, static fn (Node $node): bool => $node instanceof Node\DeclareItem
+            && strtolower($node->key->name) === 'ticks') === null) {
+            foreach (CodebaseScanSyntax::findInstanceOf($nodes, Node\Stmt\Class_::class) as $class) {
+                if ($class->name === null || $class->namespacedName === null) { continue; }
+                $constructor = $class->getMethod('__construct');
+                if ($constructor === null || $constructor->stmts === null || $constructor->byRef) { continue; }
+                foreach ($class->getMethods() as $scope) {
+                    if ($scope === $constructor || $scope->stmts === null || ! self::localScope($scope)) { continue; }
+                    foreach (self::candidates($scope, $constructor, $class) as $proof) {
+                        $proofs[] = $proof + ['scope' => $scope, 'constructor' => $constructor, 'class' => $class,
+                            'owner' => $class->namespacedName->toString()];
+                    }
+                }
+            }
+        }
+
+        return $proofs;
     }
 
     public function getTargets(): array { return ['**']; }
@@ -54,29 +85,15 @@ final class ReconstructedArrayShapes implements CodebaseScanHook, Initialization
                 break;
             }
             try {
-                $nodes = CodebaseScanSyntax::parse($file->contents);
+                $compiled = CodebaseScanSyntax::query($file->contents, self::class.'::source-proofs:v1', self::sourceProofs(...));
             } catch (\PhpParser\Error) {
                 $this->failed = true;
                 break;
             }
-            $proofs = [];
-            // Tick declarations defer: the proof does not model callbacks at statement boundaries.
-            if ((new NodeFinder)->findFirst($nodes, static fn (Node $node): bool => $node instanceof Node\DeclareItem
-                && strtolower($node->key->name) === 'ticks') === null) {
-                foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Stmt\Class_::class) as $class) {
-                    if ($class->name === null || $class->namespacedName === null) { continue; }
-                    $constructor = $class->getMethod('__construct');
-                    if ($constructor === null || $constructor->stmts === null || $constructor->byRef) { continue; }
-                    foreach ($class->getMethods() as $scope) {
-                        if ($scope === $constructor || $scope->stmts === null || ! self::localScope($scope)) { continue; }
-                        foreach (self::candidates($scope, $constructor, $class) as $proof) {
-                            $proofs[] = $proof + ['scope' => $scope, 'constructor' => $constructor, 'class' => $class,
-                                'owner' => $class->namespacedName->toString(), 'file' => $file->path,
-                                'diskFile' => $this->diskFile($file->path), 'hash' => hash('sha256', $file->contents)];
-                        }
-                    }
-                }
-            }
+            $proofs = array_map(fn (array $proof): array => $proof + [
+                'file' => $file->path, 'diskFile' => $this->diskFile($file->path),
+                'hash' => hash('sha256', $file->contents),
+            ], $compiled);
             $this->files[$path] = ['hash' => hash('sha256', $file->contents), 'proofs' => $proofs];
         }
         if ($this->failed) { $this->files = []; }

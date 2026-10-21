@@ -18,6 +18,47 @@ final class ValidatedIntegerCalls implements CodebaseScanHook
     private bool $complete = false;
     private bool $failed = false;
 
+    /** @internal Register only while the owning hook is active. */
+    public static function registerProjection(): void
+    {
+        StoredCallbackSourceDeclarations::registerSourceIndex();
+        CodebaseScanSyntax::registerProjection(self::class.'::source-proofs:v2', self::sourceRecords(...));
+    }
+
+    private static function sourceRecords(array $nodes): array
+    {
+        $candidates = [];
+        foreach (CodebaseScanSyntax::find($nodes, static fn (Node $node): bool => $node instanceof Node\FunctionLike) as $scope) {
+            if (! self::safeScope($scope)) {
+                continue;
+            }
+            $statements = $scope->getStmts() ?? [];
+            foreach ($statements as $index => $statement) {
+                $previous = $statements[$index - 1] ?? null;
+                $assign = $previous instanceof Node\Stmt\Expression ? $previous->expr : null;
+                $condition = $statement instanceof Node\Stmt\If_ ? $statement->cond : null;
+                $guard = $condition instanceof Node\Expr\BooleanNot ? $condition->expr : $condition;
+                if (! $assign instanceof Node\Expr\Assign || ! $assign->var instanceof Node\Expr\Variable
+                    || ! is_string($assign->var->name) || ! self::local($assign->var->name)
+                    || ! $assign->expr instanceof Node\Expr\FuncCall || ! self::plainArguments($assign->expr, 3)
+                    || ! $guard instanceof Node\Expr\FuncCall || ! self::plainArguments($guard, 1)
+                    || ! $guard->args[0]->value instanceof Node\Expr\Variable
+                    || $guard->args[0]->value->name !== $assign->var->name) {
+                    continue;
+                }
+                // Parameters, captures, earlier writes, and even RHS reads
+                // mean this is not a newly introduced local value.
+                $earlier = (new NodeFinder)->findFirst([$scope], static fn (Node $node): bool =>
+                    $node instanceof Node\Expr\Variable && $node !== $assign->var
+                    && $node->name === $assign->var->name && $node->getStartFilePos() < $guard->getStartFilePos());
+                if ($earlier === null) {
+                    $candidates[self::key($guard)] = ['guard' => $guard, 'filter' => $assign->expr];
+                }
+            }
+        }
+        return $candidates;
+    }
+
     public function getTargets(): array
     {
         return ['**'];
@@ -40,43 +81,15 @@ final class ValidatedIntegerCalls implements CodebaseScanHook
                     $this->failed = true;
                     break;
                 }
-                $nodes = CodebaseScanSyntax::parse($file->contents);
+                $records = CodebaseScanSyntax::query($file->contents, self::class.'::source-proofs:v2', self::sourceRecords(...));
+                $reservations = StoredCallbackSourceDeclarations::sourceIndexSnapshot($file->contents)['callReservations'];
             } catch (\PhpParser\Error) {
                 $this->failed = true;
                 break;
             }
-            $candidates = [];
-            foreach ((new NodeFinder)->find($nodes, static fn (Node $node): bool => $node instanceof Node\FunctionLike) as $scope) {
-                if (! self::safeScope($scope)) {
-                    continue;
-                }
-                $statements = $scope->getStmts() ?? [];
-                foreach ($statements as $index => $statement) {
-                    $previous = $statements[$index - 1] ?? null;
-                    $assign = $previous instanceof Node\Stmt\Expression ? $previous->expr : null;
-                    $condition = $statement instanceof Node\Stmt\If_ ? $statement->cond : null;
-                    $guard = $condition instanceof Node\Expr\BooleanNot ? $condition->expr : $condition;
-                    if (! $assign instanceof Node\Expr\Assign || ! $assign->var instanceof Node\Expr\Variable
-                        || ! is_string($assign->var->name) || ! self::local($assign->var->name)
-                        || ! $assign->expr instanceof Node\Expr\FuncCall || ! self::plainArguments($assign->expr, 3)
-                        || ! $guard instanceof Node\Expr\FuncCall || ! self::plainArguments($guard, 1)
-                        || ! $guard->args[0]->value instanceof Node\Expr\Variable
-                        || $guard->args[0]->value->name !== $assign->var->name) {
-                        continue;
-                    }
-                    // Parameters, captures, earlier writes, and even RHS reads
-                    // mean this is not a newly introduced local value.
-                    $earlier = (new NodeFinder)->findFirst([$scope], static fn (Node $node): bool =>
-                        $node instanceof Node\Expr\Variable && $node !== $assign->var
-                        && $node->name === $assign->var->name && $node->getStartFilePos() < $guard->getStartFilePos());
-                    if ($earlier === null) {
-                        $candidates[self::key($guard)] = ['guard' => $guard, 'filter' => $assign->expr];
-                    }
-                }
-            }
-            foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Expr\CallLike::class) as $call) {
-                $key = self::key($call);
-                $this->calls[$key] = array_key_exists($key, $this->calls) ? null : ($candidates[$key] ?? null);
+            foreach ($reservations as $key => $duplicate) {
+                $proof = $duplicate ? null : ($records[$key] ?? null);
+                $this->calls[$key] = array_key_exists($key, $this->calls) ? null : $proof;
                 if (count($this->calls) > 100_000) {
                     $this->failed = true;
                     break;

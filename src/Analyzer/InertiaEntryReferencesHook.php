@@ -88,6 +88,11 @@ final class InertiaEntryReferencesHook implements NodeAnalysisHook, Initializati
 
     public function analyze(NodeAnalysisContext $context): void
     {
+        // This policy reports only proven absence. An omitted/incomplete catalog
+        // can never prove it; no syntax or native helper authority is needed yet.
+        if (! $this->catalogs->mayProveMissingInertiaPages()) {
+            return;
+        }
         $call = $this->call($context);
         if ($call === null || $call->isFirstClassCallable()) {
             return;

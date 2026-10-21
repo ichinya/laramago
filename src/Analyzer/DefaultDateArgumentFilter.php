@@ -2,13 +2,13 @@
 declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer;
 
-use Mago\Sdk\Analyzer\{CodebaseScanContext,CodebaseScanHook,IssueFilterContext,IssueFilterDecision,IssueFilterHook,Type};
+use Mago\Sdk\Analyzer\{CodebaseScanContext,CodebaseScanHook,InitializationContext,InitializationHook,IssueFilterContext,IssueFilterDecision,IssueFilterHook,Type};
 use Mago\Sdk\Analyzer\Metadata\{ClassLikeKind,MetadataFlags};
 use PhpParser\Node;
 use PhpParser\NodeFinder;
 
 /** Offline framework-default date creation, with source-visible replacement configurations vetoed. */
-final class DefaultDateArgumentFilter implements IssueFilterHook,CodebaseScanHook
+final class DefaultDateArgumentFilter implements IssueFilterHook,CodebaseScanHook,InitializationHook
 {
     private const FACTORY='Illuminate\\Support\\DateFactory';
     private const FACADE='Illuminate\\Support\\Facades\\Date';
@@ -24,10 +24,11 @@ final class DefaultDateArgumentFilter implements IssueFilterHook,CodebaseScanHoo
     public function __construct(private readonly string $root) {}
     public function getCodes(): array { return ['less-specific-argument']; }
     public function getTargets(): array { return ['**']; }
+    public function initialize(InitializationContext $context): void { self::registerProjection(); }
     public function scan(CodebaseScanContext $context): void
     {
-        if ($context->firstBatch) { $this->files=[];$this->complete=$this->blocked=false;$this->bytes=0; }
-        $source=new GuardedStringCastContracts($this->root);$finder=new NodeFinder;
+        if ($context->firstBatch) { $this->files=[];$this->complete=$this->blocked=false;$this->bytes=0;self::registerProjection(); }
+        $source=new GuardedStringCastContracts($this->root);
         foreach ($context->files as $entry) {
             $context->cancellation->throwIfCancelled();$this->bytes+=strlen($entry->contents);
             if (strlen($entry->contents)>2_000_000 || $this->bytes>67_108_864 || count($this->files)>=100_000) { $this->blocked=true;break; }
@@ -35,39 +36,61 @@ final class DefaultDateArgumentFilter implements IssueFilterHook,CodebaseScanHoo
             if ($path==='') { continue; } // Builtin virtual source cannot configure a user Date facade.
             if (isset($this->files[$path]) && $this->files[$path]!==hash('sha256',$entry->contents)) { $this->blocked=true;break; }
             $this->files[$path]=hash('sha256',$entry->contents);
-            try { $nodes = \Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax::parse($entry->contents); }
+            try { $facts = \Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax::query($entry->contents,self::class.'::source-veto-facts:v1',self::sourceVetoFacts(...)); }
             catch (\PhpParser\Error) { $this->blocked=true;break; }
-            // Declaration of the audited swap implementation does not itself replace the Date handler.
-            // Its callers remain subject to the selected facade/container override vetoes below.
+            // Current physical bytes and exact dispatch tokens remain outside the source-only cache.
             $ordinarySwapCalls=[];
-            foreach ($finder->findInstanceOf($nodes,Node\Stmt\Class_::class) as $class) {
-                $swap=$class->getMethod('swap');
-                if ($class->namespacedName?->toString()!==self::BASE_FACADE || $swap===null) { continue; }
-                $body=substr($entry->contents,$swap->getStartFilePos(),$swap->getEndFilePos()-$swap->getStartFilePos()+1);
+            foreach ($facts['swaps'] as [$start,$length,$calls]) {
+                $body=substr($entry->contents,$start,$length);
                 foreach ($this->dispatchContracts() as [$receiver,$method,$physicalOwner,$expected]) {
                     if ($receiver!==self::BASE_FACADE || $method!=='swap' || $source->tokens($body)!==$source->tokens($expected)) { continue; }
-                    foreach ($finder->findInstanceOf($swap->stmts,Node\Expr\MethodCall::class) as $call) { $ordinarySwapCalls[spl_object_id($call)]=true; }
+                    foreach ($calls as $key) { $ordinarySwapCalls[$key]=true; }
                 }
             }
-            // Only calls can change the handler. The exact factory declaration itself is checked separately.
-            foreach ($finder->findInstanceOf($nodes,Node\Expr\StaticCall::class) as $call) {
-                if (! $call->class instanceof Node\Name || ! in_array(strtolower($call->class->toString()),[strtolower(self::FACTORY),strtolower(self::FACADE)],true)) { continue; }
-                if (! $call->name instanceof Node\Identifier || in_array(strtolower($call->name->name),[
-                    'use','useclass','usefactory','usecallable','swap','resolved','setfacadeapplication','clearresolvedinstance','clearresolvedinstances','macro','mixin',
-                    'spy','partialmock','shouldreceive','expects','fake',
-                ],true)) { $this->blocked=true; }
-            }
-            foreach ($finder->findInstanceOf($nodes,Node\Expr\MethodCall::class) as $call) {
-                if (isset($ordinarySwapCalls[spl_object_id($call)])) { continue; }
-                if ($call->name instanceof Node\Identifier && in_array(strtolower($call->name->name),['useclass','usefactory','usecallable'],true)) { $this->blocked=true; }
-                if (! $call->name instanceof Node\Identifier || ! in_array(strtolower($call->name->name),['bind','bindif','singleton','singletonif','scoped','instance','offsetset'],true)) { continue; }
-                $key=$call->args[0]->value??null;
-                $ordinaryClassKey=$key instanceof Node\Expr\ClassConstFetch && $key->class instanceof Node\Name && $key->name instanceof Node\Identifier
-                    && strtolower($key->name->name)==='class' && ! in_array(strtolower($key->class->toString()),[strtolower(self::FACTORY),strtolower(self::FACADE)],true);
-                if (! $ordinaryClassKey && (! $key instanceof Node\Scalar\String_ || in_array(strtolower($key->value),['date',strtolower(self::FACTORY)],true))) { $this->blocked=true; }
+            if ($facts['staticVeto']) { $this->blocked=true; }
+            foreach ($facts['methodVetoes'] as $key) {
+                if (!isset($ordinarySwapCalls[$key])) { $this->blocked=true; }
             }
         }
         $this->complete=$context->lastBatch && ! $this->blocked;
+    }
+    /** @internal Only parsed call shape and byte spans; no configuration decision is cached. */
+    public static function registerProjection(): void
+    {
+        \Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax::registerProjection(self::class.'::source-veto-facts:v1',self::sourceVetoFacts(...));
+    }
+    private static function callKey(Node $node): string
+    {
+        return $node->getStartFilePos().':'.($node->getEndFilePos()+1);
+    }
+    private static function sourceVetoFacts(array $nodes): array
+    {
+        $swaps=[];$staticVeto=false;$methodVetoes=[];
+        foreach (\Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax::findInstanceOf($nodes,Node\Stmt\Class_::class) as $class) {
+            $swap=$class->getMethod('swap');
+            if ($class->namespacedName?->toString()!==self::BASE_FACADE || $swap===null) { continue; }
+            $calls=[];
+            foreach ((new NodeFinder)->findInstanceOf($swap->stmts ?? [],Node\Expr\MethodCall::class) as $call) { $calls[]=self::callKey($call); }
+            $swaps[]=[$swap->getStartFilePos(),$swap->getEndFilePos()-$swap->getStartFilePos()+1,$calls];
+        }
+        foreach (\Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax::findInstanceOf($nodes,Node\Expr\StaticCall::class) as $call) {
+            if (!$call->class instanceof Node\Name || !in_array(strtolower($call->class->toString()),[strtolower(self::FACTORY),strtolower(self::FACADE)],true)) { continue; }
+            if (!$call->name instanceof Node\Identifier || in_array(strtolower($call->name->name),[
+                'use','useclass','usefactory','usecallable','swap','resolved','setfacadeapplication','clearresolvedinstance','clearresolvedinstances','macro','mixin',
+                'spy','partialmock','shouldreceive','expects','fake',
+            ],true)) { $staticVeto=true; }
+        }
+        foreach (\Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax::findInstanceOf($nodes,Node\Expr\MethodCall::class) as $call) {
+            $veto=$call->name instanceof Node\Identifier && in_array(strtolower($call->name->name),['useclass','usefactory','usecallable'],true);
+            if ($call->name instanceof Node\Identifier && in_array(strtolower($call->name->name),['bind','bindif','singleton','singletonif','scoped','instance','offsetset'],true)) {
+                $key=$call->args[0]->value??null;
+                $ordinaryClassKey=$key instanceof Node\Expr\ClassConstFetch && $key->class instanceof Node\Name && $key->name instanceof Node\Identifier
+                    && strtolower($key->name->name)==='class' && !in_array(strtolower($key->class->toString()),[strtolower(self::FACTORY),strtolower(self::FACADE)],true);
+                if (!$ordinaryClassKey && (!$key instanceof Node\Scalar\String_ || in_array(strtolower($key->value),['date',strtolower(self::FACTORY)],true))) { $veto=true; }
+            }
+            if ($veto) { $methodVetoes[]=self::callKey($call); }
+        }
+        return ['swaps'=>$swaps,'staticVeto'=>$staticVeto,'methodVetoes'=>$methodVetoes];
     }
     public function filterIssue(IssueFilterContext $context): IssueFilterDecision
     {
@@ -79,6 +102,8 @@ final class DefaultDateArgumentFilter implements IssueFilterHook,CodebaseScanHoo
     {
         $contracts=new SourceArgumentDeclarationContracts($this->root);
         try {
+            if (! $contracts->stage('selected diagnostic can describe a default date interface',
+                str_contains($context->issue->message,'provided type `Carbon\\CarbonInterface` is less specific.'))) { return IssueFilterDecision::Keep; }
             $receiving=$contracts->receiving($context,['less-specific-argument']);if ($receiving===null) { return IssueFilterDecision::Keep; }
             ['source'=>$source,'file'=>$file,'argument'=>$argument]=$receiving;
             $now=$argument->value;

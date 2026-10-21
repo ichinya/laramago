@@ -33,6 +33,7 @@ final class ModelRefreshReturnTypeProvider implements MethodReturnTypeProvider, 
 
     public function initialize(InitializationContext $context): void
     {
+        ModelRefreshCalls::registerProjection();
         $this->native = new NativeModelRefresh($this->root);
     }
 
