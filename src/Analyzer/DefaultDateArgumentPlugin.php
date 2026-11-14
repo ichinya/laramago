@@ -9,6 +9,7 @@ final class DefaultDateArgumentPlugin implements Plugin
     public function register(PluginRegistry $registry): void
     {
         $filter=new DefaultDateArgumentFilter($this->root);
+        $registry->registerInitializationHook($filter);
         $registry->registerCodebaseScanHook($filter);$registry->registerIssueFilterHook($filter);
     }
 }

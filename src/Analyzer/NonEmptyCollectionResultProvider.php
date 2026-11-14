@@ -6,6 +6,7 @@ namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\ModelReflection;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\NonEmptyCollectionCalls;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\StoredCallbackSourceDeclarations;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\PhpSource;
 use Mago\Sdk\Analyzer\InitializationContext;
 use Mago\Sdk\Analyzer\InitializationHook;
@@ -67,6 +68,7 @@ final class NonEmptyCollectionResultProvider implements MethodReturnTypeProvider
 
     public function initialize(InitializationContext $context): void
     {
+        StoredCallbackSourceDeclarations::registerSourceIndex();
         $this->calls->reset();
         $this->source = new PhpSource($this->root);
         $this->generation = -1;

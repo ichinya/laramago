@@ -21,7 +21,11 @@ final class GuardedLocalModelTupleArgumentFilter implements IssueFilterHook
     {
         $receivingProof=new SourceArgumentDeclarationContracts($this->root);$tuple=new PossibleCallbackTupleContracts($this->root);$models=[];
         try{
-            $receiving=$receivingProof->receiving($context,['mixed-argument']);if($receiving===null){return IssueFilterDecision::Keep;}
+            $primary=$context->issue->annotations[0]??null;
+            if($primary!==null&&!$tuple::mayProjectArgument($context->contents,$primary->span->start,$primary->span->end)) {
+                $receivingProof->stage('selected argument cannot be inside a positional tuple loop',false);return IssueFilterDecision::Keep;
+            }
+            $receiving=$receivingProof->receiving($context,['mixed-argument'],'variable');if($receiving===null){return IssueFilterDecision::Keep;}
             ['source'=>$source,'file'=>$file,'argument'=>$argument,'call'=>$call]=$receiving;
             if(!$receivingProof->stage('selected physical method receiving scope',
                 ($call instanceof Node\Expr\MethodCall||$call instanceof Node\Expr\StaticCall)

@@ -42,9 +42,34 @@ final class ValidatedYieldedLists implements InitializationHook, CodebaseScanHoo
 
     public function initialize(InitializationContext $context): void
     {
+        self::registerProjection();
         $this->files = [];
         $this->started = $this->complete = $this->failed = false;
         $this->bytes = 0;
+    }
+
+    /** @internal Register only while the owning hook is active. */
+    public static function registerProjection(): void
+    {
+        CodebaseScanSyntax::registerProjection(self::class.'::source-proofs:v1', self::sourceProofs(...));
+    }
+
+    /** Pure syntax; paths, lifecycle and native decisions stay in scan()/consumers. */
+    private static function sourceProofs(array $nodes): array
+    {
+        $proofs = [];
+        $overflow = false;
+        if (CodebaseScanSyntax::findFirst($nodes, static fn (Node $node): bool => $node instanceof Node\DeclareItem && strtolower($node->key->name) === 'ticks') === null) {
+            foreach (self::scopes($nodes) as [$scope, $class]) {
+                if (! self::safeScope($scope)) { continue; }
+                foreach (self::candidates($scope) as $proof) {
+                    if (count($proofs) >= 1024) { $overflow = true; break 2; }
+                    $proofs[] = $proof + ['scope' => $scope, 'class' => $class, 'owner' => $class?->namespacedName?->toString()];
+                }
+            }
+        }
+
+        return ['proofs' => $proofs, 'overflow' => $overflow];
     }
 
     public function getTargets(): array { return ['**']; }
@@ -64,19 +89,13 @@ final class ValidatedYieldedLists implements InitializationHook, CodebaseScanHoo
             if ($context->cancellation->isCancelled() || $this->failed || $path === '' || isset($this->files[$path])
                 || strlen($file->contents) > 2_000_000 || $this->bytes > 64 * 1024 * 1024 || count($this->files) >= 100_000) { $this->failed = true; break; }
             try {
-                $nodes = CodebaseScanSyntax::parse($file->contents);
+                $compiled = CodebaseScanSyntax::query($file->contents, self::class.'::source-proofs:v1', self::sourceProofs(...));
             } catch (\PhpParser\Error) { $this->failed = true; break; }
-            $proofs = [];
-            if ((new NodeFinder)->findFirst($nodes, static fn (Node $node): bool => $node instanceof Node\DeclareItem && strtolower($node->key->name) === 'ticks') === null) {
-                foreach (self::scopes($nodes) as [$scope, $class]) {
-                    if (! self::safeScope($scope)) { continue; }
-                    foreach (self::candidates($scope) as $proof) {
-                        if (count($proofs) >= 1024) { $this->failed = true; break 2; }
-                        $proofs[] = $proof + ['scope' => $scope, 'class' => $class, 'owner' => $class?->namespacedName?->toString(),
-                            'file' => $file->path, 'diskFile' => $this->disk($file->path), 'hash' => hash('sha256', $file->contents)];
-                    }
-                }
-            }
+            $proofs = array_map(fn (array $proof): array => $proof + [
+                'file' => $file->path, 'diskFile' => $this->disk($file->path),
+                'hash' => hash('sha256', $file->contents),
+            ], $compiled['proofs']);
+            if ($compiled['overflow']) { $this->failed = true; }
             $this->files[$path] = ['hash' => hash('sha256', $file->contents), 'proofs' => $proofs];
         }
         if ($context->cancellation->isCancelled()) { $this->failed = true; }

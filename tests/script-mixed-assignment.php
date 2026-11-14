@@ -47,6 +47,10 @@ PHP);
 
 /** @var array<string, array{source: string, removed: int, warning?: bool, codes?: list<string>, error?: bool}> $cases */
 $cases = [
+    'uppercase require' => ['source' => '$value = REQUIRE "../bootstrap/app.php";', 'removed' => 1],
+    'mixed case include once' => ['source' => '$value = InClUdE_OnCe "../bootstrap/app.php";', 'removed' => 1],
+    'keyword in string only' => ['source' => '$value = rawScriptInput(); $label = "include require";', 'removed' => 0, 'warning' => true],
+    'keyword in comment only' => ['source' => '$value = rawScriptInput(); /* require */', 'removed' => 0, 'warning' => true],
     'require' => ['source' => '$value = require "../bootstrap/app.php";', 'removed' => 1],
     'require once' => ['source' => '$value = require_once "../bootstrap/app.php";', 'removed' => 1],
     'include' => ['source' => '$value = include "../bootstrap/app.php";', 'removed' => 1],

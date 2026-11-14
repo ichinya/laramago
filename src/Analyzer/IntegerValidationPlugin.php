@@ -19,6 +19,7 @@ final class IntegerValidationPlugin implements Plugin
     public function register(PluginRegistry $registry): void
     {
         $provider = new ValidatedIntegerAssertionProvider;
+        $registry->registerInitializationHook($provider);
         $registry->registerCodebaseScanHook($provider->calls);
         $registry->registerFunctionAssertionProvider($provider);
     }

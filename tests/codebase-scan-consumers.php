@@ -11,7 +11,7 @@ use Mago\Sdk\CancellationTokenInterface;
 use Mago\Sdk\PHPVersion;
 use Mago\Sdk\Syntax\SourceFile;
 
-require dirname(__DIR__).'/vendor/autoload.php';
+require getenv('LARAMAGO_TEST_AUTOLOAD') ?: dirname(__DIR__).'/vendor/autoload.php';
 
 $checks = 0;
 $expect = static function (mixed $actual, mixed $expected, string $label) use (&$checks): void {

@@ -25,7 +25,7 @@ final class SourceArgumentDeclarationContracts
         return $actual!==null && ! $actual->flags->byReference && ! $actual->flags->possiblyUndefined && $context->types->equals($actual,$expected);
     }
     /** @return array{source:GuardedStringCastContracts,file:array,call:Node\Expr\CallLike,argument:Node\Arg,index:int,target:string,native:FunctionLikeMetadata}|null */
-    public function receiving(IssueFilterContext $context,array $codes): ?array
+    public function receiving(IssueFilterContext $context,array $codes,?string $shape=null): ?array
     {
         $issue=$context->issue;
         if (! $this->stage('complete selected argument Error envelope',$issue->level===Level::Error && in_array($issue->code,$codes,true)
@@ -51,6 +51,14 @@ final class SourceArgumentDeclarationContracts
             && ($primary->file===null || $primary->file==='') && ($secondary->file===null || $secondary->file==='')
             && $primary->message===$primaryText && $issue->help===$help && $issue->notes[0]===$note
             && $secondary->message==='Arguments to this '.(str_contains($match[2],'::')?'method':'function').' are incorrect')) { return null; }
+        // Only reject shapes that this caller's later AST check cannot accept.
+        // Unknown syntax still takes the full physical/native proof path below.
+        if ($shape!==null && $primary->span->start>=0 && $primary->span->end>$primary->span->start
+            && $primary->span->end<=strlen($context->contents)
+            && self::rejectsArgumentShape(substr($context->contents,$primary->span->start,$primary->span->end-$primary->span->start),$shape)) {
+            $this->stage('selected argument syntax cannot satisfy this policy',false);
+            return null;
+        }
         $source=new GuardedStringCastContracts($this->root);$file=$source->read($context->file,$context->contents);
         if (! $this->stage('current complete physical caller source',$file!==null)) { return null; }
         $index=(int)$match[1]-1;$target=$match[2];$calls=[];
@@ -88,6 +96,21 @@ final class SourceArgumentDeclarationContracts
                 && ($parameter->type===null?$formal->declaredType===null:$source->located($formal->declaredType?->location,$parameter->type,$physical)))) { return null; }
         }
         return compact('source','file','call','argument','index','target','native');
+    }
+
+    /** A conservative rejection shortcut, never authority to suppress an issue. */
+    private static function rejectsArgumentShape(string $expression,string $shape): bool
+    {
+        if (! in_array($shape,['variable','property'],true)) { return false; }
+        $expression=ltrim($expression);
+        if ($expression==='') { return true; }
+        // Parentheses, comments and braced/dynamic variables remain undecided.
+        if (! in_array($expression[0],['$','(','/','#'],true)) { return true; }
+        $variable='\$[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*';
+        if ($shape==='property') {
+            return preg_match('~^'.$variable.'$~D',$expression)===1;
+        }
+        return preg_match('~^'.$variable.'\s*(?:\?->|->|\[|\(|::)~',$expression)===1;
     }
     public function admits(IssueFilterContext $context,array $receiving,Type $domain): bool
     {

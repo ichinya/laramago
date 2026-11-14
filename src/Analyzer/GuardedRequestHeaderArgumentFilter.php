@@ -25,6 +25,8 @@ final class GuardedRequestHeaderArgumentFilter implements IssueFilterHook
     {
         $contracts=new SourceArgumentDeclarationContracts($this->root);
         try {
+            if (! $contracts->stage('selected diagnostic can describe an explode argument',
+                str_contains($context->issue->message,' of `explode`: expected `'))) { return IssueFilterDecision::Keep; }
             $receiving=$contracts->receiving($context,['possibly-invalid-argument']);if ($receiving===null) { return IssueFilterDecision::Keep; }
             ['source'=>$source,'file'=>$file,'call'=>$call,'argument'=>$argument]=$receiving;$header=$argument->value;
             if (! $contracts->stage('exact selected explode and one literal scalar header key',$receiving['target']==='explode' && $receiving['index']===1

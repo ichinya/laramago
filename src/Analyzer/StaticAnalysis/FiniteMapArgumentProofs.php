@@ -45,9 +45,48 @@ final class FiniteMapArgumentProofs implements InitializationHook, CodebaseScanH
 
     public function initialize(InitializationContext $context): void
     {
+        self::registerProjection();
         $this->files = $this->symbols = [];
         $this->complete = $this->failed = $this->started = false;
         $this->bytes = 0;
+    }
+
+    /** @internal Register only while the owning hook is active. */
+    public static function registerProjection(): void
+    {
+        CodebaseScanSyntax::registerProjection(self::class.'::source-symbols:v1', self::sourceSymbols(...));
+        CodebaseScanSyntax::registerProjection(self::class.'::source-proofs:v1', self::sourceProofs(...));
+    }
+
+    private static function sourceSymbols(array $nodes): array
+    {
+        $symbols = [];
+        foreach (CodebaseScanSyntax::findInstanceOf($nodes, Node\Stmt\ClassLike::class) as $class) {
+            if ($class->name !== null && $class->namespacedName !== null) { $symbols[] = strtolower($class->namespacedName->toString()); }
+        }
+        return ['symbols' => $symbols, 'ticks' => CodebaseScanSyntax::findFirst($nodes,
+            static fn (Node $node): bool => $node instanceof Node\DeclareItem && strtolower($node->key->name) === 'ticks') !== null];
+    }
+
+    private static function sourceProofs(array $nodes): array
+    {
+        if (CodebaseScanSyntax::findFirst($nodes, static fn (Node $node): bool => $node instanceof Node\DeclareItem
+            && strtolower($node->key->name) === 'ticks') !== null) { return []; }
+        $proofs = [];
+        $blocked = [];
+        foreach (CodebaseScanSyntax::find($nodes, static fn (Node $node): bool => self::strongDocs($node)) as $node) {
+            $blocked[] = [$node->getStartFilePos(), $node->getEndFilePos() + 1];
+        }
+        foreach (CodebaseScanSyntax::findInstanceOf($nodes, Node\Expr\FuncCall::class) as $call) {
+            $proof = self::candidate($call);
+            if ($proof === null) { continue; }
+            foreach ($blocked as [$start, $end]) {
+                if ($start <= $proof['callback']->getStartFilePos() && $end >= $proof['callback']->getEndFilePos() + 1
+                    || $start <= $proof['array']->getStartFilePos() && $end >= $proof['array']->getEndFilePos() + 1) { continue 2; }
+            }
+            $proofs[] = $proof;
+        }
+        return $proofs;
     }
 
     public function getTargets(): array { return ['**']; }
@@ -91,27 +130,15 @@ final class FiniteMapArgumentProofs implements InitializationHook, CodebaseScanH
             $entry = ['file' => $file->path, 'diskFile' => $this->disk($file->path), 'hash' => hash('sha256', $file->contents), 'proofs' => []];
             $this->files[$path] = $entry;
             try {
-                $nodes = CodebaseScanSyntax::parse($file->contents);
+                $index = CodebaseScanSyntax::query($file->contents, self::class.'::source-symbols:v1', self::sourceSymbols(...));
             } catch (\PhpParser\Error) { $this->failed = true; break; }
-            foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Stmt\ClassLike::class) as $class) {
-                if ($class->name === null || $class->namespacedName === null) { continue; }
-                $symbol = strtolower($class->namespacedName->toString());
+            foreach ($index['symbols'] as $symbol) {
                 if (isset($this->symbols[$symbol])) { $this->failed = true; break 2; }
                 $this->symbols[$symbol] = true;
             }
-            if ((new NodeFinder)->findFirst($nodes, static fn (Node $node): bool => $node instanceof Node\DeclareItem
-                && strtolower($node->key->name) === 'ticks') !== null) { continue; }
-            $blocked = [];
-            foreach ((new NodeFinder)->find($nodes, static fn (Node $node): bool => self::strongDocs($node)) as $node) {
-                $blocked[] = [$node->getStartFilePos(), $node->getEndFilePos() + 1];
-            }
-            foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Expr\FuncCall::class) as $call) {
-                $proof = self::candidate($call);
-                if ($proof === null) { continue; }
-                foreach ($blocked as [$start, $end]) {
-                    if ($start <= $proof['callback']->getStartFilePos() && $end >= $proof['callback']->getEndFilePos() + 1
-                        || $start <= $proof['array']->getStartFilePos() && $end >= $proof['array']->getEndFilePos() + 1) { continue 2; }
-                }
+            if ($index['ticks']) { continue; }
+            $sourceProofs = CodebaseScanSyntax::query($file->contents, self::class.'::source-proofs:v1', self::sourceProofs(...));
+            foreach ($sourceProofs as $proof) {
                 $entry['proofs'][] = $proof + ['contents' => $file->contents] + array_diff_key($entry, ['proofs' => true]);
             }
             $this->files[$path] = $entry;
@@ -292,7 +319,7 @@ final class FiniteMapArgumentProofs implements InitializationHook, CodebaseScanH
         try {
             $nodes = CodebaseScanSyntax::parse($contents);
         } catch (\PhpParser\Error) { return null; }
-        $classes = (new NodeFinder)->find($nodes, static fn (Node $node): bool => $node instanceof Node\Stmt\Class_
+        $classes = CodebaseScanSyntax::find($nodes, static fn (Node $node): bool => $node instanceof Node\Stmt\Class_
             && strcasecmp($node->namespacedName?->toString() ?? '', $class) === 0);
         if (count($classes) !== 1) { return null; }
         return [$classes[0], ['file' => $file, 'diskFile' => $disk, 'hash' => $hash, 'contents' => $contents]];

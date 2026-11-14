@@ -24,14 +24,11 @@ use Mago\Sdk\Analyzer\Type\NamedObjectType;
 use Mago\Sdk\Reporting\AnnotationKind;
 use PhpParser\Error;
 use PhpParser\Node;
-use PhpParser\NodeTraverser;
-use PhpParser\NodeVisitor\NameResolver;
-use PhpParser\ParserFactory;
 
 /** Prove a nonnullable result selected by an exhaustive literal foreach. */
 final class LiteralForeachSelectionReturnFilter implements IssueFilterHook, InitializationHook, CodebaseScanHook
 {
-    /** @var array<string, array<Node>|null> */
+    /** @var array<string, string> Compact source facts, including parse failures; original FIFO cohort. */
     private array $cache = [];
     private ?PhpSource $source = null;
     private ?FactoryResultContract $factories = null;
@@ -95,19 +92,18 @@ final class LiteralForeachSelectionReturnFilter implements IssueFilterHook, Init
         }
         $nodes = $this->nodes($context->file, $context->contents);
         $sites = [];
-        foreach (self::declarations($nodes ?? []) as [$owner, $name, $scope]) {
-            $return = $scope->stmts[array_key_last($scope->stmts ?? [])] ?? null;
+        foreach ($nodes['sites'] ?? [] as $site) {
+            [$owner, $name, $scope, $span] = $site;
             $identifier = $owner === null ? $name : $owner.'::'.$name;
-            if (strcasecmp($identifier, $match[1]) === 0 && $return instanceof Node\Stmt\Return_
-                && $return->expr?->getStartFilePos() === $primary->span->start
-                && $return->expr->getEndFilePos() + 1 === $primary->span->end) {
-                $sites[] = [$owner, $name, $scope, $return];
+            if (strcasecmp($identifier, $match[1]) === 0
+                && $span === [$primary->span->start, $primary->span->end]) {
+                $sites[] = $site;
             }
         }
         if (count($sites) !== 1) {
             return IssueFilterDecision::Keep;
         }
-        [$owner, $name, $scope, $return] = $sites[0];
+        [$owner, $name, $scope, $span, $proof] = $sites[0];
         $metadata = $owner === null ? $context->codebase->getFunction($name) : $context->codebase->getDeclaringMethod($owner, $name);
         $declared = DiagnosticArrayTypes::resolveAliases($metadata?->returnType?->type ?? Type::never(), $context->codebase);
         if ($metadata === null || $declared === null || $metadata->templates !== []
@@ -116,7 +112,6 @@ final class LiteralForeachSelectionReturnFilter implements IssueFilterHook, Init
             || ! DiagnosticArrayTypes::same($expected, $declared, $context->types)) {
             return IssueFilterDecision::Keep;
         }
-        $proof = LiteralForeachSelection::prove($scope, $return);
         if ($proof === null) {
             return IssueFilterDecision::Keep;
         }
@@ -129,7 +124,7 @@ final class LiteralForeachSelectionReturnFilter implements IssueFilterHook, Init
         }
         $producer = $proof['producer'];
         $proven = $producer instanceof Node\Expr\FuncCall
-            ? $this->nativeFunctionResult($producer, $context, $nodes ?? [])
+            ? $this->nativeFunctionResult($producer, $context, $nodes['functions'] ?? [])
             : ($this->factories ??= new FactoryResultContract($this->root))->resolve($context->codebase, $producer, $owner);
         if ($proven === null || ! self::nullableObject($match[3], $proven)
             || ! DiagnosticArrayTypes::same($found, Type::union($proven, Type::null()), $context->types)
@@ -140,7 +135,7 @@ final class LiteralForeachSelectionReturnFilter implements IssueFilterHook, Init
         return IssueFilterDecision::Remove;
     }
 
-    /** @param array<Node> $currentNodes */
+    /** @param list<array{?string, string, Node\Stmt\Function_|Node\Stmt\ClassMethod}> $currentNodes */
     private function nativeFunctionResult(Node\Expr\FuncCall $call, IssueFilterContext $context, array $currentNodes): ?Type
     {
         $name = self::functionName($call, $context->codebase);
@@ -169,7 +164,7 @@ final class LiteralForeachSelectionReturnFilter implements IssueFilterHook, Init
             // call could instead dispatch to a different global fallback.
             return null;
         }
-        $nodes = $currentNodes;
+        $functions = $currentNodes;
         if (self::path($file) !== self::path($context->file)) {
             $source = $this->source ??= new PhpSource($this->root);
             $path = self::readablePath($file);
@@ -177,10 +172,10 @@ final class LiteralForeachSelectionReturnFilter implements IssueFilterHook, Init
             if ($size === false || $size > 1_000_000) {
                 return null;
             }
-            $nodes = $source->read($path);
+            $functions = iterator_to_array(self::declarations($source->read($path) ?? []), false);
         }
         $matches = [];
-        foreach (self::declarations($nodes ?? []) as [$owner, $functionName, $syntax]) {
+        foreach ($functions as [$owner, $functionName, $syntax]) {
             if ($owner === null && strcasecmp($functionName, $name) === 0) {
                 $matches[] = $syntax;
             }
@@ -302,7 +297,7 @@ final class LiteralForeachSelectionReturnFilter implements IssueFilterHook, Init
         }
     }
 
-    /** @return array<Node>|null */
+    /** @return array{sites: list<array>, functions: list<array>}|null */
     private function nodes(string $file, string $contents): ?array
     {
         $key = hash('sha256', $file."\0".$contents);
@@ -311,13 +306,33 @@ final class LiteralForeachSelectionReturnFilter implements IssueFilterHook, Init
                 unset($this->cache[array_key_first($this->cache)]);
             }
             try {
-                $nodes = (new ParserFactory)->createForNewestSupportedVersion()->parse($contents) ?? [];
-                $this->cache[$key] = (new NodeTraverser(new NameResolver))->traverse($nodes);
+                $facts = StaticAnalysis\CodebaseScanSyntax::query($contents, self::class.'::selection-facts:v1', self::sourceFacts(...));
             } catch (Error) {
-                $this->cache[$key] = null;
+                $facts = null;
             }
+            $this->cache[$key] = serialize($facts);
         }
-        return $this->cache[$key];
+        // Keep failure hits and the old FIFO without retaining expanded bodies or sharing mutable headers.
+        return unserialize($this->cache[$key], ['allowed_classes' => true]);
+    }
+
+    /** Preserve every matching site, including failed proofs, so ambiguity still vetoes removal. */
+    private static function sourceFacts(array $nodes): array
+    {
+        $sites = $functions = [];
+        foreach (self::declarations($nodes) as [$owner, $name, $scope]) {
+            $header = clone $scope;
+            $header->stmts = $scope->stmts === null ? null : [];
+            if ($owner === null) { $functions[] = [$owner, $name, $header]; }
+            $statements = $scope->stmts ?? [];
+            $return = $statements === [] ? null : $statements[array_key_last($statements)];
+            if (! $return instanceof Node\Stmt\Return_ || $return->expr === null) { continue; }
+            $proof = LiteralForeachSelection::prove($scope, $return);
+            $sites[] = [$owner, $name, $header,
+                [$return->expr->getStartFilePos(), $return->expr->getEndFilePos() + 1],
+                $proof === null ? null : ['producer' => $proof['producer'], 'safeIntrinsics' => $proof['safeIntrinsics']]];
+        }
+        return ['sites' => $sites, 'functions' => $functions];
     }
 
     private static function readablePath(string $path): string

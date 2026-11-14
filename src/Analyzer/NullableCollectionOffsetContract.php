@@ -19,16 +19,38 @@ use Mago\Sdk\Analyzer\Type\Variance;
 use Mago\Sdk\SourceLocation;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
-use PhpParser\NodeTraverser;
-use PhpParser\NodeVisitor\NameResolver;
-use PhpParser\ParserFactory;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax;
 
 /** Current declared native-array storage/read contracts, not a lifetime or existence theorem. */
 final class NullableCollectionOffsetContract
 {
+    private const SOURCE_WINDOW_BYTES = 8 * 1024 * 1024;
+    private const SOURCE_WINDOW_ENTRIES = 8;
+
+    /** @var \WeakMap<object, \stdClass>|null Private read-only ASTs for each active proof/Fiber. */
+    private ?\WeakMap $sourceWindows = null;
+
     public array $stages = [];
     public function __construct(private readonly string $root, private readonly string $support) {}
     public function current(IssueFilterContext $context, string $receiver): bool
+    {
+        return $this->withSourceWindow(fn (): bool => $this->currentSnapshot($context, $receiver));
+    }
+
+    private function withSourceWindow(\Closure $proof): bool
+    {
+        $key = \Fiber::getCurrent() ?? $this;
+        $this->sourceWindows ??= new \WeakMap;
+        $previous = $this->sourceWindows[$key] ?? null;
+        $this->sourceWindows[$key] = (object) ['trees' => [], 'bytes' => 0];
+        try { return $proof(); }
+        finally {
+            if ($previous === null) { unset($this->sourceWindows[$key]); }
+            else { $this->sourceWindows[$key] = $previous; }
+        }
+    }
+
+    private function currentSnapshot(IssueFilterContext $context, string $receiver): bool
     {
         $this->stages = ['receiver' => $receiver, 'classes' => []];
         $ancestors = $context->codebase->getClassAncestors($receiver);
@@ -420,10 +442,34 @@ final class NullableCollectionOffsetContract
         if ($path === null) { return null; }
         $path = $this->path($path); $contents = @file_get_contents($path);
         if ($contents === false || strlen($contents) > 1024 * 1024) { return null; }
-        try { $nodes = (new ParserFactory)->createForNewestSupportedVersion()->parse($contents) ?? [];
-            $nodes = (new NodeTraverser(new NameResolver))->traverse($nodes); }
-        catch (\PhpParser\Error) { return null; }
-        return ['path' => $path, 'contents' => $contents, 'hash' => hash('sha256', $contents), 'nodes' => $nodes];
+        $hash = hash('sha256', $contents);
+        $window = $this->sourceWindows[\Fiber::getCurrent() ?? $this] ?? null;
+        if ($window !== null && isset($window->trees[$hash])) {
+            $entry = $window->trees[$hash];
+            unset($window->trees[$hash]);
+            $window->trees[$hash] = $entry;
+            $nodes = $entry['nodes'];
+        } else {
+            try { $nodes = CodebaseScanSyntax::parse($contents); }
+            catch (\PhpParser\Error) { return null; }
+            if ($window !== null) {
+                // Only this class's read-only private consumers see these nodes.
+                // Account by encoded size, cap entries, and release at proof exit.
+                $size = strlen(serialize($nodes));
+                if ($size <= self::SOURCE_WINDOW_BYTES) {
+                    while ($window->trees !== [] && (count($window->trees) >= self::SOURCE_WINDOW_ENTRIES
+                        || $window->bytes + $size > self::SOURCE_WINDOW_BYTES)) {
+                        $oldest = array_key_first($window->trees);
+                        $window->bytes -= $window->trees[$oldest]['bytes'];
+                        unset($window->trees[$oldest]);
+                    }
+                    $window->trees[$hash] = ['nodes' => $nodes, 'bytes' => $size];
+                    $window->bytes += $size;
+                }
+            }
+        }
+        // Disk bytes, path identity, native metadata and post-RPC checks stay fresh.
+        return ['path' => $path, 'contents' => $contents, 'hash' => $hash, 'nodes' => $nodes];
     }
     private function classNode(array $nodes, string $name): ?Node\Stmt\Class_
     {

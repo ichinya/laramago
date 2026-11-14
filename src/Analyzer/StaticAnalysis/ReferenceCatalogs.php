@@ -223,6 +223,12 @@ final class ReferenceCatalogs
         return $this->inertiaProps[$name] = (new VueDefineProps)->read($contents);
     }
 
+    /** Necessary configuration only; leave lazy filesystem validation at its original call site. */
+    public function mayProveMissingInertiaPages(): bool
+    {
+        return ($this->inertiaPageConfiguration['complete'] ?? false) === true;
+    }
+
     /**
      * Return true for a known exact-case name, false for an absent name in an
      * explicitly complete catalog, and null when absence is not proven.

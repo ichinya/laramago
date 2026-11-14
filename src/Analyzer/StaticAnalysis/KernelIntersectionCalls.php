@@ -21,6 +21,20 @@ final class KernelIntersectionCalls implements CodebaseScanHook
     private bool $complete = false;
     private bool $failed = false;
 
+    /** @internal Register only while the owning hook is active. */
+    public static function registerProjection(): void
+    {
+        StoredCallbackSourceDeclarations::registerSourceIndex();
+        CodebaseScanSyntax::registerProjection(self::class.'::source-proofs:v2', self::sourceRecords(...));
+    }
+
+    private static function sourceRecords(array $nodes): array
+    {
+        $candidates = [];
+        (new self)->inspect($nodes, null, $candidates);
+        return $candidates;
+    }
+
     public function getTargets(): array
     {
         return ['**'];
@@ -44,17 +58,15 @@ final class KernelIntersectionCalls implements CodebaseScanHook
                 break;
             }
             try {
-                $nodes = CodebaseScanSyntax::parse($file->contents);
+                $records = CodebaseScanSyntax::query($file->contents, self::class.'::source-proofs:v2', self::sourceRecords(...));
+                $reservations = StoredCallbackSourceDeclarations::sourceIndexSnapshot($file->contents)['callReservations'];
             } catch (\PhpParser\Error) {
                 $this->failed = true;
                 break;
             }
-            $candidates = [];
-            $this->inspect($nodes, null, $candidates);
-            foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Expr\CallLike::class) as $call) {
-                $key = $call->getStartFilePos().':'.($call->getEndFilePos() + 1);
-                // A noncandidate or a second host file with the same bytes poisons the span.
-                $this->calls[$key] = array_key_exists($key, $this->calls) ? null : ($candidates[$key] ?? null);
+            foreach ($reservations as $key => $duplicate) {
+                $proof = $duplicate ? null : ($records[$key] ?? null);
+                $this->calls[$key] = array_key_exists($key, $this->calls) ? null : $proof;
                 if (count($this->calls) > self::MAX_CALLS) {
                     $this->failed = true;
                     break;

@@ -28,6 +28,7 @@ final class DeprecatedMethodCompatibilityProof implements InitializationHook, Co
     public function initialize(InitializationContext $context): void
     {
         $this->reset();
+        self::registerProjection();
     }
     private function reset(): void
     {
@@ -39,6 +40,7 @@ final class DeprecatedMethodCompatibilityProof implements InitializationHook, Co
     {
         if ($context->firstBatch) {
             $this->reset();
+            self::registerProjection();
             $this->started = true;
         } elseif (!$this->started || $this->complete) {
             $this->failed = true;
@@ -51,24 +53,22 @@ final class DeprecatedMethodCompatibilityProof implements InitializationHook, Co
                 $this->failed = true;
                 break;
             }
-            $nodes = self::parse($file->contents);
-            if ($nodes === null) {
+            try {
+                $classes = \Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax::query($file->contents, self::class.'::scan-classes:v1', self::scanClasses(...));
+            } catch (\PhpParser\Error|\LogicException) { $classes = null; }
+            if ($classes === null) {
                 $this->failed = true;
                 break;
             }
             $this->files[$path] = ['file' => $file->path, 'sha256' => hash('sha256', $file->contents)];
-            foreach ((new NodeFinder())->findInstanceOf($nodes, Node\Stmt\ClassLike::class) as $class) {
-                if ($class->name === null || !isset($class->namespacedName)) {
-                    continue;
-                }
-                $name = strtolower($class->namespacedName->toString());
-                $this->classes[$name] = array_key_exists($name, $this->classes) ? null : ['file' => $file->path, 'sha256' => hash('sha256', $file->contents), 'span' => self::span($class)];
+            foreach ($classes as [$name, $span]) {
+                $this->classes[$name] = array_key_exists($name, $this->classes) ? null : ['file' => $file->path, 'sha256' => hash('sha256', $file->contents), 'span' => $span];
                 if (count($this->classes) > 100000) {
                     $this->failed = true;
                     break;
                 }
             }
-            unset($nodes);
+            unset($classes);
         }
         if ($context->cancellation->isCancelled()) {
             $this->failed = true;
@@ -77,6 +77,20 @@ final class DeprecatedMethodCompatibilityProof implements InitializationHook, Co
             $this->files = $this->classes = [];
         }
         $this->complete = $context->lastBatch && $this->started && !$this->failed;
+    }
+    /** @internal Register only immutable facts extracted from exact source bytes. */
+    public static function registerProjection(): void
+    {
+        \Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax::registerProjection(self::class.'::scan-classes:v1', self::scanClasses(...));
+    }
+    private static function scanClasses(array $nodes): array
+    {
+        $classes = [];
+        foreach (\Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax::findInstanceOf($nodes, Node\Stmt\ClassLike::class) as $class) {
+            if ($class->name === null || !isset($class->namespacedName)) { continue; }
+            $classes[] = [strtolower($class->namespacedName->toString()), self::span($class)];
+        }
+        return $classes;
     }
     /** Every stage and consumed-source ledger is local to this genuine native request across Fiber awaits. */
     public function prove(IssueFilterContext $context): array

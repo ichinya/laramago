@@ -38,6 +38,7 @@ final class SimpleXmlProvenance implements CodebaseScanHook, InitializationHook
 
     public function initialize(InitializationContext $context): void
     {
+        StoredCallbackSourceDeclarations::registerSourceIndex();
         $this->properties = $this->files = [];
         $this->complete = $this->failed = false;
     }
@@ -64,7 +65,8 @@ final class SimpleXmlProvenance implements CodebaseScanHook, InitializationHook
                     $this->failed = true;
                     break;
                 }
-                $nodes = CodebaseScanSyntax::parse($file->contents);
+                $outline = StoredCallbackSourceDeclarations::sourceIndexSnapshot($file->contents)['xmlOutline'];
+                $nodes = $outline['hasOrigin'] ? CodebaseScanSyntax::parse($file->contents) : [];
             } catch (\PhpParser\Error) {
                 $this->failed = true;
                 break;
@@ -91,10 +93,9 @@ final class SimpleXmlProvenance implements CodebaseScanHook, InitializationHook
             $this->files[$path] = ['hash' => hash('sha256', $file->contents), 'proofs' => $proofs];
             // Provider requests contain a span but no source file. All accesses,
             // including unsupported dynamic and nullsafe ones, reserve their spans.
-            foreach ((new NodeFinder)->find($nodes, static fn (Node $node): bool =>
-                $node instanceof Node\Expr\PropertyFetch || $node instanceof Node\Expr\NullsafePropertyFetch) as $access) {
-                $key = self::key($access->name);
-                $this->properties[$key] = array_key_exists($key, $this->properties) ? null : ($candidates[$key] ?? null);
+            foreach ($outline['properties'] as $key => $duplicate) {
+                $this->properties[$key] = $duplicate || array_key_exists($key, $this->properties)
+                    ? null : ($candidates[$key] ?? null);
                 if (count($this->properties) > 100_000) {
                     $this->failed = true;
                     break;
@@ -261,8 +262,17 @@ final class SimpleXmlProvenance implements CodebaseScanHook, InitializationHook
             return null;
         }
         $finder = new NodeFinder;
-        $unsafe = $finder->findFirst([$scope], static fn (Node $node): bool =>
-            $node instanceof Node\Expr\AssignRef || $node instanceof Node\Expr\Eval_ || $node instanceof Node\Expr\Include_
+        $hasXmlOrigin = false;
+        $unsafe = $finder->findFirst([$scope], static function (Node $node) use (&$hasXmlOrigin): bool {
+            // Every tracked XML value starts at one of these existing root forms.
+            // Inspect the same nodes as the unsafe scan; unrelated property spans
+            // are still reserved by scan(), including scopes rejected here.
+            if ($node instanceof Node\Expr\New_ && $node->class instanceof Node\Name
+                && strcasecmp($node->class->toString(), self::XML) === 0
+                || $node instanceof Node\Expr\FuncCall && self::functionName($node, 'simplexml_load_string')) {
+                $hasXmlOrigin = true;
+            }
+            return $node instanceof Node\Expr\AssignRef || $node instanceof Node\Expr\Eval_ || $node instanceof Node\Expr\Include_
             || $node instanceof Node\Expr\Closure || $node instanceof Node\Expr\ArrowFunction || $node instanceof Node\Expr\ShellExec
             || $node instanceof Node\Expr\Yield_ || $node instanceof Node\Expr\YieldFrom || $node instanceof Node\Stmt\Global_
             || $node instanceof Node\Stmt\Static_ || $node instanceof Node\Stmt\Goto_ || $node instanceof Node\Stmt\Label
@@ -271,8 +281,9 @@ final class SimpleXmlProvenance implements CodebaseScanHook, InitializationHook
             || $node instanceof Node\Expr\Variable && ! is_string($node->name)
             || $node instanceof Node\ArrayItem && $node->byRef
             || $node instanceof Node\Expr\FuncCall && (! $node->name instanceof Node\Name
-                || in_array(strtolower($node->name->getLast()), ['eval', 'extract', 'parse_str', 'mb_parse_str', 'compact', 'get_defined_vars', 'func_get_args', 'func_get_arg', 'call_user_func', 'call_user_func_array'], true)));
-        if ($unsafe !== null) {
+                || in_array(strtolower($node->name->getLast()), ['eval', 'extract', 'parse_str', 'mb_parse_str', 'compact', 'get_defined_vars', 'func_get_args', 'func_get_arg', 'call_user_func', 'call_user_func_array'], true));
+        });
+        if ($unsafe !== null || ! $hasXmlOrigin) {
             return null;
         }
         (new NodeTraverser(new ParentConnectingVisitor))->traverse([$scope]);

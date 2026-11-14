@@ -15,19 +15,13 @@ use Mago\Sdk\Reporting\AnnotationKind;
 use PhpParser\Error;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
-use PhpParser\NodeTraverser;
-use PhpParser\NodeVisitor\NameResolver;
-use PhpParser\ParserFactory;
 
 /** Preserve required array fields while allowing additional record keys. */
 final class StructuralArrayContractFilter implements IssueFilterHook, InitializationHook
 {
-    /** @var array<string, list<Node>> */
-    private array $parsed = [];
-
     public function initialize(InitializationContext $context): void
     {
-        $this->parsed = [];
+        // Source-only facts live in the existing bounded syntax query cache.
     }
 
     public function getCodes(): array
@@ -84,26 +78,56 @@ final class StructuralArrayContractFilter implements IssueFilterHook, Initializa
             ? IssueFilterDecision::Remove : IssueFilterDecision::Keep;
     }
 
-    /** @return list<Node>|null */
+    /** @return array{calls: list<array>, assignments: list<array>}|null */
     private function nodes(IssueFilterContext $context): ?array
     {
-        $key = hash('sha256', $context->file."\0".$context->contents);
-        if (! isset($this->parsed[$key])) {
-            try {
-                $nodes = (new ParserFactory)->createForNewestSupportedVersion()->parse($context->contents) ?? [];
-                $nodes = (new NodeTraverser(new NameResolver))->traverse($nodes);
-            } catch (Error) {
-                return null;
-            }
-            if (count($this->parsed) >= 16) {
-                unset($this->parsed[array_key_first($this->parsed)]);
-            }
-            $this->parsed[$key] = $nodes;
+        try {
+            return StaticAnalysis\CodebaseScanSyntax::query($context->contents, self::class.'::source-sites:v1', self::sourceSites(...));
+        } catch (Error) {
+            return null;
         }
-        return $this->parsed[$key];
     }
 
-    /** @param list<Node> $nodes */
+    /** Keep traversal order and spans; native signatures remain live at the call site. */
+    private static function sourceSites(array $nodes): array
+    {
+        $calls = [];
+        foreach ((new NodeFinder)->find($nodes, static fn (Node $node): bool => $node instanceof Node\Expr\FuncCall
+            || $node instanceof Node\Expr\MethodCall || $node instanceof Node\Expr\StaticCall
+            || $node instanceof Node\Expr\NullsafeMethodCall) as $call) {
+            $method = ! $call instanceof Node\Expr\FuncCall;
+            if ($method ? ! $call->name instanceof Node\Identifier : ! $call->name instanceof Node\Name) {
+                continue;
+            }
+            $arguments = []; $unpacked = false;
+            foreach ($call->args as $key => $argument) {
+                $arguments[$key] = $argument instanceof Node\Arg
+                    ? ['unpack' => $argument->unpack, 'name' => $argument->name?->toString(),
+                        'start' => $argument->value->getStartFilePos(), 'end' => $argument->value->getEndFilePos() + 1]
+                    : null;
+                $unpacked = $unpacked || $argument instanceof Node\Arg && $argument->unpack;
+            }
+            $calls[] = ['method' => $method, 'name' => $call->name->toString(),
+                'resolved' => $method ? null : $call->name->getAttribute('namespacedName')?->toString(),
+                'firstClass' => $call->isFirstClassCallable(), 'unpacked' => $unpacked, 'args' => $arguments];
+        }
+        $assignments = [];
+        foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Stmt\Class_::class) as $class) {
+            if ($class->name === null || $class->namespacedName === null) { continue; }
+            foreach ($class->getMethods() as $method) {
+                if ($method->isStatic()) { continue; }
+                foreach (self::assignments($method->stmts ?? []) as $assignment) {
+                    $property = $assignment->var;
+                    if (! $property instanceof Node\Expr\PropertyFetch || ! $property->var instanceof Node\Expr\Variable
+                        || $property->var->name !== 'this' || ! $property->name instanceof Node\Identifier) { continue; }
+                    $assignments[] = ['owner' => $class->namespacedName->toString(), 'name' => $property->name->toString(),
+                        'start' => $assignment->expr->getStartFilePos(), 'end' => $assignment->expr->getEndFilePos() + 1];
+                }
+            }
+        }
+        return ['calls' => $calls, 'assignments' => $assignments];
+    }
+
     private function parameterType(IssueFilterContext $context, array $nodes, string $target, int $position, int $start, int $end): ?Type
     {
         if (str_contains($target, '::')) {
@@ -115,49 +139,25 @@ final class StructuralArrayContractFilter implements IssueFilterHook, Initializa
             $signature = $context->codebase->getFunction($target);
             $method = false;
         }
-        if ($signature === null) {
-            return null;
-        }
-        $calls = (new NodeFinder)->find($nodes, static fn (Node $node): bool => $node instanceof Node\Expr\FuncCall
-            || $node instanceof Node\Expr\MethodCall || $node instanceof Node\Expr\StaticCall
-            || $node instanceof Node\Expr\NullsafeMethodCall);
-        foreach ($calls as $call) {
+        if ($signature === null) { return null; }
+        foreach ($nodes['calls'] as $call) {
             if ($method) {
-                if ($call instanceof Node\Expr\FuncCall || ! $call->name instanceof Node\Identifier
-                    || strcasecmp($call->name->toString(), $name) !== 0) {
-                    continue;
-                }
-            } elseif (! $call instanceof Node\Expr\FuncCall || ! $call->name instanceof Node\Name) {
-                continue;
-            } else {
-                $resolved = $call->name->getAttribute('namespacedName')?->toString();
-                if (strcasecmp($call->name->toString(), $name) !== 0 && ($resolved === null || strcasecmp($resolved, $name) !== 0)) {
-                    continue;
-                }
-            }
-            if ($call->isFirstClassCallable()) {
+                if (! $call['method'] || strcasecmp($call['name'], $name) !== 0) { continue; }
+            } elseif ($call['method'] || strcasecmp($call['name'], $name) !== 0
+                && ($call['resolved'] === null || strcasecmp($call['resolved'], $name) !== 0)) {
                 continue;
             }
-            $arg = $call->args[$position] ?? null;
-            if (! $arg instanceof Node\Arg || $arg->unpack || $arg->value->getStartFilePos() !== $start
-                || $arg->value->getEndFilePos() + 1 !== $end) {
+            if ($call['firstClass']) { continue; }
+            $arg = $call['args'][$position] ?? null;
+            if ($arg === null || $arg['unpack'] || $arg['start'] !== $start || $arg['end'] !== $end || $call['unpacked']) {
                 continue;
             }
-            // A preceding unpack changes parameter mapping even for a later plain argument.
-            foreach ($call->args as $argument) {
-                if ($argument instanceof Node\Arg && $argument->unpack) {
-                    continue 2;
-                }
-            }
-            if ($arg->name === null) {
+            if ($arg['name'] === null) {
                 $parameter = $signature->parameters[$position] ?? null;
             } else {
                 $parameter = null;
                 foreach ($signature->parameters as $candidate) {
-                    if (ltrim($candidate->name, '$') === $arg->name->toString()) {
-                        $parameter = $candidate;
-                        break;
-                    }
+                    if (ltrim($candidate->name, '$') === $arg['name']) { $parameter = $candidate; break; }
                 }
             }
             return $parameter?->type?->type;
@@ -165,32 +165,13 @@ final class StructuralArrayContractFilter implements IssueFilterHook, Initializa
         return null;
     }
 
-    /** @param list<Node> $nodes */
     private function propertyType(IssueFilterContext $context, array $nodes, string $name, int $start, int $end): ?Type
     {
-        foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Stmt\Class_::class) as $class) {
-            if ($class->name === null || $class->namespacedName === null) {
-                continue;
-            }
-            foreach ($class->getMethods() as $method) {
-                if ($method->isStatic()) {
-                    continue;
-                }
-                foreach ($this->assignments($method->stmts ?? []) as $assignment) {
-                    $property = $assignment->var;
-                    if (! $property instanceof Node\Expr\PropertyFetch || ! $property->var instanceof Node\Expr\Variable
-                        || $property->var->name !== 'this' || ! $property->name instanceof Node\Identifier
-                        || $property->name->toString() !== $name || $assignment->expr->getStartFilePos() !== $start
-                        || $assignment->expr->getEndFilePos() + 1 !== $end) {
-                        continue;
-                    }
-                    $metadata = $context->codebase->getDeclaringProperty($class->namespacedName->toString(), '$'.$name);
-                    if ($metadata === null || $metadata->hooks !== []) {
-                        return null;
-                    }
-                    return ($metadata->writeType ?? $metadata->type)?->type;
-                }
-            }
+        foreach ($nodes['assignments'] as $assignment) {
+            if ($assignment['name'] !== $name || $assignment['start'] !== $start || $assignment['end'] !== $end) { continue; }
+            $metadata = $context->codebase->getDeclaringProperty($assignment['owner'], '$'.$name);
+            if ($metadata === null || $metadata->hooks !== []) { return null; }
+            return ($metadata->writeType ?? $metadata->type)?->type;
         }
         return null;
     }
@@ -198,7 +179,7 @@ final class StructuralArrayContractFilter implements IssueFilterHook, Initializa
     /** @param array<array-key, mixed> $nodes
      * @return \Generator<Node\Expr\Assign>
      */
-    private function assignments(array $nodes): \Generator
+    private static function assignments(array $nodes): \Generator
     {
         foreach ($nodes as $node) {
             if (! $node instanceof Node || $node instanceof Node\FunctionLike || $node instanceof Node\Stmt\ClassLike) {
@@ -209,7 +190,7 @@ final class StructuralArrayContractFilter implements IssueFilterHook, Initializa
             }
             foreach ($node->getSubNodeNames() as $name) {
                 $value = $node->$name;
-                yield from $this->assignments(is_array($value) ? $value : [$value]);
+                yield from self::assignments(is_array($value) ? $value : [$value]);
             }
         }
     }

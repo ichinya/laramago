@@ -22,6 +22,8 @@ final class SessionArrayKeyArgumentFilter implements IssueFilterHook
     {
         $contracts=new SourceArgumentDeclarationContracts($this->root);
         try {
+            if (! $contracts->stage('selected diagnostic can describe an array-key copy',
+                str_contains($context->issue->message,'provided type `array-key` is less specific.'))) { return IssueFilterDecision::Keep; }
             $receiving=$contracts->receiving($context,['less-specific-argument']);if ($receiving===null) { return IssueFilterDecision::Keep; }
             ['source'=>$source,'file'=>$file,'call'=>$call,'argument'=>$argument,'native'=>$native]=$receiving;
             if (! $contracts->stage('selected array-key copy receiving put',$receiving['index']===0 && $call instanceof Node\Expr\MethodCall && count($call->args)===2

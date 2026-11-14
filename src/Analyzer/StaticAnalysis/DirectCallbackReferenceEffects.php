@@ -26,6 +26,8 @@ final class DirectCallbackReferenceEffects implements InitializationHook, Codeba
     private const RESERVED = ['GLOBALS', '_GET', '_POST', '_COOKIE', '_REQUEST', '_SERVER', '_ENV', '_FILES', '_SESSION', 'http_response_header', 'argv', 'argc'];
     private array $files = [];
     private array $classes = [];
+    private array $sourceBytes = [];
+    private array $materialized = [];
     private array $checked = [];
     private array $assertionDeclarations = [];
     private bool $complete = false;
@@ -40,7 +42,9 @@ final class DirectCallbackReferenceEffects implements InitializationHook, Codeba
 
     public function initialize(InitializationContext $context): void
     {
+        StoredCallbackSourceDeclarations::registerSourceIndex();
         $this->files = $this->classes = $this->checked = [];
+        $this->sourceBytes = $this->materialized = [];
         $this->complete = $this->failed = false;
         $this->bytes = 0;
     }
@@ -49,37 +53,60 @@ final class DirectCallbackReferenceEffects implements InitializationHook, Codeba
 
     public function scan(CodebaseScanContext $context): void
     {
-        if ($context->firstBatch) { $this->files = $this->classes = $this->checked = []; $this->failed = false; $this->bytes = 0; }
+        if ($context->firstBatch) { $this->files = $this->classes = $this->checked = $this->sourceBytes = $this->materialized = []; $this->failed = false; $this->bytes = 0; }
         $this->complete = false;
         foreach ($context->files as $file) {
             try { $context->cancellation->throwIfCancelled(); }
-            catch (\Throwable $interrupted) { $this->failed = true; $this->files = $this->classes = []; throw $interrupted; }
+            catch (\Throwable $interrupted) { $this->failed = true; $this->files = $this->classes = $this->sourceBytes = $this->materialized = []; throw $interrupted; }
             $path = RefreshedModelProperties::path($file->path);
             $this->bytes += strlen($file->contents);
             if ($this->failed || isset($this->files[$path]) || strlen($file->contents) > 2_000_000 || count($this->files) >= 100_000 || $this->bytes > 67_108_864) { $this->failed = true; break; }
             try {
-                $nodes = CodebaseScanSyntax::parse($file->contents);
+                $index = StoredCallbackSourceDeclarations::sourceIndexSnapshot($file->contents);
             } catch (\PhpParser\Error) { $this->failed = true; break; }
             $entry = ['file' => $file->path, 'diskFile' => $this->disk($file->path), 'hash' => hash('sha256', $file->contents), 'proofs' => []];
             $this->files[$path] = $entry;
-            if ((new NodeFinder)->findFirst($nodes, static fn (Node $node): bool => $node instanceof Node\DeclareItem && strtolower($node->key->name) === 'ticks') !== null) { continue; }
-            foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Stmt\ClassLike::class) as $class) {
-                if ($class->name === null || $class->namespacedName === null) { continue; }
-                $name = strtolower($class->namespacedName->toString());
+            if ($index['classes'] !== [] && ! $index['hasDirectAssertion']) {
+                $this->sourceBytes[$path] = $file->contents;
+            }
+            foreach ($index['classes'] as $binding) {
+                $name = strtolower($binding['name']);
                 if (isset($this->classes[$name])) { $this->failed = true; break 2; }
-                $this->classes[$name] = ['node' => $class, 'entry' => $entry];
-                if (! $class instanceof Node\Stmt\Class_) { continue; }
-                foreach ($class->getMethods() as $scope) {
-                    if ($scope->stmts === null || ! self::closedScope($scope)) { continue; }
-                    foreach (self::candidates($scope) as $proof) {
-                        $entry['proofs'][] = $proof + ['scope' => $scope, 'callerClass' => $class, 'owner' => $class->namespacedName->toString()]
-                            + array_diff_key($entry, ['proofs' => true]);
+                $this->classes[$name] = $binding + ['entry' => $entry];
+            }
+            if ($index['hasDirectAssertion'] && $index['classes'] !== []) {
+                $nodes = CodebaseScanSyntax::parse($file->contents);
+                foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Stmt\ClassLike::class) as $class) {
+                    if ($class->name === null || $class->namespacedName === null) { continue; }
+                    $name = strtolower($class->namespacedName->toString());
+                    $binding = $this->classes[$name] ?? null;
+                    if ($binding === null || $binding['kind'] !== $class->getType()
+                        || $binding['start'] !== $class->getStartFilePos() || $binding['end'] !== $class->getEndFilePos() + 1) {
+                        $this->failed = true; break 2;
+                    }
+                    // The original catalogue snapshots proofs accumulated before this class.
+                    $this->classes[$name]['entry'] = $entry;
+                    $this->materialized[$name] = ['node' => $class, 'entry' => $entry];
+                    if (! $class instanceof Node\Stmt\Class_) { continue; }
+                    foreach ($class->getMethods() as $scope) {
+                        if ($scope->stmts === null || ! self::closedScope($scope)) { continue; }
+                        foreach (self::candidates($scope) as $proof) {
+                            $entry['proofs'][] = $proof + ['scope' => $scope, 'callerClass' => $class, 'owner' => $class->namespacedName->toString()]
+                                + array_diff_key($entry, ['proofs' => true]);
+                        }
                     }
                 }
             }
+            if ($index['hasDirectAssertion'] && $index['classes'] !== [] && $entry['proofs'] === []) {
+                // No supported proof owns a node from this file yet.
+                foreach ($index['classes'] as $binding) {
+                    unset($this->materialized[strtolower($binding['name'])]);
+                }
+                $this->sourceBytes[$path] = $file->contents;
+            }
             $this->files[$path] = $entry;
         }
-        if ($this->failed) { $this->files = $this->classes = []; }
+        if ($this->failed) { $this->files = $this->classes = $this->sourceBytes = $this->materialized = []; }
         $this->complete = $context->lastBatch && ! $this->failed;
     }
 
@@ -109,7 +136,7 @@ final class DirectCallbackReferenceEffects implements InitializationHook, Codeba
         $bound = $codebase->getMethod($class, $name);
         if ($bound === null || $bound->identifier->class === null) { return null; }
         $owner = $bound->identifier->class;
-        $entry = $this->classes[strtolower($owner)] ?? null;
+        $entry = $this->declaration($owner);
         if ($entry === null) { return null; }
         $syntax = $entry['node']->getMethod($name);
         $metadata = $codebase->getClassLike($owner);
@@ -152,7 +179,7 @@ final class DirectCallbackReferenceEffects implements InitializationHook, Codeba
 
     public function finalClass(Codebase $codebase, string $name): bool
     {
-        $entry = $this->classes[strtolower($name)] ?? null;
+        $entry = $this->declaration($name);
         $metadata = $codebase->getClass($name);
         return $entry !== null && $entry['node'] instanceof Node\Stmt\Class_ && $entry['node']->isFinal()
             && $metadata !== null && $metadata->kind === ClassLikeKind::Class_ && $metadata->flags->contains(MetadataFlags::FINAL)
@@ -162,7 +189,7 @@ final class DirectCallbackReferenceEffects implements InitializationHook, Codeba
     /** Expose only a current complete analyzed declaration to finite constructor plans. */
     public function classSource(Codebase $codebase, string $name): ?array
     {
-        $entry = $this->classes[strtolower($name)] ?? null;
+        $entry = $this->declaration($name);
         $metadata = $codebase->getClassLike($name);
         if ($entry === null || $metadata === null || ! $this->classMatches($codebase, $name) || ! self::current($entry['entry'])) { return null; }
         return ['node' => $entry['node'], 'metadata' => $metadata, 'entry' => $entry['entry']];
@@ -319,8 +346,9 @@ final class DirectCallbackReferenceEffects implements InitializationHook, Codeba
         foreach ([$name, ...$codebase->getClassAncestors($name)] as $owner) {
             $metadata = $codebase->getClassLike($owner);
             if ($metadata === null || $metadata->hasIncompleteHierarchy()) { return false; }
-            $entry = $this->classes[strtolower($owner)] ?? null;
-            if ($entry === null) { continue; }
+            if (! isset($this->classes[strtolower($owner)])) { continue; }
+            $entry = $this->declaration($owner);
+            if ($entry === null) { return false; }
             $node = $entry['node'];
             $kind = $node instanceof Node\Stmt\Class_ ? ClassLikeKind::Class_ : ($node instanceof Node\Stmt\Trait_ ? ClassLikeKind::Trait : ClassLikeKind::Interface);
             if ($metadata->kind !== $kind || strcasecmp($metadata->name, $owner) !== 0 || ! self::located($metadata->location, $node, $entry['entry']['file'])
@@ -488,6 +516,44 @@ final class DirectCallbackReferenceEffects implements InitializationHook, Codeba
         $size = @filesize($entry['diskFile']);
         $contents = $size !== false && $size <= 2_000_000 ? @file_get_contents($entry['diskFile']) : false;
         return $contents !== false && hash('sha256', $contents) === $entry['hash'];
+    }
+
+    /** Exact analyzed bytes only; all existing physical/native checks remain at their callers. */
+    private function declaration(string $name): ?array
+    {
+        $key = strtolower($name);
+        $binding = $this->classes[$key] ?? null;
+        if ($binding === null) { return null; }
+        if (isset($this->materialized[$key])) { return $this->materialized[$key]; }
+        $path = RefreshedModelProperties::path($binding['entry']['file']);
+        $contents = $this->sourceBytes[$path] ?? null;
+        if ($contents === null || hash('sha256', $contents) !== $binding['entry']['hash']) { return null; }
+        try { $nodes = CodebaseScanSyntax::parse($contents); }
+        catch (\PhpParser\Error) { return null; }
+        if (! $this->materializeFile($path, $nodes)) { return null; }
+        return $this->materialized[$key] ?? null;
+    }
+
+    /** Keep all nodes of a requested file together, preserving shared mutable identities. */
+    private function materializeFile(string $path, array $nodes): bool
+    {
+        $entries = [];
+        foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Stmt\ClassLike::class) as $node) {
+            if ($node->name === null || $node->namespacedName === null) { continue; }
+            $key = strtolower($node->namespacedName->toString());
+            $binding = $this->classes[$key] ?? null;
+            if ($binding === null || RefreshedModelProperties::path($binding['entry']['file']) !== $path
+                || $binding['kind'] !== $node->getType() || $binding['start'] !== $node->getStartFilePos()
+                || $binding['end'] !== $node->getEndFilePos() + 1 || isset($entries[$key])) { return false; }
+            $entries[$key] = ['node' => $node, 'entry' => $binding['entry']];
+        }
+        foreach ($entries as $key => $entry) {
+            // No eviction: callers retain the same node identity after materialization.
+            $this->materialized[$key] ??= $entry;
+        }
+        // Every known declaration in this file now has a stable owned node.
+        unset($this->sourceBytes[$path]);
+        return true;
     }
 
     private function disk(string $file): string

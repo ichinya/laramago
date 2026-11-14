@@ -30,6 +30,7 @@ final class AssertedPureGetterReturnProvider implements MethodReturnTypeProvider
 
     public function initialize(InitializationContext $context): void
     {
+        AssertedPureGetterCalls::registerProjection();
         $this->calls->reset();
         $this->generation = -1;
     }

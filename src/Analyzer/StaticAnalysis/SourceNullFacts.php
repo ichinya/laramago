@@ -1,8 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace Ichinya\Laramago\Analyzer\StaticAnalysis;
-use PhpParser\{Node,NodeFinder,NodeTraverser,ParserFactory,PrettyPrinter\Standard};
-use PhpParser\NodeVisitor\NameResolver;
+use PhpParser\{Node,NodeFinder,PrettyPrinter\Standard};
 
 /** Current lexical expression facts. Compact results retain no parsed class tree. */
 final class SourceNullFacts
@@ -11,9 +10,10 @@ final class SourceNullFacts
     private Standard $printer;
     public function __construct() { $this->printer=new Standard; }
     public function proofs(string $bytes):array {
-        $this->proofs=[];
-        try { $nodes=(new NodeTraverser(new NameResolver))->traverse((new ParserFactory)->createForNewestSupportedVersion()->parse($bytes)??[]); }
+        try { return CodebaseScanSyntax::query($bytes,self::class.'::proofs-v1',static fn(array $nodes):array=>(new self)->sourceProofs($nodes)); }
         catch(\PhpParser\Error) { return []; }
+    }
+    private function sourceProofs(array $nodes):array {
         $this->scopes($nodes,null);return $this->proofs;
     }
     private function scopes(array $nodes,?string $namespace):void {

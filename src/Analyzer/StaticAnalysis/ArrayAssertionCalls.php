@@ -26,6 +26,7 @@ final class ArrayAssertionCalls implements CodebaseScanHook
     public function scan(CodebaseScanContext $context): void
     {
         if ($context->firstBatch) {
+            self::registerProjection();
             $this->calls = [];
             $this->complete = false;
             $this->failed = false;
@@ -40,17 +41,15 @@ final class ArrayAssertionCalls implements CodebaseScanHook
                     $this->failed = true;
                     break;
                 }
-                $nodes = CodebaseScanSyntax::parse($file->contents);
+                $facts = CodebaseScanSyntax::query($file->contents, self::class.'::assertion-runs:v1', self::sourceFacts(...));
             } catch (\PhpParser\Error) {
                 $this->failed = true;
                 break;
             }
-            $runs = [];
-            $this->collect($nodes, $runs);
-            foreach ((new NodeFinder)->find($nodes, static fn (Node $node): bool =>
-                $node instanceof Node\Expr\MethodCall || $node instanceof Node\Expr\NullsafeMethodCall
-                || $node instanceof Node\Expr\StaticCall || $node instanceof Node\Expr\FuncCall) as $call) {
-                $key = $call->getStartFilePos().':'.($call->getEndFilePos() + 1);
+            $runs = $facts['runs'];
+            for ($offset = 0, $length = strlen($facts['calls']); $offset < $length; $offset += 8) {
+                $span = unpack('Nstart/Nend', $facts['calls'], $offset);
+                $key = $span['start'].':'.$span['end'];
                 $this->calls[$key] = array_key_exists($key, $this->calls) ? null : ($runs[$key] ?? null);
                 if (count($this->calls) > 100_000) {
                     $this->failed = true;
@@ -64,6 +63,26 @@ final class ArrayAssertionCalls implements CodebaseScanHook
         $this->complete = $context->lastBatch && ! $this->failed;
     }
 
+    /** @internal Stateless and read-only; cancellation and span collisions remain in scan(). */
+    public static function registerProjection(): void
+    {
+        CodebaseScanSyntax::registerProjection(self::class.'::assertion-runs:v1', self::sourceFacts(...));
+    }
+
+    private static function sourceFacts(array $nodes): array
+    {
+        $runs = [];
+        self::collect($nodes, $runs);
+        $calls = [];
+        foreach (CodebaseScanSyntax::find($nodes, static fn (Node $node): bool =>
+            $node instanceof Node\Expr\MethodCall || $node instanceof Node\Expr\NullsafeMethodCall
+            || $node instanceof Node\Expr\StaticCall || $node instanceof Node\Expr\FuncCall) as $call) {
+            $calls[] = pack('N2', $call->getStartFilePos(), $call->getEndFilePos() + 1);
+        }
+        // Exact parser offsets fit unsigned 32 bits under the original 2-MB source guard.
+        return ['runs' => $runs, 'calls' => implode('', $calls)];
+    }
+
     /** @return list<Node\Expr>|null */
     public function run(Span $span): ?array
     {
@@ -73,7 +92,7 @@ final class ArrayAssertionCalls implements CodebaseScanHook
     /** @param array<array-key, mixed> $nodes
      * @param array<string, list<Node\Expr>> $runs
      */
-    private function collect(array $nodes, array &$runs): void
+    private static function collect(array $nodes, array &$runs): void
     {
         $run = [];
         foreach ($nodes as $node) {
@@ -95,9 +114,9 @@ final class ArrayAssertionCalls implements CodebaseScanHook
             foreach ($node->getSubNodeNames() as $name) {
                 $child = $node->$name;
                 if (is_array($child)) {
-                    $this->collect($child, $runs);
+                    self::collect($child, $runs);
                 } elseif ($child instanceof Node) {
-                    $this->collect([$child], $runs);
+                    self::collect([$child], $runs);
                 }
             }
         }

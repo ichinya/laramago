@@ -15,9 +15,6 @@ use Mago\Sdk\Analyzer\Type\ScalarType;
 use Mago\Sdk\Analyzer\Type\ScalarTypeKind;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
-use PhpParser\NodeTraverser;
-use PhpParser\NodeVisitor\NameResolver;
-use PhpParser\ParserFactory;
 
 /** Preserve a conditional native array fact across an immediately following ternary. */
 final class ConditionalArrayGuards implements CodebaseScanHook, InitializationHook
@@ -32,6 +29,7 @@ final class ConditionalArrayGuards implements CodebaseScanHook, InitializationHo
 
     public function initialize(InitializationContext $context): void
     {
+        self::registerProjection();
         $this->files = [];
         $this->complete = $this->failed = false;
     }
@@ -41,6 +39,7 @@ final class ConditionalArrayGuards implements CodebaseScanHook, InitializationHo
     public function scan(CodebaseScanContext $context): void
     {
         if ($context->firstBatch) {
+            self::registerProjection();
             $this->files = [];
             $this->failed = false;
         }
@@ -53,23 +52,38 @@ final class ConditionalArrayGuards implements CodebaseScanHook, InitializationHo
                 break;
             }
             try {
-                $nodes = CodebaseScanSyntax::parse($file->contents);
+                $sourceProofs = CodebaseScanSyntax::query($file->contents, self::class.'::scan-source-proofs:v1', self::scanSourceProofs(...));
             } catch (\PhpParser\Error) {
                 $this->failed = true;
                 break;
             }
-            $functions = self::functions($nodes);
             $proofs = [];
-            foreach (self::blocks($nodes) as [$scope, $statements]) {
-                foreach (self::candidates($scope, $statements, $functions) as $proof) {
-                    $proofs[] = $proof + ['scope' => $scope, 'file' => $file->path,
-                        'diskFile' => $this->diskFile($file->path), 'hash' => hash('sha256', $file->contents)];
-                }
+            foreach ($sourceProofs as $proof) {
+                $proofs[] = $proof + ['file' => $file->path,
+                    'diskFile' => $this->diskFile($file->path), 'hash' => hash('sha256', $file->contents)];
             }
             $this->files[$path] = ['hash' => hash('sha256', $file->contents), 'proofs' => $proofs];
         }
         if ($this->failed) { $this->files = []; }
         $this->complete = $context->lastBatch && ! $this->failed;
+    }
+
+    /** @internal The cache owns syntax only; paths and physical freshness stay at scan/consumption. */
+    public static function registerProjection(): void
+    {
+        CodebaseScanSyntax::registerProjection(self::class.'::scan-source-proofs:v1', self::scanSourceProofs(...));
+    }
+
+    private static function scanSourceProofs(array $nodes): array
+    {
+        $functions = self::functions($nodes);
+        $proofs = [];
+        foreach (self::blocks($nodes) as [$scope, $statements]) {
+            foreach (self::candidates($scope, $statements, $functions) as $proof) {
+                $proofs[] = $proof + ['scope' => $scope];
+            }
+        }
+        return $proofs;
     }
 
     /** @return list<array<string, mixed>> */
@@ -90,9 +104,11 @@ final class ConditionalArrayGuards implements CodebaseScanHook, InitializationHo
     {
         if (strlen($contents) > 1024 * 1024) { return []; }
         try {
-            $nodes = (new NodeTraverser(new NameResolver))->traverse(
-                (new ParserFactory)->createForNewestSupportedVersion()->parse($contents) ?? []);
+            return CodebaseScanSyntax::query($contents, self::class.'::lexical-script-proofs-v1', self::lexicalScriptSourceProofs(...));
         } catch (\PhpParser\Error) { return []; }
+    }
+    private static function lexicalScriptSourceProofs(array $nodes): array
+    {
         if ((new NodeFinder)->findFirst($nodes, static fn (Node $node): bool =>
             $node instanceof Node\Expr\AssignRef || $node instanceof Node\Stmt\Global_
             || $node instanceof Node\Expr\Eval_ || $node instanceof Node\Expr\Variable && ! is_string($node->name)

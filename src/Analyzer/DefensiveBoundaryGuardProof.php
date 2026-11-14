@@ -25,6 +25,7 @@ final class DefensiveBoundaryGuardProof implements InitializationHook, CodebaseS
     }
     public function initialize(InitializationContext $context): void
     {
+        \Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax::registerProjection(self::class.'::source-certificates', self::sourceCertificates(...));
         $this->reset();
     }
     public function reset(): void
@@ -77,7 +78,7 @@ final class DefensiveBoundaryGuardProof implements InitializationHook, CodebaseS
     private static function sourceCertificates(array $nodes): array
     {
         $proofs = DefensiveBoundaryGuardSource::compile($nodes);
-        $hazard = (new NodeFinder())->findFirst($nodes, static fn(Node $call): bool =>
+        $hazard = \Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax::findFirst($nodes, static fn(Node $call): bool =>
             ($call instanceof Node\Expr\StaticCall || $call instanceof Node\Expr\MethodCall)
             && $call->name instanceof Node\Identifier
             && in_array(strtolower($call->name->toString()), ['macro', 'mixin', 'flushmacros'], true)
@@ -129,7 +130,7 @@ final class DefensiveBoundaryGuardProof implements InitializationHook, CodebaseS
         // Keep only the selected call syntax across SDK awaits. Full file ASTs must not stay suspended in concurrent Fibers.
         $spans=[];foreach($proof['requiredFunctions'] as $call){$spans[]=$call['span'];}
         foreach($proof['predicates'] as $predicate){foreach($predicate['origin']['roots'] as $root){$spans[]=$root['span'];}foreach($predicate['origin']['interveningReads']??[] as $read){$spans[]=$read['call'];}foreach($predicate['origin']['slices']??[] as $slice){$spans[]=$slice;}}
-        $selectedNodes=[];foreach($spans as $span){$selectedNodes[DefensiveBoundaryGuardSource::key($span)]=$finder->findFirst($nodes,static fn(Node $node):bool=>DefensiveBoundaryGuardSource::span($node)===$span);}
+        $selectedNodes=[];foreach($spans as $span){$selectedNodes[DefensiveBoundaryGuardSource::key($span)]=\Ichinya\Laramago\Analyzer\StaticAnalysis\CodebaseScanSyntax::findFirst($nodes,static fn(Node $node):bool=>DefensiveBoundaryGuardSource::span($node)===$span);}
         unset($nodes,$finder,$spans);
         $at = static fn(array $span): ?Node => $selectedNodes[DefensiveBoundaryGuardSource::key($span)]??null;
         $receipt['selectedSliceNativeAttempts'] = [];

@@ -44,6 +44,7 @@ final class EloquentAggregateProjectionProvider implements MethodReturnTypeProvi
 
     public function initialize(InitializationContext $context): void
     {
+        AggregateProjectionCalls::registerProjection();
         $this->source = null;
         $this->schema = null;
     }
@@ -311,10 +312,16 @@ PHP)) {
                 return false;
             }
             $event = $reflection->method($model, $call->name->name);
-            $eventNode = $event === null ? null : $reflection->methodNode($event);
-            if ($eventNode === null || ! $event->static
-                || self::tokens((new Standard)->prettyPrint($eventNode->stmts ?? []))
-                    !== self::tokens("static::registerModelEvent('".strtolower($call->name->name)."', $"."callback);")) {
+            if ($event === null) {
+                return false;
+            }
+            if (! $event->static) {
+                // Preserve the original reader snapshot and warnings on a rejected declaration.
+                $reflection->methodNode($event);
+                return false;
+            }
+            $eventBody = $reflection->projectMethod($event, self::class.'::body-tokens:v1', self::bodyTokens(...));
+            if ($eventBody === null || $eventBody !== self::tokens("static::registerModelEvent('".strtolower($call->name->name)."', $"."callback);")) {
                 return false;
             }
         }
@@ -325,13 +332,22 @@ PHP)) {
     private function nativeBody(ModelReflection $reflection, string $class, string $name, string $body): bool
     {
         $method = $reflection->method($class, $name);
-        $node = $method === null ? null : $reflection->methodNode($method);
-        if ($method === null || $node === null || $method->static || $method->visibility !== Visibility::Public
-            || strcasecmp($method->identifier->class ?? '', $class) !== 0
-            || ! str_ends_with('/'.ltrim(str_replace('\\', '/', $method->location->file ?? ''), '/'), '/laravel/framework/src/'.str_replace('\\', '/', $class).'.php')) {
+        if ($method === null) {
             return false;
         }
-        return self::tokens((new Standard)->prettyPrint($node->stmts ?? [])) === self::tokens($body);
+        if ($method->static || $method->visibility !== Visibility::Public
+            || strcasecmp($method->identifier->class ?? '', $class) !== 0
+            || ! str_ends_with('/'.ltrim(str_replace('\\', '/', $method->location->file ?? ''), '/'), '/laravel/framework/src/'.str_replace('\\', '/', $class).'.php')) {
+            $reflection->methodNode($method);
+            return false;
+        }
+        $actual = $reflection->projectMethod($method, self::class.'::body-tokens:v1', self::bodyTokens(...));
+        return $actual !== null && $actual === self::tokens($body);
+    }
+
+    private static function bodyTokens(Node\Stmt\ClassMethod $node): string
+    {
+        return self::tokens((new Standard)->prettyPrint($node->stmts ?? []));
     }
 
     private static function tokens(string $source): string

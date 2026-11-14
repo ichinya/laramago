@@ -18,6 +18,39 @@ final class ModelRefreshCalls implements CodebaseScanHook
     private bool $complete = false;
     private bool $failed = false;
 
+    /** @internal Register only while the owning hook is active. */
+    public static function registerProjection(): void
+    {
+        StoredCallbackSourceDeclarations::registerSourceIndex();
+        CodebaseScanSyntax::registerProjection(self::class.'::source-proofs:v2', self::sourceRecords(...));
+    }
+
+    private static function sourceRecords(array $nodes): array
+    {
+        $candidates = [];
+        foreach (self::scopes($nodes) as [$owner, $name, $scope]) {
+            $statement = $scope->stmts[0] ?? null;
+            $expression = $statement instanceof Node\Stmt\Return_ || $statement instanceof Node\Stmt\Expression ? $statement->expr : null;
+            if ($expression instanceof Node\Expr\Assign && $expression->var instanceof Node\Expr\Variable && is_string($expression->var->name)) {
+                $expression = $expression->expr;
+            }
+            if (! $expression instanceof Node\Expr\MethodCall || ! $expression->name instanceof Node\Identifier
+                || ! in_array(strtolower($expression->name->name), ['fresh', 'refresh'], true) || $expression->args !== []
+                || ! $expression->var instanceof Node\Expr\Variable || ! is_string($expression->var->name)
+                || ! self::safeScope($scope, $expression->var->name)) {
+                continue;
+            }
+            foreach ($scope->params as $index => $parameter) {
+                if ($parameter->var instanceof Node\Expr\Variable && $parameter->var->name === $expression->var->name
+                    && ! $parameter->byRef && ! $parameter->variadic) {
+                    $candidates[self::key($expression)] = ['owner' => $owner, 'name' => $name,
+                        'scope' => $scope, 'parameter' => $index, 'call' => $expression];
+                }
+            }
+        }
+        return $candidates;
+    }
+
     public function getTargets(): array
     {
         return ['**'];
@@ -40,37 +73,16 @@ final class ModelRefreshCalls implements CodebaseScanHook
                     $this->failed = true;
                     break;
                 }
-                $nodes = CodebaseScanSyntax::parse($file->contents);
+                $records = CodebaseScanSyntax::query($file->contents, self::class.'::source-proofs:v2', self::sourceRecords(...));
+                $reservations = StoredCallbackSourceDeclarations::sourceIndexSnapshot($file->contents)['callReservations'];
             } catch (\PhpParser\Error) {
                 $this->failed = true;
                 break;
             }
-            $candidates = [];
-            foreach (self::scopes($nodes) as [$owner, $name, $scope]) {
-                $statement = $scope->stmts[0] ?? null;
-                $expression = $statement instanceof Node\Stmt\Return_ || $statement instanceof Node\Stmt\Expression ? $statement->expr : null;
-                if ($expression instanceof Node\Expr\Assign && $expression->var instanceof Node\Expr\Variable && is_string($expression->var->name)) {
-                    $expression = $expression->expr;
-                }
-                if (! $expression instanceof Node\Expr\MethodCall || ! $expression->name instanceof Node\Identifier
-                    || ! in_array(strtolower($expression->name->name), ['fresh', 'refresh'], true) || $expression->args !== []
-                    || ! $expression->var instanceof Node\Expr\Variable || ! is_string($expression->var->name)
-                    || ! self::safeScope($scope, $expression->var->name)) {
-                    continue;
-                }
-                foreach ($scope->params as $index => $parameter) {
-                    if ($parameter->var instanceof Node\Expr\Variable && $parameter->var->name === $expression->var->name
-                        && ! $parameter->byRef && ! $parameter->variadic) {
-                        $candidates[self::key($expression)] = ['file' => $file->path, 'owner' => $owner, 'name' => $name,
-                            'scope' => $scope, 'parameter' => $index, 'call' => $expression];
-                    }
-                }
-            }
-            // The SDK does not identify the source file in a method invocation.
-            // Every host call, including unrelated calls, participates in collision detection.
-            foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Expr\CallLike::class) as $call) {
-                $key = self::key($call);
-                $this->calls[$key] = array_key_exists($key, $this->calls) ? null : ($candidates[$key] ?? null);
+            foreach ($reservations as $key => $duplicate) {
+                $proof = $duplicate ? null : ($records[$key] ?? null);
+                $proof = $proof === null ? null : ['file' => $file->path] + $proof;
+                $this->calls[$key] = array_key_exists($key, $this->calls) ? null : $proof;
                 if (count($this->calls) > 100_000) {
                     $this->failed = true;
                     break;

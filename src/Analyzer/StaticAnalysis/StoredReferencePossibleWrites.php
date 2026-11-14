@@ -62,8 +62,13 @@ final class StoredReferencePossibleWrites implements InitializationHook, Codebas
                     'totalBytes' => $this->bytes, 'filesBeforeFailure' => count($this->files)];
                 $this->failed = true; break;
             }
+            $hasReferences = self::mayCaptureByReference($file->contents);
+            $index = $hasReferences ? null : $this->sources->scanClassIndex($file->path, $file->contents);
             try {
-                $nodes = self::parse($file->contents);
+                // A candidate captures the same cell by reference in three
+                // literal closures. Still validate all syntax and names when
+                // no reference capture can occur, and retain every declaration.
+                $nodes = $index !== null ? [] : ($hasReferences ? self::parse($file->contents) : CodebaseScanSyntax::parse($file->contents));
             } catch (\PhpParser\Error|\LogicException $failure) {
                 $this->scanFailure ??= ['reason' => 'source-parse-or-name-resolution', 'file' => $file->path,
                     'sha256' => hash('sha256', $file->contents), 'exceptionClass' => $failure::class, 'message' => $failure->getMessage(),
@@ -71,23 +76,18 @@ final class StoredReferencePossibleWrites implements InitializationHook, Codebas
                 $this->failed = true; break;
             }
             $entry = ['file' => $file->path, 'diskFile' => $this->disk($file->path), 'contents' => $file->contents, 'hash' => hash('sha256', $file->contents), 'proofs' => []];
-            if ((new NodeFinder)->findFirst($nodes, static fn (Node $node): bool => $node instanceof Node\DeclareItem && strtolower($node->key->name) === 'ticks') === null) {
+            if ($index !== null) {
+                foreach ($index as $binding) {
+                    if (!$this->bindClass($binding['name'], $binding['start'], $binding['end'], $entry)) { break 2; }
+                }
+            } elseif ((new NodeFinder)->findFirst($nodes, static fn (Node $node): bool => $node instanceof Node\DeclareItem && strtolower($node->key->name) === 'ticks') === null) {
                 $pending = $nodes;
                 while ($pending !== []) {
                     $node = array_shift($pending);
                     if ($node instanceof Node\Stmt\Namespace_) { array_push($pending, ...$node->stmts); continue; }
                     if (!$node instanceof Node\Stmt\Class_ || $node->name === null || $node->namespacedName === null) { continue; }
-                    $name = strtolower($node->namespacedName->toString());
-                    if (isset($this->classes[$name])) {
-                        $previous = $this->classes[$name];
-                        $this->scanFailure ??= ['reason' => 'duplicate-source-class-name', 'name' => $name,
-                            'file' => $file->path, 'sha256' => $entry['hash'], 'span' => [$node->getStartFilePos(), $node->getEndFilePos() + 1],
-                            'previous' => ['file' => $previous['entry']['file'], 'sha256' => $previous['entry']['hash'],
-                                'span' => [$previous['start'], $previous['end']]], 'totalBytes' => $this->bytes, 'filesBeforeFailure' => count($this->files)];
-                        $this->failed = true; break 2;
-                    }
-                    $this->classes[$name] = ['name' => $node->namespacedName->toString(), 'start' => $node->getStartFilePos(),
-                        'end' => $node->getEndFilePos() + 1, 'entry' => array_diff_key($entry, ['contents' => true, 'proofs' => true])];
+                    if (!$this->bindClass($node->namespacedName->toString(), $node->getStartFilePos(), $node->getEndFilePos() + 1, $entry)) { break 2; }
+                    if (!$hasReferences) { continue; }
                     foreach ($node->getMethods() as $method) {
                         foreach (self::candidates($method) as $proof) { $entry['proofs'][] = $proof + ['scope' => $method, 'owner' => $node->namespacedName->toString(), 'callerClass' => $node] + $entry; }
                     }
@@ -99,6 +99,23 @@ final class StoredReferencePossibleWrites implements InitializationHook, Codebas
         if ($context->cancellation->isCancelled()) { $this->scanFailure ??= ['reason' => 'cancelled-after-scan']; $this->failed = true; }
         if ($this->failed) { $this->files = $this->classes = $this->hydrated = []; $this->hydratedBytes = 0; }
         $this->complete = $context->lastBatch && $this->started && !$this->failed;
+    }
+
+    private function bindClass(string $name, int $start, int $end, array $entry): bool
+    {
+        $key = strtolower($name);
+        if (isset($this->classes[$key])) {
+            $previous = $this->classes[$key];
+            $this->scanFailure ??= ['reason' => 'duplicate-source-class-name', 'name' => $key,
+                'file' => $entry['file'], 'sha256' => $entry['hash'], 'span' => [$start, $end],
+                'previous' => ['file' => $previous['entry']['file'], 'sha256' => $previous['entry']['hash'],
+                    'span' => [$previous['start'], $previous['end']]], 'totalBytes' => $this->bytes, 'filesBeforeFailure' => count($this->files)];
+            $this->failed = true;
+            return false;
+        }
+        $this->classes[$key] = ['name' => $name, 'start' => $start, 'end' => $end,
+            'entry' => array_diff_key($entry, ['contents' => true, 'proofs' => true])];
+        return true;
     }
     public function proofs(string $file, string $contents): array {
         $entry = $this->complete && $this->started && !$this->failed ? ($this->files[RefreshedModelProperties::path($file)] ?? null) : null;
@@ -445,6 +462,35 @@ final class StoredReferencePossibleWrites implements InitializationHook, Codebas
         }
         $parts[] = substr($text, $start); return $parts;
     }
+    /** Necessary lexical evidence only; both branches still parse and resolve all source names. */
+    private static function mayCaptureByReference(string $contents): bool
+    {
+        if (!str_contains($contents, '&')) { return false; }
+        $afterUse = false; $captures = false;
+        try {
+            foreach (token_get_all($contents) as $token) {
+                $kind = is_array($token) ? $token[0] : null;
+                if (in_array($kind, [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) { continue; }
+                if ($afterUse) {
+                    $afterUse = false;
+                    $captures = $token === '(';
+                    continue;
+                }
+                if ($captures) {
+                    if ($token === ')') { $captures = false; }
+                    elseif ($token === '&' || $kind === T_AMPERSAND_FOLLOWED_BY_VAR_OR_VARARG
+                        || $kind === T_AMPERSAND_NOT_FOLLOWED_BY_VAR_OR_VARARG) { return true; }
+                    continue;
+                }
+                if ($kind === T_USE) { $afterUse = true; }
+            }
+        } catch (\ParseError) {
+            // A lexical failure cannot suppress the original parser's failure or proof.
+            return true;
+        }
+        return false;
+    }
+
     /** Preserve the exact scanned namespace/PHPDoc binding resolver for late hydration. */
     private static function parse(string $contents): array
     {

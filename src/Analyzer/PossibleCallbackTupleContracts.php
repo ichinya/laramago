@@ -12,6 +12,25 @@ final class PossibleCallbackTupleContracts
     public array $stages=[];public array $dependencies=[];public array $certificate=[];
     public function __construct(private readonly string $root) {}
     private function stage(string $stage,bool $passed):bool { $this->stages[]=compact('stage','passed');return $passed; }
+    /** Necessary syntax only: false can keep an issue, never remove one. */
+    public static function mayProjectArgument(string $contents,int $start,int $end):bool
+    {
+        if($start<0||$end<=$start||$end>strlen($contents)||strlen($contents)>1024*1024) { return true; }
+        try {
+            $ranges=StaticAnalysis\CodebaseScanSyntax::query($contents,self::class.'::argument-loop-ranges-v1',static function(array $nodes):array {
+                $ranges=[];
+                foreach((new NodeFinder)->findInstanceOf($nodes,Node\Stmt\Foreach_::class) as $loop) {
+                    if(!$loop->byRef&&$loop->keyVar===null&&$loop->expr instanceof Node\Expr\Variable&&is_string($loop->expr->name)
+                        &&($loop->valueVar instanceof Node\Expr\List_||$loop->valueVar instanceof Node\Expr\Array_)) {
+                        $ranges[]=SourceArgumentDeclarationContracts::span($loop);
+                    }
+                }
+                return $ranges;
+            });
+        } catch(\PhpParser\Error) { return true; }
+        foreach($ranges as [$left,$right]) { if($left<=$start&&$end<=$right) { return true; } }
+        return false;
+    }
     /** Source proof only. Returned syntax has no native admission authority. */
     public function lexical(GuardedStringCastContracts $source,array $file,Node $point):?array
     {

@@ -26,6 +26,7 @@ final class StoredCallbackSourceDeclarations implements InitializationHook, Code
     private const RESERVED = ['GLOBALS', '_GET', '_POST', '_COOKIE', '_REQUEST', '_SERVER', '_ENV', '_FILES', '_SESSION', 'http_response_header', 'argv', 'argc'];
     private array $files = [];
     private array $classes = [];
+    private array $scanClassIndexes = [];
     private array $hydrated = [];
     private int $hydratedBytes = 0;
     private array $checked = [];
@@ -44,7 +45,8 @@ final class StoredCallbackSourceDeclarations implements InitializationHook, Code
 
     public function initialize(InitializationContext $context): void
     {
-        $this->files = $this->classes = $this->checked = $this->hydrated = []; $this->hydratedBytes = 0;
+        self::registerSourceIndex();
+        $this->files = $this->classes = $this->scanClassIndexes = $this->checked = $this->hydrated = []; $this->hydratedBytes = 0;
         $this->complete = $this->failed = false;
         $this->bytes = $this->hierarchyBytes = 0;
         $this->hierarchyDeclarations = [];
@@ -54,31 +56,110 @@ final class StoredCallbackSourceDeclarations implements InitializationHook, Code
 
     public function scan(CodebaseScanContext $context): void
     {
-        if ($context->firstBatch) { $this->files = $this->classes = $this->checked = $this->hierarchyDeclarations = $this->hydrated = []; $this->hydratedBytes = 0; $this->failed = false; $this->bytes = $this->hierarchyBytes = 0; }
+        if ($context->firstBatch) { $this->files = $this->classes = $this->scanClassIndexes = $this->checked = $this->hierarchyDeclarations = $this->hydrated = []; $this->hydratedBytes = 0; $this->failed = false; $this->bytes = $this->hierarchyBytes = 0; }
         $this->complete = false;
         foreach ($context->files as $file) {
             try { $context->cancellation->throwIfCancelled(); }
-            catch (\Throwable $interrupted) { $this->failed = true; $this->files = $this->classes = []; throw $interrupted; }
+            catch (\Throwable $interrupted) { $this->failed = true; $this->files = $this->classes = $this->scanClassIndexes = []; throw $interrupted; }
             $path = RefreshedModelProperties::path($file->path);
             $this->bytes += strlen($file->contents);
             if ($this->failed || isset($this->files[$path]) || strlen($file->contents) > 2_000_000 || count($this->files) >= 100_000 || $this->bytes > 67_108_864) { $this->failed = true; break; }
             try {
-                $nodes = CodebaseScanSyntax::parse($file->contents);
+                $index = self::sourceIndexSnapshot($file->contents);
             } catch (\PhpParser\Error) { $this->failed = true; break; }
             $entry = ['file' => $file->path, 'diskFile' => $this->disk($file->path), 'hash' => hash('sha256', $file->contents), 'proofs' => []];
             $this->files[$path] = $entry;
-            if ((new NodeFinder)->findFirst($nodes, static fn (Node $node): bool => $node instanceof Node\DeclareItem && strtolower($node->key->name) === 'ticks') !== null) { continue; }
-            foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Stmt\ClassLike::class) as $class) {
-                if ($class->name === null || $class->namespacedName === null) { continue; }
-                $name = strtolower($class->namespacedName->toString());
+            $this->scanClassIndexes[$path] = $index['topClasses'];
+            foreach ($index['classes'] as $class) {
+                $name = strtolower($class['name']);
                 if (isset($this->classes[$name])) { $this->failed = true; break 2; }
-                $this->classes[$name] = ['name' => $class->namespacedName->toString(), 'kind' => $class->getType(),
-                    'start' => $class->getStartFilePos(), 'end' => $class->getEndFilePos() + 1, 'entry' => $entry];
+                $this->classes[$name] = $class + ['entry' => $entry];
             }
             $this->files[$path] = $entry;
         }
-        if ($this->failed) { $this->files = $this->classes = []; }
+        if ($this->failed) { $this->files = $this->classes = $this->scanClassIndexes = []; }
         $this->complete = $context->lastBatch && ! $this->failed;
+    }
+
+    /** Syntax facts from analyzed bytes only; this is not a native/current-source certificate. */
+    public function scanClassIndex(string $file, string $contents): ?array
+    {
+        $path = RefreshedModelProperties::path($file);
+        $entry = $this->failed ? null : ($this->files[$path] ?? null);
+        return $entry !== null && $entry['hash'] === hash('sha256', $contents) ? ($this->scanClassIndexes[$path] ?? null) : null;
+    }
+
+    /** @internal Register only when a consumer of these source facts is active. */
+    public static function registerSourceIndex(): void
+    {
+        CodebaseScanSyntax::registerProjection('stored-callback-source-index:v4', self::sourceIndex(...));
+    }
+
+    /** @internal Syntax only: no paths, lifecycle or native/current-source certificate.
+     * @return array{classes:array, topClasses:array, xmlOutline:array{hasOrigin:bool, properties:array<string,bool>}, callReservations:array<string,bool>, hasCollectionOrigin:bool, dispatchReservations:array<string,bool>}
+     */
+    public static function sourceIndexSnapshot(string $contents): array
+    {
+        return CodebaseScanSyntax::query($contents, 'stored-callback-source-index:v4', self::sourceIndex(...));
+    }
+
+    /** One read-only walk collects declarations and ordered property-span reservations. */
+    private static function sourceIndex(array $nodes): array
+    {
+        $index = ['classes' => [], 'topClasses' => [], 'xmlOutline' => ['hasOrigin' => false, 'properties' => []],
+            'callReservations' => [], 'hasCollectionOrigin' => false, 'dispatchReservations' => [], 'hasDirectAssertion' => false];
+        $ticks = false;
+        CodebaseScanSyntax::find($nodes, static function (Node $node) use (&$index, &$ticks): bool {
+            if ($node instanceof Node\DeclareItem && strtolower($node->key->name) === 'ticks') { $ticks = true; }
+            if ($node instanceof Node\Stmt\ClassLike && $node->name !== null && $node->namespacedName !== null) {
+                $index['classes'][] = ['name' => $node->namespacedName->toString(), 'kind' => $node->getType(),
+                    'start' => $node->getStartFilePos(), 'end' => $node->getEndFilePos() + 1];
+            }
+            if ($node instanceof Node\Expr\New_ && $node->class instanceof Node\Name
+                && strcasecmp($node->class->toString(), 'SimpleXMLElement') === 0
+                || $node instanceof Node\Expr\FuncCall && $node->name instanceof Node\Name
+                && strcasecmp($node->name->toString(), 'simplexml_load_string') === 0) {
+                $index['xmlOutline']['hasOrigin'] = true;
+            }
+            if ($node instanceof Node\Expr\New_ && $node->class instanceof Node\Name
+                && in_array($node->class->toString(), ['Illuminate\\Support\\Collection', 'Illuminate\\Database\\Eloquent\\Collection'], true)) {
+                $index['hasCollectionOrigin'] = true;
+            }
+            if ($node instanceof Node\Expr\StaticCall && $node->class instanceof Node\Name
+                && strcasecmp($node->class->toString(), 'Testo\\Assert') === 0 && $node->name instanceof Node\Identifier
+                && in_array(strtolower($node->name->name), ['true', 'false'], true)) { $index['hasDirectAssertion'] = true; }
+            if ($node instanceof Node\Expr\CallLike) {
+                $key = $node->getStartFilePos().':'.($node->getEndFilePos() + 1);
+                if (isset($index['callReservations'][$key])) { $index['callReservations'][$key] = true; }
+                elseif (count($index['callReservations']) < 100_001) { $index['callReservations'][$key] = false; }
+            }
+            if ($node instanceof Node\Expr\MethodCall || $node instanceof Node\Expr\NullsafeMethodCall || $node instanceof Node\Expr\StaticCall) {
+                $key = $node->getStartFilePos().':'.($node->getEndFilePos() + 1);
+                if (isset($index['dispatchReservations'][$key])) { $index['dispatchReservations'][$key] = true; }
+                elseif (count($index['dispatchReservations']) < 100_001) { $index['dispatchReservations'][$key] = false; }
+            }
+            if ($node instanceof Node\Expr\PropertyFetch || $node instanceof Node\Expr\NullsafePropertyFetch) {
+                $key = $node->name->getStartFilePos().':'.($node->name->getEndFilePos() + 1);
+                if (isset($index['xmlOutline']['properties'][$key])) {
+                    $index['xmlOutline']['properties'][$key] = true;
+                } elseif (count($index['xmlOutline']['properties']) < 100_001) {
+                    // This many distinct keys inevitably exceeds the unchanged consumer bound.
+                    $index['xmlOutline']['properties'][$key] = false;
+                }
+            }
+            return false;
+        });
+        if ($ticks) { $index['classes'] = []; return $index; }
+        $pending = $nodes;
+        while ($pending !== []) {
+            $node = array_shift($pending);
+            if ($node instanceof Node\Stmt\Namespace_) { array_push($pending, ...$node->stmts); continue; }
+            if ($node instanceof Node\Stmt\Class_ && $node->name !== null && $node->namespacedName !== null) {
+                $index['topClasses'][] = ['name' => $node->namespacedName->toString(),
+                    'start' => $node->getStartFilePos(), 'end' => $node->getEndFilePos() + 1];
+            }
+        }
+        return $index;
     }
 
     public function proofs(string $file, string $contents): array
@@ -531,7 +612,7 @@ final class StoredCallbackSourceDeclarations implements InitializationHook, Code
             $nodes = (new ParserFactory)->createForNewestSupportedVersion()->parse($bytes) ?? [];
             $nodes = (new NodeTraverser(new NameResolver))->traverse($nodes);
         } catch (\PhpParser\Error) { return null; }
-        $matches = (new NodeFinder)->find($nodes, static fn (Node $node): bool => $node instanceof Node\Stmt\ClassLike
+        $matches = CodebaseScanSyntax::find($nodes, static fn (Node $node): bool => $node instanceof Node\Stmt\ClassLike
             && $node->name !== null && $node->namespacedName !== null && strtolower($node->namespacedName->toString()) === $key);
         if (count($matches) !== 1 || $matches[0]->getType() !== $binding['kind']
             || $matches[0]->getStartFilePos() !== $binding['start'] || $matches[0]->getEndFilePos() + 1 !== $binding['end']

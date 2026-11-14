@@ -37,6 +37,7 @@ final class RefreshedModelProperties implements InitializationHook, CodebaseScan
 
     public function initialize(InitializationContext $context): void
     {
+        CodebaseScanSyntax::registerProjection(self::class.'::source-proofs', self::sourceProofs(...));
         $this->files = [];
         $this->complete = $this->failed = false;
         $this->domains = null;
@@ -73,10 +74,10 @@ final class RefreshedModelProperties implements InitializationHook, CodebaseScan
     private static function sourceProofs(array $nodes): array
     {
         $proofs = [];
-        if ((new NodeFinder)->findFirst($nodes, static fn (Node $node): bool => $node instanceof Node\DeclareItem && strtolower($node->key->name) === 'ticks') !== null) {
+        if (CodebaseScanSyntax::findFirst($nodes, static fn (Node $node): bool => $node instanceof Node\DeclareItem && strtolower($node->key->name) === 'ticks') !== null) {
             return $proofs;
         }
-        foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Stmt\Class_::class) as $class) {
+        foreach (CodebaseScanSyntax::findInstanceOf($nodes, Node\Stmt\Class_::class) as $class) {
             if ($class->name === null || $class->namespacedName === null) { continue; }
             foreach ($class->getMethods() as $scope) {
                 if ($scope->stmts === null || ! self::localScope($scope)) { continue; }

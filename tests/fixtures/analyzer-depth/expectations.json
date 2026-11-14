@@ -1,0 +1,299 @@
+{
+  "unknown-function": {
+    "expected_phpstan_first_level": 0,
+    "phpstan_identifiers": [
+      "function.notFound"
+    ],
+    "mago_codes": [
+      "non-existent-function"
+    ]
+  },
+  "unknown-class": {
+    "expected_phpstan_first_level": 0,
+    "phpstan_identifiers": [
+      "class.notFound"
+    ],
+    "mago_codes": [
+      "non-existent-class"
+    ]
+  },
+  "undefined-variable": {
+    "expected_phpstan_first_level": 0,
+    "phpstan_identifiers": [
+      "variable.undefined"
+    ],
+    "mago_codes": [
+      "undefined-variable"
+    ]
+  },
+  "missing-argument": {
+    "expected_phpstan_first_level": 0,
+    "phpstan_identifiers": [
+      "arguments.count"
+    ],
+    "mago_codes": [
+      "too-few-arguments"
+    ]
+  },
+  "maybe-undefined": {
+    "expected_phpstan_first_level": 1,
+    "phpstan_identifiers": [
+      "variable.undefined"
+    ],
+    "mago_codes": [
+      "possibly-undefined-variable"
+    ]
+  },
+  "magic-property": {
+    "expected_phpstan_first_level": null,
+    "phpstan_identifiers": [
+      "property.notFound"
+    ],
+    "mago_codes": [
+      "non-documented-property"
+    ]
+  },
+  "unknown-method": {
+    "expected_phpstan_first_level": 2,
+    "phpstan_identifiers": [
+      "method.notFound"
+    ],
+    "mago_codes": [
+      "non-existent-method"
+    ]
+  },
+  "incompatible-phpdoc": {
+    "expected_phpstan_first_level": 2,
+    "phpstan_identifiers": [
+      "parameter.phpDocType"
+    ],
+    "mago_codes": [
+      "docblock-type-mismatch"
+    ]
+  },
+  "return-type": {
+    "expected_phpstan_first_level": 3,
+    "phpstan_identifiers": [
+      "return.type"
+    ],
+    "mago_codes": [
+      "invalid-return-statement"
+    ]
+  },
+  "property-type": {
+    "expected_phpstan_first_level": 3,
+    "phpstan_identifiers": [
+      "assign.propertyType"
+    ],
+    "mago_codes": [
+      "invalid-property-assignment-value"
+    ]
+  },
+  "unreachable": {
+    "expected_phpstan_first_level": 4,
+    "phpstan_identifiers": [
+      "deadCode.unreachable"
+    ],
+    "mago_codes": [
+      "unevaluated-code"
+    ]
+  },
+  "impossible-type": {
+    "expected_phpstan_first_level": 4,
+    "phpstan_identifiers": [
+      "instanceof.alwaysFalse"
+    ],
+    "mago_codes": [
+      "impossible-type-comparison"
+    ]
+  },
+  "argument-type": {
+    "expected_phpstan_first_level": 5,
+    "phpstan_identifiers": [
+      "argument.type"
+    ],
+    "mago_codes": [
+      "invalid-argument"
+    ]
+  },
+  "missing-parameter": {
+    "expected_phpstan_first_level": 6,
+    "phpstan_identifiers": [
+      "missingType.parameter"
+    ],
+    "mago_codes": [
+      "missing-parameter-type"
+    ]
+  },
+  "missing-return": {
+    "expected_phpstan_first_level": 6,
+    "phpstan_identifiers": [
+      "missingType.return"
+    ],
+    "mago_codes": [
+      "missing-return-type"
+    ]
+  },
+  "iterable-value": {
+    "expected_phpstan_first_level": 6,
+    "phpstan_identifiers": [
+      "missingType.iterableValue"
+    ],
+    "mago_codes": [
+      "missing-template-parameter"
+    ]
+  },
+  "union-argument": {
+    "expected_phpstan_first_level": 7,
+    "phpstan_identifiers": [
+      "argument.type"
+    ],
+    "mago_codes": [
+      "possibly-invalid-argument"
+    ]
+  },
+  "union-method": {
+    "expected_phpstan_first_level": 7,
+    "phpstan_identifiers": [
+      "method.notFound"
+    ],
+    "mago_codes": [
+      "non-existent-method"
+    ]
+  },
+  "nullable-method": {
+    "expected_phpstan_first_level": 8,
+    "phpstan_identifiers": [
+      "method.nonObject"
+    ],
+    "mago_codes": [
+      "possible-method-access-on-null"
+    ]
+  },
+  "nullable-property": {
+    "expected_phpstan_first_level": 8,
+    "phpstan_identifiers": [
+      "property.nonObject"
+    ],
+    "mago_codes": [
+      "possibly-null-property-access"
+    ]
+  },
+  "explicit-mixed-argument": {
+    "expected_phpstan_first_level": 9,
+    "phpstan_identifiers": [
+      "argument.type"
+    ],
+    "mago_codes": [
+      "mixed-argument"
+    ]
+  },
+  "explicit-mixed-method": {
+    "expected_phpstan_first_level": 9,
+    "phpstan_identifiers": [
+      "method.nonObject"
+    ],
+    "mago_codes": [
+      "mixed-method-access"
+    ]
+  },
+  "implicit-mixed-argument": {
+    "expected_phpstan_first_level": 10,
+    "phpstan_identifiers": [
+      "argument.type"
+    ],
+    "mago_codes": [
+      "mixed-argument"
+    ]
+  },
+  "implicit-mixed-method": {
+    "expected_phpstan_first_level": 10,
+    "phpstan_identifiers": [
+      "method.nonObject"
+    ],
+    "mago_codes": [
+      "mixed-method-access"
+    ]
+  },
+  "array-shape": {
+    "expected_phpstan_first_level": null,
+    "phpstan_identifiers": [
+      "return.type"
+    ],
+    "mago_codes": [
+      "invalid-return-statement"
+    ]
+  },
+  "callable-argument": {
+    "expected_phpstan_first_level": null,
+    "phpstan_identifiers": [
+      "argument.type"
+    ],
+    "mago_codes": [
+      "invalid-argument"
+    ]
+  },
+  "generic-identity": {
+    "expected_phpstan_first_level": null,
+    "phpstan_identifiers": [
+      "return.type"
+    ],
+    "mago_codes": [
+      "invalid-return-statement"
+    ]
+  },
+  "model-property": {
+    "expected_phpstan_first_level": null,
+    "phpstan_identifiers": [
+      "return.type"
+    ],
+    "mago_codes": [
+      "invalid-return-statement"
+    ]
+  },
+  "collection-first": {
+    "expected_phpstan_first_level": null,
+    "phpstan_identifiers": [
+      "return.type"
+    ],
+    "mago_codes": [
+      "invalid-return-statement"
+    ]
+  },
+  "config-value": {
+    "expected_phpstan_first_level": null,
+    "phpstan_identifiers": [
+      "return.type"
+    ],
+    "mago_codes": [
+      "invalid-return-statement"
+    ]
+  },
+  "query-nullable": {
+    "expected_phpstan_first_level": null,
+    "phpstan_identifiers": [
+      "property.nonObject"
+    ],
+    "mago_codes": [
+      "possibly-null-property-access"
+    ]
+  },
+  "migrated-property": {
+    "expected_phpstan_first_level": null,
+    "phpstan_identifiers": [
+      "return.type"
+    ],
+    "mago_codes": [
+      "invalid-return-statement"
+    ]
+  },
+  "config-default": {
+    "expected_phpstan_first_level": null,
+    "phpstan_identifiers": [
+      "return.type"
+    ],
+    "mago_codes": [
+      "invalid-return-statement"
+    ]
+  }
+}

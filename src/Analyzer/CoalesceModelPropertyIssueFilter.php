@@ -16,9 +16,6 @@ use Mago\Sdk\Reporting\Level;
 use Mago\Sdk\SourceLocation;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
-use PhpParser\NodeTraverser;
-use PhpParser\NodeVisitor\NameResolver;
-use PhpParser\ParserFactory;
 use PhpParser\PrettyPrinter\Standard;
 
 /** PHPStan-compatible direct coalesce probe advisory, with no property/type/existence guarantee. */
@@ -41,21 +38,16 @@ final class CoalesceModelPropertyIssueFilter implements IssueFilterHook
             || $primary->message !== 'This property is not explicitly defined' || $secondary->message !== 'On an object of type `'.$this->model.'`'
             || $primary->span->end > strlen($context->contents) || $primary->span->end <= $primary->span->start
             || substr($context->contents, $primary->span->start, $primary->span->length()) !== $match[1]) { return IssueFilterDecision::Keep; }
-        $file = $this->source($context->file, $context->contents); $site = null;
-        foreach ($file === null ? [] : (new NodeFinder)->findInstanceOf($file['nodes'], Node\Expr\BinaryOp\Coalesce::class) as $coalesce) {
-            $fetch = $coalesce->left;
-            if (! $fetch instanceof Node\Expr\PropertyFetch || ! $fetch->name instanceof Node\Identifier || $fetch->name->name !== $match[1]
-                || [$fetch->name->getStartFilePos(), $fetch->name->getEndFilePos() + 1] !== [$primary->span->start, $primary->span->end]
-                || [$fetch->var->getStartFilePos(), $fetch->var->getEndFilePos() + 1] !== [$secondary->span->start, $secondary->span->end]) { continue; }
-            $receiver = $fetch->var;
-            while ($receiver instanceof Node\Expr\PropertyFetch && $receiver->name instanceof Node\Identifier) { $receiver = $receiver->var; }
-            if (! $receiver instanceof Node\Expr\Variable || ! is_string($receiver->name) || in_array($receiver->name, ['GLOBALS', '_SERVER', '_ENV'], true)) { continue; }
-            $site = $fetch;
+        $file = $this->source($context->file, $context->contents, 'coalesce-probes'); $site = null;
+        foreach ($file === null ? [] : $file['nodes'] as $probe) {
+            if ($probe['name'] === $match[1]
+                && $probe['nameSpan'] === [$primary->span->start, $primary->span->end]
+                && $probe['receiverSpan'] === [$secondary->span->start, $secondary->span->end]) { $site = $probe; }
         }
         $this->stages['currentDirectReadOnlyCoalesceProbe'] = $site !== null;
         if ($site === null) { return IssueFilterDecision::Keep; }
         $metadata = $context->codebase->getClass($this->model);
-        $source = $metadata === null ? null : $this->source($metadata->location->file);
+        $source = $metadata === null ? null : $this->source($metadata->location->file, null, 'model-declaration');
         $syntax = $source === null ? null : $this->classNode($source['nodes'], $this->model);
         $interface = $context->codebase->getInterface('ArrayAccess');
         $implements = $syntax === null ? [] : array_map(static fn (Node\Name $name): string => strtolower($name->toString()), $syntax->implements);
@@ -107,13 +99,48 @@ final class CoalesceModelPropertyIssueFilter implements IssueFilterHook
         }
         return IssueFilterDecision::Remove;
     }
-    private function source(?string $file, ?string $analyzed = null): ?array
+    private function source(?string $file, ?string $analyzed = null, ?string $projection = null): ?array
     {
         if ($file === null) { return null; } $path = $this->path($file); $contents = @file_get_contents($path);
         if ($contents === false || strlen($contents) > 1024 * 1024 || $analyzed !== null && $contents !== $analyzed) { return null; }
-        try { $nodes = (new NodeTraverser(new NameResolver))->traverse((new ParserFactory)->createForNewestSupportedVersion()->parse($contents) ?? []); }
+        $model = $this->model;
+        try {
+            $nodes = match ($projection) {
+                'coalesce-probes' => StaticAnalysis\CodebaseScanSyntax::query($contents, self::class.'::coalesce-probes:v1', self::coalesceProbes(...)),
+                'model-declaration' => StaticAnalysis\CodebaseScanSyntax::query($contents, self::class.'::model-declaration:v1:'.strtolower($model),
+                    static fn (array $nodes): array => self::modelDeclaration($nodes, $model)),
+                default => StaticAnalysis\CodebaseScanSyntax::parse($contents),
+            };
+        }
         catch (\PhpParser\Error) { return null; }
         return ['path' => $path, 'contents' => $contents, 'hash' => hash('sha256', $contents), 'nodes' => $nodes];
+    }
+    /** Pure source facts only; physical bytes, paths and native authority stay at the call site. */
+    private static function coalesceProbes(array $nodes): array
+    {
+        $probes = [];
+        foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Expr\BinaryOp\Coalesce::class) as $coalesce) {
+            $fetch = $coalesce->left;
+            if (! $fetch instanceof Node\Expr\PropertyFetch || ! $fetch->name instanceof Node\Identifier) { continue; }
+            $receiver = $fetch->var;
+            while ($receiver instanceof Node\Expr\PropertyFetch && $receiver->name instanceof Node\Identifier) { $receiver = $receiver->var; }
+            if (! $receiver instanceof Node\Expr\Variable || ! is_string($receiver->name) || in_array($receiver->name, ['GLOBALS', '_SERVER', '_ENV'], true)) { continue; }
+            $probes[] = ['name' => $fetch->name->name,
+                'nameSpan' => [$fetch->name->getStartFilePos(), $fetch->name->getEndFilePos() + 1],
+                'receiverSpan' => [$fetch->var->getStartFilePos(), $fetch->var->getEndFilePos() + 1]];
+        }
+        return $probes;
+    }
+    /** Preserve unique declaration selection and every field consumed by the native proof. */
+    private static function modelDeclaration(array $nodes, string $model): array
+    {
+        $matches = (new NodeFinder)->find($nodes, static fn (Node $node): bool => $node instanceof Node\Stmt\Class_
+            && strcasecmp($node->namespacedName?->toString() ?? '', $model) === 0);
+        if (count($matches) !== 1) { return []; }
+        $syntax = clone $matches[0];
+        $syntax->stmts = array_values(array_filter($syntax->stmts, static fn (Node $node): bool => $node instanceof Node\Stmt\ClassMethod
+            && in_array(strtolower($node->name->name), ['__get', '__isset'], true)));
+        return [$syntax];
     }
     private function classNode(array $nodes, string $name): ?Node\Stmt\Class_
     {

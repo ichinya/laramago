@@ -60,6 +60,11 @@ final class ScriptMixedAssignmentFilter implements IssueFilterHook, Initializati
             return IssueFilterDecision::Keep;
         }
 
+        // Every supported result has a literal PHP include/require keyword in these bytes.
+        if (! self::hasIncludeKeyword($context->contents)) {
+            return IssueFilterDecision::Keep;
+        }
+
         // The SDK's in-memory file is authoritative; no include or disk read occurs.
         $key = hash('sha256', $context->file."\0".$context->contents);
         if (isset($this->cache[$key])) {
@@ -85,6 +90,29 @@ final class ScriptMixedAssignmentFilter implements IssueFilterHook, Initializati
         }
         return isset($entry['spans'][$primary->span->start.':'.$primary->span->end])
             ? IssueFilterDecision::Remove : IssueFilterDecision::Keep;
+    }
+
+
+    /** A keyword cannot continue into another PHP identifier byte. Prefixes stay conservative. */
+    private static function hasIncludeKeyword(string $contents): bool
+    {
+        foreach (['include', 'require'] as $keyword) {
+            $offset = 0;
+            while (($position = stripos($contents, $keyword, $offset)) !== false) {
+                $end = $position + 7;
+                if (strncasecmp(substr($contents, $end, 5), '_once', 5) === 0) {
+                    $end += 5;
+                }
+                if (! isset($contents[$end])) { return true; }
+                $byte = ord($contents[$end]);
+                if (! ($byte >= 48 && $byte <= 57 || $byte >= 65 && $byte <= 90
+                    || $byte >= 97 && $byte <= 122 || $byte === 95 || $byte >= 128)) {
+                    return true;
+                }
+                $offset = $position + 1;
+            }
+        }
+        return false;
     }
 
     /** @return array<string, true>|null */

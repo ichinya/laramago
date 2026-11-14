@@ -20,6 +20,8 @@ final class SelectedChunkCollectionArgumentFilter implements IssueFilterHook
     {
         $receivers=new SourceArgumentDeclarationContracts($this->root);$chunks=new SelectedChunkCollectionContracts($this->root);
         try {
+            if (!$receivers->stage('selected diagnostic can describe a broad collection argument',
+                str_contains($context->issue->message,'provided type `Illuminate\\Database\\Eloquent\\Collection<array-key, Illuminate\\Database\\Eloquent\\Model>` is less specific.'))) { return IssueFilterDecision::Keep; }
             $receiving=$receivers->receiving($context,['less-specific-argument']);if ($receiving===null) { return IssueFilterDecision::Keep; }
             ['source'=>$source,'file'=>$file,'call'=>$call,'argument'=>$argument]=$receiving;$value=$argument->value;
             if (!$receivers->stage('exact native broad collection argument',$receiving['index']===0 && count($call->args)===1 && $value instanceof Node\Expr\Variable && is_string($value->name)
