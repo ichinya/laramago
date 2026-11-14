@@ -18,6 +18,16 @@ least-recently-used eviction. Oversized results are returned but not retained,
 and do not evict reusable entries. These bounds cover encoded payloads; PHP
 object and array overhead and currently active results are additional.
 
+When a source cohort exceeds the syntax budget, evicted trees would otherwise
+require a full PHP re-parse on the next lookup. Stored syntax therefore spills
+to a per-process directory under the system temp dir, capped at 4096 entries.
+Spill files are content-addressed by source SHA-256, so changed source bytes
+can never resolve to a stale snapshot, and each entry carries an HMAC keyed to
+a private per-process secret: foreign or tampered bytes are never unserialized.
+A disk hit costs a read plus deserialization instead of another parse, and the
+directory is removed on process shutdown. `CodebaseScanSyntax::$stats` counts
+lookups, memory hits, true parses, evictions and spill hits for diagnostics.
+
 `query(contents, policyId, extractor)` supplies the extractor with resolved nodes.
 An extractor must depend only on those nodes and its policy's syntax options.
 The policy ID identifies the extraction algorithm and every such option. Parse,

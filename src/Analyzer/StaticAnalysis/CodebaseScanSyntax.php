@@ -19,6 +19,7 @@ final class CodebaseScanSyntax
     private const MAX_QUERY_BYTES = 8 * 1024 * 1024;
     // Keep the encoded-byte budget fixed while accommodating the active source cohort.
     private const MAX_QUERY_ENTRIES = 16384;
+    private const SPILL_MAX_FILES = 4096;
 
     /** @var array<string, string> Serialized resolved trees, ordered by last use. */
     private static array $trees = [];
@@ -42,6 +43,14 @@ final class CodebaseScanSyntax
     /** @var array<class-string, list<Node>> */
     private static array $projectionTypes = [];
 
+    /** Per-process spill location; files authenticate with a private key. */
+    private static ?string $spillDir = null;
+    private static ?string $spillKey = null;
+    private static int $spillFiles = 0;
+
+    /** @var array{lookup:int,hit:int,miss:int,evict:int,spill:int} Parse-path counters. */
+    public static array $stats = ['lookup' => 0, 'hit' => 0, 'miss' => 0, 'evict' => 0, 'spill' => 0];
+
     public static function clear(): void
     {
         self::$trees = [];
@@ -54,6 +63,7 @@ final class CodebaseScanSyntax
         self::$projectedSources = [];
         self::$projectionRoots = self::$projectionNodes = null;
         self::$projectionTypes = [];
+        self::$stats = ['lookup' => 0, 'hit' => 0, 'miss' => 0, 'evict' => 0, 'spill' => 0];
     }
 
     /** @internal Register only stateless, read-only syntax extractors during active hook initialization. */
@@ -230,7 +240,9 @@ final class CodebaseScanSyntax
             self::evictTree();
         }
         $key = hash('sha256', $contents);
+        ++self::$stats['lookup'];
         if (isset(self::$trees[$key])) {
+            ++self::$stats['hit'];
             $serialized = self::$trees[$key];
             unset(self::$trees[$key]);
             self::$trees[$key] = $serialized;
@@ -241,6 +253,26 @@ final class CodebaseScanSyntax
             return $nodes;
         }
 
+        $spilled = self::spilledTree($key);
+        if ($spilled !== null) {
+            ++self::$stats['spill'];
+            [$stored, $size] = $spilled;
+            while (self::$trees !== []
+                && (count(self::$trees) >= self::MAX_ENTRIES || self::$uncompressedBytes + $size > $limit)) {
+                self::evictTree();
+            }
+            self::$trees[$key] = $stored;
+            self::$bytes += strlen($stored);
+            self::$uncompressedSizes[$key] = $size;
+            self::$uncompressedBytes += $size;
+
+            /** @var array<array-key, Node> $nodes Serialized only by this process. */
+            $nodes = unserialize(self::serializedTree($stored, $size), ['allowed_classes' => true]);
+
+            return $nodes;
+        }
+
+        ++self::$stats['miss'];
         $nodes = (new ParserFactory)->createForNewestSupportedVersion()->parse($contents) ?? [];
         $nodes = (new NodeTraverser(new NameResolver))->traverse($nodes);
         $serialized = serialize($nodes);
@@ -255,6 +287,7 @@ final class CodebaseScanSyntax
             self::$bytes += strlen($stored);
             self::$uncompressedSizes[$key] = $size;
             self::$uncompressedBytes += $size;
+            self::spillTree($key, $stored, $size);
         }
 
         return $nodes;
@@ -295,9 +328,72 @@ final class CodebaseScanSyntax
 
     private static function evictTree(): void
     {
+        ++self::$stats['evict'];
         $oldest = array_key_first(self::$trees);
         self::$bytes -= strlen(self::$trees[$oldest]);
         self::$uncompressedBytes -= self::$uncompressedSizes[$oldest];
         unset(self::$trees[$oldest], self::$uncompressedSizes[$oldest]);
+    }
+
+    /**
+     * Second-tier storage so an evicted tree costs a disk read instead of a
+     * full PHP re-parse. Entries are content-addressed (freshness) and carry
+     * an HMAC keyed to this process (no unserialize of foreign bytes).
+     */
+    private static function spillTree(string $key, string $stored, int $size): void
+    {
+        if (self::$spillFiles >= self::SPILL_MAX_FILES || self::spillDirectory() === null) {
+            return;
+        }
+        $payload = pack('N', $size).$stored;
+        $entry = hash_hmac('sha256', $payload, self::$spillKey, true).$payload;
+        if (@file_put_contents(self::$spillDir.'/'.$key.'.tree', $entry) === strlen($entry)) {
+            ++self::$spillFiles;
+        }
+    }
+
+    /** @return array{string, int}|null [stored payload, original size] */
+    private static function spilledTree(string $key): ?array
+    {
+        if (self::$spillDir === null || self::$spillDir === '') {
+            return null;
+        }
+        $entry = @file_get_contents(self::$spillDir.'/'.$key.'.tree');
+        if (! is_string($entry) || strlen($entry) < 36) {
+            return null;
+        }
+        $payload = substr($entry, 32);
+        if (! hash_equals(substr($entry, 0, 32), hash_hmac('sha256', $payload, self::$spillKey, true))) {
+            return null;
+        }
+        $size = unpack('Nsize', substr($payload, 0, 4));
+        if (! is_array($size)) {
+            return null;
+        }
+
+        return [substr($payload, 4), $size['size']];
+    }
+
+    private static function spillDirectory(): ?string
+    {
+        if (self::$spillDir !== null) {
+            return self::$spillDir === '' ? null : self::$spillDir;
+        }
+        $dir = sys_get_temp_dir().'/laramago-scan-'.getmypid().'-'.bin2hex(random_bytes(4));
+        if (! @mkdir($dir, 0700, true) && ! is_dir($dir)) {
+            self::$spillDir = '';
+
+            return null;
+        }
+        self::$spillKey = random_bytes(32);
+        self::$spillDir = $dir;
+        register_shutdown_function(static function () use ($dir): void {
+            foreach (glob($dir.'/*.tree') ?: [] as $file) {
+                @unlink($file);
+            }
+            @rmdir($dir);
+        });
+
+        return $dir;
     }
 }
