@@ -114,6 +114,28 @@ final class EloquentPropertyProvider implements PropertyTypeProvider, Initializa
                 $context->report(Level::Warning, 'metadata-unavailable', Issue::at($message, $anchor)->withNote($path));
             }
         }
+        $uncertainties = $this->schema?->uncertainties() ?? [];
+        foreach (array_slice($uncertainties, 0, 3) as $item) {
+            if ($anchor === null) {
+                break;
+            }
+            $detail = $item['scope'] === 'all-tables'
+                ? 'Migration analysis cannot prove the schema readable; schema-derived column contracts are disabled.'
+                : 'Migration analysis left these tables uncertain: '.implode(', ', $item['tables']).'.';
+            $context->report(
+                Level::Warning,
+                'schema-uncertain',
+                Issue::at($detail, $anchor)->withNote($item['file'].':'.$item['line']),
+            );
+        }
+        $suppressed = count($uncertainties) - 3;
+        if ($suppressed > 0 && $anchor !== null) {
+            $context->report(
+                Level::Warning,
+                'schema-uncertain',
+                Issue::at($suppressed.' further schema uncertainties were suppressed.', $anchor),
+            );
+        }
     }
 
     public function afterAnalysis(AfterAnalysisContext $context): void

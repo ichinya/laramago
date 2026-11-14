@@ -254,7 +254,10 @@ foreach ($report['issues'] ?? [] as $issue) {
         $issue['annotations'],
         static fn (array $a): bool => $a['kind'] === 'Primary',
     ))[0];
-    $actual[$primary['span']['start']['line'] + 1][] = $issue['code'];
+    // Schema-uncertainty warnings anchor to the first model, not scenarios.
+    if ($issue['code'] !== 'ichinya/laramago/schema-uncertain') {
+        $actual[$primary['span']['start']['line'] + 1][] = $issue['code'];
+    }
 }
 foreach ($lines as $line => [$name, $expected]) {
     $codes = $actual[$line] ?? [];

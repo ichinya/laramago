@@ -280,7 +280,7 @@ $config = [
     ],
 ];
 file_put_contents($workspace.'/mago.json', json_encode($config, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
-function check_migration_contracts(array $cases, array $command, string $workspace): void
+function check_migration_contracts(array $cases, array $command, string $workspace, bool $expectUncertain = false): void
 {
     $source = "<?php\n";
     $lines = [];
@@ -309,12 +309,21 @@ function check_migration_contracts(array $cases, array $command, string $workspa
     }
     $report = json_decode(file_get_contents($workspace.'/report.json'), true, flags: JSON_THROW_ON_ERROR);
     $actual = [];
+    $uncertain = 0;
     foreach ($report['issues'] ?? [] as $issue) {
         $primary = array_values(array_filter(
             $issue['annotations'],
             static fn (array $a): bool => $a['kind'] === 'Primary',
         ))[0];
-        $actual[$primary['span']['start']['line'] + 1][] = $issue['code'];
+        // Schema-uncertainty warnings anchor to the first model, not scenarios.
+        if ($issue['code'] === 'ichinya/laramago/schema-uncertain') {
+            ++$uncertain;
+        } else {
+            $actual[$primary['span']['start']['line'] + 1][] = $issue['code'];
+        }
+    }
+    if ($uncertain > 4 || ($expectUncertain && $uncertain < 1)) {
+        throw new RuntimeException('Expected bounded schema-uncertain warnings, got '.$uncertain.'; see '.$workspace);
     }
     foreach ($lines as $line => [$name, $expected]) {
         $codes = $actual[$line] ?? [];
@@ -333,7 +342,7 @@ function check_migration_contracts(array $cases, array $command, string $workspa
     }
 }
 
-check_migration_contracts($cases, $command, $workspace);
+check_migration_contracts($cases, $command, $workspace, expectUncertain: true);
 
 unset($config['extension-hosts']);
 file_put_contents($workspace.'/mago.json', json_encode($config, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));

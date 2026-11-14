@@ -23,7 +23,7 @@ An internal `array_filter` callback can receive a coerced string while the resul
 
 ## Schema and model state
 
-`SchemaIndex::uncertainties()` records the source file, line, and affected scope when a statement first invalidates inferred schema knowledge. This inspection API exposes the reasons separately from unreadable-source warnings. Unknown helper calls, raw SQL, dynamic tables, and unsupported table callbacks keep their conservative invalidation behavior.
+`SchemaIndex::uncertainties()` records the source file, line, and affected scope when a statement first invalidates inferred schema knowledge. This inspection API exposes the reasons separately from unreadable-source warnings; `EloquentPropertyProvider` also surfaces them as bounded `ichinya/laramago/schema-uncertain` warnings anchored to a known model. Local migration helper calls (`$this->x()`, `self::x()`, `static::x()`) are expanded and interpreted like inline `up()` statements when they are provably resolvable; query-builder DML and a fixed set of pure PHP functions count as schema-neutral. Raw SQL executors, dynamic tables, unresolved or recursive helpers, and unsupported table callbacks keep their conservative invalidation behavior.
 
 A complete SQL schema does not prove that an Eloquent instance is hydrated or has all columns selected. New instances, partial projections, unknown migrations, nullable casts, and custom accessors still require a valid read contract or a runtime guard. Timestamp casts also need source evidence; these corrections do not grant global non-null model properties.
 

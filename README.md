@@ -385,8 +385,20 @@ Literal-string `DB::raw(...)` wrappers in Blueprint arguments remain supported,
 including a fresh proven string local. Their SQL is never interpreted or executed.
 Dynamic raw arguments and arbitrary nested calls leave the schema uncertain.
 
+Private helper methods called unconditionally from `up()` — `$this->x()`,
+`self::x()` or `static::x()` on the migration class — are expanded like inline
+statements, bounded to 64 chained calls. Query-builder statements such as
+`DB::table(...)->update()`, `DB::raw()` and transaction wrappers count as
+schema-neutral DML, as does a fixed set of pure PHP functions. Raw-SQL executors
+(`DB::statement`, `DB::select`, `DB::unprepared`, `DB::connection`), dynamic or
+unresolvable calls, recursive helpers, and helpers reached through conditionals,
+loops or call arguments keep the whole corpus uncertain. Every loss of precision
+is reported as an `ichinya/laramago/schema-uncertain` warning anchored to
+the migration file and line (bounded to three entries plus a summary).
+`php tests/schema-uncertainty.php` pins these boundaries.
+
 This is a declarative schema reader, not a PHP interpreter. SQL dumps, arbitrary
-SQL or helper calls, conditional/dynamic schema changes, custom connections,
+SQL, conditional/dynamic schema changes, custom connections,
 dynamic `Castable::castUsing()` factories, unresolved generic cast contracts,
 runtime table/cast changes, and untyped accessors are not
 inferred. Uncertain metadata stays unresolved; `$fillable` alone does not establish
