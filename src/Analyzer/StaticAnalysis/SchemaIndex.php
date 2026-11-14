@@ -97,22 +97,13 @@ final class SchemaIndex
                     || $class->getMethod('getConnection') !== null
                 ) {
                     $before = [$this->unreadable, $this->uncertain];
-                    $this->invalidateStatements($up);
+                    $scan = ['visited' => [], 'schema' => false, 'unknownMethod' => false, 'depth' => 0];
+                    $this->invalidateStatements($up, $class, $scan);
                     $this->recordUncertainty($file, $class->getMethod('up') ?? $class, $before);
                     continue;
                 }
                 foreach ($up as $statement) {
-                    $before = [$this->unreadable, $this->uncertain];
-                    if (
-                        $statement instanceof Node\Stmt\Expression
-                        && $statement->expr instanceof Node\Expr\StaticCall
-                        && $this->isSchema($statement->expr)
-                    ) {
-                        $this->schemaCall($statement->expr);
-                    } else {
-                        $this->invalidateStatements([$statement]);
-                    }
-                    $this->recordUncertainty($file, $statement, $before);
+                    $this->migrationStatement($file, $statement, $class, []);
                 }
             }
         }
@@ -303,13 +294,50 @@ final class SchemaIndex
         }
     }
 
-    /** @param array<array-key, Node> $nodes */
-    private function invalidateStatements(array $nodes): void
+    /** @param array<int, true> $visited Helpers already expanded in this call chain. */
+    private function migrationStatement(string $file, Node\Stmt $statement, Node\Stmt\Class_ $class, array $visited): void
     {
-        $foundSchema = false;
-        foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Expr\StaticCall::class) as $call) {
-            if ($this->isSchema($call)) {
-                $foundSchema = true;
+        $before = [$this->unreadable, $this->uncertain];
+        if (
+            $statement instanceof Node\Stmt\Expression
+            && $statement->expr instanceof Node\Expr\StaticCall
+            && $this->isSchema($statement->expr)
+        ) {
+            $this->schemaCall($statement->expr);
+            $this->recordUncertainty($file, $statement, $before);
+
+            return;
+        }
+        $method = $statement instanceof Node\Stmt\Expression && $statement->expr instanceof Node\Expr\CallLike
+            ? $this->localMethod($statement->expr, $class)
+            : null;
+        if (
+            $method !== null
+            && ! isset($visited[spl_object_id($method)])
+            && count($visited) < 64
+        ) {
+            $visited[spl_object_id($method)] = true;
+            foreach ($method->stmts ?? [] as $inner) {
+                $this->migrationStatement($file, $inner, $class, $visited);
+            }
+            // Inner statements anchor their own uncertainty records.
+            return;
+        }
+        $scan = ['visited' => [], 'schema' => false, 'unknownMethod' => false, 'depth' => 0];
+        $this->invalidateStatements([$statement], $class, $scan);
+        $this->recordUncertainty($file, $statement, $before);
+    }
+
+    /**
+     * @param array<array-key, Node> $nodes
+     * @param array{visited:array<int,true>,schema:bool,unknownMethod:bool,depth:int} $scan
+     */
+    private function invalidateStatements(array $nodes, ?Node\Stmt\Class_ $class = null, array &$scan = ['visited' => [], 'schema' => false, 'unknownMethod' => false, 'depth' => 0]): void
+    {
+        ++$scan['depth'];
+        foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Expr\CallLike::class) as $call) {
+            if ($call instanceof Node\Expr\StaticCall && $this->isSchema($call)) {
+                $scan['schema'] = true;
                 $table = PhpSource::value(PhpSource::argument($call->args, 0, 'table'));
                 if (
                     is_string($table)
@@ -320,19 +348,175 @@ final class SchemaIndex
                 } else {
                     $this->unreadable = true;
                 }
-            } elseif (
-                $call->class instanceof Node\Name
+
+                continue;
+            }
+            if (
+                $call instanceof Node\Expr\StaticCall
+                && $call->class instanceof Node\Name
                 && in_array(strtolower($call->class->toString()), ['db', 'illuminate\\support\\facades\\db'], true)
             ) {
-                // SQL can change any table; never interpret or execute it.
+                // Query-builder entry points never emit DDL; raw-SQL executors
+                // (statement, select, unprepared, connection, ...) can change
+                // any table, so they keep the whole corpus unreadable.
+                if (
+                    $call->name instanceof Node\Identifier
+                    && in_array(strtolower($call->name->toString()), ['table', 'raw', 'transaction', 'begintransaction', 'commit', 'rollback'], true)
+                ) {
+                    continue;
+                }
                 $this->unreadable = true;
+
+                continue;
             }
-        }
-        if (! $foundSchema && (new NodeFinder)->findFirstInstanceOf($nodes, Node\Expr\CallLike::class) !== null) {
+            $method = $this->localMethod($call, $class);
+            if (
+                $method !== null
+                && ! isset($scan['visited'][spl_object_id($method)])
+                && count($scan['visited']) < 64
+            ) {
+                $scan['visited'][spl_object_id($method)] = true;
+                $this->invalidateStatements($method->stmts ?? [], $class, $scan);
+
+                continue;
+            }
+            if ($call instanceof Node\Expr\MethodCall || $call instanceof Node\Expr\NullsafeMethodCall) {
+                // Fluent chains on DB::table() are query-builder DML and never
+                // emit DDL; other chains stay suspicious. Blueprint
+                // declarations inside Schema callbacks are judged by the
+                // callback rules, not by generic call suspicion.
+                if (! $this->schemaNeutralChain($call)) {
+                    $scan['unknownMethod'] = true;
+                }
+
+                continue;
+            }
+            if ($call instanceof Node\Expr\FuncCall && $this->pureBuiltin($call)) {
+                continue;
+            }
             // A helper, raw SQL call or indirect schema builder can mutate tables
             // that cannot be identified from its arguments alone.
             $this->unreadable = true;
         }
+        if (--$scan['depth'] === 0 && ! $scan['schema'] && $scan['unknownMethod']) {
+            $this->unreadable = true;
+        }
+    }
+
+    /**
+     * A call resolvable to a method declared on the migration class itself.
+     * Instance and late-static dispatch can reach subclass overrides, so they
+     * resolve only for private methods or classes that cannot be extended.
+     */
+    private function localMethod(Node\Expr\CallLike $call, ?Node\Stmt\Class_ $class): ?Node\Stmt\ClassMethod
+    {
+        if ($class === null) {
+            return null;
+        }
+        $instance = $call instanceof Node\Expr\MethodCall
+            && $call->var instanceof Node\Expr\Variable
+            && $call->var->name === 'this'
+            && $call->name instanceof Node\Identifier;
+        $static = $call instanceof Node\Expr\StaticCall
+            && $call->class instanceof Node\Name
+            && $call->name instanceof Node\Identifier;
+        $staticScope = $static ? strtolower($call->class->toString()) : '';
+        if (! $instance && ! ($static && $this->ownScope($staticScope, $class))) {
+            return null;
+        }
+        foreach ($call->args as $arg) {
+            if (! $arg instanceof Node\Arg || $arg->unpack) {
+                return null;
+            }
+        }
+        $method = $class->getMethod(
+            ($call instanceof Node\Expr\MethodCall || $call instanceof Node\Expr\StaticCall) && $call->name instanceof Node\Identifier
+                ? $call->name->toString()
+                : '',
+        );
+        if ($method === null || $method->stmts === null) {
+            return null;
+        }
+        // self:: binds to the declaring scope; $this-> and static:: dispatch.
+        $dispatched = $instance || $staticScope === 'static';
+        if ($dispatched && ! $method->isPrivate() && ! $class->isAnonymous() && ! $class->isFinal()) {
+            return null;
+        }
+
+        return $method;
+    }
+
+    private function ownScope(string $scope, Node\Stmt\Class_ $class): bool
+    {
+        return $scope === 'self'
+            || $scope === 'static'
+            || ($class->name !== null && $scope === strtolower($class->name->toString()));
+    }
+
+    /**
+     * A fluent chain is schema-neutral only when it bottoms out at
+     * DB::table() — every query-builder verb on it emits DML, never DDL.
+     * Chains on DB::connection() stay unsafe because the connection can
+     * execute unprepared SQL.
+     */
+    private function schemaNeutralChain(Node\Expr\CallLike $call): bool
+    {
+        $var = $call instanceof Node\Expr\MethodCall || $call instanceof Node\Expr\NullsafeMethodCall
+            ? $call->var
+            : null;
+        $guard = 0;
+        while ($var instanceof Node\Expr\MethodCall || $var instanceof Node\Expr\NullsafeMethodCall) {
+            if (++$guard > 64) {
+                return false;
+            }
+            $var = $var->var;
+        }
+
+        return $var instanceof Node\Expr\StaticCall
+            && $var->class instanceof Node\Name
+            && in_array(strtolower($var->class->toString()), ['db', 'illuminate\\support\\facades\\db'], true)
+            && $var->name instanceof Node\Identifier
+            && strtolower($var->name->toString()) === 'table';
+    }
+
+    /**
+     * Internal PHP functions cannot contain Schema or DB calls; only the
+     * side-effect-free subset that never invokes user callbacks counts.
+     */
+    private function pureBuiltin(Node\Expr\FuncCall $call): bool
+    {
+        if (! $call->name instanceof Node\Name) {
+            return false;
+        }
+        static $pure = [
+            'abs', 'array_chunk', 'array_column', 'array_combine', 'array_count_values',
+            'array_diff', 'array_diff_key', 'array_fill', 'array_fill_keys', 'array_flip',
+            'array_intersect', 'array_intersect_key', 'array_key_exists', 'array_key_first',
+            'array_key_last', 'array_keys', 'array_merge', 'array_merge_recursive',
+            'array_pad', 'array_pop', 'array_push', 'array_replace', 'array_reverse',
+            'array_search', 'array_shift', 'array_slice', 'array_splice', 'array_sum',
+            'array_unique', 'array_unshift', 'array_values', 'arsort', 'asort',
+            'base64_decode', 'base64_encode', 'bin2hex', 'boolval', 'ceil', 'checkdate',
+            'chr', 'chunk_split', 'constant', 'count', 'crc32', 'date', 'defined',
+            'doubleval', 'explode', 'floatval', 'floor', 'fmod', 'gmdate', 'hex2bin',
+            'implode', 'in_array', 'intdiv', 'intval', 'is_array', 'is_bool',
+            'is_countable', 'is_double', 'is_float', 'is_int', 'is_integer', 'is_iterable',
+            'is_long', 'is_null', 'is_numeric', 'is_object', 'is_scalar', 'is_string',
+            'json_decode', 'json_encode', 'krsort', 'ksort', 'lcfirst', 'ltrim', 'max',
+            'mb_strtolower', 'mb_strtoupper', 'mb_strlen', 'mb_substr', 'md5',
+            'microtime', 'min', 'mktime', 'mt_rand', 'natcasesort', 'natsort', 'nl2br',
+            'number_format', 'ord', 'pow', 'preg_last_error', 'preg_match',
+            'preg_match_all', 'preg_quote', 'preg_replace', 'preg_split', 'rand',
+            'round', 'rsort', 'rtrim', 'sha1', 'sizeof', 'sort', 'sqrt', 'sprintf',
+            'str_contains', 'str_ends_with', 'str_pad', 'str_repeat', 'str_replace',
+            'str_split', 'str_starts_with', 'strcasecmp', 'strcmp', 'strip_tags',
+            'stripos', 'strlen', 'strnatcasecmp', 'strnatcmp', 'strpos', 'strrev',
+            'strrpos', 'strtolower', 'strtotime', 'strtoupper', 'strval', 'substr',
+            'substr_count', 'substr_replace', 'time', 'trim', 'ucfirst', 'ucwords',
+            'vsprintf', 'wordwrap',
+        ];
+
+        return in_array(strtolower($call->name->toString()), $pure, true);
     }
 
     /** @param list<Node\Expr\MethodCall> $chain */
