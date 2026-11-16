@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 $binary = getenv('MAGO_BINARY') ?: __DIR__.'/../vendor/bin/mago';
 $command = str_ends_with($binary, '.exe') ? [$binary] : [PHP_BINARY, $binary];
+require_once __DIR__.'/fixtures/mago-capabilities.php';
+$nativeVariadics = \Ichinya\Laramago\Tests\Support\MagoCapabilities::implicitVariadics($command);
 $package = str_replace('\\', '/', dirname(__DIR__));
 $changedBody = in_array('--changed-body', $argv, true);
 $workspace = str_replace('\\', '/', sys_get_temp_dir()).'/laramago model load '.bin2hex(random_bytes(8));
@@ -27,11 +29,11 @@ $cases = $changedBody ? [
     'missing relations remains an error' => ["(new WorkLog)->load();", ['too-few-arguments']],
     'named extra relation remains an error' => [
         "(new WorkLog)->load(relations: 'first', extra: 'second');",
-        ['invalid-named-argument', 'too-many-arguments'],
+        $nativeVariadics ? ['invalid-named-argument'] : ['invalid-named-argument', 'too-many-arguments'],
     ],
     'unpacked relations use native analysis' => [
         "(new WorkLog)->load(...['first', 'second']);",
-        ['too-many-arguments'],
+        $nativeVariadics ? [] : ['too-many-arguments'],
     ],
     'subclass override retains its arity' => ["(new CustomWorkLog)->load('first', 'second');", ['too-many-arguments']],
 ];

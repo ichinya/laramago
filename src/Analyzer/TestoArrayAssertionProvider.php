@@ -174,15 +174,16 @@ final class TestoArrayAssertionProvider implements MethodAssertionProvider, Init
             $kind = self::plainMixed($array->keyType) ? 'mixed' : (
                 $key instanceof ScalarType && $key->kind === ScalarTypeKind::ArrayKey && $key->refinement === null ? 'array-key' : null
             );
-            if ($kind === null || isset($seen[$kind])) {
+            if ($kind === null || $kind === 'mixed' && isset($seen[$kind])) {
                 return false;
             }
             $seen[$kind] = true;
         }
         // Testo publishes both Psalm's bare array and PHPStan's mixed-key array.
-        // Mago keeps both facts; only this complementary pair or the single
-        // mixed-key fact needs normalization. Stronger additional facts defer.
-        return isset($seen['mixed']);
+        // Legacy engines retain the mixed-key fact. New engines normalize both
+        // annotations to the same canonical array-key fact. Repeating that
+        // fact is idempotent; stronger element/key assertions still defer.
+        return isset($seen['mixed']) || isset($seen['array-key']);
     }
 
     private static function plainMixed(?Type $type): bool

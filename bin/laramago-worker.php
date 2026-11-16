@@ -62,7 +62,7 @@ if (! is_string($projectRoot) || ! is_dir($projectRoot)) {
 (new Worker(new Extension(
     identifier: 'ichinya/laramago',
     name: 'Laramago',
-    version: '0.0.26',
+    version: '0.1.9',
     analyzerPlugins: [
         new AggregateProjectionPlugin($projectRoot),
         new ArrayAssertionPlugin($projectRoot),

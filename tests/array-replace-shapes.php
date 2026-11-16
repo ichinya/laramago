@@ -64,12 +64,12 @@ foreach (range(0, 3) as $line) {
         throw new RuntimeException('Shape was lost at '.$line.': '.json_encode($runs).' '.$workspace);
     }
 }
-foreach ([4 => 'invalid-return-statement', 7 => 'invalid-argument', 9 => 'invalid-return-statement', 10 => 'too-few-arguments'] as $line => $code) {
+foreach ([4 => 'invalid-return-statement', 6 => 'invalid-return-statement', 7 => 'invalid-argument', 9 => 'invalid-return-statement', 10 => 'too-few-arguments'] as $line => $code) {
     if (! in_array($code, $runs['enabled'][$line] ?? [], true)) {
         throw new RuntimeException('Lost '.$code.' at '.$line.': '.json_encode($runs).' '.$workspace);
     }
 }
-foreach ([5, 6, 8] as $line) {
+foreach ([5, 8] as $line) {
     if (($runs['enabled'][$line] ?? []) !== ($runs['disabled'][$line] ?? []) || ($runs['enabled'][$line] ?? []) === []) {
         throw new RuntimeException('Unknown shape must defer at '.$line.': '.json_encode($runs).' '.$workspace);
     }

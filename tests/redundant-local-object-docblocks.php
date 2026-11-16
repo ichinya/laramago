@@ -317,8 +317,20 @@ $checks = json_decode(file_get_contents($workspace.'/native-doc-controls.json'),
 if (count($checks) !== 53 || in_array(false, $checks, true)) { throw new RuntimeException('Missing or vacuous native controls; inspect '.$workspace); }
 echo 'PASS: '.count($checks)." native envelope, source and metadata controls\n";
 if (in_array('--integrated', $argv, true)) {
-    foreach ([1, 3] as $workers) { $fullWorker = $package.'/bin/laramago-worker.php'; $full = $run('integrated'.$workers, $fullWorker, $workers); if ($signature($full) !== $signature($isolated)) { throw new RuntimeException('Integrated signature mismatch '.$workers.'; inspect '.$workspace); } }
-    echo "PASS: isolated, guarded, full one-worker and full three-worker complete signatures match\n";
+    $fullWorker = $package.'/bin/laramago-worker.php';
+    $registry = file_get_contents($fullWorker);
+    $registration = '        new RedundantLocalObjectDocblockPlugin,';
+    if (substr_count($registry, $registration) !== 1) { throw new RuntimeException('One production object-docblock registration required.'); }
+    $beforeWorker = $workspace.'/full-before-worker.php';
+    file_put_contents($beforeWorker, str_replace($registration, '', $registry));
+    $fullBefore = $run('integrated-before', $beforeWorker);
+    $isolatedRows = $signature($isolated);
+    $targetRows = $signature(array_values(array_filter($native, static fn (array $issue): bool => !in_array(json_encode($issue, JSON_THROW_ON_ERROR), $isolatedRows, true))));
+    $fullTargets = array_values(array_filter($fullBefore, static fn (array $issue): bool => in_array(json_encode($issue, JSON_THROW_ON_ERROR), $targetRows, true)));
+    if (count($fullTargets) !== $removed) { throw new RuntimeException('Every isolated object-docblock target needs a complete full-registry witness; inspect '.$workspace); }
+    $fullExpected = array_values(array_filter($fullBefore, static fn (array $issue): bool => !in_array(json_encode($issue, JSON_THROW_ON_ERROR), $targetRows, true)));
+    foreach ([1, 3] as $workers) { $full = $run('integrated'.$workers, $fullWorker, $workers); if ($signature($full) !== $signature($fullExpected)) { throw new RuntimeException('Integrated signature mismatch '.$workers.'; inspect '.$workspace); } }
+    echo "PASS: full one-worker and three-worker reports remove only the same exact object-docblock advisories\n";
 }
 $singleNative = $run('single-native', single: true); $single = $run('single-isolated', $workspace.'/worker.php', single: true);
 $singleWarnings = array_values(array_filter($singleNative, static fn (array $issue): bool => $issue['level'] === 'Warning' && $issue['code'] === 'redundant-docblock-type'));

@@ -68,6 +68,10 @@ if ($mode === 'runtime-catalogs') {
     }
 }
 
+$binary = getenv('MAGO_BINARY') ?: $package.'/vendor/bin/mago';
+$command = str_ends_with($binary, '.exe') ? [$binary] : [PHP_BINARY, $binary];
+require_once __DIR__.'/fixtures/mago-capabilities.php';
+$nativeVariadics = \Ichinya\Laramago\Tests\Support\MagoCapabilities::implicitVariadics($command);
 $warning = ['ichinya/laramago/laramago-uncataloged-middleware-reference'];
 $cases = [
     'known direct reference' => ['$route->middleware("auth");', []],
@@ -84,7 +88,8 @@ $cases = [
     'keyed list defers' => ['$route->middleware(["slot" => "keyed-typo"]);', []],
     'getter call is not a reference' => ['$route->middleware();', []],
     'named middleware argument' => ['$route->middleware(middleware: "named-typo");', $warning, '"named-typo"'],
-    'extra positional arguments defer' => ['$route->middleware("auth", "extra-typo");', ['too-many-arguments']],
+    'extra positional arguments defer' => ['$route->middleware("auth", "extra-typo");', $nativeVariadics ? [] : ['too-many-arguments']],
+    'custom extra arguments remain rejected' => ['(new CustomRoute)->middleware("auth", "extra-typo");', ['too-many-arguments']],
     'first-class callable is not invoked' => ['$callback = $route->middleware(...);', []],
 ];
 $source = "<?php\nnamespace App;\nuse Illuminate\\Routing\\Route;\n";
@@ -138,8 +143,6 @@ file_put_contents($workspace.'/mago.json', json_encode([
     ],
 ], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
 
-$binary = getenv('MAGO_BINARY') ?: $package.'/vendor/bin/mago';
-$command = str_ends_with($binary, '.exe') ? [$binary] : [PHP_BINARY, $binary];
 $process = proc_open(
     [...$command, '--workspace', $workspace, 'analyze', '--reporting-format=json'],
     [

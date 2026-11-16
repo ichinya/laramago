@@ -62,7 +62,7 @@ final class GuardedNullFlowIssueFilter implements Plugin,InitializationHook,Issu
             if($issue->edits!==[]||count($issue->annotations)!==1||$proof['scope']['topLevel']
                 ||preg_match('/^Invalid return type for function `([^`]+)`: expected `([^`]+)`, but found `([^`]+)`\.$/D',$issue->message,$match)!==1||!in_array('null',explode('|',$match[3]),true)) { return false; }
             $expectedName=($proof['scope']['owner']===null?'':$proof['scope']['owner'].'::').$proof['scope']['name'];
-            if($match[1]!==$expectedName||$primary->message!=='This has type `'.$match[3].'`'||$issue->notes!==['The type `'.$match[3].'` returned here is not compatible with the declared return type `'.$match[2].'`.']
+            if($match[1]!==$expectedName||$primary->message!=='This has type `'.$match[3].'`'||!in_array($issue->notes,[[],['The type `'.$match[3].'` returned here is not compatible with the declared return type `'.$match[2].'`.']],true)
                 ||$issue->help!=='Change the return value to match `'.$match[2].'`, or update the function\'s return type declaration.') { return false; }
             $callee=$proof['scope']['owner']===null?$context->codebase->getFunction($proof['scope']['name']):$context->codebase->getDeclaringMethod($proof['scope']['owner'],$proof['scope']['name']);
             if($callee===null||$callee->declaredReturnType===null||(string)$callee->declaredReturnType->type!==$match[2]||NullFlowNativeContracts::containsNull($callee->declaredReturnType->type)) { return false; }

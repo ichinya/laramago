@@ -21,6 +21,7 @@ $source = <<<'PHP'
         'agent' => ini_get('user_agent'),
         'disabled' => !function_exists('phpinfo'),
         'scanned' => php_ini_scanned_files(),
+        'hard_memory' => ini_get('memory_hard_limit_percent'),
     ], JSON_THROW_ON_ERROR));
     exit(7);
     PHP;
@@ -60,12 +61,26 @@ foreach (['1', 'stderr'] as $display) {
         $observed['memory'] === '96M' && $observed['agent'] === $canary && $observed['disabled'],
         'Effective PHP options were lost.',
     );
+    runtimeAssert($observed['hard_memory'] === ini_get('memory_hard_limit_percent'), 'Unset hard-memory default was not preserved.');
     preg_match('~([^,\r\n]*laramago-runtime-ini-[^,\r\n]*runtime\.ini)~', $observed['scanned'], $match);
     runtimeAssert(
         count($match) === 2 && !file_exists(trim($match[1])) && !is_dir(dirname(trim($match[1]))),
         'Private configuration was not removed.',
     );
     echo 'PASS: private startup ' . $display . ', effective options, exit code and configuration cleanup' . PHP_EOL;
+}
+
+if (array_key_exists('memory_hard_limit_percent', ini_get_all(details: false))) {
+    foreach (['-1', '150'] as $hardLimit) {
+        [$exit, $stdout, $stderr] = runtimeProcess([
+            PHP_BINARY, '-d', 'opcache.enable_cli=0', '-d', 'display_errors=1', '-d', 'log_errors=1',
+            '-d', 'memory_hard_limit_percent='.$hardLimit, ...$arguments,
+        ], $root, 'hard-memory-'.str_replace('-', 'minus', $hardLimit));
+        $observed = json_decode(file_get_contents($root.'/observed.json'), true, flags: JSON_THROW_ON_ERROR);
+        runtimeAssert($exit === 7 && $stdout === '' && $stderr === '' && $observed['hard_memory'] === $hardLimit,
+            'Explicit hard-memory setting was lost or leaked a startup warning.');
+        echo 'PASS: explicit native hard-memory setting '.$hardLimit.PHP_EOL;
+    }
 }
 
 [$exit, $stdout, $stderr] = runtimeProcess(

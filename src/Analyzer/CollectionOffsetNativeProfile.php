@@ -19,6 +19,11 @@ final class CollectionOffsetNativeProfile
     public static function semantic(array $value):array
     {
         foreach($value as $key=>$item){if(is_array($item)){$value[$key]=self::semantic($item);}}
+        // The 1.59 SDK serializes the new optional callback out-type as null.
+        // A non-null postcondition remains part of the complete comparison.
+        if(($value['objectClass']??null)==='Mago\\Sdk\\Analyzer\\Type\\CallableParameter'&&!array_key_exists('outType',$value)){
+            $value['outType']=null;
+        }
         if(($value['objectClass']??null)==='Mago\\Sdk\\Analyzer\\Type\\GenericParameterType'
             &&in_array($value['name']??null,['TValue','TKey'],true)
             &&($value['definingEntity']['objectClass']??null)==='Mago\\Sdk\\Analyzer\\Type\\GenericParent'

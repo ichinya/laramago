@@ -137,34 +137,50 @@ if (in_array('--integrated', $argv, true)) {
 }
 $binary = getenv('MAGO_BINARY') ?: $package.'/vendor/bin/mago';
 $command = str_ends_with($binary, '.exe') ? [$binary] : [PHP_BINARY, $binary];
+/** Compare the same source with and without the provider, including native fixes. */
+function runArrayKeyFixture(array $command, string $workspace, array $config, string $name): array
+{
+    file_put_contents($workspace.'/mago.json', json_encode($config, JSON_THROW_ON_ERROR));
+    $process = proc_open([...$command, '--workspace', $workspace, 'analyze', '--reporting-format=json'], [
+        0 => ['pipe', 'r'], 1 => ['file', $workspace.'/'.$name.'.json', 'w'], 2 => ['file', $workspace.'/'.$name.'.log', 'w'],
+    ], $pipes);
+    if (! is_resource($process)) { throw new RuntimeException('Cannot start Mago.'); }
+    fclose($pipes[0]);
+    $exit = proc_close($process);
+    $stderr = file_get_contents($workspace.'/'.$name.'.log');
+    if (! in_array($exit, [0, 1], true) || preg_match('/provider failed|rejected request|hook .* failed|parse error/i', $stderr)) {
+        throw new RuntimeException('Mago failed: '.$stderr.'; inspect '.$workspace);
+    }
+    return json_decode(file_get_contents($workspace.'/'.$name.'.json'), true, flags: JSON_THROW_ON_ERROR)['issues'];
+}
 foreach ($modes as $mode => [$assertSource, $delegateSource, $stateSource]) {
     file_put_contents($workspace.'/provider-calls.log', '');
     file_put_contents($workspace.'/vendor/testo/assert/Assert.php', $mode === 'custom-source-path' ? '<?php' : $assertSource);
     file_put_contents($workspace.'/custom-assert.php', $mode === 'custom-source-path' ? $assertSource : '<?php');
     file_put_contents($workspace.'/vendor/testo/assert/src/Internal/Assertion/AssertArray.php', $delegateSource);
     file_put_contents($workspace.'/vendor/testo/assert/src/Internal/StaticState.php', $stateSource);
-    file_put_contents($workspace.'/mago.json', json_encode([
+    $config = [
         'extends' => $package.'/presets/laravel.toml', 'php-version' => '8.2',
         'source' => ['paths' => ['cases.php'], 'includes' => ['types.php', 'custom-assert.php', 'vendor']],
         'extension-hosts' => $mode === 'native' ? new stdClass : ['test' => [
             'command' => [PHP_BINARY, $mode === 'integrated' ? $package.'/bin/laramago-worker.php' : $workspace.'/worker.php', $package.'/vendor/autoload.php', $workspace],
             'workers' => 2,
         ]],
-    ], JSON_THROW_ON_ERROR));
-    $process = proc_open([...$command, '--workspace', $workspace, 'analyze', '--reporting-format=json'], [
-        0 => ['pipe', 'r'], 1 => ['file', $workspace.'/'.$mode.'.json', 'w'], 2 => ['file', $workspace.'/'.$mode.'.log', 'w'],
-    ], $pipes);
-    if (! is_resource($process)) {
-        throw new RuntimeException('Cannot start Mago.');
-    }
-    fclose($pipes[0]);
-    $exit = proc_close($process);
-    $stderr = file_get_contents($workspace.'/'.$mode.'.log');
-    if (! in_array($exit, [0, 1], true) || preg_match('/provider failed|rejected request|hook .* failed|parse error/i', $stderr)) {
-        throw new RuntimeException('Mago failed: '.$stderr.'; inspect '.$workspace);
-    }
-    $issues = json_decode(file_get_contents($workspace.'/'.$mode.'.json'), true, flags: JSON_THROW_ON_ERROR)['issues'];
+    ];
+    $nativeConfig = $config;
+    $nativeConfig['extension-hosts'] = new stdClass;
+    $nativeIssues = runArrayKeyFixture($command, $workspace, $nativeConfig, 'native-'.$mode);
+    $issues = $mode === 'native' ? $nativeIssues : runArrayKeyFixture($command, $workspace, $config, $mode);
     $diagnostics = [];
+    $nativeDiagnostics = [];
+    foreach ($nativeIssues as $issue) {
+        foreach ($issue['annotations'] as $annotation) {
+            if ($annotation['kind'] === 'Primary' && $annotation['span']['file_id']['name'] === 'cases.php') {
+                $nativeDiagnostics[$annotation['span']['start']['line']][] = $issue['code'];
+                break;
+            }
+        }
+    }
     foreach ($issues as $issue) {
         foreach ($issue['annotations'] as $annotation) {
             if ($annotation['kind'] === 'Primary' && $annotation['span']['file_id']['name'] === 'cases.php') {
@@ -177,14 +193,15 @@ foreach ($modes as $mode => [$assertSource, $delegateSource, $stateSource]) {
     foreach ($lines as $line => [$label, $kind]) {
         $codes = $diagnostics[$line] ?? [];
         $keyIssue = array_intersect(['less-specific-nested-return-statement', 'less-specific-nested-argument-type'], $codes) !== [];
-        if (($kind === 'key' && $keyIssue === $enabled) || ($kind === 'defer' && ! $keyIssue)) {
+        $nativeKeyIssue = array_intersect(['less-specific-nested-return-statement', 'less-specific-nested-argument-type'], $nativeDiagnostics[$line] ?? []) !== [];
+        if (($kind === 'key' && $keyIssue !== (! $enabled && $nativeKeyIssue)) || ($kind === 'defer' && $keyIssue !== $nativeKeyIssue)) {
             throw new RuntimeException($mode.' '.$label.': unexpected keys '.json_encode($codes).'; inspect '.$workspace);
         }
         if ($kind === 'valid' && ($enabled || $mode === 'native')
             && array_intersect(['invalid-return-statement', 'mixed-return-statement', 'less-specific-nested-return-statement'], $codes) !== []) {
             throw new RuntimeException($mode.' '.$label.': lost original types '.json_encode($codes).'; inspect '.$workspace);
         }
-        $invalidCodes = ['mixed-argument', 'invalid-argument', 'invalid-return-statement', 'mixed-return-statement', 'less-specific-nested-return-statement'];
+        $invalidCodes = ['mixed-argument', 'invalid-argument', 'invalid-return-statement', 'mixed-return-statement', 'less-specific-return-statement', 'less-specific-nested-return-statement'];
         if (! $enabled && $mode !== 'native') {
             array_push($invalidCodes, 'impossible-type-comparison', 'never-return');
         }
@@ -196,6 +213,16 @@ foreach ($modes as $mode => [$assertSource, $delegateSource, $stateSource]) {
             throw new RuntimeException($mode.' '.$label.': lost nonarray contradiction '.json_encode($codes).'; inspect '.$workspace);
         }
     }
+    $expectedIssues = [];
+    foreach ($nativeIssues as $issue) {
+        $primary = array_values(array_filter($issue['annotations'], static fn (array $a): bool => $a['kind'] === 'Primary'))[0];
+        $kind = $primary['span']['file_id']['name'] === 'cases.php' ? ($lines[$primary['span']['start']['line']][1] ?? null) : null;
+        if ($enabled && $kind === 'key' && in_array($issue['code'], ['less-specific-nested-return-statement', 'less-specific-nested-argument-type'], true)) { continue; }
+        $expectedIssues[] = json_encode($issue, JSON_THROW_ON_ERROR);
+    }
+    $actualIssues = array_map(static fn (array $issue): string => json_encode($issue, JSON_THROW_ON_ERROR), $issues);
+    sort($expectedIssues); sort($actualIssues);
+    if ($expectedIssues !== $actualIssues) { throw new RuntimeException('Unrelated complete native diagnostics changed: '.$mode.'; inspect '.$workspace); }
     if (! in_array($mode, ['native', 'integrated'], true)) {
         $superglobalCalls = 0;
         foreach (file($workspace.'/provider-calls.log', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $entry) {

@@ -166,7 +166,8 @@ final class DeprecatedMethodCompatibilityProof implements InitializationHook, Co
         if ($receiverClass === null || $receiverClass->kind !== ClassLikeKind::Class_ || strcasecmp($receiverClass->name, $owner) !== 0 || $receiverClass->hasIncompleteHierarchy() || !$builtin && $receiverClass->templates !== [] || $receiverClass->mixins !== [] || $receiverClass->flags->contains(MetadataFlags::POLYFILL) || $receiverClass->flags->contains(MetadataFlags::BUILTIN) !== $builtin) {
             return $receipt;
         }
-        if ($builtin && hash('sha256', json_encode(self::canonical($receipt['receiverNativeAttempt']), JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)) !== DeprecatedMethodBuiltinReceiverProfile::SHA256) {
+        $builtinReceiverHash = hash('sha256', json_encode(self::canonical($receipt['receiverNativeAttempt']), JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+        if ($builtin && !in_array($builtinReceiverHash, [DeprecatedMethodBuiltinReceiverProfile::SHA256, DeprecatedMethodBuiltinReceiverProfile::MAGO_159_SHA256], true)) {
             return $receipt;
         }
         $receipt['stages']['receiver'] = true;
@@ -178,7 +179,8 @@ final class DeprecatedMethodCompatibilityProof implements InitializationHook, Co
         }
         $receipt['stages']['callee'] = true;
         if ($builtin) {
-            if (hash('sha256', json_encode(self::canonical(self::profile($callee)), JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)) !== DeprecatedMethodBuiltinProfile::SHA256) {
+            $expectedMethodHash = $builtinReceiverHash === DeprecatedMethodBuiltinReceiverProfile::MAGO_159_SHA256 ? DeprecatedMethodBuiltinProfile::MAGO_159_SHA256 : DeprecatedMethodBuiltinProfile::SHA256;
+            if (hash('sha256', json_encode(self::canonical(self::profile($callee)), JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)) !== $expectedMethodHash) {
                 return $receipt;
             }
             $receipt['stages']['builtinOrSourceProfile'] = true;

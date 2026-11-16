@@ -34,11 +34,12 @@ $cases = [
     'active boot instance dispatch' => ['return (new CallableMacroBox)->bootlabel(1);', 'string', []],
     'active boot invalid argument' => ["return CallableMacroBox::bootlabel('bad');", 'string', ['invalid-argument']],
     'mixed-case static call preserves literal name' => ['return CallableMacroBox::mixedCase(1);', 'string', []],
-    'mixed-case instance SDK lookup remains deferred' => [
+    'mixed-case instance call preserves literal name' => [
         'return (new CallableMacroBox)->mixedCase(1);',
         'string',
-        $deferred,
+        [],
     ],
+    'wrong-case instance key remains unknown' => ['return (new CallableMacroBox)->MIXEDCASE(1);', 'string', $deferred],
     'native priority' => ['return CallableMacroBox::native();', 'string', []],
     'PHPDoc priority' => ['return DocumentedCallableBox::documented(1);', 'string', []],
     'unregistered macro' => ['return CallableMacroBox::missing();', 'string', $deferred],

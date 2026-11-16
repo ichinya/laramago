@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 $binary = getenv('MAGO_BINARY') ?: __DIR__.'/../vendor/bin/mago';
 $command = str_ends_with($binary, '.exe') ? [$binary] : [PHP_BINARY, $binary];
+require_once __DIR__.'/fixtures/mago-capabilities.php';
+$nativeImplicitVariadics = \Ichinya\Laramago\Tests\Support\MagoCapabilities::implicitVariadics($command);
 $package = str_replace('\\', '/', dirname(__DIR__));
 $changedBody = in_array('--changed-body', $argv, true);
 $workspace = str_replace('\\', '/', sys_get_temp_dir()).'/laramago query variadics '.bin2hex(random_bytes(8));
@@ -37,11 +39,11 @@ $cases = $changedBody ? [
     'has-many relation forwards positional distinct' => ["(new HasMany)->distinct('id');", []],
     'named extra select argument remains an error' => [
         "(new Builder)->select(columns: 'id', extra: 'name');",
-        ['invalid-named-argument', 'too-many-arguments'],
+        ['invalid-named-argument', ...($nativeImplicitVariadics ? [] : ['too-many-arguments'])],
     ],
     'unpacked select arguments use native analysis' => [
         "(new Builder)->select(...['id', 'name']);",
-        ['too-many-arguments'],
+        $nativeImplicitVariadics ? [] : ['too-many-arguments'],
     ],
     'subclass override retains its arity' => ["(new CustomBuilder)->select('id', 'name');", ['too-many-arguments']],
 ];

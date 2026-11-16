@@ -9,10 +9,11 @@ use Mago\Sdk\Analyzer\FunctionTarget;
 use Mago\Sdk\Analyzer\InvocationKind;
 use Mago\Sdk\Analyzer\ReturnTypeProviderContext;
 use Mago\Sdk\Analyzer\Type;
+use Mago\Sdk\Analyzer\Type\ArrayItem;
 use Mago\Sdk\Analyzer\Type\ArrayKeyKind;
 use Mago\Sdk\Analyzer\Type\KeyedArrayType;
 
-/** Preserve sealed record shapes when PHP replaces their known keys. */
+/** Preserve sealed records, including optional replacements of required string keys. */
 final class ArrayReplaceProvider implements FunctionReturnTypeProvider
 {
     public function getTargets(): array
@@ -39,11 +40,23 @@ final class ArrayReplaceProvider implements FunctionReturnTypeProvider
                 return null;
             }
             foreach ($array->knownItems ?? [] as $item) {
-                if ($item->optional || $item->key->kind === ArrayKeyKind::ClassLikeConstant
+                if ($item->key->kind === ArrayKeyKind::ClassLikeConstant
                     || is_string($item->key->value) && is_numeric($item->key->value)) {
                     return null;
                 }
                 $key = $item->key->kind->name.':'.$item->key->value;
+                if ($item->optional) {
+                    $previous = $items[$key] ?? null;
+                    // Only overwrite an existing required string key. Optional
+                    // base/new/numeric keys keep their native contract and order.
+                    if ($previous === null || $previous->optional || $item->key->kind !== ArrayKeyKind::String
+                        || count($previous->type->atomicTypes) + count($item->type->atomicTypes) > 64) {
+                        return null;
+                    }
+                    $items[$key] = new ArrayItem($previous->key, false, Type::union($previous->type, $item->type));
+
+                    continue;
+                }
                 // Replacing an existing key preserves its position, including
                 // numeric keys. Replacement is shallow, never recursive.
                 $items[$key] = $item;

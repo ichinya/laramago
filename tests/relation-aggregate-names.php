@@ -5,6 +5,8 @@ declare(strict_types=1);
 // Validate relation references through the real worker without executing model code.
 $binary = getenv('MAGO_BINARY') ?: __DIR__.'/../vendor/bin/mago';
 $command = str_ends_with($binary, '.exe') ? [$binary] : [PHP_BINARY, '-d', 'opcache.enable_cli=0', $binary];
+require_once __DIR__.'/fixtures/mago-capabilities.php';
+$nativeImplicitVariadics = \Ichinya\Laramago\Tests\Support\MagoCapabilities::implicitVariadics($command);
 $package = str_replace('\\', '/', dirname(__DIR__));
 $workspace = str_replace('\\', '/', sys_get_temp_dir()).'/laramago aggregate names '.bin2hex(random_bytes(8));
 $vendor = $workspace.'/vendor/laravel/framework/src/Illuminate/Database/Eloquent';
@@ -110,12 +112,12 @@ $cases += [
     'extra count name' => [
         'RelationNameRecord::query()->withCount("children", "missing");',
         'void',
-        [...$missing, 'too-many-arguments'],
+        [...$missing, ...($nativeImplicitVariadics ? [] : ['too-many-arguments'])],
     ],
     'array first ignores extra count name' => [
         'RelationNameRecord::query()->withCount(["children"], "missing");',
         'void',
-        ['too-many-arguments'],
+        $nativeImplicitVariadics ? [] : ['too-many-arguments'],
     ],
     'sum column is not a relation' => ['RelationNameRecord::query()->withSum("children", "missing");', 'void', []],
     'dynamic relation deferred' => [

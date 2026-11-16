@@ -58,6 +58,7 @@ final class NullFlowNativeControls implements IssueFilterHook
             'native target source file'=>[$target,$copy($target,['location'=>$copy($target->location,['file'=>'foreign.php'])])],
             'native target name span'=>[$target,$copy($target,['nameLocation'=>$shift($target->nameLocation)])],
             'native target reference return'=>[$target,$copy($target,['flags'=>new MetadataFlags($target->flags->bits|MetadataFlags::BY_REFERENCE)])],
+            'native target visibility contradiction'=>[$target,$copy($target,['visibility'=>\Mago\Sdk\Analyzer\Type\Visibility::Private])],
             'native target declared return missing'=>[$target,$copy($target,['declaredReturnType'=>null])],
             'native target return missing'=>[$target,$copy($target,['returnType'=>null])],
             'native target declared return contradiction'=>[$target,$copy($target,['declaredReturnType'=>$copy($target->declaredReturnType,['type'=>Type::int()])])],

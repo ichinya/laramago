@@ -15,6 +15,17 @@ final class CollectionOffsetGuardObserver implements IssueFilterHook
         if($before['remove']&&str_starts_with($this->mode,'cache-')){
             if($this->mode==='cache-query-return'){$native=$context->codebase->getDeclaringMethod('Illuminate\\Database\\Eloquent\\Model','query');$replacement=ControlledCache::copy($native,['returnType'=>ControlledCache::copy($native->returnType,['type'=>Type::string()])]);}
             elseif($this->mode==='cache-key-by-return'){$native=$context->codebase->getDeclaringMethod('Illuminate\\Support\\Collection','keyBy');$replacement=ControlledCache::copy($native,['returnType'=>ControlledCache::copy($native->returnType,['type'=>Type::int()])]);}
+            elseif($this->mode==='cache-key-by-callback-out'){
+                $native=$context->codebase->getDeclaringMethod('Illuminate\\Support\\Collection','keyBy');$formal=$native->parameters[0];$union=$formal->type->type;$atoms=$union->atomicTypes;$changed=false;
+                foreach($atoms as $index=>$atom){if($atom instanceof Mago\Sdk\Analyzer\Type\CallableType&&$atom->signature!==null){
+                    $parameters=$atom->signature->parameters;if($parameters===[]||!property_exists($parameters[0],'outType')){throw new RuntimeException('A genuine callback out-type slot is required.');}
+                    $parameters[0]=ControlledCache::copy($parameters[0],['outType'=>Type::int()]);
+                    $atoms[$index]=ControlledCache::copy($atom,['signature'=>ControlledCache::copy($atom->signature,['parameters'=>$parameters])]);$changed=true;
+                }}
+                if(!$changed){throw new RuntimeException('A genuine selected keyBy callback is required.');}
+                $parameters=$native->parameters;$parameters[0]=ControlledCache::copy($formal,['type'=>ControlledCache::copy($formal->type,['type'=>Type::fromAtomics(...$atoms)->withFlags($union->flags)])]);
+                $replacement=ControlledCache::copy($native,['parameters'=>$parameters]);
+            }
             elseif($this->mode==='cache-storage-object'){$native=$context->codebase->getDeclaringProperty('Illuminate\\Support\\Collection','$items');$replacement=ControlledCache::copy($native,['type'=>ControlledCache::copy($native->type,['type'=>Type::object()])]);}
             elseif($this->mode==='cache-caller-reference'){$scope=$before['source']['scope'];$native=$context->codebase->getDeclaringMethod($scope['class'],$scope['name']);$replacement=ControlledCache::copy($native,['flags'=>new MetadataFlags($native->flags->bits|MetadataFlags::BY_REFERENCE)]);}
             elseif(in_array($this->mode,['cache-key-by-population','cache-key-by-constraint','cache-key-by-doc-origin'],true)){
@@ -30,7 +41,7 @@ final class CollectionOffsetGuardObserver implements IssueFilterHook
             else{throw new RuntimeException('Unknown Collection cache control.');}
             $bindings=match($this->mode){
                 'cache-query-return'=>[['kind'=>'method','class'=>$before['source']['query']['model'],'name'=>'query'],['kind'=>'method','class'=>'Illuminate\\Database\\Eloquent\\Model','name'=>'query']],
-                'cache-key-by-population','cache-key-by-constraint','cache-key-by-doc-origin','cache-key-by-return'=>[['kind'=>'method','class'=>'Illuminate\\Database\\Eloquent\\Collection','name'=>'keyBy'],['kind'=>'method','class'=>'Illuminate\\Support\\Collection','name'=>'keyBy']],
+                'cache-key-by-population','cache-key-by-constraint','cache-key-by-doc-origin','cache-key-by-return','cache-key-by-callback-out'=>[['kind'=>'method','class'=>'Illuminate\\Database\\Eloquent\\Collection','name'=>'keyBy'],['kind'=>'method','class'=>'Illuminate\\Support\\Collection','name'=>'keyBy']],
                 'cache-storage-object'=>[['kind'=>'property','class'=>'Illuminate\\Database\\Eloquent\\Collection','name'=>'$items'],['kind'=>'property','class'=>'Illuminate\\Support\\Collection','name'=>'$items']],
                 'cache-model-mixin'=>[['kind'=>'class','name'=>$before['source']['query']['model']]],
                 'cache-caller-reference'=>[['kind'=>'method','class'=>$before['source']['scope']['class'],'name'=>$before['source']['scope']['name']]],

@@ -28,6 +28,12 @@ Factory, model refresh and defensive boundary scanners share source work while
 keeping their own path policy, scan lifecycle and native contracts. See the
 [source query cache contract](docs/source-query-cache.md) for limits and controls.
 
+Version `0.1.9` bounds generated worker scan packets to 8 MiB, excludes generated
+IDE metadata, and improves migration table-list and schema-read interpretation.
+Constructor effects that cannot be resolved conservatively keep the schema
+uncertain. Array row/replacement contracts and dynamic macro invocations also
+retain more precise types while preserving unsupported cases and native errors.
+
 Version `0.1.1` preserves native diagnostics when runtime writes can change
 configuration values and corrects Eloquent key contracts. Configuration scanning
 stops once an unknown write invalidates all keys, avoiding unnecessary metadata
@@ -50,6 +56,19 @@ process descriptor redirects, with LF/CRLF source regression checks.
 It includes the Laravel integrations from earlier releases.
 For local package development, see the path repository instructions below.
 
+For `array_column($rows, null, 'key')`, a union of array row shapes retains the
+whole row type. This compatibility rule also supports omitted or null indexes
+and literal integer indexes. It defers for object/scalar entries, dynamic keys,
+unpacking and non-null column keys; native argument errors remain visible.
+`php tests/array-column-rows.php` checks native and one/three-worker reports.
+
+`array_replace` also preserves a sealed record when optional replacements target
+its existing required string keys. An optional replacement keeps both possible
+value types; a later required replacement wins. Optional base/new/numeric keys,
+open records, unions of records and unpacked arguments retain native analysis.
+`php tests/array-replace-optionals.php` checks SDK decisions, complete deferred
+diagnostics, named constructor arguments and the bounded union limit.
+
 ## How it works
 
 The plugin runs on Composer's `post-install-cmd` and `post-update-cmd` events.
@@ -64,7 +83,8 @@ If the application has no Mago configuration, it creates a file such as:
     },
     "extension-hosts": {
         "laramago": {
-            "command": ["php", "vendor/ichinya/laramago/bin/laramago-worker.php", "vendor/autoload.php"]
+            "command": ["php", "vendor/ichinya/laramago/bin/laramago-worker.php", "vendor/autoload.php"],
+            "maximum-payload-size": 8388608
         }
     }
 }
@@ -73,6 +93,12 @@ If the application has no Mago configuration, it creates a file such as:
 Only existing standard directories are added to `paths`. If none exist, the
 plugin uses `.`. Add custom directories such as `src` or `Modules` yourself.
 Dependency paths respect Composer's `vendor-dir` setting.
+
+Generated worker configurations limit scan packets to 8 MiB to keep individual
+requests within the host's default deadline. Existing configurations are preserved;
+add `maximum-payload-size = 8388608` under `[extension-hosts.laramago]` manually
+if a large scan packet times out. This bounds request size; it does not increase
+the worker timeout or guarantee completion for every source corpus.
 
 Mago loads `mago.dist.json` automatically and inherits the package settings through
 `extends`. Updating the package updates the shared preset, while application
@@ -168,6 +194,10 @@ Source-certified native `float` callable boundaries accept numeric strings in
 weak PHP mode; strict files and stronger PHPDoc retain their checks. Own physical
 methods may coexist with source-certified named `@mixin` declarations; callable
 contracts are taken from those physical methods.
+Numeric-string unions may also contain already compatible integer and float
+alternatives. Both definite and possible argument diagnostics require the exact
+native diagnostic envelope and the same current source and callable proof;
+nullable, mixed and arbitrary string alternatives retain their diagnostics.
 Defensive CLI normalization of `$_SERVER['argv']` into a string list permits
 the source-proven redundant array check while preserving all native types and
 errors. Conditional, referenced or dynamically shared bindings retain their checks.
@@ -332,6 +362,17 @@ files. A missing default migration directory is supported. Read/parse failures o
 invalid migration configuration emit `ichinya/laramago/metadata-unavailable` warnings
 with the affected path and disable unreliable schema inference.
 
+An outer `foreach` may apply `Schema::table()` or `Schema::create()` declarations
+to a literal list of table names, including a `self::TABLES` constant declared on
+the migration itself. Expansion is limited to 64 names and 256 declarations.
+Dynamic lists, late-static or external constants, references, branching and
+mutation of the loop variable keep the schema uncertain. This does not execute
+migrations or make arbitrary migration helpers statically readable.
+An `if (! Schema::hasColumn('table', 'column'))` guard without an alternate
+branch is also resolved when the earlier migrations establish that complete
+table. Unknown tables, earlier uncertainty and dynamic conditions retain
+conservative invalidation.
+
 Within `Schema::create()` and `Schema::table()` callbacks, a fresh local variable
 may prepare a scalar expression without making the whole table unknown:
 
@@ -389,7 +430,16 @@ Private helper methods called unconditionally from `up()` — `$this->x()`,
 `self::x()` or `static::x()` on the migration class — are expanded like inline
 statements, bounded to 64 chained calls. Query-builder statements such as
 `DB::table(...)->update()`, `DB::raw()` and transaction wrappers count as
-schema-neutral DML, as does a fixed set of pure PHP functions. Raw-SQL executors
+schema-neutral DML, as does a fixed set of pure PHP functions.
+Query-builder chains that escape through `getConnection()` or use dynamic
+method dispatch remain uncertain because they can execute arbitrary SQL.
+Native `Schema` catalog reads such as `getColumns()` and
+`getIndexes()`, zero-argument foreign-key toggles, and
+`DB::connection()->getDriverName()` / `transactionLevel()` preserve the schema.
+Their arguments are still inspected for effects. Literal `firstWhere()` lookups
+on `collect(Schema::getColumns(...))` and built-in literal exception guards are
+also supported; arbitrary collection callbacks or custom exceptions are not.
+Raw-SQL executors
 (`DB::statement`, `DB::select`, `DB::unprepared`, `DB::connection`), dynamic or
 unresolvable calls, recursive helpers, and helpers reached through conditionals,
 loops or call arguments keep the whole corpus uncertain. Every loss of precision

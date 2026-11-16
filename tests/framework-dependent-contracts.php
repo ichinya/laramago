@@ -5,6 +5,8 @@ declare(strict_types=1);
 $package = str_replace('\\', '/', dirname(__DIR__));
 $binary = getenv('MAGO_BINARY') ?: $package.'/vendor/bin/mago';
 $command = str_ends_with($binary, '.exe') ? [$binary] : [PHP_BINARY, $binary];
+require_once __DIR__.'/fixtures/mago-capabilities.php';
+$nativeVariadics = \Ichinya\Laramago\Tests\Support\MagoCapabilities::implicitVariadics($command);
 $workspace = str_replace('\\', '/', sys_get_temp_dir()).'/laramago dependent contracts '.bin2hex(random_bytes(8));
 mkdir($workspace, recursive: true);
 $framework = $workspace.'/vendor/laravel/framework/src/Illuminate';
@@ -90,6 +92,8 @@ foreach (['lf', 'crlf', 'changed-body', 'disabled', 'changed-helper', 'changed-i
         file_put_contents($framework.'/'.$path, $source);
     }
     $enabled = ! in_array($mode, ['changed-body', 'disabled'], true);
+    // Newer engines also recognize this contract without extension plugins.
+    $variadicEnabled = $enabled || $mode !== 'changed-body' && $nativeVariadics;
     $environmentEnabled = $enabled && ! in_array($mode, ['changed-helper', 'changed-import', 'token-collision'], true);
     $migratorEnabled = $enabled && $mode !== 'changed-direct';
     $cases = [
@@ -98,10 +102,10 @@ foreach (['lf', 'crlf', 'changed-body', 'disabled', 'changed-helper', 'changed-i
         'migration callback type retained' => ['acceptBool((new Migrator)->usingConnection("sqlite", fn (): int => 7));', ['invalid-argument']],
         'migration invalid connection rejected' => ['(new Migrator)->usingConnection(7, fn (): int => 7);', ['invalid-argument']],
         'migration callback required' => ['(new Migrator)->usingConnection(null);', $migratorEnabled ? ['too-few-arguments'] : ['null-argument', 'too-few-arguments']],
-        'redirect keys' => ['(new RedirectResponse)->onlyInput("a", "b");', $enabled ? [] : ['too-many-arguments']],
-        'redirect excluded keys' => ['(new RedirectResponse)->exceptInput("a");', $enabled ? [] : ['too-many-arguments']],
-        'facade expectations' => ['Cache::shouldReceive("get", "put");', $enabled ? [] : ['too-many-arguments']],
-        'facade expects' => ['Cache::expects("get");', $enabled ? [] : ['too-many-arguments']],
+        'redirect keys' => ['(new RedirectResponse)->onlyInput("a", "b");', $variadicEnabled ? [] : ['too-many-arguments']],
+        'redirect excluded keys' => ['(new RedirectResponse)->exceptInput("a");', $variadicEnabled ? [] : ['too-many-arguments']],
+        'facade expectations' => ['Cache::shouldReceive("get", "put");', $variadicEnabled ? [] : ['too-many-arguments']],
+        'facade expects' => ['Cache::expects("get");', $variadicEnabled ? [] : ['too-many-arguments']],
         'environment patterns' => ['acceptBool((new Application)->environment("testing"));', $environmentEnabled ? [] : ['possibly-invalid-argument']],
         'array environment patterns' => ['acceptBool((new Application)->environment(["testing", "local"]));', $environmentEnabled ? [] : ['possibly-invalid-argument']],
         'getter retains string' => ['acceptBool((new Application)->environment());', ['possibly-invalid-argument']],
@@ -109,7 +113,8 @@ foreach (['lf', 'crlf', 'changed-body', 'disabled', 'changed-helper', 'changed-i
         'facade override' => ['CustomCache::shouldReceive("a");', ['too-many-arguments']],
         'environment override' => ['acceptBool((new CustomApplication)->environment("testing"));', ['possibly-invalid-argument']],
         'named extras remain rejected' => ['(new RedirectResponse)->onlyInput(extra: "a");', ['invalid-named-argument']],
-        'unpacking remains native' => ['(new RedirectResponse)->onlyInput(...["a"]);', ['too-many-arguments']],
+        'literal unpack follows native analysis' => ['(new RedirectResponse)->onlyInput(...["a"]);', $mode !== 'changed-body' && $nativeVariadics ? [] : ['too-many-arguments']],
+        'unpack override remains rejected' => ['(new CustomRedirect)->onlyInput(...["a"]);', ['too-many-arguments']],
     ];
     $source = $preamble."\n";
     $lines = [];

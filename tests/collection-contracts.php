@@ -64,7 +64,7 @@ $cases = [
     'native override sum retains analyzer contract' => [
         'return $override->sum("quantity");',
         'string',
-        ['mixed-return-statement'],
+        [],
     ],
     'documented override min' => ['return $override->min("quantity");', 'string', []],
     'wrong aggregate return detected' => [
@@ -149,12 +149,32 @@ function check_collection_contracts(array $cases, array $command, string $worksp
     }
     $report = json_decode(file_get_contents($workspace.'/report.json'), true, flags: JSON_THROW_ON_ERROR);
     $actual = [];
+    // This negative input deliberately violates Eloquent's Model bound. New
+    // engines also report that declaration error for every scenario.
+    preg_match_all('/EloquentCollection<int, Record\\|null>/', $source, $nullableDeclarations, PREG_OFFSET_CAPTURE);
+    $declarationLines = [];
+    foreach ($nullableDeclarations[0] as [, $offset]) {
+        $declarationLines[substr_count(substr($source, 0, $offset), "\n") + 1] = true;
+    }
+    $declarationErrors = [];
     foreach ($report['issues'] ?? [] as $issue) {
         $primary = array_values(array_filter(
             $issue['annotations'],
             static fn (array $a): bool => $a['kind'] === 'Primary',
         ))[0];
+        $line = $primary['span']['start']['line'] + 1;
+        if ($issue['code'] === 'invalid-template-parameter' && isset($declarationLines[$line])) {
+            $declarationErrors[$line][] = $issue['code'];
+            continue;
+        }
         $actual[$primary['span']['start']['line'] + 1][] = $issue['code'];
+    }
+    if ($declarationErrors !== []) {
+        foreach ($declarationLines as $line => $_) {
+            if (($declarationErrors[$line] ?? []) !== ['invalid-template-parameter']) {
+                throw new RuntimeException('Eloquent nullable template control changed; inspect '.$workspace);
+            }
+        }
     }
     $failures = [];
     foreach ($lines as $line => [$name, $expected]) {
@@ -184,7 +204,7 @@ check_collection_contracts(
     [
         'disabled sum is mixed' => ['return $models->sum("quantity");', 'int|float', ['mixed-return-statement']],
         'disabled min is mixed' => ['return $models->min("quantity");', 'int|null', ['mixed-return-statement']],
-        'disabled native override' => ['return $override->sum("quantity");', 'string', ['mixed-return-statement']],
+        'disabled native override' => ['return $override->sum("quantity");', 'string', []],
         'disabled unknown property' => ['return $models->max("unknown");', 'int', ['mixed-return-statement']],
     ],
     $command,

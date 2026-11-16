@@ -10,4 +10,10 @@ final class FactoryFakerLibraryProfiles
     public static function methods():array{return self::METHODS;}
     public static function files():array{return self::FILES;}
     public static function native():array{return self::NATIVE;}
+    /** Closed SDK profiles observed with the same pinned physical declarations. */
+    public static function nativeVariants():array{return [self::NATIVE,array_replace(self::NATIVE,[
+        'Faker\\Factory::create'=>'d7a1be86ec00840290d8cb0f0bc14328c9d18855b62845c628ad23582cf237fc',
+        'Faker\\Generator::getFormatter'=>'a30e3d7760e3d32291ba553e3f527323938506754ef0e55a4e2a839358423580',
+        'selected-receiving'=>'c56bb63bce57ee355e0657980661de87b5b560573264a50f49c049b89b4747e1',
+    ])];}
 }

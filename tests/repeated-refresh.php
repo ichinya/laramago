@@ -101,6 +101,17 @@ $subtract=static function(array $issues,array $selected)use($identity):array {
     if(array_sum($counts)!==0) { throw new RuntimeException('Selected complete original records are missing.'); }return $result;
 };
 if($identity($reports['native'])!==$identity($reports['observe'])) { throw new RuntimeException('AlwaysKeep changed native issues.'); }
+require __DIR__.'/fixtures/native-covered-reports.php';$positiveRanges=[];
+foreach($matrix['positiveOwners']as$owner){
+    [$file,$name]=explode('::',$owner,2);$span=$scopes[$file][$name]??null;
+    if($span===null){throw new RuntimeException('Each native-covered refresh owner needs its actual parsed source.');}
+    $positiveRanges[]=['file'=>$file,'start'=>$span[0],'end'=>$span[1]];
+}
+$covered=nativeCoveredReports($reports,$positiveRanges,$closed);
+if($covered!==null){
+    $assertHeld();$write($workspace.'/accepted-result.json',json_encode($covered,JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT));
+    echo 'PASS repeated refresh: native-covered positive owners; every negative whole issue retained, one/three workers. '.$workspace.PHP_EOL;return;
+}
 $selected=$select($reports['native']);$expected=$subtract($reports['native'],$selected);
 foreach(['isolated','isolated-three','controls'] as $mode) { if($identity($reports[$mode])!==$identity($expected)) { throw new RuntimeException('Exact selected removals/other whole records differ: '.$mode); } }
 foreach($matrix['negativeOwners'] as $owner) {

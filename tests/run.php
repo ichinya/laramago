@@ -28,6 +28,7 @@ try {
     check($config['extends'] === 'dependencies/ichinya/laramago/presets/laravel.toml', 'Relocatable preset reference');
     check($config['source']['paths'] === ['app', 'routes'], 'Only existing Laravel paths');
     check($config['source']['includes'] === ['dependencies'], 'Custom vendor-dir');
+    check($config['extension-hosts']['laramago']['maximum-payload-size'] === 8388608, 'Bounded scan request payload');
     check(
         $config['extension-hosts']['laramago']['command'] === [
             'php',
@@ -36,7 +37,7 @@ try {
         ],
         'Relocatable worker and custom vendor autoloader',
     );
-    $count += 4;
+    $count += 5;
     $installer->install($root, $preset);
     check(file_get_contents($root.'/mago.dist.json') === $generated, 'Repeated install preserves config');
     $count++;

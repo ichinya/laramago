@@ -37,7 +37,8 @@ $plugin = new class($root, $mode) implements Mago\Sdk\Analyzer\Plugin {
             public function filterIssue(Mago\Sdk\Analyzer\IssueFilterContext $context): Mago\Sdk\Analyzer\IssueFilterDecision {
                 if (in_array($this->mode,['isolated','full-after'],true)) { return $this->filter->filterIssue($context); }
                 if ($this->mode === 'contexts') {
-                    if (!$this->controlled && $context->issue->code === 'impossible-assignment' && $context->file === 'context.php') {
+                    if (!$this->controlled && in_array($context->issue->code,['impossible-assignment','mixed-assignment'],true) && $context->file === 'context.php'
+                        &&$this->filter->filterIssue($context)===Mago\Sdk\Analyzer\IssueFilterDecision::Remove) {
                         $this->controlled = true; $this->controls($context);
                     }
                     return Mago\Sdk\Analyzer\IssueFilterDecision::Keep;
@@ -96,7 +97,7 @@ $plugin = new class($root, $mode) implements Mago\Sdk\Analyzer\Plugin {
                     $checks[$label] = ['actualReplacements' => $count, 'kept' => true, 'restoredPositive' => true];
                 }
                 $issueChecks = [];
-                foreach (['wrong-level' => ['level' => Mago\Sdk\Reporting\Level::Warning], 'wrong-note' => ['notes' => ['Different note.']],
+                foreach (['wrong-level' => ['level' => $context->issue->level===Mago\Sdk\Reporting\Level::Warning?Mago\Sdk\Reporting\Level::Error:Mago\Sdk\Reporting\Level::Warning], 'wrong-note' => ['notes' => ['Different note.']],
                     'wrong-help' => ['help' => 'Different help.'], 'link' => ['link' => 'https://example.invalid'], 'wrong-code' => ['code' => 'invalid-argument'],
                     'annotation-missing' => ['annotations' => []]] as $label => $changes) {
                     $issue = new ($context->issue::class)(...array_replace(get_object_vars($context->issue), $changes));

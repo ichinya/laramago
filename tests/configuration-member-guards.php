@@ -28,7 +28,22 @@ $selected = array_values(array_filter($records, static fn(array $row): bool => (
 $owners=[];
 foreach($selected as $row){$owner=basename($row['file'],'.php');$owners[$owner]=($owners[$owner]??0)+1;if(!in_array($owner,['helper-positive','facade-positive'],true)){throw new RuntimeException('A negative source owner was admitted: '.$owner);} }
 file_put_contents($workspace.'/baseline-receipt.json',json_encode(['nativeCount'=>count($native),'observeCount'=>count($observe),'admittedOwners'=>$owners,'actualSelectedDiagnostics'=>count($selected),'nativeAcceptance'=>false],JSON_PRETTY_PRINT|JSON_THROW_ON_ERROR));
-if (($owners['helper-positive']??0)!==3 || ($owners['facade-positive']??0)!==3) { throw new RuntimeException('Six genuine selected diagnostic positives required; retained '.$workspace); }
+$nativeHelpCompanions=[];
+foreach($native as $issue){
+    if($issue['level']!=='Help'||$issue['code']!=='redundant-comparison'||$issue['message']!=='Redundant `===` comparison: left-hand side is never identical to right-hand side.'){continue;}
+    foreach($issue['annotations']as$annotation){
+        $owner=basename($annotation['span']['file_id']['name'],'.php');
+        if($annotation['kind']!=='Primary'||!in_array($owner,['helper-positive','facade-positive'],true)){continue;}
+        $bytes=file_get_contents($workspace.'/'.$annotation['span']['file_id']['name']);
+        $start=$annotation['span']['start']['offset'];$end=$annotation['span']['end']['offset'];
+        if(substr($bytes,$start,$end-$start)!=='($row[\'mode\'] ?? \'\')'){throw new RuntimeException('The native Help companion does not bind the classification expression.');}
+        $nativeHelpCompanions[$owner]=($nativeHelpCompanions[$owner]??0)+1;
+    }
+}
+foreach(['helper-positive','facade-positive']as$owner){
+    $covered=$nativeHelpCompanions[$owner]??0;
+    if($covered>1||($owners[$owner]??0)!==3-$covered){throw new RuntimeException('Every selected native diagnostic and native Help companion is required; retained '.$workspace);}
+}
 $draft=$run('draft-1','draft');
 $nativeKey=static function(array $issue):string{foreach($issue['annotations'] as $annotation){if($annotation['kind']==='Primary'){return basename(str_replace('\\','/',$annotation['span']['file_id']['name'])).':'.$annotation['span']['start']['offset'].':'.$annotation['span']['end']['offset'].':'.$issue['level'].':'.$issue['code'].':'.$issue['message'];}}return '';};
 $selectedKeys=[];foreach($selected as $row){$id=basename(str_replace('\\','/',$row['file'])).':'.$row['span'][0].':'.$row['span'][1].':'.match ((int) $row['issue']['level']) { 3 => 'Warning', 4 => 'Error', default => throw new RuntimeException('Unexpected selected canonical level.') }.':'.$row['issue']['code'].':'.$row['issue']['message'];$selectedKeys[$id]=($selectedKeys[$id]??0)+1;}

@@ -41,16 +41,17 @@ final class WeakNumericFloatControlObserver implements Plugin
             private array $checked = [];
             private WeakNumericFloatCompatibilityFilter $filter;
             public function __construct(private readonly string $root) { $this->filter = new WeakNumericFloatCompatibilityFilter($root); }
-            public function getCodes(): array { return ['invalid-argument', 'invalid-return-statement']; }
+            public function getCodes(): array { return ['invalid-argument', 'possibly-invalid-argument', 'invalid-return-statement']; }
             public function filterIssue(IssueFilterContext $context): IssueFilterDecision
             {
                 $result = $this->filter->filterIssue($context);
                 $mode = $context->issue->code;
                 if (basename($context->file) !== 'focus.php' || isset($this->checked[$mode])) { return $result; }
                 // Preserve the real snapshot before a native positive can fail.
-                $argument = $mode === 'invalid-argument';
+                $argument = $mode !== 'invalid-return-statement';
+                $possible = $mode === 'possibly-invalid-argument';
                 $callee = $argument ? $context->codebase->getMethod('FloatFocus\InvoiceTotals', 'accept') : $context->codebase->getMethod('FloatFocus\InvoiceTotals', 'returnAmount');
-                $caller = $argument ? $context->codebase->getMethod('FloatFocus\InvoiceTotals', 'run') : $callee;
+                $caller = $argument ? $context->codebase->getMethod('FloatFocus\InvoiceTotals', $possible ? 'runUnion' : 'run') : $callee;
                 $declaring = $context->codebase->getDeclaringMethod('FloatFocus\InvoiceTotals', $argument ? 'accept' : 'returnAmount');
                 $owner = $context->codebase->getClass('FloatFocus\InvoiceTotals');
                 $cache = (new \ReflectionProperty($context->codebase, 'cache'))->getValue($context->codebase);
@@ -75,7 +76,7 @@ final class WeakNumericFloatControlObserver implements Plugin
                 $envelopes = [
                     'Warning severity' => ['level' => Level::Warning], 'foreign code' => ['code' => 'invalid-property-assignment-value'],
                     'foreign callable message' => ['message' => str_replace('FloatFocus\\', 'Foreign\\', $issue->message)],
-                    'missing note' => ['notes' => []], 'extra note' => ['notes' => [...$issue->notes, 'Unrelated note.']],
+                    'invalid note' => ['notes' => ['Not a native float compatibility note.']], 'extra note' => ['notes' => [...$issue->notes, 'Unrelated note.']],
                     'changed help' => ['help' => null], 'foreign link' => ['link' => 'https://example.invalid'],
                     'suggested edit' => ['edits' => [TextEdit::delete($primary->span)]],
                     'no annotation' => ['annotations' => []],
@@ -94,8 +95,8 @@ final class WeakNumericFloatControlObserver implements Plugin
                         'unknown parameter position' => ['message' => str_replace('argument #1', 'argument #99', $issue->message)]];
                 } else { $envelopes['extra annotation'] = ['annotations' => [$primary, $primary]]; }
                 foreach ($envelopes as $label => $changes) { $expect($label, $with($alter($changes)), false); }
-                foreach (['string', 'string(text)', 'numeric', 'numeric-string|null', 'numeric-string|int', 'numeric-string|mixed', 'numeric-string|array', 'numeric-string|false'] as $domain) {
-                    $found = $argument ? 'numeric-string' : 'float(1.5)|numeric-string';
+                foreach (['string', 'string(text)', 'numeric', 'numeric-string|null', 'numeric-string|object', 'numeric-string|mixed', 'numeric-string|array', 'numeric-string|false'] as $domain) {
+                    $found = $possible ? 'int|numeric-string' : ($argument ? 'numeric-string' : 'float(1.5)|numeric-string');
                     $report = $alter(['message' => str_replace('`'.$found.'`', '`'.$domain.'`', $issue->message),
                         'notes' => array_map(static fn ($note) => str_replace('`'.$found.'`', '`'.$domain.'`', $note), $issue->notes),
                         'annotations' => [$annotation(['message' => 'This has type `'.$domain.'`']), ...array_slice($issue->annotations, 1)]]);

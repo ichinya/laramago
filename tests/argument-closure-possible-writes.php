@@ -75,6 +75,15 @@ $subtract=static function(array $issues,array $selected)use($identity):array {
     if(array_sum($counts)!==0) {throw new RuntimeException('Missing exact selected whole issue records.');}return $result;
 };
 if($identity($reports['native'])!==$identity($reports['observe'])) {throw new RuntimeException('AlwaysKeep changed native whole issues.');}
+require __DIR__.'/fixtures/native-covered-reports.php';
+$sourceOwners=array_values(array_unique(array_values($sites)));
+if(array_diff($positive,$sourceOwners)!==[]){throw new RuntimeException('Each positive owner needs its actual parsed assertion source.');}
+$covered=nativeCoveredReports($reports,[['file'=>'cases.php','start'=>0,'end'=>strlen(file_get_contents($workspace.'/cases.php'))]],$closed);
+if($covered!==null){
+    $assertHeld();$covered['sourcePositiveOwners']=$positive;
+    $write($workspace.'/accepted-result.json',json_encode($covered,JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT));
+    echo 'PASS argument closure possible writes: native-covered positive owners; every negative whole issue retained, one/three workers. '.$workspace.PHP_EOL;return;
+}
 $selected=$select($reports['native']);$expected=$subtract($reports['native'],$selected);
 foreach(['isolated','isolated-three','controls'] as $mode) {if($identity($reports[$mode])!==$identity($expected)) {throw new RuntimeException('Exact selected delta or other whole DTO preservation failed: '.$mode);}}
 foreach($negativeScopes as $owner=>$span) {

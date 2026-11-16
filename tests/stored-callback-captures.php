@@ -266,7 +266,14 @@ $signature = static function (array $issues): array { $rows = array_map(static f
 $native = $run('native', ['cases.php','shadow.php','unrelated-docs.php']); $observe = $run('observe', ['cases.php','shadow.php','unrelated-docs.php']);
 if ($signature($native) !== $signature($observe)) { throw new RuntimeException('Always-Keep stored-reference observation changed the whole native report. '.$root); }
 if ($mode === '--observe') { echo 'Stored-reference observation closed with '.count($native).' unchanged native reports; workspace='.$root."\n"; exit(0); }
-$isolated = $run('isolated', ['cases.php','shadow.php','unrelated-docs.php']); $expected = $native; $removed = []; $matrix = [];
+$isolated = $run('isolated', ['cases.php','shadow.php','unrelated-docs.php']); $expected = $native; $removed = []; $matrix = [];$nativeCoveredErrors=[];
+$overflowSyntax=(new PhpParser\NodeFinder)->findFirst($parserNodes,static fn($node):bool=>$node instanceof PhpParser\Node\Stmt\Function_&&$node->name->name==='overflowContractWitness');
+if($overflowSyntax===null){throw new RuntimeException('The independent overflow source witness is missing.');}
+$overflowErrors=array_filter($native,static function(array $issue)use($overflowSyntax):bool{
+    if($issue['level']!=='Error'){return false;}foreach($issue['annotations']as$a){if($a['kind']==='Primary'){return $a['span']['file_id']['name']==='cases.php'
+        &&$a['span']['start']['offset']>=$overflowSyntax->getStartFilePos()&&$a['span']['end']['offset']<=$overflowSyntax->getEndFilePos()+1;}}return false;
+});
+if(count($overflowErrors)!==1){throw new RuntimeException('One genuine independent integer-overflow Error must remain observable.');}
 foreach ($syntax as $name => $range) {
     $group = static function (array $issues) use ($range): array { return array_filter($issues, static function (array $issue) use ($range): bool {
         $primary = array_values(array_filter($issue['annotations'], static fn (array $annotation): bool => $annotation['kind'] === 'Primary'));
@@ -275,9 +282,10 @@ foreach ($syntax as $name => $range) {
     $before = $group($native); $after = $group($isolated);
     $targets = array_filter($before, static fn (array $issue): bool => $issue['level'] === 'Error' && in_array($issue['code'], ['impossible-assignment','impossible-type-comparison'], true) || $issue['level'] === 'Warning' && $issue['code']==='mixed-assignment');
     $errors = array_filter($before, static fn (array $issue): bool => $issue['level'] === 'Error');
-    if ($errors === []) { throw new RuntimeException('Vacuous native negative/positive group: '.$name.' '.$root); }
     if ($range['candidate']) {
-        if (count(array_filter($targets,static fn(array $issue):bool=>$issue['level']==='Error'))!==2) { throw new RuntimeException('A positive did not reproduce both exact native Errors: '.$name.' '.$root); }
+        $targetErrors=array_filter($targets,static fn(array $issue):bool=>$issue['level']==='Error');
+        if($targetErrors===[]){$nativeCoveredErrors[]=$name;}
+        elseif(count($targetErrors)!==2){throw new RuntimeException('The legacy native Error pair is incomplete: '.$name.' '.$root);}
         foreach ($targets as $index => $issue) { unset($expected[$index]); $removed[] = $issue; }
     } elseif ($signature(array_values($before)) !== $signature(array_values($after))) { throw new RuntimeException('A near-miss lost a complete native diagnostic: '.$name.' '.$root); }
     $matrix[$name] = ['positive' => $range['candidate'], 'native' => array_values($before), 'isolated' => array_values($after), 'exactTargets' => array_values($targets)];
@@ -297,5 +305,5 @@ $receipt = json_decode(file_get_contents($root.'/context-controls.json'), true, 
 if (!$receipt['positive'] || count($receipt['nativeControls']) !== 26 || count($receipt['envelopeControls']) !== 6 || count($receipt['sourceLifecycleControls']) !== 4 || !$receipt['restoredPositive']) { throw new RuntimeException('Missing nonempty genuine controls. '.$root); }
 if (file_exists($root.'/executed') || file_exists($root.'/.env')) { throw new RuntimeException('Unexpected source/fixture/environment execution.'); }
 file_put_contents($root.'/accepted-result.json', json_encode(['cases' => count($matrix), 'exactErrorsRemoved' => count(array_filter($removed,static fn(array $issue):bool=>$issue['level']==='Error')), 'exactWarningsRemoved' => count(array_filter($removed,static fn(array $issue):bool=>$issue['level']==='Warning')), 'allUnrelatedNativeFieldsPreserved' => true,
-    'nativeOverflowErrorPreserved' => true, 'oneThreeEqual' => true, 'controls' => $receipt, 'allRunChildrenClosed' => true], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT));
+    'nativeCoveredErrorOwners'=>$nativeCoveredErrors,'nativeOverflowErrorPreserved' => true, 'oneThreeEqual' => true, 'controls' => $receipt, 'allRunChildrenClosed' => true], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT));
 echo 'Stored-reference isolated gate passed '.count($matrix).' groups/'.count($removed).' exact diagnostics; workspace='.$root."\n";

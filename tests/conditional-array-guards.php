@@ -368,7 +368,25 @@ foreach ([[$native, $standalone], [$control, $proven]] as [$beforeReports, $afte
     foreach (['payload-relay.php', 'payload-destructor.php', 'flag-shadow.php'] as $file) {
         $original = array_values(array_filter($signature($beforeReports), static fn (array $issue): bool => $issue[2] === $file));
         $actual = array_values(array_filter($signature($afterReports), static fn (array $issue): bool => $issue[2] === $file));
-        if ($original === [] || !in_array('mixed-array-access', array_column($original, 0), true) || $original !== $actual) { throw new RuntimeException('Unsafe payload correction: '.$file.' '.json_encode([$original, $actual]).' '.$workspace); }
+        // New engines diagnose these alias/destructor paths through flow
+        // comparisons instead of mixed-array-access. Keep every native issue;
+        // the scan controls below also prove that neither unsafe path is admitted.
+        if ($original === [] || $file === 'flag-shadow.php' && !in_array('mixed-array-access', array_column($original, 0), true)
+            || $original !== $actual) { throw new RuntimeException('Unsafe payload correction: '.$file.' '.json_encode([$original, $actual]).' '.$workspace); }
+        $wholeFile = static function (array $issues) use ($file): array {
+            $result = [];
+            foreach ($issues as $issue) {
+                foreach ($issue['annotations'] as $annotation) {
+                    if ($annotation['kind'] === 'Primary' && $annotation['span']['file_id']['name'] === $file) {
+                        $result[] = json_encode($issue, JSON_THROW_ON_ERROR);
+                        break;
+                    }
+                }
+            }
+            sort($result);
+            return $result;
+        };
+        if ($wholeFile($beforeReports) !== $wholeFile($afterReports)) { throw new RuntimeException('Complete unsafe report changed: '.$file.' '.$workspace); }
     }
 }
 if ($signature($analyze('external')) !== $signature($proven)) { throw new RuntimeException('External configuration lost source-root proof. '.$workspace); }
@@ -514,6 +532,11 @@ $scanChecks = (static function (string $root, string $source): int {
     $expect('initialization clears state', $index->proofs('guard.php', $source) === []);
     $scan([$host]);
     $expect('completed after initialization', count($index->proofs('guard.php', $source)) === 1);
+    foreach (['payload-relay.php', 'payload-destructor.php'] as $unsafeFile) {
+        $unsafeSource = file_get_contents(dirname($root).'/'.$unsafeFile);
+        $scan([$file($unsafeFile, $unsafeSource)]);
+        $expect('unsafe source has no proof: '.$unsafeFile, $index->proofs($unsafeFile, $unsafeSource) === []);
+    }
     return $checks;
 })($workspace.'/scan root', file_get_contents($workspace.'/guard.php'));
 echo 'Conditional array guard checks passed: '.count($cases).' source cases, '.$corrected.' native/control corrections, '.$scanChecks.' scan and '.$contextChecks.' issue/metadata controls, 2 unsafe runtime controls'.(in_array('--integrated', $argv, true) ? ', one and three integrated workers' : '').".\n";

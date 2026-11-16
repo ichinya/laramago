@@ -130,6 +130,7 @@ $selected=static function(array $issues)use($positiveSites,$primary,$relativeSou
         }
     }
     sort($owners);$expected=$catalogue['positiveOwners'];sort($expected);
+    if($owners===[]){return [];}
     if($owners!==$expected){throw new RuntimeException('The two genuine captured-tuple mixed-argument witnesses are absent or ambiguous.');}
     return $result;
 };
@@ -159,6 +160,30 @@ $runStage=static function(string $mode)use($workspace,$package,$controls,$data,$
 foreach(['native','observe'] as $mode){$runStage($mode);}
 if($identity($reports['native'])!==$identity($reports['observe'])){throw new RuntimeException('AlwaysKeep changed complete native records.');}
 $positiveIssues=$selected($reports['native']);
+if($positiveIssues===[]){
+    require __DIR__.'/fixtures/native-covered-reports.php';$positiveRanges=[];
+    foreach($catalogue['positiveOwners']as$owner){
+        [$file,$name]=explode('::',$owner,2);$span=$scopes[$file][$name]??null;
+        if($span===null){throw new RuntimeException('Each native-covered model owner needs its original parsed source.');}
+        $positiveRanges[]=['file'=>$file,'start'=>$span[0],'end'=>$span[1]];
+    }
+    if(!nativeCoveredSourceRanges($reports['native'],$positiveRanges)){throw new RuntimeException('A guarded model owner has a different native diagnostic.');}
+    foreach(['isolated','isolated-three','controls','full-before','full-before-three','full-after','full-after-three']as$mode){$runStage($mode);}
+    $covered=nativeCoveredReports($reports,$positiveRanges,$closed,['negative.php']);
+    if($identity($reports['full-before'])!==$identity($reports['full-before-three'])){throw new RuntimeException('Native-covered full-before worker counts differ.');}
+    $negativeCoverage=[];
+    foreach($catalogue['negativeOwners']as$owner){
+        [$file,$name]=explode('::',$owner,2);$span=$scopes[$file][$name]??null;
+        if($span===null){throw new RuntimeException('A preserved negative source owner is absent.');}
+        $owned=array_values(array_filter($reports['native'],static function(array $issue)use($file,$span):bool{
+            foreach($issue['annotations']as$a){if($a['kind']==='Primary'){return $a['span']['file_id']['name']===$file&&$a['span']['start']['offset']>=$span[0]&&$a['span']['end']['offset']<=$span[1];}}return false;
+        }));
+        $negativeCoverage[$owner]=['wholeNativeIssues'=>$owned,'nativeCovered'=>$owned===[]];
+    }
+    $assertHeld();$covered['negativeSourceOwners']=$negativeCoverage;$covered['heldEvidenceHashes']=$evidence;
+    $write($workspace.'/accepted-result.json',json_encode($covered,JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT));
+    echo 'PASS guarded local model tuples: native-covered source owners; exact whole negative reports and one/three workers. '.$workspace.PHP_EOL;return;
+}
 $entryPath=$workspace.'/observe/entries.jsonl';$observationPath=$workspace.'/observe/observations.jsonl';
 if(!is_file($entryPath)||!is_file($observationPath)){throw new RuntimeException('Actual local-model IssueFilterContext observations are absent.');}
 $readEvents=static fn(string $path):array=>array_map(static fn(string $line):array=>json_decode($line,true,flags:JSON_THROW_ON_ERROR),file($path,FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES));

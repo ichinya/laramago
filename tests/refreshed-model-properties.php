@@ -3107,8 +3107,8 @@ file_put_contents($workspace.'/worker.php', <<<'PHP'
 <?php
 require $argv[1];
 $mode = $argv[3];
-$plugin = new class($argv[2]) implements \Mago\Sdk\Analyzer\Plugin {
-    public function __construct(private string $root) {}
+$plugin = new class($argv[2],$mode==='observe') implements \Mago\Sdk\Analyzer\Plugin {
+    public function __construct(private string $root,private bool $alwaysKeep=false) {}
     public function getDefinition(): \Mago\Sdk\Analyzer\PluginDefinition {
         return new \Mago\Sdk\Analyzer\PluginDefinition('fixture/refreshed-properties', 'Refreshed properties', 'Independent native mutation and virtual read domains');
     }
@@ -3116,11 +3116,20 @@ $plugin = new class($argv[2]) implements \Mago\Sdk\Analyzer\Plugin {
         $index = new \Ichinya\Laramago\Analyzer\StaticAnalysis\RefreshedModelProperties($this->root);
         $registry->registerInitializationHook($index);
         $registry->registerCodebaseScanHook($index);
-        $registry->registerIssueFilterHook(new \Ichinya\Laramago\Analyzer\RefreshedModelPropertyIssueFilter($index));
+        $filter=new \Ichinya\Laramago\Analyzer\RefreshedModelPropertyIssueFilter($index);
+        if($this->alwaysKeep){
+            $registry->registerIssueFilterHook(new class($filter) implements \Mago\Sdk\Analyzer\IssueFilterHook{
+                public function __construct(private $filter){}
+                public function getCodes():array{return $this->filter->getCodes();}
+                public function filterIssue(\Mago\Sdk\Analyzer\IssueFilterContext $context):\Mago\Sdk\Analyzer\IssueFilterDecision{
+                    $this->filter->filterIssue($context);return \Mago\Sdk\Analyzer\IssueFilterDecision::Keep;
+                }
+            });
+        }else{$registry->registerIssueFilterHook($filter);}
     }
 };
-$plugins = in_array($mode, ['standalone', 'json-standalone', 'json-shadow-standalone'], true) ? [] : [new \Ichinya\Laramago\Analyzer\LaravelPlugin($argv[2])];
-if (in_array($mode, ['standalone', 'proven', 'contexts', 'json-standalone', 'json-shadow-standalone'], true)) { $plugins[] = $plugin; }
+$plugins = in_array($mode, ['standalone', 'json-standalone', 'json-shadow-standalone','observe'], true) ? [] : [new \Ichinya\Laramago\Analyzer\LaravelPlugin($argv[2])];
+if (in_array($mode, ['standalone', 'proven', 'contexts', 'json-standalone', 'json-shadow-standalone','observe'], true)) { $plugins[] = $plugin; }
 (new \Mago\Sdk\Worker(new \Mago\Sdk\Extension(identifier: 'fixture/refreshed-properties', name: 'Refreshed properties', version: '1', analyzerPlugins: $plugins)))->run();
 PHP);
 
@@ -3523,13 +3532,16 @@ $plugin = new class($argv[2]) implements \Mago\Sdk\Analyzer\Plugin {
 (new \Mago\Sdk\Worker(new \Mago\Sdk\Extension('fixture/json-refresh-contexts', 'JSON refresh contexts', '1', analyzerPlugins: [$plugin])))->run();
 PHP);
 
-$analyze = static function (string $mode, int $workers = 1, bool $external = false, array $paths = ['cases.php']) use ($workspace, $package, $vendor, $nativeSources): array {
+$closed=[];
+$analyze = static function (string $mode, int $workers = 1, bool $external = false, array $paths = ['cases.php']) use ($workspace, $package, $vendor, $nativeSources,&$closed): array {
     $configuration = $external ? $workspace.' external configuration' : $workspace;
     if (!is_dir($configuration)) { mkdir($configuration); }
     $hosts = in_array($mode, ['native', 'json-native', 'json-shadow-native'], true) ? new stdClass : ['fixture' => [
-        'command' => in_array($mode, ['integrated', 'json-shadow-integrated'], true)
-            ? [PHP_BINARY, '-d', 'opcache.enable_cli=0', $package.'/bin/laramago-worker.php', $package.'/vendor/autoload.php', $workspace]
-            : [PHP_BINARY, '-d', 'opcache.enable_cli=0', $workspace.'/'.match ($mode) { 'contexts' => 'proof-worker.php', 'json-contexts' => 'json-proof-worker.php', default => 'worker.php' }, $package.'/vendor/autoload.php', $workspace, $mode],
+        'command' => in_array($mode, ['integrated', 'json-shadow-integrated'], true)||str_contains($mode,'full-')
+            ? [PHP_BINARY, '-d', 'opcache.enable_cli=0', str_ends_with($mode,'full-before')?$workspace.'/full-before-worker.php':$package.'/bin/laramago-worker.php', $package.'/vendor/autoload.php', $workspace]
+            : ($mode==='certificate'
+                ?[PHP_BINARY,'-d','opcache.enable_cli=0',$package.'/tests/fixtures/model-attribute-source-freshness/worker.php',$package.'/vendor/autoload.php',$workspace,$paths[0]]
+                :[PHP_BINARY, '-d', 'opcache.enable_cli=0', $workspace.'/'.match ($mode) { 'contexts' => 'proof-worker.php', 'json-contexts' => 'json-proof-worker.php', default => 'worker.php' }, $package.'/vendor/autoload.php', $workspace, $mode]),
         'workers' => $workers, 'request-timeout-ms' => 120000,
     ]];
     file_put_contents($configuration.'/mago.json', json_encode([
@@ -3539,7 +3551,7 @@ $analyze = static function (string $mode, int $workers = 1, bool $external = fal
     ], JSON_THROW_ON_ERROR));
     $binary = getenv('MAGO_BINARY') ?: $package.'/vendor/bin/mago';
     $command = str_ends_with($binary, '.exe') ? [$binary] : [PHP_BINARY, $binary];
-    $name = $mode.'-'.$workers.($external ? '-external' : '');
+    $name = $mode.'-'.$workers.($external ? '-external' : '').'-'.hash('xxh64',implode('|',$paths));
     $process = proc_open([...$command, '--workspace', $workspace, '--config', $configuration.'/mago.json', 'analyze', '--reporting-format=json'], [
         0 => ['pipe', 'r'], 1 => ['file', $workspace.'/'.$name.'.json', 'w'], 2 => ['file', $workspace.'/'.$name.'.log', 'w'],
     ], $pipes, $configuration);
@@ -3547,9 +3559,10 @@ $analyze = static function (string $mode, int $workers = 1, bool $external = fal
     fclose($pipes[0]);
     $exit = proc_close($process);
     $stderr = file_get_contents($workspace.'/'.$name.'.log');
-    if ($exit > 1 || preg_match('/provider failed|rejected request|hook .* failed|parse error|worker .* exited|did not answer/i', $stderr)) {
+    if (!in_array($exit,[0,1],true) || preg_match('/provider failed|rejected request|hook .* failed|parse error|worker .* exited|did not answer/i', $stderr)) {
         throw new RuntimeException('Mago failed: '.$stderr.' '.$workspace);
     }
+    $closed[$mode.'-'.$workers]=['closed'=>true,'exitCode'=>$exit,'rawSha256'=>hash_file('sha256',$workspace.'/'.$name.'.json'),'stderrSha256'=>hash_file('sha256',$workspace.'/'.$name.'.log')];
     return json_decode(file_get_contents($workspace.'/'.$name.'.json'), true, flags: JSON_THROW_ON_ERROR)['issues'];
 };
 $signature = static function (array $issues): array {
@@ -3612,6 +3625,42 @@ if (in_array('--baseline', $argv, true)) {
 }
 $standalone = $analyze('standalone');
 $proven = $analyze('proven');
+require __DIR__.'/fixtures/native-covered-reports.php';$positiveRanges=[];
+foreach($cases as$label=>[, , $positive]){if($positive){$positiveRanges[]=['file'=>'cases.php','start'=>$ranges[$label][0],'end'=>$ranges[$label][1],'codes'=>['impossible-type-comparison']];}}
+$nativeCoverageEvidence=null;
+if(nativeCoveredSourceRanges($native,$positiveRanges)&&nativeCoveredSourceRanges($control,$positiveRanges)){
+    $registry=file_get_contents($package.'/bin/laramago-worker.php');$registration='        new RefreshedModelPropertyPlugin($projectRoot),';
+    if(substr_count($registry,$registration)!==1){throw new RuntimeException('One current refreshed-property registration is required.');}
+    file_put_contents($workspace.'/full-before-worker.php',str_replace($registration,'',$registry));
+    $reports=['native'=>$native,'observe'=>$analyze('observe'),'controls'=>$analyze('observe'),'isolated'=>$standalone,'isolated-three'=>$analyze('standalone',3),
+        'full-before'=>$analyze('full-before'),'full-after'=>$analyze('full-after'),'full-after-three'=>$analyze('full-after',3)];
+    $receipts=['native'=>$closed['native-1'],'observe'=>$closed['observe-1'],'controls'=>$closed['observe-1'],'isolated'=>$closed['standalone-1'],'isolated-three'=>$closed['standalone-3'],
+        'full-before'=>$closed['full-before-1'],'full-after'=>$closed['full-after-1'],'full-after-three'=>$closed['full-after-3']];
+    $nativeCoverageEvidence=nativeCoveredReports($reports,$positiveRanges,$receipts);
+    if($wholeSignature($control)!==$wholeSignature($proven)||$wholeSignature($proven)!==$wholeSignature($analyze('proven',3))
+        ||$wholeSignature($proven)!==$wholeSignature($analyze('proven',external:true))){throw new RuntimeException('Native-covered Laravel/external-root whole reports changed.');}
+    $contextChecks=0;$sourceControlReceipts=[];
+    foreach(['proof.php','json-proof.php']as$file){
+        $before=$analyze('native',paths:[$file]);$after=$analyze('certificate',paths:[$file]);
+        if($wholeSignature($before)!==$wholeSignature($after)){throw new RuntimeException('Source-certificate controls changed a complete native report: '.$file);}
+        $receipt=json_decode(file_get_contents($workspace.'/freshness-controls.json'),true,flags:JSON_THROW_ON_ERROR);
+        if($receipt['status']!=='PASS'||$receipt['genuineIssuePositive']!==false||$receipt['genuineSourceNativePositive']!==true||count($receipt['checks'])!==13||in_array(false,$receipt['checks'],true)
+            ||$receipt['sourceMutations']!==1||$receipt['restored']!==true){throw new RuntimeException('The actual refreshed source/native controls are incomplete: '.$file);}
+        $sourceControlReceipts[$file]=$receipt;$contextChecks+=count($receipt['checks']);
+    }
+    $jsonNative=$analyze('json-native',paths:['json-proof.php']);$jsonStandalone=$analyze('json-standalone',paths:['json-proof.php']);
+    $jsonShadowNative=$analyze('json-shadow-native',paths:['json-proof.php']);$jsonShadowStandalone=$analyze('json-shadow-standalone',paths:['json-proof.php']);
+    if($wholeSignature($jsonNative)!==$wholeSignature($jsonStandalone)||$wholeSignature($jsonShadowNative)!==$wholeSignature($jsonShadowStandalone)
+        ||array_filter($jsonNative,static fn(array $i):bool=>$i['level']==='Error'&&$i['code']==='invalid-method-access')===[]){throw new RuntimeException('Native-covered JSON/shadow reports or the unsafe boolean Error changed.');}
+    foreach(['full-','json-shadow-full-']as$prefix){
+        $before=$analyze($prefix.'before',paths:['json-proof.php']);
+        foreach([1,3]as$workers){if($wholeSignature($before)!==$wholeSignature($analyze($prefix.'after',$workers,paths:['json-proof.php']))){throw new RuntimeException('Full registry JSON/shadow whole reports changed.');}}
+    }
+    $nativeCoverageEvidence['sourceNativeControls']=$sourceControlReceipts;$nativeCoverageEvidence['genuineSourceNativeControls']=$contextChecks;
+    $nativeCoverageEvidence['legacyIssueControlsExecuted']=false;$nativeCoverageEvidence['legacyJsonIssueControlsExecuted']=false;
+    $corrected=0;$retained=0;$before=$group($native);
+    foreach($cases as$label=>[, , $positive]){if(!$positive&&($before[$label]??[])!==[]){$retained++;}}
+}else{
 foreach ([[$native, $standalone], [$control, $proven]] as [$beforeReports, $afterReports]) {
     foreach ($jsonLabels as $label) {
         $before = $wholeWithin($beforeReports, 'cases.php', $ranges[$label]);
@@ -3676,6 +3725,7 @@ if (in_array('--integrated', $argv, true)) {
             throw new RuntimeException('Integrated whole JSON signatures differ: '.$workers.' workers. '.$workspace);
         }
     }
+}
 }
 if (file_exists($workspace.'/executed')) { throw new RuntimeException('Analyzed bootstrap or migration executed.'); }
 file_put_contents($workspace.'/runtime-controls.php', <<<'PHP'
@@ -3782,4 +3832,5 @@ $scanChecks = (static function (string $root): int {
     } finally { file_put_contents($root.'/proof.php', $contents); }
     return $checks;
 })($workspace);
-echo 'Refreshed model property checks passed: '.count($cases).' source cases, '.$corrected.' exact native/control corrections, '.$retained.' retained negative groups, '.$contextChecks.' issue and metadata controls, '.$scanChecks.' scan controls, 5 runtime boundaries, explicit root with spaces, nonstandard vendor directory and single-file analysis'.(in_array('--integrated', $argv, true) ? ', one and three integrated workers' : '').".\n";
+if($nativeCoverageEvidence!==null){file_put_contents($workspace.'/accepted-native-covered.json',json_encode($nativeCoverageEvidence+['scanControls'=>$scanChecks,'runtimeBoundaries'=>5],JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT));}
+echo 'Refreshed model property checks passed: '.count($cases).' source cases, '.$corrected.' exact native/control corrections, '.$retained.' retained negative groups, '.$contextChecks.($nativeCoverageEvidence===null?' issue and metadata controls':' source/native controls').', '.$scanChecks.' scan controls, 5 runtime boundaries, explicit root with spaces, nonstandard vendor directory and single-file analysis'.(in_array('--integrated', $argv, true) ? ', one and three integrated workers' : '').".\n";

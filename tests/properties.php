@@ -297,12 +297,22 @@ $run = static function () use ($command, $workspace): array {
     return $report['issues'] ?? [];
 };
 $actual = [];
+$schemaWarnings = [];
 foreach ($run() as $issue) {
+    if ($issue['code'] === 'ichinya/laramago/schema-uncertain') {
+        $schemaWarnings[] = $issue;
+        continue;
+    }
     $primary = array_values(array_filter(
         $issue['annotations'],
         static fn (array $a): bool => $a['kind'] === 'Primary',
     ))[0];
     $actual[$primary['span']['start']['line'] + 1][] = $issue['code'];
+}
+if (count($schemaWarnings) !== 1
+    || $schemaWarnings[0]['message'] !== 'Migration analysis left these tables uncertain: conditional_records.'
+    || ! str_ends_with(str_replace('\\', '/', $schemaWarnings[0]['notes'][0] ?? ''), '/database/migrations/001_create.php:43')) {
+    throw new RuntimeException('Expected the conditional-schema warning at its migration source; inspect '.$workspace);
 }
 $failures = [];
 foreach ($lines as $line => [$name, $expected]) {

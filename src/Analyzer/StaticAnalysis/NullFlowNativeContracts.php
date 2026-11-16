@@ -5,7 +5,7 @@ namespace Ichinya\Laramago\Analyzer\StaticAnalysis;
 use Mago\Sdk\Analyzer\{IssueFilterContext,Type};
 use Mago\Sdk\Analyzer\Assertion\{TypeAssertion,TypeAssertionKind};
 use Mago\Sdk\Analyzer\Metadata\{FunctionLikeMetadata,MetadataFlags,PropertyMetadata};
-use Mago\Sdk\Analyzer\Type\{NamedObjectType,SimpleAtomicType,SimpleAtomicTypeKind};
+use Mago\Sdk\Analyzer\Type\{NamedObjectType,SimpleAtomicType,SimpleAtomicTypeKind,Visibility};
 use PhpParser\{Node,NodeFinder,NodeTraverser,ParserFactory,PrettyPrinter\Standard};
 use PhpParser\NodeVisitor\NameResolver;
 
@@ -72,6 +72,7 @@ final class NullFlowNativeContracts
         $doc=$node->getDocComment()?->getText()??'';
         $delegate=null;if(count($node->stmts??[])===1&&$node->stmts[0] instanceof Node\Stmt\Return_&&$node->stmts[0]->expr!==null) { $delegate=(new SourceNullFacts)->describe($node->stmts[0]->expr); }
         return ['span'=>self::nodeSpan($node),'nameSpan'=>self::nodeSpan($node->name),'parameters'=>$parameters,'byReference'=>$node->byRef,'static'=>$node instanceof Node\Stmt\ClassMethod&&$node->isStatic(),
+            'visibility'=>$node instanceof Node\Stmt\ClassMethod?($node->isPrivate()?Visibility::Private:($node->isProtected()?Visibility::Protected:Visibility::Public)):null,
             'returnType'=>$node->returnType===null?null:$printer->prettyPrint([$node->returnType]),'returnTypeSpan'=>$node->returnType===null?null:self::nodeSpan($node->returnType),
             'doc'=>$doc,'hasDocblock'=>$doc!=='','sourceSha256'=>hash('sha256',$printer->prettyPrint([$node])),
             'writes'=>array_values(array_unique($writes)),'reads'=>array_values(array_unique($reads)),'ambient'=>$ambient,
@@ -98,7 +99,7 @@ final class NullFlowNativeContracts
             }
         }
         if($source===null||self::span($native->nameLocation->span)!==$source['nameSpan']||$native->location->span->start>$source['span'][0]||$native->location->span->end!==$source['span'][1]
-            ||count($native->parameters)!==count($source['parameters'])||$native->static!==$source['static']||$native->hasDocblock!==$source['hasDocblock']||$native->flags->contains(MetadataFlags::BY_REFERENCE)!==$source['byReference']) { return null; }
+            ||count($native->parameters)!==count($source['parameters'])||$native->static!==$source['static']||$native->visibility!==$source['visibility']||$native->hasDocblock!==$source['hasDocblock']||$native->flags->contains(MetadataFlags::BY_REFERENCE)!==$source['byReference']) { return null; }
         foreach($source['parameters'] as $number=>$param) {
             $formal=$native->parameters[$number];
             if($formal->name!==$param['name']||self::span($formal->nameLocation->span)!==$param['nameSpan']||$formal->flags->contains(MetadataFlags::BY_REFERENCE)!==$param['byReference']
@@ -146,6 +147,7 @@ final class NullFlowNativeContracts
             $native=$kind==='property'?$context->codebase->getDeclaringProperty($owner,'$'.$expression['name']):$context->codebase->getDeclaringMethod($owner,$expression['name']);
         } else { return null; }
         if($native instanceof FunctionLikeMetadata) {
+            if($native->identifier->class!==null&&!$this->accessible($context,$native,$scope)) { return null; }
             $bound=$this->functionBound($context,$native);if($bound===null||!$this->argumentsBound($expression,$native)) { return null; }
             $certificate['declarations'][($native->identifier->class===null?'':$native->identifier->class.'::').$native->identifier->name]=$bound;return $bound;
         }
@@ -158,6 +160,16 @@ final class NullFlowNativeContracts
             ||self::span($native->declaredType->location->span)!==$physical['typeSpan']||!self::sameFile($native->declaredType->location->file,$file)||!$this->current($file,$bytes)) { return null; }
         $physicalType=self::physicalType($physical['type']);if($physicalType!==null&&!$context->types->equals($native->declaredType->type,$physicalType)) { return null; }
         $bound=['native'=>$native,'source'=>$physical,'file'=>$file,'sourceSha256'=>hash('sha256',$bytes)];$certificate['properties'][$owner.'::$'.$expression['name']]=$bound;return $bound;
+    }
+    /** A private/protected method cannot establish a fact in an unrelated caller. */
+    private function accessible(IssueFilterContext $context,FunctionLikeMetadata $method,array $scope):bool {
+        if($method->visibility===Visibility::Public) { return true; }
+        $caller=$scope['owner']??null;$owner=$method->identifier->class;
+        if($caller===null||$owner===null) { return false; }
+        if(strcasecmp($caller,$owner)===0) { return true; }
+        if($method->visibility!==Visibility::Protected) { return false; }
+        return in_array(strtolower($owner),array_map(strtolower(...),$context->codebase->getClassAncestors($caller)),true)
+            ||in_array(strtolower($caller),array_map(strtolower(...),$context->codebase->getClassAncestors($owner)),true);
     }
     private function argumentsBound(array $expression,FunctionLikeMetadata $native):bool {
         $arguments=$expression['arguments']??[];$required=0;foreach($native->parameters as $formal) { if(!$formal->flags->contains(MetadataFlags::HAS_DEFAULT)&&!$formal->flags->contains(MetadataFlags::VARIADIC)) { $required++; } }
@@ -215,6 +227,22 @@ final class NullFlowNativeContracts
         $receiving=in_array($context->issue->code,['nullable-return-statement','invalid-return-statement'],true)?($certificate['nativeReceivingReturn']->declaredReturnType->type??null):($certificate['nativeReceivingCallable']->parameters[$certificate['nativeReceivingParameterIndex']]->type->type??null);
         if($receiving===null) { return false; }
         if($proof['fact']['kind']==='conditional-method-postcondition') { return isset($certificate['conditionalPostcondition']); }
+        // Framework inputs require their declaration-specific proof even when a
+        // subclass narrows the native return. A custom override is not the
+        // framework option/header contract certified by these adapters.
+        $expression=$proof['expression'];
+        if($expression['kind']==='method'&&in_array(strtolower($expression['name']),['option','argument','header'],true)) {
+            $owner=$this->className($context,$expression['receiver'],$proof['scope'],$certificate);
+            if($owner===null) { return false; }
+            $owners=[strtolower($owner),...array_map(strtolower(...),$context->codebase->getClassAncestors($owner))];
+            if(in_array(strtolower($expression['name']),['option','argument'],true)&&in_array('illuminate\\console\\command',$owners,true)) {
+                return $this->literalConsoleInput($context,$proof,$receiving,$certificate);
+            }
+            if(strtolower($expression['name'])==='header'&&in_array('illuminate\\http\\request',$owners,true)) {
+                if(!$this->literalHeaderContract($context,$proof,$certificate)||!$context->types->isContainedBy(Type::string(),$receiving)) { return false; }
+                $certificate['sourceBoundLiteralHeaderOutputContainedByReceivingType']=true;return true;
+            }
+        }
         $parts=array_values(array_filter($type->atomicTypes,static fn($atomic):bool=>!$atomic instanceof SimpleAtomicType||$atomic->kind!==SimpleAtomicTypeKind::Null));
         if($parts!==[]&&$context->types->isContainedBy(Type::fromAtomics(...$parts),$receiving)) { $certificate['refinedNativeOutputContainedByReceivingType']=true;return true; }
         if($this->literalConsoleInput($context,$proof,$receiving,$certificate)) { return true; }

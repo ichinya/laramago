@@ -22,7 +22,7 @@ final class AssertedDeclaredValueWarningFilter implements IssueFilterHook
         if($proof===null) { return $result; }
         $expression=$this->expression($proof['targetExpression']);$type=$proof['kind']==='generic-equality-string-postcondition'?'string':$proof['modelClass'];
         if($expression===null||$primary->message!=='This condition always evaluates to false'
-            ||$issue->message!=='Impossible condition: variable `'.$expression.'` (type `'.$type.'`) will always be `null`.'
+            ||!in_array($issue->message,['Impossible condition: variable `'.$expression.'` (type `'.$type.'`) will always be `null`.','Impossible condition: variable `'.$expression.'` (type `'.$type.'`) can never be non-`null`.'],true)
             ||$issue->notes!==['Variable `'.$expression.'` (type `'.$type.'`) is already known to be `null`, so asserting it\'s not `null` is impossible.']
             ||$issue->help!=='The condition checking if `'.$expression.'` is not `null` will always be false. Review the variable\'s state or condition.') { return $result; }
         $result['exactNativeEnvelope']=true;$receipt=[];

@@ -41,7 +41,7 @@ $run=static fn(string $stage,string $mode,int $workers=1):array=>compatibilityNa
 $normalize=static function(array $issues):array{$rows=array_map(static fn(array $issue):string=>json_encode($issue,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR),$issues);sort($rows);return $rows;};
 $rows=static fn(string $stage):array=>array_map(static fn(string $s):array=>json_decode($s,true,flags:JSON_THROW_ON_ERROR),file($workspace.'/'.$stage.'-observer.jsonl',FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES));
 $native=$run('native-profile-probe','observe');$seen=[];$profiles=[];$levels=[];$joined=[];
-$references=json_decode(file_get_contents($fixture.'/native-profile-hashes.json'),true,flags:JSON_THROW_ON_ERROR);ksort($references);
+require dirname(__DIR__).'/factory-faker-native-profiles.php';$references=null;
 foreach($rows('native-profile-probe') as $row){$site=implode(':',$row['span']);
     if(isset($seen[$site])||!isset($proofs[$site])||\Ichinya\Laramago\Analyzer\DeprecatedMethodCompatibilityProof::canonical($row['proof']['source'])!==\Ichinya\Laramago\Analyzer\DeprecatedMethodCompatibilityProof::canonical($proofs[$site])
         ||($row['alwaysKeep']??null)!==true||($row['contextContentsSha256']??null)!==hash('sha256',$cases)
@@ -56,6 +56,7 @@ foreach($rows('native-profile-probe') as $row){$site=implode(':',$row['span']);
     $index=array_key_first($matches);if(isset($joined[$index])){throw new RuntimeException('A duplicate native record supplied both roles.');}
     LocalCacheNativeEventJoin::sameEnvelope($sdk,$matches[$index],$workspace,$cases);$joined[$index]=hash('sha256',json_encode($matches[$index],JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR));
     $perRow=array_map(static fn(array $profile):string=>$profile['sha256'],$row['independentFormatterProfiles']);ksort($perRow);
+    $currentReference=factoryFakerNativeReference($fixture,$perRow);if($references!==null&&$references!==$currentReference){throw new RuntimeException('The selected SDK profile version changed between genuine contexts.');}$references=$currentReference;
     if(count($perRow)!==18||$perRow!==$references){throw new RuntimeException('Each genuine context must independently bind all eighteen current profiles.');}
 
     foreach($row['independentFormatterProfiles'] as $symbol=>$profile){if(isset($profiles[$symbol])&&$profiles[$symbol]!==$profile['sha256']){throw new RuntimeException('Selected formatter profiles drifted.');}$profiles[$symbol]=$profile['sha256'];}

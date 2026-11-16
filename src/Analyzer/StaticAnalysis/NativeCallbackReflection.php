@@ -169,10 +169,11 @@ final class NativeCallbackReflection
         $specifications = [[$constructor, ['$class', '$property']], [$setter, ['$objectOrValue', '$value']]];
         foreach ($specifications as [$method, $names]) {
             foreach ($method->parameters as $position => $parameter) {
+                $optionalValue=$method===$setter&&$position===1&&self::unknownSetterDefault($parameter);
                 if ($parameter->name !== $names[$position] || ! $parameter->flags->contains(MetadataFlags::BUILTIN)
                     || $parameter->flags->contains(MetadataFlags::USER_DEFINED) || $parameter->flags->contains(MetadataFlags::BY_REFERENCE)
-                    || $parameter->flags->contains(MetadataFlags::VARIADIC) || $parameter->flags->contains(MetadataFlags::HAS_DEFAULT)
-                    || $parameter->defaultType !== null || $parameter->outType !== null || $parameter->closureThisType !== null
+                    || $parameter->flags->contains(MetadataFlags::VARIADIC) || $parameter->flags->contains(MetadataFlags::HAS_DEFAULT)!==$optionalValue
+                    || !$optionalValue&&$parameter->defaultType !== null || $parameter->outType !== null || $parameter->closureThisType !== null
                     || $parameter->declaredType === null || $parameter->type === null || $parameter->declaredType->fromDocblock
                     || $parameter->attributes !== []
                     || $parameter->location->file !== self::NATIVE_FILE || $parameter->nameLocation->file !== self::NATIVE_FILE
@@ -188,6 +189,20 @@ final class NativeCallbackReflection
             }
         }
         return ['nativeClass' => $class, 'constructor' => $constructor, 'setValue' => $setter];
+    }
+
+    /** The selected operation always supplies both arguments; accept the 1.59 prelude's UNKNOWN default only. */
+    private static function unknownSetterDefault(\Mago\Sdk\Analyzer\Metadata\ParameterMetadata $parameter):bool
+    {
+        $default=$parameter->defaultType;
+        if(!$parameter->flags->contains(MetadataFlags::HAS_DEFAULT)||$default===null||$default->fromDocblock||!$default->inferred
+            ||$default->location?->file!==self::NATIVE_FILE||count($default->type->atomicTypes)!==1){return false;}
+        $value=$default->type->atomicTypes[0];
+        return $value instanceof \Mago\Sdk\Analyzer\Type\ReferenceType
+            &&$value->kind===\Mago\Sdk\Analyzer\Type\ReferenceTypeKind::Global
+            &&$value->selector===\Mago\Sdk\Analyzer\Type\ReferenceSelectorKind::Identifier
+            &&$value->member==='UNKNOWN'&&$value->name===null&&$value->fallback===null
+            &&$value->parameters===null&&$value->variances===null&&$value->intersections===null;
     }
 
     private static function method(?FunctionLikeMetadata $method, string $name, bool $constructor): bool

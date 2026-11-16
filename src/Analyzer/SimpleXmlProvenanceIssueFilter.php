@@ -72,7 +72,11 @@ final class SimpleXmlProvenanceIssueFilter implements IssueFilterHook
                             'Impossible condition: variable `'.$expression.'` (type `SimpleXMLElement|null`) can never be `has-exactly-1`.',
                         ], true);
                     } elseif ($fact['known'] === null) {
-                        $match = $issue->message === 'Redundant condition: variable `'.$expression.'` (type `mixed`) is already known to be `has-exactly-1`.';
+                        $match = in_array($issue->message, [
+                            'Redundant condition: variable `'.$expression.'` (type `mixed`) is already known to be `has-exactly-1`.',
+                            'Redundant condition: variable `'.$expression.'` (type `SimpleXMLElement`) is already known to be `has-exactly-1`.',
+                            'Redundant condition: variable `'.$expression.'` (type `SimpleXMLElement|null`) is already known to be `has-exactly-1`.',
+                        ], true);
                     }
                 }
             }

@@ -2,7 +2,8 @@
 
 declare(strict_types=1);
 
-// Keep the nullable-receiver error and prove where the subsequent mixed type originates.
+// Preserve native nullable-receiver diagnostics across engine versions, even
+// when the engine changes how it combines the non-null result branch.
 $package = str_replace('\\', '/', dirname(__DIR__));
 $workspace = str_replace('\\', '/', sys_get_temp_dir()).'/laramago nullable receiver '.bin2hex(random_bytes(8));
 mkdir($workspace);
@@ -75,11 +76,13 @@ foreach ([false, true] as $enabled) {
         $codes[] = $issue['code'];
     }
     sort($codes);
-    if ($codes !== ['mixed-return-statement', 'possible-method-access-on-null']) {
+    if (! in_array($codes, [['possible-method-access-on-null'], ['mixed-return-statement', 'possible-method-access-on-null']], true)
+        || $enabled && $codes !== $nativeCodes) {
         throw new RuntimeException('Nullable receiver behavior changed: re-evaluate the SDK boundary; inspect '
         .$workspace);
     }
-    echo 'PASS: '.$mode.' nullable call stays mixed; guarded, known and nullsafe calls retain their types'."\n";
+    if (! $enabled) { $nativeCodes = $codes; }
+    echo 'PASS: '.$mode.' nullable call keeps native diagnostics; guarded, known and nullsafe calls retain their types'."\n";
 }
 $records = array_map(
     static fn (string $line): array => json_decode($line, true, flags: JSON_THROW_ON_ERROR),
@@ -95,7 +98,7 @@ foreach ($records as $record) {
 if (! $matched) {
     throw new RuntimeException('The return provider must be called for the unguarded expression; inspect '.$workspace);
 }
-echo 'PASS: the provider supplies a concrete return type before the engine combines the nullable branch'."\n";
+echo 'PASS: the provider supplies the concrete return type without hiding the nullable-receiver Error'."\n";
 $resolvedWorkspace = realpath($workspace);
 foreach (glob($workspace.'/*') ?: [] as $file) {
     $resolvedFile = realpath($file);

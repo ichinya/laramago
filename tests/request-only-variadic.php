@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 $binary = getenv('MAGO_BINARY') ?: __DIR__.'/../vendor/bin/mago';
 $command = str_ends_with($binary, '.exe') ? [$binary] : [PHP_BINARY, $binary];
+require_once __DIR__.'/fixtures/mago-capabilities.php';
+$nativeImplicitVariadics = \Ichinya\Laramago\Tests\Support\MagoCapabilities::implicitVariadics($command);
 $package = str_replace('\\', '/', dirname(__DIR__));
 $changedBody = in_array('--changed-body', $argv, true);
 $workspace = str_replace('\\', '/', sys_get_temp_dir()).'/laramago request only '.bin2hex(random_bytes(8));
@@ -29,11 +31,11 @@ $cases = $changedBody ? [
     'missing key remains an error' => ['(new Request)->only();', ['too-few-arguments']],
     'named extra remains an error' => [
         "(new Request)->only(keys: 'a', extra: 'b');",
-        ['invalid-named-argument', 'too-many-arguments'],
+        ['invalid-named-argument', ...($nativeImplicitVariadics ? [] : ['too-many-arguments'])],
     ],
     'unpacked arguments use native analysis' => [
         "(new Request)->only(...['a', 'b']);",
-        ['too-many-arguments'],
+        $nativeImplicitVariadics ? [] : ['too-many-arguments'],
     ],
     'subclass override retains its arity' => ["(new CustomRequest)->only('a', 'b');", ['too-many-arguments']],
 ];

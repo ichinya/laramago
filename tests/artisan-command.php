@@ -150,6 +150,9 @@ $summarize = static function (array $issues): array {
 $native = $summarize($run(true, false));
 $adapted = $summarize($run(false, false));
 $custom = $summarize($run(false, true));
+if (! in_array('semantics', $native[6] ?? [], true)) {
+    throw new RuntimeException('The static closure must retain its native $this error; inspect '.$workspace);
+}
 foreach ([3, 4, 5, 6, 7, 8, 9] as $line) {
     $expected = $native[$line] ?? [];
     if (in_array($line, [3, 4, 5, 6], true)) {
@@ -157,7 +160,7 @@ foreach ([3, 4, 5, 6, 7, 8, 9] as $line) {
             3 => [],
             4 => ['non-existent-method'],
             5 => ['invalid-argument'],
-            6 => ['semantics'],
+            6 => $native[6],
         };
     }
     if (($adapted[$line] ?? []) !== $expected) {

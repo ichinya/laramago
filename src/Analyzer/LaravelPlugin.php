@@ -36,6 +36,7 @@ final class LaravelPlugin implements Plugin
         $registry->registerMethodReturnTypeProvider(new DomXPathResultProvider);
         $registry->registerMethodReturnTypeProvider(new MigratorConnectionProvider($this->projectRoot));
         $registry->registerFunctionReturnTypeProvider(new BackedEnumColumnProvider);
+        $registry->registerFunctionReturnTypeProvider(new ArrayColumnRowsProvider);
         $registry->registerIssueFilterHook(new NeverCallReturnFilter);
         $registry->registerIssueFilterHook(new ProcOpenDescriptorFilter);
         $mixedAssignments = new LocalMixedAssignmentFilter;
@@ -142,6 +143,7 @@ final class LaravelPlugin implements Plugin
         if ($macros->hasTargets()) {
             $registry->registerMethodReturnTypeProvider($macros);
             $registry->registerInitializationHook($macros);
+            $registry->registerCodebaseScanHook($macros->calls);
         }
         $registry->registerMethodReturnTypeProvider(new FacadeRootProvider($this->projectRoot));
         $bindings = new ContainerBindingProvider($this->projectRoot);

@@ -17,6 +17,8 @@ file_put_contents($workspace.'/bootstrap/macros.php', <<<'PHP'
     MacroBox::macro("es\x63aped", fn(): string => 'decoded');
     MacroBox::macro('payload', fn(?Payload $value): Payload|null => $value);
     MacroBox::macro('numbers', fn(int ...$values): int => 1);
+    MacroBox::macro('CaseKey', fn(int $value): int => 1);
+    MacroBox::macro('casekey', fn(int $value): string => 'one');
     MacroBox::macro('staticClosure', static fn(): string => '');
     MacroBox::macro('size', function(string $text, int $extra = 0): int { throw new RuntimeException('Closure executed.'); });
     MacroBox::macro('native', fn(): int => 1);
@@ -47,6 +49,9 @@ $cases = [
         ['mixed-return-statement', 'non-documented-method'],
     ],
     'typed arrow' => ['return MacroBox::label(3);', 'string', []],
+    'distinct uppercase registry key' => ['return MacroBox::CaseKey(2);', 'int', []],
+    'distinct lowercase registry key' => ['return MacroBox::casekey(2);', 'string', []],
+    'distinct registry key validates arguments' => ["return MacroBox::CaseKey('wrong');", 'int', ['invalid-argument']],
     'escaped literal registration' => ['return MacroBox::escaped();', 'string', []],
     'macro name remains case-sensitive' => [
         'return MacroBox::ESCAPED();',
@@ -177,6 +182,42 @@ foreach ($lines as $line => [$name, $expected]) {
 if ($actual !== []) {
     throw new RuntimeException('Unexpected diagnostics; inspect '.$workspace);
 }
+
+// Identical invocation spans in separate source files cannot identify a caller.
+// Both return and spanless signature resolution must decline the ambiguity.
+file_put_contents($workspace.'/collision-a.php', '<?php function collideA(): string { return MacroBox::label(3); }');
+file_put_contents($workspace.'/collision-b.php', '<?php function collideB(): string { return MacroBox::LABEL(3); }');
+$collisionConfig = json_decode(file_get_contents($workspace.'/mago.json'), true, flags: JSON_THROW_ON_ERROR);
+$collisionConfig['source']['paths'] = ['collision-a.php', 'collision-b.php'];
+file_put_contents($workspace.'/mago.json', json_encode($collisionConfig, JSON_THROW_ON_ERROR));
+$process = proc_open(
+    [...$command, '--workspace', $workspace, 'analyze', '--reporting-format=json'],
+    [0 => ['pipe', 'r'], 1 => ['file', $workspace.'/collision.json', 'w'], 2 => ['file', $workspace.'/collision.log', 'w']],
+    $pipes,
+);
+if (! is_resource($process)) { throw new RuntimeException('Cannot start collision control.'); }
+fclose($pipes[0]);
+$exit = proc_close($process);
+$report = json_decode(file_get_contents($workspace.'/collision.json'), true, flags: JSON_THROW_ON_ERROR);
+$collisions = [];
+foreach ($report['issues'] as $issue) {
+    $primary = array_values(array_filter($issue['annotations'], static fn (array $a): bool => $a['kind'] === 'Primary'))[0];
+    $collisions[$primary['span']['file_id']['name']][] = $issue['code'];
+}
+foreach (['collision-a.php', 'collision-b.php'] as $file) {
+    $codes = $collisions[$file] ?? [];
+    sort($codes);
+    if ($codes !== ['mixed-return-statement', 'non-documented-method']) {
+        throw new RuntimeException('Macro invocation collision was treated as unique; inspect '.$workspace);
+    }
+    unset($collisions[$file]);
+}
+if ($exit !== 1 || $collisions !== [] || preg_match('/provider failed|rejected request/i', file_get_contents($workspace.'/collision.log'))) {
+    throw new RuntimeException('Invalid macro invocation collision control; inspect '.$workspace);
+}
+$collisionConfig['source']['paths'] = ['cases.php'];
+file_put_contents($workspace.'/mago.json', json_encode($collisionConfig, JSON_THROW_ON_ERROR));
+echo "PASS: ambiguous macro invocation spans retain native diagnostics\n";
 
 // Omitting the explicit catalog must retain native unknown-macro diagnostics.
 file_put_contents($workspace.'/composer.json', '{}');

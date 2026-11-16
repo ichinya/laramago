@@ -81,6 +81,7 @@ final class SchemaIndex
                 $this->unreadable = true;
                 continue;
             }
+            $uses = $this->fileUses($nodes);
             foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Stmt\Class_::class) as $class) {
                 $up = $class->getMethod('up')?->stmts ?? [];
                 $connection = null;
@@ -97,13 +98,13 @@ final class SchemaIndex
                     || $class->getMethod('getConnection') !== null
                 ) {
                     $before = [$this->unreadable, $this->uncertain];
-                    $scan = ['visited' => [], 'schema' => false, 'unknownMethod' => false, 'depth' => 0];
+                    $scan = ['visited' => [], 'schema' => false, 'unknownMethod' => false, 'depth' => 0, 'uses' => $uses];
                     $this->invalidateStatements($up, $class, $scan);
                     $this->recordUncertainty($file, $class->getMethod('up') ?? $class, $before);
                     continue;
                 }
                 foreach ($up as $statement) {
-                    $this->migrationStatement($file, $statement, $class, []);
+                    $this->migrationStatement($file, $statement, $class, [], $uses);
                 }
             }
         }
@@ -167,8 +168,15 @@ final class SchemaIndex
         );
     }
 
-    private function schemaCall(Node\Expr\StaticCall $call): void
+    private function schemaCall(Node\Expr\StaticCall $call, ?Node\Stmt\Class_ $class = null): void
     {
+        if (MigrationMetadataRead::schema($call) || MigrationMetadataRead::foreignKeys($call)) {
+            // Arguments still run before a native read, and may contain raw SQL
+            // or unknown helpers. Inspect their effects instead of the getter.
+            $this->invalidateStatements($call->args, $class);
+
+            return;
+        }
         $method = $call->name instanceof Node\Identifier ? strtolower($call->name->toString()) : '';
         $table = PhpSource::value(PhpSource::argument(
             $call->args,
@@ -294,16 +302,40 @@ final class SchemaIndex
         }
     }
 
-    /** @param array<int, true> $visited Helpers already expanded in this call chain. */
-    private function migrationStatement(string $file, Node\Stmt $statement, Node\Stmt\Class_ $class, array $visited): void
+    /** @param array<int, true> $visited Helpers and guards expanded in this call chain. */
+    private function migrationStatement(string $file, Node\Stmt $statement, Node\Stmt\Class_ $class, array $visited, array $uses = [], array $sharedClosures = []): void
     {
         $before = [$this->unreadable, $this->uncertain];
+        if ($statement instanceof Node\Stmt\If_ && count($visited) < 64) {
+            $execute = $this->columnGuard($statement);
+            if ($execute !== null) {
+                if ($execute) {
+                    $visited[spl_object_id($statement)] = true;
+                    foreach ($statement->stmts as $inner) {
+                        $this->migrationStatement($file, $inner, $class, $visited, $uses, $sharedClosures);
+                    }
+                }
+
+                return;
+            }
+        }
+        if ($statement instanceof Node\Stmt\Foreach_) {
+            $calls = MigrationTableLoop::expand($statement, $class);
+            if ($calls !== null) {
+                foreach ($calls as $call) {
+                    $this->schemaCall($call, $class);
+                }
+                $this->recordUncertainty($file, $statement, $before);
+
+                return;
+            }
+        }
         if (
             $statement instanceof Node\Stmt\Expression
             && $statement->expr instanceof Node\Expr\StaticCall
             && $this->isSchema($statement->expr)
         ) {
-            $this->schemaCall($statement->expr);
+            $this->schemaCall($statement->expr, $class);
             $this->recordUncertainty($file, $statement, $before);
 
             return;
@@ -316,16 +348,51 @@ final class SchemaIndex
             && ! isset($visited[spl_object_id($method)])
             && count($visited) < 64
         ) {
+            // Arguments execute even when the resolved helper ignores them.
+            // Keep raw SQL and includes visible before expanding its body.
+            $this->invalidateStatements($statement->expr->getArgs(), $class);
+            $this->recordUncertainty($file, $statement, $before);
             $visited[spl_object_id($method)] = true;
+            // Closures bound anywhere in the helper body stay visible to
+            // statements that invoke them later, like DB::transaction($alter).
+            $sharedClosures += $this->boundClosures($method->stmts ?? []);
             foreach ($method->stmts ?? [] as $inner) {
-                $this->migrationStatement($file, $inner, $class, $visited);
+                $this->migrationStatement($file, $inner, $class, $visited, $uses, $sharedClosures);
             }
             // Inner statements anchor their own uncertainty records.
             return;
         }
-        $scan = ['visited' => [], 'schema' => false, 'unknownMethod' => false, 'depth' => 0];
+        $scan = ['visited' => [], 'schema' => false, 'unknownMethod' => false, 'depth' => 0, 'uses' => $uses, 'closures' => $sharedClosures];
         $this->invalidateStatements([$statement], $class, $scan);
         $this->recordUncertainty($file, $statement, $before);
+    }
+
+    /** Decide an idempotent column guard only from a complete earlier table. */
+    private function columnGuard(Node\Stmt\If_ $statement): ?bool
+    {
+        $condition = $statement->cond;
+        if ($this->unreadable || $statement->else !== null || $statement->elseifs !== []
+            || ! $condition instanceof Node\Expr\BooleanNot
+            || ! $condition->expr instanceof Node\Expr\StaticCall) {
+            return null;
+        }
+        $call = $condition->expr;
+        if (! $this->isSchema($call) || ! $call->name instanceof Node\Identifier
+            || strcasecmp($call->name->toString(), 'hasColumn') !== 0 || count($call->args) !== 2) {
+            return null;
+        }
+        foreach ($call->args as $argument) {
+            if (! $argument instanceof Node\Arg || $argument->unpack || $argument->byRef) {
+                return null;
+            }
+        }
+        $table = PhpSource::value(PhpSource::argument($call->args, 0, 'table'));
+        $column = PhpSource::value(PhpSource::argument($call->args, 1, 'column'));
+        if (! is_string($table) || ! is_string($column) || ! isset($this->tables[$table]) || isset($this->uncertain[$table])) {
+            return null;
+        }
+
+        return ! array_key_exists($column, $this->tables[$table]);
     }
 
     /**
@@ -335,8 +402,31 @@ final class SchemaIndex
     private function invalidateStatements(array $nodes, ?Node\Stmt\Class_ $class = null, array &$scan = ['visited' => [], 'schema' => false, 'unknownMethod' => false, 'depth' => 0]): void
     {
         ++$scan['depth'];
+        if ((new NodeFinder)->findFirst($nodes, static fn (Node $node): bool =>
+            $node instanceof Node\Expr\Eval_ || $node instanceof Node\Expr\Include_ || $node instanceof Node\Expr\ShellExec) !== null) {
+            $this->unreadable = true;
+        }
+        $guardExceptions = MigrationMetadataRead::guardExceptions($nodes);
+        foreach ($this->loopTables($nodes, $class) as $name => $set) {
+            foreach ($set as $table => $_) {
+                $scan['loopTables'][$name][$table] = true;
+            }
+        }
+        foreach ($this->boundClosures($nodes) as $name => $closure) {
+            $scan['closures'][$name] = $closure;
+        }
+        foreach ($this->dataReceivers($nodes, $scan['uses'] ?? []) as $name => $_) {
+            $scan['dataVars'][$name] = true;
+        }
         foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Expr\CallLike::class) as $call) {
+            if (isset($guardExceptions[spl_object_id($call)]) || MigrationMetadataRead::connection($call)
+                || MigrationMetadataRead::collection($call)) {
+                continue;
+            }
             if ($call instanceof Node\Expr\StaticCall && $this->isSchema($call)) {
+                if (MigrationMetadataRead::schema($call) || MigrationMetadataRead::foreignKeys($call)) {
+                    continue;
+                }
                 $scan['schema'] = true;
                 $table = PhpSource::value(PhpSource::argument($call->args, 0, 'table'));
                 if (
@@ -346,9 +436,19 @@ final class SchemaIndex
                 ) {
                     $this->uncertain[$table] = true;
                 } else {
-                    $this->unreadable = true;
+                    $bound = $this->boundTables(PhpSource::argument($call->args, 0, 'table'), $scan);
+                    if ($bound !== null) {
+                        foreach ($bound as $boundTable) {
+                            $this->uncertain[$boundTable] = true;
+                        }
+                    } else {
+                        $this->unreadable = true;
+                    }
                 }
 
+                continue;
+            }
+            if ($call instanceof Node\Expr\StaticCall && MigrationMetadataRead::neutralStatic($call)) {
                 continue;
             }
             if (
@@ -361,8 +461,24 @@ final class SchemaIndex
                 // any table, so they keep the whole corpus unreadable.
                 if (
                     $call->name instanceof Node\Identifier
-                    && in_array(strtolower($call->name->toString()), ['table', 'raw', 'transaction', 'begintransaction', 'commit', 'rollback'], true)
+                    && in_array(strtolower($call->name->toString()), ['table', 'query', 'raw', 'transaction', 'begintransaction', 'commit', 'rollback'], true)
                 ) {
+                    if (strtolower($call->name->toString()) === 'transaction') {
+                        $this->scanClosureArguments($call, $class, $scan);
+                    }
+
+                    continue;
+                }
+                if ($call->name instanceof Node\Identifier && $call->args === []
+                    && in_array(strtolower($call->name->toString()), ['getdrivername', 'transactionlevel'], true)) {
+                    continue;
+                }
+                if ($call->name instanceof Node\Identifier && strcasecmp($call->name->toString(), 'connection') === 0
+                    && (new NodeFinder)->findFirst($nodes, static fn (Node $node): bool =>
+                        $node instanceof Node\Expr\MethodCall && $node->var === $call && MigrationMetadataRead::connection($node)) !== null) {
+                    continue;
+                }
+                if (MigrationMetadataRead::readOnlySql($call)) {
                     continue;
                 }
                 $this->unreadable = true;
@@ -370,29 +486,86 @@ final class SchemaIndex
                 continue;
             }
             $method = $this->localMethod($call, $class);
-            if (
-                $method !== null
-                && ! isset($scan['visited'][spl_object_id($method)])
-                && count($scan['visited']) < 64
-            ) {
+            if ($method !== null) {
+                // A repeated call to an already scanned helper adds no new
+                // knowledge; a visit skipped over the bound stays unproven.
+                if (isset($scan['visited'][spl_object_id($method)])) {
+                    continue;
+                }
+                if (count($scan['visited']) >= 64) {
+                    $scan['unknownMethod'] = true;
+
+                    continue;
+                }
                 $scan['visited'][spl_object_id($method)] = true;
                 $this->invalidateStatements($method->stmts ?? [], $class, $scan);
 
                 continue;
             }
+            $helper = $this->appMethod($call, $scan['uses'] ?? []);
+            if ($helper !== null) {
+                if (isset($scan['visited'][spl_object_id($helper[0])])) {
+                    continue;
+                }
+                if (count($scan['visited']) >= 64) {
+                    $scan['unknownMethod'] = true;
+
+                    continue;
+                }
+                $scan['visited'][spl_object_id($helper[0])] = true;
+                $prevUses = $scan['uses'] ?? [];
+                $scan['uses'] = $helper[2];
+                $this->invalidateStatements($helper[0]->stmts ?? [], $helper[1], $scan);
+                $scan['uses'] = $prevUses;
+
+                continue;
+            }
             if ($call instanceof Node\Expr\MethodCall || $call instanceof Node\Expr\NullsafeMethodCall) {
-                // Fluent chains on DB::table() are query-builder DML and never
-                // emit DDL; other chains stay suspicious. Blueprint
+                // Query-builder chains must not escape to connection SQL.
+                // Other chains stay suspicious. Blueprint
                 // declarations inside Schema callbacks are judged by the
                 // callback rules, not by generic call suspicion.
-                if (! $this->schemaNeutralChain($call)) {
+                $builder = false;
+                if (! $this->schemaNeutralChain($call, $builder)) {
+                    $root = $call;
+                    while ($root instanceof Node\Expr\MethodCall || $root instanceof Node\Expr\NullsafeMethodCall) {
+                        $root = $root->var;
+                    }
+                    if (
+                        $root instanceof Node\Expr\Variable && is_string($root->name)
+                        && isset($scan['dataVars'][$root->name])
+                    ) {
+                        continue;
+                    }
                     $scan['unknownMethod'] = true;
+                    if ($builder) {
+                        // A nearby Schema callback does not contain this escape.
+                        $this->unreadable = true;
+                    }
                 }
 
                 continue;
             }
-            if ($call instanceof Node\Expr\FuncCall && $this->pureBuiltin($call)) {
-                continue;
+            if ($call instanceof Node\Expr\FuncCall) {
+                if ($this->pureBuiltin($call) || $this->higherOrder($call)) {
+                    continue;
+                }
+                if (MigrationMetadataRead::container($call)
+                    && $this->containerConstruction($call, $scan)) {
+                    continue;
+                }
+                $closure = $this->boundClosure($call, $scan);
+                if ($closure !== null) {
+                    if (
+                        ! isset($scan['visited'][spl_object_id($closure)])
+                        && count($scan['visited']) < 64
+                    ) {
+                        $scan['visited'][spl_object_id($closure)] = true;
+                        $this->invalidateStatements($closure->stmts ?? [], $class, $scan);
+                    }
+
+                    continue;
+                }
             }
             // A helper, raw SQL call or indirect schema builder can mutate tables
             // that cannot be identified from its arguments alone.
@@ -454,29 +627,460 @@ final class SchemaIndex
     }
 
     /**
-     * A fluent chain is schema-neutral only when it bottoms out at
-     * DB::table() — every query-builder verb on it emits DML, never DDL.
-     * Chains on DB::connection() stay unsafe because the connection can
-     * execute unprepared SQL.
+     * A call resolvable to a method declared on an application class reached
+     * through `app(Foo::class)->m()`, `Foo::m()` or `new Foo()->m()`. Vendor
+     * helpers stay opaque: only `App\`-rooted classes are loaded and scanned.
+     *
+     * Short class names are resolved through the importing file's `use`
+     * map; the returned element also carries the service file's own map
+     * so nested calls resolve against its imports, not the caller's.
+     *
+     * @param array<string, string> $uses
+     * @return array{Node\Stmt\ClassMethod,Node\Stmt\Class_,array<string, string>}|null
      */
-    private function schemaNeutralChain(Node\Expr\CallLike $call): bool
+    private function appMethod(Node\Expr\CallLike $call, array $uses = []): ?array
+    {
+        $fqcn = null;
+        if ($call instanceof Node\Expr\StaticCall && $call->class instanceof Node\Name
+            && $call->name instanceof Node\Identifier) {
+            $fqcn = $call->class->toString();
+        } elseif (($call instanceof Node\Expr\MethodCall || $call instanceof Node\Expr\NullsafeMethodCall)
+            && $call->name instanceof Node\Identifier) {
+            $var = $call->var;
+            if ($var instanceof Node\Expr\FuncCall && $var->name instanceof Node\Name
+                && in_array(strtolower($var->name->getLast()), ['app', 'resolve'], true)) {
+                $arg = PhpSource::argument($var->args, 0, 'abstract');
+                if ($arg instanceof Node\Expr\ClassConstFetch && $arg->class instanceof Node\Name
+                    && $arg->name instanceof Node\Identifier
+                    && strcasecmp($arg->name->toString(), 'class') === 0) {
+                    $fqcn = $arg->class->toString();
+                } elseif ($arg instanceof Node\Scalar\String_) {
+                    $fqcn = $arg->value;
+                }
+            } elseif ($var instanceof Node\Expr\New_ && $var->class instanceof Node\Name) {
+                $fqcn = $var->class->toString();
+            }
+        }
+        if ($fqcn === null) {
+            return null;
+        }
+        $service = $this->serviceSource($fqcn, $uses);
+        if ($service === null) {
+            return null;
+        }
+        [$nodes, $serviceUses] = $service;
+        $methodName = $call->name instanceof Node\Identifier ? $call->name->toString() : '';
+        foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Stmt\Class_::class) as $serviceClass) {
+            $method = $serviceClass->getMethod($methodName);
+            // Instance dispatch can reach a bound subclass override; only
+            // final classes, private methods and exact static calls are
+            // provably the body being scanned.
+            if (
+                $method !== null && $method->stmts !== null
+                && ($serviceClass->isFinal() || $method->isPrivate() || $call instanceof Node\Expr\StaticCall)
+            ) {
+                return [$method, $serviceClass, $serviceUses];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolves a class string to the statements of its `app/` source file and
+     * the service file's own `use` map, so nested calls inside the service
+     * resolve against its imports. Vendor or missing classes stay opaque.
+     *
+     * @param array<string, string> $uses
+     * @return array{list<Node>,array<string, string>}|null
+     */
+    private function serviceSource(string $fqcn, array $uses): ?array
+    {
+        $fqcn = ltrim($fqcn, '\\');
+        if (! str_starts_with($fqcn, 'App\\')) {
+            $first = strtolower(strtok($fqcn, '\\'));
+            if (isset($uses[$first])) {
+                $fqcn = $uses[$first].substr($fqcn, strlen($first));
+            }
+        }
+        if (! str_starts_with($fqcn, 'App\\')) {
+            return null;
+        }
+        $nodes = $this->source->read('app/'.str_replace('\\', '/', substr($fqcn, 4)).'.php');
+        return $nodes === null ? null : [$nodes, $this->fileUses($nodes)];
+    }
+
+    /**
+     * `app()`/`resolve()` without arguments only returns the container. A class
+     * string resolution constructs the service, so the constructor body must be
+     * provable like a helper method: a final `App` class is scanned, while
+     * interfaces, string aliases, unresolved files and non-final targets keep
+     * the index uncertain — bindings can substitute their construction.
+     *
+     * @param array{visited:array<int,true>,schema:bool,unknownMethod:bool,depth:int,uses?:array<string, string>} $scan
+     */
+    private function containerConstruction(Node\Expr\FuncCall $call, array &$scan): bool
+    {
+        if ($call->args === []) {
+            return true;
+        }
+        $abstract = PhpSource::argument($call->args, 0, 'abstract')
+            ?? PhpSource::argument($call->args, 0, 'name');
+        $fqcn = null;
+        if (
+            $abstract instanceof Node\Expr\ClassConstFetch && $abstract->class instanceof Node\Name
+            && $abstract->name instanceof Node\Identifier && strcasecmp($abstract->name->toString(), 'class') === 0
+        ) {
+            $fqcn = $abstract->class->toString();
+        } elseif ($abstract instanceof Node\Scalar\String_) {
+            $fqcn = $abstract->value;
+        }
+        if ($fqcn === null) {
+            return false;
+        }
+        $service = $this->serviceSource($fqcn, $scan['uses'] ?? []);
+        if ($service === null) {
+            return false;
+        }
+        [$nodes, $serviceUses] = $service;
+        $short = strtolower(substr(str_replace('\\', '/', $fqcn), strrpos(str_replace('\\', '/', $fqcn), '/') + 1));
+        $serviceClass = null;
+        $single = null;
+        $named = 0;
+        foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Stmt\Class_::class) as $candidate) {
+            if ($candidate->name === null) {
+                continue;
+            }
+            ++$named;
+            $single ??= $candidate;
+            if (strtolower($candidate->name->toString()) === $short) {
+                $serviceClass = $candidate;
+
+                break;
+            }
+        }
+        $serviceClass ??= $named === 1 ? $single : null;
+        if ($serviceClass === null || $serviceClass->isAbstract() || ! $serviceClass->isFinal()) {
+            return false;
+        }
+        // A missing local constructor does not prove that construction is
+        // inert: a parent or trait can supply it. Their construction graph
+        // is not resolved by this bounded body scan.
+        if ($serviceClass->extends !== null || $serviceClass->getTraitUses() !== []) {
+            return false;
+        }
+        $constructor = $serviceClass->getMethod('__construct');
+        if ($constructor === null) {
+            return true;
+        }
+        if ($constructor->stmts === null) {
+            return false;
+        }
+        // Container injection and object defaults can execute another
+        // constructor before this body. Builtin scalar parameters remain
+        // neutral; unresolved class types/default construction stay opaque.
+        if ((new NodeFinder)->findFirst(
+            $constructor->params,
+            static fn (Node $node): bool => $node instanceof Node\Name || $node instanceof Node\Expr\New_,
+        ) !== null) {
+            return false;
+        }
+        // Same bounded body scan as application helper methods.
+        if (isset($scan['visited'][spl_object_id($constructor)])) {
+            return true;
+        }
+        if (count($scan['visited']) >= 64) {
+            $scan['unknownMethod'] = true;
+
+            return true;
+        }
+        $scan['visited'][spl_object_id($constructor)] = true;
+        $prevUses = $scan['uses'] ?? [];
+        $scan['uses'] = $serviceUses;
+        $this->invalidateStatements($constructor->stmts, $serviceClass, $scan);
+        $scan['uses'] = $prevUses;
+
+        return true;
+    }
+
+    /**
+     * `use` imports declared at file scope: lowercase alias to FQCN, so
+     * short class names in calls can be resolved to `App\` paths.
+     *
+     * @param array<array-key, Node> $nodes
+     * @return array<string, string>
+     */
+    private function fileUses(array $nodes): array
+    {
+        $uses = [];
+        $finder = new NodeFinder;
+        foreach ($finder->findInstanceOf($nodes, Node\Stmt\Use_::class) as $use) {
+            if ($use->type !== Node\Stmt\Use_::TYPE_NORMAL) {
+                continue;
+            }
+            foreach ($use->uses as $item) {
+                $uses[strtolower($item->alias?->toString() ?? $item->name->getLast())] = $item->name->toString();
+            }
+        }
+        foreach ($finder->findInstanceOf($nodes, Node\Stmt\GroupUse::class) as $group) {
+            if ($group->type !== Node\Stmt\GroupUse::TYPE_NORMAL) {
+                continue;
+            }
+            $prefix = $group->prefix->toString();
+            foreach ($group->uses as $item) {
+                $uses[strtolower($item->alias?->toString() ?? $item->name->getLast())] = $prefix.'\\'.$item->name->toString();
+            }
+        }
+
+        return $uses;
+    }
+
+    /**
+     * Variables bound by foreach loops over a resolvable literal or class
+     * constant table list: their Schema calls only touch the iterated set.
+     *
+     * @param array<array-key, Node> $nodes
+     * @return array<string, array<string, true>>
+     */
+    private function loopTables(array $nodes, ?Node\Stmt\Class_ $class): array
+    {
+        if ($class === null) {
+            return [];
+        }
+        $map = [];
+        foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Stmt\Foreach_::class) as $loop) {
+            $name = $loop->valueVar instanceof Node\Expr\Variable ? $loop->valueVar->name : null;
+            if (! is_string($name) || $loop->byRef || $this->loopVarMutated($loop, $name)) {
+                continue;
+            }
+            $set = MigrationTableLoop::tablesFor($loop->expr, $class);
+            if ($set === null) {
+                continue;
+            }
+            foreach ($set as $table) {
+                $map[$name][$table] = true;
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * Assignments, references and unsets of the loop variable anywhere in the
+     * body invalidate the iterated-set binding.
+     */
+    private function loopVarMutated(Node\Stmt\Foreach_ $loop, string $name): bool
+    {
+        return (new NodeFinder)->findFirst($loop->stmts, static function (Node $node) use ($name): bool {
+            $isName = static fn (?Node $target): bool => $target instanceof Node\Expr\Variable && $target->name === $name;
+            if (
+                ($node instanceof Node\Expr\Assign || $node instanceof Node\Expr\AssignOp
+                || $node instanceof Node\Expr\PreInc || $node instanceof Node\Expr\PreDec
+                || $node instanceof Node\Expr\PostInc || $node instanceof Node\Expr\PostDec)
+                && $isName($node->var)
+            ) {
+                return true;
+            }
+            if ($node instanceof Node\Expr\AssignRef && ($isName($node->var) || $isName($node->expr))) {
+                return true;
+            }
+            if ($node instanceof Node\Stmt\Unset_) {
+                foreach ($node->vars as $var) {
+                    if ($isName($var)) {
+                        return true;
+                    }
+                }
+            }
+            if ($node instanceof Node\Expr\ClosureUse && $node->byRef && $isName($node->var)) {
+                return true;
+            }
+            if ($node instanceof Node\Expr\ArrayItem && $node->byRef && $isName($node->value)) {
+                return true;
+            }
+            if ($node instanceof Node\Stmt\Foreach_ && $node->byRef && $isName($node->expr)) {
+                return true;
+            }
+
+            return false;
+        }) !== null;
+    }
+
+    /** @param array{loopTables?:array<string,array<string,true>>} $scan @return list<string>|null */
+    private function boundTables(?Node\Expr $argument, array $scan): ?array
+    {
+        if (! $argument instanceof Node\Expr\Variable || ! is_string($argument->name)) {
+            return null;
+        }
+        $bound = $scan['loopTables'][$argument->name] ?? null;
+
+        return $bound === null ? null : array_keys($bound);
+    }
+
+    /**
+     * Variables assigned a literal closure: `$alter = function ...`; invoking
+     * `$alter()` or passing `$alter` to `DB::transaction` runs the same body.
+     *
+     * @param array<array-key, Node> $nodes
+     * @return array<string, Node\Expr\Closure|Node\Expr\ArrowFunction>
+     */
+    private function boundClosures(array $nodes): array
+    {
+        $closures = [];
+        foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Expr\Assign::class) as $assign) {
+            if (
+                $assign->var instanceof Node\Expr\Variable
+                && is_string($assign->var->name)
+                && ($assign->expr instanceof Node\Expr\Closure || $assign->expr instanceof Node\Expr\ArrowFunction)
+            ) {
+                $closures[$assign->var->name] = $assign->expr;
+            }
+        }
+
+        return $closures;
+    }
+
+    /** @param array{closures?:array<string,Node\Expr\Closure|Node\Expr\ArrowFunction>} $scan */
+    private function boundClosure(Node\Expr\FuncCall $call, array $scan): Node\Expr\Closure|Node\Expr\ArrowFunction|null
+    {
+        if (! $call->name instanceof Node\Expr\Variable || ! is_string($call->name->name)) {
+            return null;
+        }
+
+        return $scan['closures'][$call->name->name] ?? null;
+    }
+
+    /** @param array<string, mixed> $scan */
+    private function scanClosureArguments(Node\Expr\StaticCall $call, ?Node\Stmt\Class_ $class, array &$scan): void
+    {
+        foreach ($call->args as $arg) {
+            if (! $arg instanceof Node\Arg) {
+                continue;
+            }
+            $closure = $arg->value instanceof Node\Expr\Variable && is_string($arg->value->name)
+                ? $scan['closures'][$arg->value->name] ?? null
+                : ($arg->value instanceof Node\Expr\Closure || $arg->value instanceof Node\Expr\ArrowFunction
+                    ? $arg->value
+                    : null);
+            if ($closure === null || isset($scan['visited'][spl_object_id($closure)]) || count($scan['visited']) >= 64) {
+                continue;
+            }
+            $scan['visited'][spl_object_id($closure)] = true;
+            $body = $closure instanceof Node\Expr\Closure ? $closure->stmts ?? [] : [$closure->expr];
+            $this->invalidateStatements($body, $class, $scan);
+        }
+    }
+
+    /**
+     * Query-builder chains must remain on the builder. Escaping through
+     * getConnection() permits arbitrary SQL, and dynamic dispatch cannot
+     * establish that the chain remains on the builder.
+     */
+    private function schemaNeutralChain(Node\Expr\CallLike $call, bool &$builder): bool
     {
         $var = $call instanceof Node\Expr\MethodCall || $call instanceof Node\Expr\NullsafeMethodCall
-            ? $call->var
+            ? $call
             : null;
         $guard = 0;
+        $safe = true;
         while ($var instanceof Node\Expr\MethodCall || $var instanceof Node\Expr\NullsafeMethodCall) {
-            if (++$guard > 64) {
-                return false;
+            if (++$guard > 64) { return false; }
+            if (! $var->name instanceof Node\Identifier
+                || strtolower($var->name->toString()) === 'getconnection') {
+                $safe = false;
             }
             $var = $var->var;
         }
 
-        return $var instanceof Node\Expr\StaticCall
+        $builder = $var instanceof Node\Expr\StaticCall
             && $var->class instanceof Node\Name
             && in_array(strtolower($var->class->toString()), ['db', 'illuminate\\support\\facades\\db'], true)
             && $var->name instanceof Node\Identifier
-            && strtolower($var->name->toString()) === 'table';
+            && in_array(strtolower($var->name->toString()), ['table', 'query'], true);
+
+        return $builder && $safe;
+    }
+
+    /**
+     * Closure parameters typed as Laravel collections hold data rows, never
+     * schema or connection handles — calls on them cannot emit DDL.
+     *
+     * @param array<array-key, Node> $nodes
+     * @param array<string, string> $uses
+     * @return array<string, true>
+     */
+    private function dataReceivers(array $nodes, array $uses): array
+    {
+        $vars = [];
+        $finder = new NodeFinder;
+        foreach ($finder->findInstanceOf($nodes, Node\Expr\Closure::class) as $closure) {
+            foreach ($closure->params as $param) {
+                if (
+                    $param->var instanceof Node\Expr\Variable && is_string($param->var->name)
+                    && $param->type instanceof Node\Name
+                    && $this->collectionType($param->type->toString(), $uses)
+                ) {
+                    $vars[$param->var->name] = true;
+                }
+            }
+        }
+        foreach ($finder->findInstanceOf($nodes, Node\Expr\ArrowFunction::class) as $fn) {
+            foreach ($fn->params as $param) {
+                if (
+                    $param->var instanceof Node\Expr\Variable && is_string($param->var->name)
+                    && $param->type instanceof Node\Name
+                    && $this->collectionType($param->type->toString(), $uses)
+                ) {
+                    $vars[$param->var->name] = true;
+                }
+            }
+        }
+
+        return $vars;
+    }
+
+    /**
+     * @param array<string, string> $uses
+     */
+    private function collectionType(string $type, array $uses): bool
+    {
+        $type = ltrim($type, '\\');
+        $resolved = $uses[strtolower(strtok($type, '\\'))] ?? $type;
+
+        return in_array(strtolower($resolved), [
+            'collection',
+            'illuminate\\support\\collection',
+            'illuminate\\support\\lazycollection',
+            'illuminate\\support\\enumerable',
+            'illuminate\\pagination\\abstractpaginator',
+        ], true);
+    }
+
+    /**
+     * Builtins that only iterate data can run no SQL themselves; their
+     * callback must be an inline closure whose body is scanned like any
+     * other code. A string or variable callable stays unprovable.
+     */
+    private function higherOrder(Node\Expr\FuncCall $call): bool
+    {
+        if (! $call->name instanceof Node\Name) {
+            return false;
+        }
+        static $callbackAt = [
+            'array_map' => 0, 'array_filter' => 1, 'array_reduce' => 1,
+            'array_walk' => 1, 'array_any' => 1, 'array_all' => 1,
+            'array_find' => 1, 'array_find_key' => 1, 'array_some' => 1,
+            'usort' => 1, 'uasort' => 1, 'uksort' => 1,
+            'preg_replace_callback' => 1,
+        ];
+        $name = strtolower($call->name->toString());
+        if (! isset($callbackAt[$name])) {
+            return false;
+        }
+        $callback = PhpSource::argument($call->args, $callbackAt[$name], 'callback');
+
+        return $callback === null
+            || $callback instanceof Node\Expr\Closure
+            || $callback instanceof Node\Expr\ArrowFunction;
     }
 
     /**

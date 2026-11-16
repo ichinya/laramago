@@ -41,6 +41,13 @@ parameters retain SDK signature semantics. Reference parameters and return
 values defer because magic dispatch does not preserve caller reference semantics.
 Macro names remain case-sensitive.
 
+The original spelling is read from the current source snapshot, even when the
+engine normalizes method names. Shared call spans across files are ambiguous
+and defer. When the SDK supplies no signature span, argument checks require
+every matching source call with the same argument texts to agree on spelling;
+dynamic or differently cased alternatives defer. Return types still require a
+unique source span. Changed source snapshots invalidate these proofs.
+
 ```php
 use Illuminate\Support\Str;
 

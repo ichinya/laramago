@@ -67,6 +67,11 @@ final class RuntimeCliConfiguration
         $settings['log_errors'] = '0';
         $contents = '';
         foreach ($settings as $key => $value) {
+            // An unset native default is not an explicitly configured empty
+            // string (for example memory_hard_limit_percent in PHP 8.5.12).
+            if ($value === null) {
+                continue;
+            }
             $contents .=
                 $key . '="' . str_replace(['\\', '"', '$'], ['\\\\', '\\"', '\\$'], (string) $value) . '"' . "\n";
         }

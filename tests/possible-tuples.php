@@ -87,7 +87,8 @@ if(($constantGrammar['sourceOnly']??false)!==true||count($constantGrammar['check
 }
 $assertHeld();
 $binary=$package.'/vendor/bin/mago'.(PHP_OS_FAMILY==='Windows'?'.exe':'');if(!is_file($binary)) { $binary=$package.'/vendor/bin/mago'; }
-$command=str_ends_with($binary,'.exe')?[$binary]:[PHP_BINARY,$binary];$reports=[];$closed=[];
+$command=str_ends_with($binary,'.exe')?[$binary]:[PHP_BINARY,$binary];$reports=[];$closed=[];$nativeCoveredTargets=false;$positiveRanges=[];
+require __DIR__.'/fixtures/native-covered-reports.php';
 foreach(['native','observe','isolated','isolated-three','controls','full-before','full-after','full-after-three'] as $mode) {
     $workerMode=match($mode) { 'isolated-three'=>'isolated','full-after-three'=>'full-after',default=>$mode };
     $output=$workspace.'/'.$workerMode;if(!is_dir($output)) { mkdir($output,0777,true); }
@@ -107,6 +108,14 @@ foreach(['native','observe','isolated','isolated-three','controls','full-before'
     $report=json_decode(ltrim(file_get_contents($raw),"\xEF\xBB\xBF"),true,flags:JSON_THROW_ON_ERROR);
     if(!isset($report['issues'])||!is_array($report['issues'])) { throw new RuntimeException('Missing native issue report.'); }
     $reports[$mode]=$report['issues'];$assertHeld();
+    if($nativeCoveredTargets){
+        if($mode==='observe'&&in_array('--discovery-only',$argv,true)){
+            $signature=static function(array $issues):array{$rows=array_map(static fn(array $i):string=>json_encode($i,JSON_THROW_ON_ERROR),$issues);sort($rows);return $rows;};
+            if($signature($reports['native'])!==$signature($reports['observe'])){throw new RuntimeException('Native-covered Always-Keep discovery changed complete issues.');}
+            $write($workspace.'/discovery-result.json',json_encode(['status'=>'NATIVE_COVERED_DISCOVERY_ONLY','acceptanceClaimed'=>false,'nativeWholeDtoParity'=>true,'cacheOrSourceControlsStarted'=>false,'fullRegistryAcceptanceClaimed'=>false,'closedReceipts'=>$closed],JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT));return;
+        }
+        continue;
+    }
     if($mode==='native') {
         $nativeTargets=[];
         $wanted=array_map(static fn(array $entry):string=>$entry['owner'].'::'.$entry['code'],$matrix['positiveTargets']);
@@ -119,6 +128,15 @@ foreach(['native','observe','isolated','isolated-three','controls','full-before'
             if(in_array($target,$wanted,true)) { $nativeTargets[]=$target; }
         }
         sort($nativeTargets);sort($wanted);
+        if($nativeTargets===[]){
+            foreach($matrix['positiveTargets']as$target){
+                [$file,$owner]=explode('::',$target['owner'],2);$span=$scopes[$file][$owner]??null;
+                if($span===null){throw new RuntimeException('Each native-covered tuple target needs its actual parsed source owner.');}
+                $positiveRanges[]=['file'=>$file,'start'=>$span[0],'end'=>$span[1],'codes'=>[$target['code']]];
+            }
+            if(!nativeCoveredSourceRanges($reports[$mode],$positiveRanges)){throw new RuntimeException('A tuple target acquired a different native level or diagnostic.');}
+            $nativeCoveredTargets=true;continue;
+        }
         if($nativeTargets!==$wanted) { throw new RuntimeException('Genuine target Error witnesses are absent; stop before observation and controls.'); }
         $requiredNegativeWitnesses=[];
         foreach($matrix['requiredNativeNegativeTargets'] as $selected) {
@@ -266,6 +284,12 @@ foreach(['native','observe','isolated','isolated-three','controls','full-before'
         }
 
     }
+}
+if($nativeCoveredTargets){
+    $covered=nativeCoveredReports($reports,$positiveRanges,$closed,['negative.php']);$assertHeld();
+    $covered['constantSourceGrammarChecks']=count($constantGrammar['checks']);$covered['negativeSourceOwners']=$matrix['negativeOwners'];
+    $write($workspace.'/accepted-result.json',json_encode($covered,JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT));
+    echo 'PASS possible callback tuples: native-covered source targets; every other whole issue retained, one/three workers. '.$workspace.PHP_EOL;return;
 }
 $constantControls=json_decode(file_get_contents($workspace.'/controls/controls-constant-domain.json'),true,flags:JSON_THROW_ON_ERROR);
 if(($constantControls['genuinePositive']??false)!==true||($constantControls['restored']??false)!==true

@@ -392,7 +392,7 @@ $enabled = [
     'custom container override declines catalog' => [
         '$container = new \\ContainerFixtures\\CustomContainer(); return $container->make(\\ContainerFixtures\\ServiceContract::class);',
         '\\ContainerFixtures\\Service',
-        ['less-specific-return-statement'],
+        ['invalid-return-statement'],
     ],
 ];
 runContainerCases('enabled', $enabled, true);

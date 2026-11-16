@@ -5,30 +5,48 @@ namespace Example\ModelFreshnessTests;
 use Ichinya\Laramago\Analyzer\RefreshedModelPropertyIssueFilter;
 use Ichinya\Laramago\Analyzer\DeprecatedMethodCompatibilityProof;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\{ModelAttributeReadDomains,PhpSource,RefreshedModelProperties};
-use Mago\Sdk\Analyzer\{IssueFilterContext,IssueFilterDecision,IssueFilterHook};
+use Mago\Sdk\Analyzer\{AfterFileAnalysisContext,AfterFileAnalysisHook,IssueFilterContext,IssueFilterDecision,IssueFilterHook};
 
 /** This observer uses one unchanged genuine issue context and returns Keep. */
-final class NativeFreshnessControls implements IssueFilterHook
+final class NativeFreshnessControls implements IssueFilterHook,AfterFileAnalysisHook
 {
     private bool $checked=false;
-    public function __construct(private readonly RefreshedModelPropertyIssueFilter $filter,private readonly string $root) {}
+    public function __construct(private readonly RefreshedModelPropertyIssueFilter $filter,private readonly string $root,private readonly string $targetFile='proof.php') {}
     public function getCodes():array { return $this->filter->getCodes(); }
     public function filterIssue(IssueFilterContext $context):IssueFilterDecision
     {
-        if($this->checked||!in_array(self::key($context->file),['proof.php',self::key($this->root.'/proof.php')],true)) { return IssueFilterDecision::Keep; }
-        $this->checked=true;$checks=[];
+        if($this->checked||!in_array(self::key($context->file),[self::key($this->targetFile),self::key($this->root.'/'.$this->targetFile)],true)) { return IssueFilterDecision::Keep; }
+        $this->checked=true;
+        $this->check($context,fn():bool=>$this->filter->filterIssue($context)===IssueFilterDecision::Remove,$context->issue);
+        return IssueFilterDecision::Keep;
+    }
+    public function getRequirements():array { return []; }
+    public function afterFileAnalysis(AfterFileAnalysisContext $context):void
+    {
+        if($this->checked||!in_array(self::key($context->analysis->file),[self::key($this->targetFile),self::key($this->root.'/'.$this->targetFile)],true)){return;}
+        $source=$context->analysis->getSourceFile();$index=$this->filter->provenance;
+        $proofs=array_values(array_filter($index->proofs($source->path,$source->contents),fn(array $proof):bool=>$index->valid($context->codebase,$context->types,$proof)));
+        if(count($proofs)!==1){throw new \RuntimeException('One genuine source/native refresh contract is required after file analysis.');}
+        $origin=(new \ReflectionMethod($index,'originClass'))->invoke($index,$context->codebase,$proofs[0]);
+        if(!is_string($origin)||$origin===''){throw new \RuntimeException('A genuine current native model origin is required.');}
+        $this->checked=true;
+        $this->check($context,fn():bool=>$index->valid($context->codebase,$context->types,$proofs[0]),null,$origin);
+    }
+    private function check(IssueFilterContext|AfterFileAnalysisContext $context,\Closure $admitted,?\Mago\Sdk\Reporting\ReportedIssue $issue,string $modelClass='Fixture\\Row'):void
+    {
+        $checks=[];
         $check=static function(string $label,bool $condition)use(&$checks):void {
             $checks[$label]=$condition;if(!$condition) { throw new \RuntimeException('Model source freshness control failed: '.$label); }
         };
         try {
-            $check('genuine current refresh positive',$this->filter->filterIssue($context)===IssueFilterDecision::Remove);
+            $check('genuine current refresh positive',$admitted());
             $index=$this->filter->provenance;
             $domains=(new \ReflectionProperty($index,'domains'))->getValue($index);
             $check('real retained model domain reader',$domains instanceof ModelAttributeReadDomains);
             $reader=(new \ReflectionProperty($domains,'source'))->getValue($domains);
             $check('current two-entry source reader',$reader instanceof PhpSource&&(new \ReflectionClass($reader))->getConstant('INSTANCE_CACHE_ENTRIES')===2);
-            $model=$context->codebase->getClass('Fixture\\Row');
-            $check('selected native model location',$model!==null&&strcasecmp($model->name,'Fixture\\Row')===0&&$model->location->file!==null);
+            $model=$context->codebase->getClass($modelClass);
+            $check('selected native model location',$model!==null&&strcasecmp($model->name,$modelClass)===0&&$model->location->file!==null);
             $disk=$reader->path(RefreshedModelProperties::path($model->location->file));
             $original=file_get_contents($disk);$originalHash=hash('sha256',$original);
             $snapshots=(new \ReflectionProperty($domains,'snapshots'))->getValue($domains);
@@ -55,13 +73,14 @@ final class NativeFreshnessControls implements IssueFilterHook
             $cache=(new \ReflectionProperty($reader,'files'))->getValue($reader);
             $check('actual two native reads evicted the selected AST',count($cache)===2&&!in_array(self::key($disk),array_map(self::key(...),array_keys($cache)),true));
             // Keep one real context; never replace its issue, contents, or native metadata.
-            $check('same genuine positive before the source mutation',$this->filter->filterIssue($context)===IssueFilterDecision::Remove);
+            $check('same genuine positive before the source mutation',$admitted());
             // The positive may read the selected file again. Force the same observed eviction once more.
             foreach($bindings as $binding) { if($reader->read($binding['file'])===null) { throw new \RuntimeException('The actual eviction read failed.'); } }
             $cache=(new \ReflectionProperty($reader,'files'))->getValue($reader);
             $check('selected AST absent immediately before mutation',!in_array(self::key($disk),array_map(self::key(...),array_keys($cache)),true));
             file_put_contents($this->root.'/freshness-initial.json',json_encode([
-                'completeGenuineSdkIssue'=>DeprecatedMethodCompatibilityProof::canonical($context->issue),
+                'completeGenuineSdkIssue'=>$issue===null?null:DeprecatedMethodCompatibilityProof::canonical($issue),
+                'actualSdkContextClass'=>$context::class,'genuineIssuePositive'=>$issue!==null,'genuineSourceNativePositive'=>true,
                 'selectedFile'=>$model->location->file,'selectedSourceSha256'=>$originalHash,'unscanned'=>true,
                 'actualEvictionBindings'=>array_values($bindings),'actualReaderCachePaths'=>array_keys($cache),
             ],JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT));
@@ -71,17 +90,17 @@ final class NativeFreshnessControls implements IssueFilterHook
                 if(file_put_contents($disk,$changed)!==strlen($changed)||hash_file('sha256',$disk)!==hash('sha256',$changed)) {
                     throw new \RuntimeException('The actual selected dependency bytes were not changed.');
                 }
-                $check('changed known unscanned dependency is rejected',$this->filter->filterIssue($context)===IssueFilterDecision::Keep);
+                $check('changed known unscanned dependency is rejected',!$admitted());
             } finally {
                 if(file_put_contents($disk,$original)!==strlen($original)||hash_file('sha256',$disk)!==$originalHash) {
                     throw new \RuntimeException('The selected model dependency was not fully restored.');
                 }
             }
-            $check('fresh genuine positive after exact restoration',$this->filter->filterIssue($context)===IssueFilterDecision::Remove);
+            $check('fresh genuine positive after exact restoration',$admitted());
             $snapshots=(new \ReflectionProperty($domains,'snapshots'))->getValue($domains);
             $check('original selected source certificate remains retained',($snapshots[$disk]??null)===$originalHash);
             file_put_contents($this->root.'/freshness-controls.json',json_encode([
-                'status'=>'PASS','genuinePositive'=>true,'sameGenuineContext'=>true,'checks'=>$checks,
+                'status'=>'PASS','genuinePositive'=>true,'genuineIssuePositive'=>$issue!==null,'genuineSourceNativePositive'=>true,'sameGenuineContext'=>true,'checks'=>$checks,
                 'sourceMutations'=>1,'restored'=>true,'sdkCacheMutations'=>0,'fabricatedPositiveContexts'=>false,
             ],JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT));
         } catch(\Throwable $error) {
@@ -89,7 +108,6 @@ final class NativeFreshnessControls implements IssueFilterHook
                 'status'=>'FAILED','message'=>$error->getMessage(),'completedChecks'=>$checks,
             ],JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT));throw $error;
         }
-        return IssueFilterDecision::Keep;
     }
     private static function key(string $path):string
     {

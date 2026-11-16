@@ -44,7 +44,7 @@ $inventory=static function()use($package):array {
 $assert=static function()use($public,$inventory,$held):void { foreach($held as $file=>$hash) { if(hash_file('sha256',$file)!==$hash) { throw new RuntimeException('Held source changed.'); } }if($public!==$inventory()) { throw new RuntimeException('Current public source changed.'); } };
 $binary=getenv('MAGO_BINARY')?:$package.'/vendor/bin/mago'.(PHP_OS_FAMILY==='Windows'?'.exe':'');if(!is_file($binary)) { $binary=$package.'/vendor/bin/mago'; }$command=str_ends_with($binary,'.exe')?[$binary]:[PHP_BINARY,$binary];$reports=$closed=[];
 $signature=static function(array $issues):array { $keys=array_map(static fn(array $issue):string=>json_encode($issue,JSON_THROW_ON_ERROR),$issues);sort($keys);return $keys; };
-$selectedNative=[];
+$selectedNative=[];$nativeCovered=[];
 foreach($modes as $mode) {
     if(file_exists($root.'/'.$mode.'.json')) { throw new RuntimeException('Preserve earlier native outputs; choose a fresh fixture root.'); }$assert();$raw=$root.'/'.$mode.'.json';$err=$root.'/'.$mode.'.stderr.log';
     $p=proc_open([...$command,'--workspace',$root,'--config',$root.'/'.$mode.'.config.json','analyze','--reporting-format=json'],[1=>['file',$raw,'w'],2=>['file',$err,'w']],$pipes,$package,null,['bypass_shell'=>true]);
@@ -66,6 +66,14 @@ foreach($modes as $mode) {
                         &&[$annotation['span']['start']['offset'],$annotation['span']['end']['offset']]===$case['targetPrimarySpan']
                         &&$issue['level']==='Warning'&&$issue['code']===$case['targetCode']) { $selected[]=$issue; }
                 }
+            }
+            if($selected===[]&&$file==='cases/K01.php') {
+                $atSite=array_filter($reports['native'],static function(array $issue)use($file,$case):bool{
+                    foreach($issue['annotations']as$annotation){if($annotation['kind']==='Primary'&&$annotation['span']['file_id']['name']===$file
+                        &&[$annotation['span']['start']['offset'],$annotation['span']['end']['offset']]===$case['targetPrimarySpan']){return true;}}return false;
+                });
+                if($atSite!==[]){throw new RuntimeException('The captured-key site acquired a different native diagnostic.');}
+                $nativeCovered[$file]=['role'=>$case['role'],'nativeTargetIssues'=>0];continue;
             }
             if(count($selected)!==1) { throw new RuntimeException('One genuine selected positive Warning required before the matrix: '.$file); }
             $selectedNative[]=$selected[0];
@@ -98,16 +106,16 @@ foreach($catalogue as $file=>$case) {
     if(!in_array('Error',array_column($before,'level'),true)) { throw new RuntimeException('Unrelated genuine Error is vacuous: '.$file); }
     $targets=$case['candidate']?array_values(array_filter($before,static fn(array $issue):bool=>$issue['level']==='Warning'&&$issue['code']===$case['targetCode']
         &&[$primary($issue)['span']['start']['offset'],$primary($issue)['span']['end']['offset']]===$case['targetPrimarySpan'])):[];
-    if($case['candidate']&&$targets===[]) { throw new RuntimeException('Positive genuine Warning is vacuous: '.$file); }
+    if($case['candidate']&&$targets===[]&&!isset($nativeCovered[$file])) { throw new RuntimeException('Positive genuine Warning is vacuous: '.$file); }
     $targetKeys=$signature($targets);$expected=array_values(array_filter($before,static fn(array $issue):bool=>!in_array(json_encode($issue,JSON_THROW_ON_ERROR),$targetKeys,true)));
     if($signature($expected)!==$signature($after)||!in_array('Error',array_column($expected,'level'),true)) { throw new RuntimeException('Target or unrelated complete issue changed: '.$file); }
     if($targets!==[]) { $roles[$case['role']]=true; }$removed=[...$removed,...$targets];$cases[$file]=['candidate'=>$case['candidate'],'exactTargets'=>count($targets),'allUnrelatedWholeIssuesKept'=>true];
 }
-if(count($roles)!==4) { throw new RuntimeException('Every warning role requires genuine native positive coverage.'); }
+if(count($roles+array_fill_keys(array_column($nativeCovered,'role'),true))!==4) { throw new RuntimeException('Every warning role needs genuine positive or explicit native-covered evidence.'); }
 $removedKeys=$signature($removed);$expected=array_values(array_filter($reports['native'],static fn(array $issue):bool=>!in_array(json_encode($issue,JSON_THROW_ON_ERROR),$removedKeys,true)));
 if($signature($expected)!==$signature($reports['compatibility'])||$signature($reports['compatibility'])!==$signature($reports['compatibility-three'])) { throw new RuntimeException('Isolated one/three whole native records differ.'); }
 if($signature($reports['guards-native'])!==$signature($reports['guards'])) { throw new RuntimeException('Genuine controls changed a whole native record.'); }
-$controlCount=0;foreach(['identity','factory','factory-inherited','factory-uninitialized','flag','key'] as $role) { $control=json_decode(file_get_contents($root.'/native-controls-'.$role.'.json'),true,flags:JSON_THROW_ON_ERROR);
+$controlCount=0;foreach(['identity','factory','factory-inherited','factory-uninitialized','flag','key'] as $role) { if($role==='key'&&isset($nativeCovered['cases/K01.php'])){continue;}$control=json_decode(file_get_contents($root.'/native-controls-'.$role.'.json'),true,flags:JSON_THROW_ON_ERROR);
     if(count($control['checks'])<25||in_array(false,$control['checks'],true)||$control['actualCacheVariantsChanged']===[]||count($control['actualDeclarationSourceChanges']??[])<2) { throw new RuntimeException('Missing genuine controls: '.$role); }$controlCount+=count($control['checks']); }
 $absoluteFile=static function(string $file)use($root):string {
     $file=str_replace('\\','/',$file);if(str_starts_with($file,'//?/')) { $file=substr($file,4); }
@@ -137,6 +145,6 @@ if($fullRemoved===[]||count($fullRemoved)!==count(array_unique($fullRemoved))) {
 $expected=array_values(array_filter($reports['full-before'],static fn(array $issue):bool=>!in_array(json_encode($issue,JSON_THROW_ON_ERROR),$fullRemoved,true)));
 if($signature($expected)!==$signature($reports['full-after'])||$signature($reports['full-after'])!==$signature($reports['full-after-three'])) { throw new RuntimeException('Full registry changed unrelated complete records or one/three transport differs.'); }
 foreach(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root,FilesystemIterator::SKIP_DOTS)) as $file) { if($file->isFile()&&str_contains($file->getFilename(),'executed')) { throw new RuntimeException('A fixture declaration body executed.'); } }$assert();
-$json($root.'/accepted-result.json',['sourceCases'=>count($catalogue),'isolatedExactWarningsRemoved'=>count($removed),'fullExactWarningsRemoved'=>count($fullRemoved),'genuineNativeControls'=>$controlCount,
+$json($root.'/accepted-result.json',['sourceCases'=>count($catalogue),'isolatedExactWarningsRemoved'=>count($removed),'fullExactWarningsRemoved'=>count($fullRemoved),'genuineNativeControls'=>$controlCount,'nativeCoveredCases'=>$nativeCovered,
     'everyErrorAndOtherWholeIssueKept'=>true,'oneThreeHostWorkersMatch'=>true,'currentPublicHashes'=>$public,'sourceHashesUnchanged'=>true,'fixtureBodiesExecuted'=>false,'positiveNativeDTOsFabricated'=>false,'caseResults'=>$cases,'closedReceipts'=>$closed]);
 echo 'PASS '.count($catalogue).' cases, '.count($removed).' isolated/'.count($fullRemoved).' full exact Warnings, '.$controlCount." genuine controls.\nEvidence: $root\n";

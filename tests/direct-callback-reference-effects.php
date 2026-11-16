@@ -628,7 +628,15 @@ $plugin = new class($argv[2]) implements \Mago\Sdk\Analyzer\Plugin {
                     ['DocumentedStorageWorker', '$settings', $reflect],
                     ['UntypedStorageWorker', '$settings', $reflect],
                 ] as [$name, $fieldName, $prove]) {
-                    if ($prove($name) === null) { throw new \RuntimeException('Missing genuine constructor or reflection declaration: '.$name.' '.$fieldName); }
+                    if ($prove($name) === null) {
+                        $nativeProbe=new \ReflectionMethod(\Ichinya\Laramago\Analyzer\StaticAnalysis\NativeCallbackReflection::class,'native');
+                        file_put_contents($this->root.'/construction-failure.json',json_encode(\Ichinya\Laramago\Analyzer\DeprecatedMethodCompatibilityProof::canonical([
+                            'class'=>$name,'field'=>$fieldName,'nativeReflectionVerified'=>$nativeProbe->invoke(null,$context->codebase,$context->types)!==null,
+                            'reflectionClass'=>$context->codebase->getClass('ReflectionProperty'),'constructor'=>$context->codebase->getMethod('ReflectionProperty','__construct'),
+                            'setter'=>$context->codebase->getMethod('ReflectionProperty','setValue'),'property'=>$context->codebase->getDeclaringProperty('Fixture\\'.$name,$fieldName),
+                        ]),JSON_THROW_ON_ERROR));
+                        throw new \RuntimeException('Missing genuine constructor or reflection declaration: '.$name.' '.$fieldName);
+                    }
                     $planChecks++;
                     $field = $context->codebase->getDeclaringProperty('Fixture\\'.$name, $fieldName);
                     if ($field === null || $field->type === null) { throw new \RuntimeException('Missing genuine physical field metadata.'); }
@@ -728,6 +736,28 @@ $plugin = new class($argv[2]) implements \Mago\Sdk\Analyzer\Plugin {
                         } finally { $cache->values = $snapshot; }
                     }
                 }
+                $setter=$context->codebase->getMethod('ReflectionProperty','setValue');$value=$setter->parameters[1];$defaultChecks=[];
+                if($value->flags->contains(\Mago\Sdk\Analyzer\Metadata\MetadataFlags::HAS_DEFAULT)){
+                    $copy=static fn(object $source,array $changes):object=>new ($source::class)(...array_replace(get_object_vars($source),$changes));
+                    $default=$value->defaultType;$reference=$default->type->atomicTypes[0];
+                    foreach([
+                        'missing default'=>['defaultType'=>null],
+                        'missing flag'=>['flags'=>new \Mago\Sdk\Analyzer\Metadata\MetadataFlags($value->flags->bits&~\Mago\Sdk\Analyzer\Metadata\MetadataFlags::HAS_DEFAULT)],
+                        'literal default'=>['defaultType'=>$copy($default,['type'=>\Mago\Sdk\Analyzer\Type::null()])],
+                        'documented default'=>['defaultType'=>$copy($default,['fromDocblock'=>true])],
+                        'foreign default file'=>['defaultType'=>$copy($default,['location'=>new \Mago\Sdk\SourceLocation('foreign.php',$default->location->span)])],
+                        'different default constant'=>['defaultType'=>$copy($default,['type'=>\Mago\Sdk\Analyzer\Type::fromAtomic($copy($reference,['member'=>'OTHER']))])],
+                    ]as$label=>$changes){
+                        if($reflect('StorageWorker')===null){throw new \RuntimeException('The actual optional setter contract is not admitted before mutation.');}
+                        $snapshot=$cache->values;$parameters=$setter->parameters;$parameters[1]=$copy($value,$changes);$changed=$copy($setter,['parameters'=>$parameters]);
+                        try{
+                            if($replace($setter,$changed)===0||$reflect('StorageWorker')!==null){throw new \RuntimeException('The changed optional setter default was accepted: '.$label);}
+                            $defaultChecks[$label]=true;$planChecks++;
+                        }finally{$cache->values=$snapshot;}
+                        if($reflect('StorageWorker')===null){throw new \RuntimeException('The optional setter contract did not restore.');}
+                    }
+                }
+                file_put_contents($this->root.'/construction-default-controls.json',json_encode(['optionalDefault'=>$value->flags->contains(\Mago\Sdk\Analyzer\Metadata\MetadataFlags::HAS_DEFAULT),'checks'=>$defaultChecks],JSON_THROW_ON_ERROR));
                 $nativeClass = $context->codebase->getClassLike('ReflectionProperty');
                 if ($nativeClass === null) { throw new \RuntimeException('Missing native ReflectionProperty class metadata.'); }
                 foreach (['kind', 'name', 'original-name', 'file', 'user-defined', 'not-builtin', 'final', 'readonly', 'parent', 'interfaces', 'templates'] as $variant) {
@@ -760,6 +790,7 @@ $plugin = new class($argv[2]) implements \Mago\Sdk\Analyzer\Plugin {
             public function getCodes(): array { return $this->filter->getCodes(); }
             public function filterIssue(\Mago\Sdk\Analyzer\IssueFilterContext $context): \Mago\Sdk\Analyzer\IssueFilterDecision {
                 if ($this->checked || $context->file !== 'proof.php') { return $this->filter->filterIssue($context); }
+                if ($this->filter->filterIssue($context) !== \Mago\Sdk\Analyzer\IssueFilterDecision::Remove) { return \Mago\Sdk\Analyzer\IssueFilterDecision::Keep; }
                 $checks = 0;
                 $keep = static function ($filter, $probe, string $label) use (&$checks): void {
                     if ($filter->filterIssue($probe) !== \Mago\Sdk\Analyzer\IssueFilterDecision::Keep) { throw new \RuntimeException('Reference context accepted '.$label); }
@@ -1033,12 +1064,19 @@ if (in_array('--syntax-only', $argv, true)) {
     exit(0);
 }
 
-$analyze = static function (string $mode, int $workers = 1, bool $external = false, array $paths = ['cases.php', 'runners.php']) use ($workspace, $package, $nativePath): array {
+$closed=[];
+$constructionExpected=static function(string $root):int{
+    $receipt=json_decode(file_get_contents($root.'/construction-default-controls.json'),true,flags:JSON_THROW_ON_ERROR);
+    $checks=$receipt['checks'];
+    if(($receipt['optionalDefault']?count($checks)!==6:$checks!==[])||in_array(false,$checks,true)){throw new RuntimeException('The actual optional setter default controls are incomplete.');}
+    return 249+count($checks);
+};
+$analyze = static function (string $mode, int $workers = 1, bool $external = false, array $paths = ['cases.php', 'runners.php']) use ($workspace, $package, $nativePath,&$closed): array {
     $configuration = $external ? $workspace.' external configuration' : $workspace;
     if (!is_dir($configuration)) { mkdir($configuration); }
     $hosts = $mode === 'native' ? new stdClass : ['fixture' => [
-        'command' => $mode === 'integrated'
-            ? [PHP_BINARY, '-d', 'opcache.enable_cli=0', $package.'/bin/laramago-worker.php', $package.'/vendor/autoload.php', $workspace]
+        'command' => $mode === 'integrated'||str_starts_with($mode,'full-')
+            ? [PHP_BINARY, '-d', 'opcache.enable_cli=0', $mode==='full-before'?$workspace.'/full-before-worker.php':$package.'/bin/laramago-worker.php', $package.'/vendor/autoload.php', $workspace]
             : [PHP_BINARY, '-d', 'opcache.enable_cli=0', $workspace.'/'.($mode === 'contexts' ? 'proof-worker.php' : 'worker.php'), $package.'/vendor/autoload.php', $workspace, $mode],
         'workers' => $workers, 'request-timeout-ms' => 120000,
     ]];
@@ -1057,9 +1095,10 @@ $analyze = static function (string $mode, int $workers = 1, bool $external = fal
     fclose($pipes[0]);
     $exit = proc_close($process);
     $stderr = file_get_contents($workspace.'/'.$name.'.log');
-    if ($exit > 1 || preg_match('/provider failed|rejected request|hook .* failed|parse error|worker .* exited|did not answer/i', $stderr)) {
+    if (!in_array($exit,[0,1],true) || preg_match('/provider failed|rejected request|hook .* failed|parse error|worker .* exited|did not answer/i', $stderr)) {
         throw new RuntimeException('Mago failed: '.$stderr.' '.$workspace);
     }
+    $closed[$mode.'-'.$workers]=['closed'=>true,'exitCode'=>$exit,'rawSha256'=>hash_file('sha256',$workspace.'/'.$name.'.json'),'stderrSha256'=>hash_file('sha256',$workspace.'/'.$name.'.log')];
     return json_decode(file_get_contents($workspace.'/'.$name.'.json'), true, flags: JSON_THROW_ON_ERROR)['issues'];
 };
 $signature = static function (array $issues): array {
@@ -1128,6 +1167,30 @@ if (in_array('--probe', $argv, true)) {
     echo 'Direct reference probe: workspace='.$workspace.".\n";
     exit(0);
 }
+require __DIR__.'/fixtures/native-covered-reports.php';$positiveRanges=[];
+foreach($cases as$label=>[, $positive]){if($positive){$positiveRanges[]=['file'=>'cases.php','start'=>$ranges[$label][0],'end'=>$ranges[$label][1]];}}
+$nativeCoverageEvidence=null;
+if(nativeCoveredSourceRanges($native,$positiveRanges)){
+    $registry=file_get_contents($package.'/bin/laramago-worker.php');$registration='        new DirectCallbackReferencePlugin($projectRoot),';
+    if(substr_count($registry,$registration)!==1){throw new RuntimeException('One production direct-reference registration is required.');}
+    file_put_contents($workspace.'/full-before-worker.php',str_replace($registration,'',$registry));
+    $reports=['native'=>$native,'observe'=>$control,'controls'=>$control,'isolated'=>$standalone,'isolated-three'=>$analyze('standalone',3),
+        'full-before'=>$analyze('full-before'),'full-after'=>$analyze('full-after'),'full-after-three'=>$analyze('full-after',3)];
+    $receipts=['native'=>$closed['native-1'],'observe'=>$closed['control-1'],'controls'=>$closed['control-1'],'isolated'=>$closed['standalone-1'],'isolated-three'=>$closed['standalone-3'],
+        'full-before'=>$closed['full-before-1'],'full-after'=>$closed['full-after-1'],'full-after-three'=>$closed['full-after-3']];
+    $nativeCoverageEvidence=nativeCoveredReports($reports,$positiveRanges,$receipts);
+    $whole=static function(array $issues):array{$rows=array_map(static fn(array $i):string=>json_encode($i,JSON_THROW_ON_ERROR),$issues);sort($rows);return $rows;};
+    if($whole($analyze('standalone',external:true))!==$whole($standalone)
+        ||$whole($analyze('standalone',paths:['cases.php']))!==$whole($analyze('native',paths:['cases.php']))){throw new RuntimeException('Native-covered external-root/single-file whole reports differ.');}
+    $proofNative=$analyze('native',paths:['proof.php','runners.php']);$contexts=$analyze('contexts',paths:['proof.php','runners.php']);
+    $contextChecks=file_exists($workspace.'/context-checks.log')?array_sum(array_map('intval',file($workspace.'/context-checks.log',FILE_IGNORE_NEW_LINES))):0;
+    $nativeCoveredChecks=file_exists($workspace.'/native-covered-checks.log')?array_sum(array_map('intval',file($workspace.'/native-covered-checks.log',FILE_IGNORE_NEW_LINES))):0;
+    $constructionChecks=file_exists($workspace.'/construction-reflection-checks.log')?array_sum(array_map('intval',file($workspace.'/construction-reflection-checks.log',FILE_IGNORE_NEW_LINES))):0;
+    if(!in_array($contextChecks,[0,171],true)||$nativeCoveredChecks!==2||$constructionChecks!==$constructionExpected($workspace)
+        ||($contextChecks===0?$whole($proofNative)!==$whole($contexts):in_array('impossible-type-comparison',array_column($contexts,'code'),true))){throw new RuntimeException('The actual native-covered domain/constructor controls are incomplete. '.$workspace);}
+    $corrected=0;$retained=0;$before=$group($native);
+    foreach($cases as$label=>[, $positive]){if(!$positive&&($before[$label]??[])!==[]){$retained++;}}
+}else{
 $corrected = 0;
 $retained = 0;
 foreach ([$native, $control] as $originalReports) {
@@ -1160,7 +1223,7 @@ if ($contextChecks !== 171 || in_array('impossible-type-comparison', array_colum
 $nativeCoveredChecks = file_exists($workspace.'/native-covered-checks.log') ? array_sum(array_map('intval', file($workspace.'/native-covered-checks.log', FILE_IGNORE_NEW_LINES))) : 0;
 if ($nativeCoveredChecks !== 2) { throw new RuntimeException('Missing real-Codebase native-covered domain controls. '.$workspace); }
 $constructionChecks = file_exists($workspace.'/construction-reflection-checks.log') ? array_sum(array_map('intval', file($workspace.'/construction-reflection-checks.log', FILE_IGNORE_NEW_LINES))) : 0;
-if ($constructionChecks !== 249) { throw new RuntimeException('Missing genuine constructor and physical reflection metadata controls: '.$constructionChecks.' '.$workspace); }
+if ($constructionChecks !== $constructionExpected($workspace)) { throw new RuntimeException('Missing genuine constructor and physical reflection metadata controls: '.$constructionChecks.' '.$workspace); }
 if (in_array('--integrated', $argv, true)) {
     // Keep the standalone guaranteed-dispatch negatives; measure the independent possible-write scope policy.
     $policyPlans = json_decode(<<<'JSON'
@@ -1295,6 +1358,7 @@ JSON, true, flags: JSON_THROW_ON_ERROR);
 }
 if (file_exists($workspace.'/executed')) { throw new RuntimeException('Analyzed application bootstrap executed.'); }
 
+}
 file_put_contents($workspace.'/runtime-controls.php', <<<'PHP'
 <?php
 declare(strict_types=1);
@@ -1477,4 +1541,5 @@ $scanChecks = (static function (string $root): int {
     $expect('initialization clears source generation', false);
     return $checks;
 })($workspace);
+if($nativeCoverageEvidence!==null){file_put_contents($workspace.'/accepted-native-covered.json',json_encode($nativeCoverageEvidence+['actualIssueControls'=>$contextChecks,'actualConstructorAndReflectionControls'=>$constructionChecks,'actualNativeCoveredDomainControls'=>$nativeCoveredChecks,'scanControls'=>$scanChecks,'runtimeBoundaries'=>20],JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT));}
 echo 'Direct callback reference checks passed: '.count($cases).' source cases, '.$corrected.' exact native/control corrections, '.$retained.' retained negative groups, '.$contextChecks.' issue and metadata controls, '.$constructionChecks.' constructor and reflection controls, '.$nativeCoveredChecks.' native-covered domain controls, '.$scanChecks.' scan controls, 20 invented runtime boundaries, explicit root with spaces, nonstandard vendor directory and safe single-file deferral'.(in_array('--integrated', $argv, true) ? ', one and three integrated workers' : '').".\n";

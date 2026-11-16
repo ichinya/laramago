@@ -32,6 +32,7 @@ final class ConfigInstaller
                         .$reference
                         .'. For analyzer support, set extension-hosts.laramago.command to: '
                         .json_encode($workerCommand, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)
+                        .'. Use extension-hosts.laramago.maximum-payload-size = 8388608 to bound scan requests'
                     );
                 }
             }
@@ -47,7 +48,7 @@ final class ConfigInstaller
                 'paths' => $paths === [] ? ['.'] : $paths,
                 'includes' => [$vendorReference],
             ],
-            'extension-hosts' => ['laramago' => ['command' => $workerCommand]],
+            'extension-hosts' => ['laramago' => ['command' => $workerCommand, 'maximum-payload-size' => 8388608]],
         ];
         $contents = json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)."\n";
         // Exclusive creation: never overwrite a concurrent user's config.

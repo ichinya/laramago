@@ -35,6 +35,8 @@ namespace FloatFocus;
 final class InvoiceTotals {
     private function accept(float $value): void {}
     public function run(\FloatFixtures\DecimalInput $input): void { $this->accept($input->amount); $input->missing(); }
+    /** @param int|numeric-string $value */
+    public function runUnion(int|string $value): void { $this->accept($value); }
     public function returnAmount(bool $select): float { return $select ? \FloatFixtures\numeric() : 1.5; }
 }
 file_put_contents(__DIR__.'/focus-body-executed', 'Analyzed source body must never execute.');
@@ -69,7 +71,7 @@ foreach ($modeChecks as $label => [$bytes, $expected]) {
 }
 $domainChecks = ['numeric-string' => true, 'numeric-string|float' => true, 'float(1.5)|numeric-string' => true,
     'float(-1.0E+3)|numeric-string' => true, 'float' => false, 'string' => false, 'numeric' => false, 'mixed' => false,
-    'numeric-string|null' => false, 'numeric-string|int' => false, 'numeric-string|array' => false,
+    'numeric-string|null' => false, 'numeric-string|int' => true, 'float|int|numeric-string' => true, 'int(0)|numeric-string' => true, 'int(-42)|numeric-string' => true, 'int|string' => false, 'int' => false, 'numeric-string|array' => false,
     'numeric-string|float(NAN)' => false, 'numeric-string|float(INF)' => false, 'numeric-string|numeric-string' => false];
 foreach ($domainChecks as $domain => $expected) {
     if (\Ichinya\Laramago\Analyzer\WeakNumericFloatCompatibilityFilter::domain($domain) !== $expected) { throw new RuntimeException('Printed native domain control failed: '.$domain); }
@@ -139,22 +141,22 @@ foreach ($files as $file => $label) {
     echo 'PASS: '.$label."\n";
 }
 $focus = array_keys(array_filter($expected, static fn ($issue): bool => $fileOf($issue) === 'focus.php' && $issue['level'] === 'Error'
-    && in_array($issue['code'], ['invalid-argument', 'invalid-return-statement'], true)));
-if (count($focus) !== 2) { throw new RuntimeException('Expected two nonvacuous native focus candidates.'); }
+    && in_array($issue['code'], ['invalid-argument', 'possibly-invalid-argument', 'invalid-return-statement'], true)));
+if (count($focus) !== 3) { throw new RuntimeException('Expected three nonvacuous native focus candidates.'); }
 foreach ($focus as $index) { unset($expected[$index]); $removed++; }
 if ($signature($isolated) !== $signature(array_values($expected))) { throw new RuntimeException('Whole suite native/isolated signatures disagree.'); }
 $guard = $run('guarded', $workspace.'/guard-worker.php', single: true);
 $focusIsolated = array_values(array_filter($isolated, static fn ($issue): bool => $fileOf($issue) === 'focus.php'));
 if ($signature($guard) !== $signature($focusIsolated)) { throw new RuntimeException('Genuine SDK controls changed complete focus signatures.'); }
 $controls = [];
-foreach (['invalid-argument', 'invalid-return-statement'] as $mode) {
+foreach (['invalid-argument', 'possibly-invalid-argument', 'invalid-return-statement'] as $mode) {
     $values = json_decode(file_get_contents($workspace.'/native-'.$mode.'-controls.json'), true, flags: JSON_THROW_ON_ERROR);
-    $expectedControls = $mode === 'invalid-argument' ? 84 : 67;
+    $expectedControls = $mode !== 'invalid-return-statement' ? 84 : 67;
     if (count($values) !== $expectedControls || in_array(false, $values, true) || ! isset($values['genuine native positive before mutations'])) { throw new RuntimeException('Missing native positive/control evidence: '.$mode); }
     $controls[$mode] = count($values);
 }
 $singleNative = $run('single-native', single: true); $single = $run('single-isolated', $workspace.'/worker.php', single: true);
-$singleExpected = array_values(array_filter($singleNative, static fn ($issue): bool => ! ($issue['level'] === 'Error' && in_array($issue['code'], ['invalid-argument', 'invalid-return-statement'], true))));
+$singleExpected = array_values(array_filter($singleNative, static fn ($issue): bool => ! ($issue['level'] === 'Error' && in_array($issue['code'], ['invalid-argument', 'possibly-invalid-argument', 'invalid-return-statement'], true))));
 if ($signature($single) !== $signature($singleExpected) || ! in_array('Error', array_column($singleExpected, 'level'), true)) { throw new RuntimeException('Single-file residual Error or complete signatures differ.'); }
 if (in_array('--integrated', $argv, true)) {
     $fullWorker = $package.'/bin/laramago-worker.php';

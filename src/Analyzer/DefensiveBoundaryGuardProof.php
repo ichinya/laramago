@@ -220,7 +220,7 @@ final class DefensiveBoundaryGuardProof implements InitializationHook, CodebaseS
                 }
                 return $value;
             };
-            if (hash('sha256', json_encode($canonical(self::compact($native)), JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)) !== DefensiveBoundaryBuiltinProfiles::HASHES[$name]) {
+            if (!in_array(hash('sha256', json_encode($canonical(self::compact($native)), JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)), [DefensiveBoundaryBuiltinProfiles::HASHES[$name], DefensiveBoundaryBuiltinProfiles::HASHES_159[$name]], true)) {
                 return null;
             }
         } elseif ($native->templates !== []) {

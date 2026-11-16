@@ -170,12 +170,19 @@ if (
 sort($native);
 if (
     ! in_array($exit, [0, 1], true)
-    || $native !== [
+    // Native Mago renamed the mixed dynamic-key diagnostic; retain both
+    // exact known reports, including the duplicate and unpack controls.
+    || ! in_array($native, [[
         'duplicate-array-key',
         'invalid-array-element',
         'invalid-array-element',
         'invalid-array-element-key',
-    ]
+    ], [
+        'duplicate-array-key',
+        'invalid-array-element',
+        'invalid-array-element',
+        'mixed-array-index',
+    ]], true)
 ) {
     throw new RuntimeException(
         'Unexpected native issues or exit '.$exit.': '.json_encode($native).'; inspect '.$workspace,

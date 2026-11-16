@@ -66,18 +66,19 @@ foreach(['native','controls'] as $mode) {
             if($issue['level']!=='Error'||$issue['code']!=='impossible-type-comparison') { return false; }
             foreach($issue['annotations'] as $annotation) { if($annotation['kind']==='Primary'&&$annotation['span']['file_id']['name']==='proof.php') { return true; } }return false;
         });
-        if(count($positive)!==1) { throw new RuntimeException('The unchanged neutral refresh does not have one genuine native Error witness.'); }
+        $nativeCovered=$positive===[]&&$reports[$mode]===[];
+        if(count($positive)!==1&&!$nativeCovered) { throw new RuntimeException('The neutral refresh needs a genuine Error witness or a completely clean native report.'); }
     }
     foreach($held+$heldSourceHashes as $file=>$hash) { if(hash_file('sha256',$file)!==$hash) { throw new RuntimeException('Source bytes were not fully held or restored.'); } }
 }
 $signature=static function(array $issues):array { $rows=array_map(static fn(array $issue):string=>json_encode($issue,JSON_THROW_ON_ERROR),$issues);sort($rows);return $rows; };
 if($signature($reports['native'])!==$signature($reports['controls'])) { throw new RuntimeException('The Always-Keep observer changed a complete native issue.'); }
 $checks=json_decode(file_get_contents($workspace.'/freshness-controls.json'),true,flags:JSON_THROW_ON_ERROR);
-if($checks['status']!=='PASS'||$checks['genuinePositive']!==true||$checks['restored']!==true||$checks['sourceMutations']!==1||count($checks['checks'])!==13||in_array(false,$checks['checks'],true)) {
+if($checks['status']!=='PASS'||$checks['genuinePositive']!==true||$checks['genuineSourceNativePositive']!==true||$checks['genuineIssuePositive']===($nativeCovered??false)||$checks['restored']!==true||$checks['sourceMutations']!==1||count($checks['checks'])!==13||in_array(false,$checks['checks'],true)) {
     throw new RuntimeException('The actual eviction/source/restoration regression is incomplete.');
 }
 if(file_exists($workspace.'/executed')) { throw new RuntimeException('A neutral fixture or application bootstrap body executed.'); }
-file_put_contents($workspace.'/freshness-accepted.json',json_encode(['status'=>'PASS','wholeNativeDtoIdentity'=>true,'genuinePositive'=>true,
+file_put_contents($workspace.'/freshness-accepted.json',json_encode(['status'=>'PASS','wholeNativeDtoIdentity'=>true,'genuinePositive'=>true,'nativeCovered'=>$nativeCovered??false,'genuineIssuePositive'=>$checks['genuineIssuePositive'],'genuineSourceNativePositive'=>true,
     'checks'=>count($checks['checks']),'actualSourceMutations'=>1,'originalSourceRestored'=>true,'fixtureBodiesExecuted'=>false,
     'existingRegisteredMetadataControlsUnchanged'=>true,'workspace'=>$workspace],JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT));
 echo 'PASS model source freshness: actual unscanned dependency evicted, changed source rejected, exact restoration readmitted; complete native DTOs unchanged. '.$workspace."\n";

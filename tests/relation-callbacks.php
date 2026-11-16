@@ -605,8 +605,8 @@ function check_relation_callbacks(array $cases, array $command, string $workspac
         /** @param \Illuminate\Database\Eloquent\Relations\HasMany<CallbackPost, CallbackInferred> $q */ function acceptRelation($q): void {}
         /** @param \Illuminate\Database\Eloquent\Relations\HasMany<CallbackRecord, CallbackInferred> $q */ function acceptRecordRelation($q): void {}
         /** @param \Illuminate\Database\Eloquent\Relations\HasOne<CallbackPost, CallbackInferred> $q */ function acceptOneRelation($q): void {}
-        /** @param \Illuminate\Database\Eloquent\Relations\HasMany<CallbackPost> $q */ function acceptNestedRelation($q): void {}
-        /** @param Builder<CallbackPost>|\Illuminate\Database\Eloquent\Relations\HasMany<CallbackPost> $q */ function acceptNestedBoth($q): void {}
+        /** @param \Illuminate\Database\Eloquent\Relations\HasMany<CallbackPost, *> $q */ function acceptNestedRelation($q): void {}
+        /** @param Builder<CallbackPost>|\Illuminate\Database\Eloquent\Relations\HasMany<CallbackPost, *> $q */ function acceptNestedBoth($q): void {}
         PHP;
     $lines = [];
     foreach ($cases as $name => [$body, $return, $codes]) {

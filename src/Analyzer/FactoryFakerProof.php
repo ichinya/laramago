@@ -11,7 +11,7 @@ use PhpParser\{Node,NodeFinder};
 /** Selected formatter source domain at a real issue context, never a global Generator override. */
 final class FactoryFakerProof
 {
-    private readonly array $observedHashes;public function __construct(public readonly FactoryFakerContracts $contracts,private readonly string $root){$this->observedHashes=FactoryFakerLibraryProfiles::native();}
+    private readonly array $observedHashes;public function __construct(public readonly FactoryFakerContracts $contracts,private readonly string $root){$this->observedHashes=FactoryFakerLibraryProfiles::nativeVariants();}
     public function prove(IssueFilterContext $context):array
     {
         $r=['remove'=>false,'stage'=>'selected-issue-envelope','nativeTypesChanged'=>false,'globalGeneratorOverride'=>false,'formatterExecuted'=>false];$i=$context->issue;$a=$i->annotations[0]??null;
@@ -29,7 +29,9 @@ final class FactoryFakerProof
         if($receiving!==null){$r['stage']='genuine-sprintf-receiving-formal';$physical=new Physical($this->root);$method=$physical->builtinBinding($context,$receiving,'sprintf');if($method===null||$method->flags->contains(MetadataFlags::BY_REFERENCE)||$method->returnType===null){return $r;}$last=count($method->parameters)-1;$index=$p['receiving']['argumentIndex'];$formal=$method->parameters[min($index,$last)]??null;
             if($last<1||$formal===null||$index<$last||!$formal->flags->contains(MetadataFlags::VARIADIC)||$formal->flags->contains(MetadataFlags::BY_REFERENCE)||$formal->outType!==null||$formal->closureThisType!==null||$formal->type===null||!$context->types->isContainedBy($domain,$formal->type->type)){return $r;}$profiles['selected-receiving']=Boundary::compact($method);}
         $r['domain']=(string)$domain;$r['stage']='genuine-current-formatter-profile-pending';foreach($profiles as $symbol=>$profile){$r['observedNativeProfiles'][$symbol]=['sha256'=>self::hash($profile),'compact'=>$profile];}
-        foreach($r['observedNativeProfiles'] as $symbol=>$profile){if(($this->observedHashes[$symbol]??null)!==$profile['sha256']){return $r;}}$r['stage']='current-source-bound-default-formatter-domain';$r['remove']=true;return $r;
+        $matching=$this->observedHashes;
+        foreach($r['observedNativeProfiles'] as $symbol=>$profile){$matching=array_filter($matching,static fn(array $variant):bool=>($variant[$symbol]??null)===$profile['sha256']);if($matching===[]){return $r;}}
+        $r['stage']='current-source-bound-default-formatter-domain';$r['remove']=true;return $r;
     }
     private static function sourceProofs(string $contents):array
     {

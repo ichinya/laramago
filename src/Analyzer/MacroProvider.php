@@ -6,6 +6,7 @@ namespace Ichinya\Laramago\Analyzer;
 
 use Ichinya\Laramago\Analyzer\StaticAnalysis\MacroCallable;
 use Ichinya\Laramago\Analyzer\StaticAnalysis\MacroIndex;
+use Ichinya\Laramago\Analyzer\StaticAnalysis\MacroInvocationNames;
 use Mago\Sdk\Analyzer\CallableSignatureProvider;
 use Mago\Sdk\Analyzer\CallableSignatureProviderContext;
 use Mago\Sdk\Analyzer\Codebase;
@@ -25,14 +26,16 @@ final class MacroProvider implements MethodReturnTypeProvider, CallableSignature
     private const TRAIT = 'Illuminate\\Support\\Traits\\Macroable';
 
     private ?MacroIndex $index = null;
+    public readonly MacroInvocationNames $calls;
 
     public function __construct(
         private readonly string $root,
-    ) {}
+    ) { $this->calls = new MacroInvocationNames($root); }
 
     public function initialize(InitializationContext $context): void
     {
         $this->index = null;
+        $this->calls->reset();
     }
 
     public function getTargets(): array
@@ -74,7 +77,7 @@ final class MacroProvider implements MethodReturnTypeProvider, CallableSignature
 
     public function getCallableSignature(CallableSignatureProviderContext $context): ?EffectiveCallableSignature
     {
-        return $this->resolve($context->codebase, $context->invocation)[0] ?? null;
+        return $this->resolve($context->codebase, $context->invocation, true)[0] ?? null;
     }
 
     public function getReturnType(ReturnTypeProviderContext $context): ?Type
@@ -83,8 +86,14 @@ final class MacroProvider implements MethodReturnTypeProvider, CallableSignature
     }
 
     /** @return array{EffectiveCallableSignature, Type}|null */
-    private function resolve(Codebase $codebase, Invocation $call): ?array
+    private function resolve(Codebase $codebase, Invocation $call, bool $signature = false): ?array
     {
+        $name = $signature && $call->span->length() === 0
+            ? $this->calls->signatureName($call)
+            : $this->calls->name($call->span);
+        if ($name === null || strcasecmp($name, $call->name) !== 0) {
+            return null;
+        }
         $receiver = $call->receiverType;
         $atom = $receiver?->atomicTypes[0] ?? null;
         if ($receiver === null || count($receiver->atomicTypes) !== 1 || ! $atom instanceof NamedObjectType) {
@@ -98,7 +107,7 @@ final class MacroProvider implements MethodReturnTypeProvider, CallableSignature
         if ($index->unknown || isset($index->blocked[strtolower($class)])) {
             return null;
         }
-        $contract = $index->contracts[strtolower($class)][$call->name] ?? null;
+        $contract = $index->contracts[strtolower($class)][$name] ?? null;
         if ($contract instanceof MacroCallable) {
             $contract = $contract->contract($codebase);
         }
@@ -109,7 +118,7 @@ final class MacroProvider implements MethodReturnTypeProvider, CallableSignature
         ) {
             return null;
         }
-        foreach ($index->conditions($class, $call->name) as $dependency) {
+        foreach ($index->conditions($class, $name) as $dependency) {
             if (
                 $codebase->getClassLike($dependency)?->directParentClass !== null
                 || ! $this->usesMacroable($codebase, $dependency)
