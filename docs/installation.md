@@ -75,7 +75,7 @@ The package is a development dependency, so an install with `--no-dev` omits it.
 Use a path repository only when testing a local checkout. See
 [local development installation](../README.md#local-development-installation)
 for the manifest example and
-[local contract testing](native-framework-contracts.md#testing-local-package-changes)
+[local contract testing](https://github.com/ichinya/laramago/wiki/Native-framework-contracts#testing-local-package-changes)
 for isolated consumer and mirrored-copy instructions.
 
 Composer documents [repository selection](https://getcomposer.org/doc/05-repositories.md),

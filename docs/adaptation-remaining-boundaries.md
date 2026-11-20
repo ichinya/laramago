@@ -27,14 +27,6 @@ These are not missing blanket suppressions. None is completed by assigning
 an asserted configuration as an automatically discovered fact. Environment-dependent
 Auth selection remains unchanged.
 
-## Verification of the reconciliation
+## Verification history
 
-The existing real-Mago suites for effective route conflicts, named-route
-parameters, middleware parameters, policy call contracts, contextual injection,
-binding declaration notes, template reference policies and translation
-source-quality diagnostics were rerun. The optional Babel adapter passed all
-14 Node tests. These are focused checks, not a new full package run.
-
-The preceding full `composer check` at e995822 passed all 308 configured commands;
-the reconciliation changes documentation only. Private application reports stay
-in the ignored report directory and are not part of this public inventory.
+The dated [reconciliation verification report](https://github.com/ichinya/laramago/wiki/Adaptation-reconciliation-2026-09-22) is maintained in the Wiki, including its source revision and verification limits.
