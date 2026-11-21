@@ -14,6 +14,29 @@ file_put_contents($workspace.'/bootstrap/app.php', '<?php throw new RuntimeExcep
 file_put_contents($workspace.'/composer.json', json_encode([
     'autoload' => ['files' => ['bootstrap/app.php']],
 ], JSON_THROW_ON_ERROR));
+require __DIR__.'/schema-helper-effects.php';
+$isolated = [
+    'dynamic variable write',
+    'query assignment',
+    'arbitrary helper',
+    'unknown static call',
+    'unresolved alias',
+    'driver arguments',
+    'first class driver callable',
+    'dynamic driver method',
+    'object driver method',
+    'call in short circuit',
+    'call in unused branch',
+    'call in interpolation',
+    'object construction',
+    'nested assignment',
+    'blueprint overwrite',
+    'blueprint reference',
+    'include expression',
+    'reference hidden in argument',
+    'uncertainty is sticky',
+];
+$selected = schema_effects_partition($isolated);
 $preparations = [
     'literal local' => ['$prefix = "entry:";', true],
     'driver expression' => [
@@ -106,7 +129,7 @@ foreach ($preparations as $name => $preparation) {
     $modelNames[$name] = $model;
     $capture = $preparation[2] ?? '';
     $parameter = $preparation[3] ?? '';
-    $migration .=
+    $declaration =
         'Schema::create("'
         .$table
         .'", function ($table'
@@ -119,6 +142,7 @@ foreach ($preparations as $name => $preparation) {
         .' $table->string("computed")->virtualAs("code || label");'
         .' $table->unsignedInteger("quantity")->nullable(); });'
         ."\n";
+    if (schema_effects_selected($name, $isolated, $selected)) { $migration .= $declaration; }
     $models .=
         'class '.$model.' extends \\Illuminate\\Database\\Eloquent\\Model { protected $table = "'.$table.'"; }'."\n";
     $cases[$name] = [
@@ -166,6 +190,7 @@ $cases += [
         ['non-existent-property'],
     ],
 ];
+$cases = array_filter($cases, static fn (string $name): bool => schema_effects_selected($name, $isolated, $selected), ARRAY_FILTER_USE_KEY);
 $source = "<?php\n";
 $lines = [];
 foreach ($cases as $name => [$body, $return, $codes]) {
@@ -205,7 +230,7 @@ if (! is_resource($process)) {
 }
 fclose($pipes[0]);
 $exit = proc_close($process);
-if ($exit !== 1 || preg_match('/provider failed|rejected request/i', file_get_contents($workspace.'/stderr.log'))) {
+if ($exit !== ($selected === null ? 1 : 0) || preg_match('/provider failed|rejected request/i', file_get_contents($workspace.'/stderr.log'))) {
     throw new RuntimeException('Expected negative diagnostics without extension fallback; inspect '.$workspace);
 }
 $report = json_decode(file_get_contents($workspace.'/report.json'), true, flags: JSON_THROW_ON_ERROR);

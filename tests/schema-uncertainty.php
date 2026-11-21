@@ -123,13 +123,13 @@ $cases = [
     'connection escape beside schema stays global' => ['if (PHP_VERSION_ID > 80000) { Schema::table("tokens", static function (Blueprint $table): void { $table->string("extra"); }); DB::table("people")->getConnection()->statement("ALTER TABLE people DROP email"); }', false, false, ['all-tables'], ''],
     'dynamic builder beside schema stays global' => ['if (PHP_VERSION_ID > 80000) { Schema::table("tokens", static function (Blueprint $table): void { $table->string("extra"); }); $method = "getConnection"; DB::table("people")->{$method}()->statement("ALTER TABLE people DROP email"); }', false, false, ['all-tables'], ''],
     'helper builtins keep schema' => ['$this->derive();', true, true, [], 'private function derive(): void { $m = []; if (is_string("x") && preg_match("/x/", "x", $m)) { substr("x", 0, 1); } }'],
-    'helper schema callback stays local' => ['$this->addColumn();', true, false, ['tables'], 'private function addColumn(): void { Schema::table("tokens", static function (Blueprint $table): void { $table->unknownColumnType("x"); }); }'],
+    'helper schema callback stays local' => ['$this->addColumn();', true, false, ['tables'], 'private function addColumn(): void { Schema::table("tokens", static function (Blueprint $table): void { $table->string($unknown); }); }'],
     'helper raw SQL stays global' => ['$this->migrate();', false, false, ['all-tables'], 'private function migrate(): void { DB::statement("ALTER TABLE people ADD x TEXT"); }'],
     'recursive helpers scanned once' => ['$this->a();', true, true, [], 'private function a(): void { $this->b(); } private function b(): void { $this->a(); }'],
     'dynamic helper name stays global' => ['$m = "emptyHelper"; $this->{$m}();', false, false, ['all-tables'], 'private function emptyHelper(): void {}'],
     'missing helper stays global' => ['$this->missing();', false, false, ['all-tables'], ''],
     'raw SQL stays global' => ['DB::statement("ALTER TABLE tokens ADD hidden TEXT");', false, false, ['all-tables'], ''],
-    'unknown table callback stays local' => ['Schema::table("tokens", static function (Blueprint $table): void { $table->unknownColumnType("x"); });', true, false, ['tables'], ''],
+    'unknown column name stays local' => ['Schema::table("tokens", static function (Blueprint $table): void { $table->string($unknown); });', true, false, ['tables'], ''],
     'dynamic schema table stays global' => ['Schema::table($this->tableName(), static function (Blueprint $table): void { $table->integer("x"); });', false, false, ['all-tables'], ''],
     'missing-column guard is evaluated' => ['if (! Schema::hasColumn("tokens", "extra")) { Schema::table("tokens", static function (Blueprint $table): void { $table->string("extra"); }); }', true, true, [], ''],
     'existing-column guard skips body' => ['if (! Schema::hasColumn("tokens", "expires_at")) { DB::statement("ALTER TABLE people DROP email"); }', true, true, [], ''],
@@ -169,9 +169,46 @@ $cases = [
     'container string alias stays global' => ['app("cache.store");', false, false, ['all-tables'], ''],
     'container variable abstract stays global' => ['$abstract = \App\Services\Backfill::class; app($abstract);', false, false, ['all-tables'], ''],
     'collection param calls keep schema' => ['$this->collectRows();', true, true, [], 'private function collectRows(): void { DB::table("people")->chunkById(10, function (\Illuminate\Support\Collection $rows): void { $rows->count(); }); }'],
+    'collection nullsafe calls keep schema' => ['$this->collectRows();', true, true, [], 'private function collectRows(): void { DB::table("people")->chunkById(10, function (\Illuminate\Support\Collection $rows): void { $rows?->count(); }); }'],
     'higher-order builtin keeps schema' => ['array_filter([1], static fn ($x): bool => true);', true, true, [], ''],
     'string callback stays global' => ['array_filter([1], "strlen");', false, false, ['all-tables'], ''],
 ];
+$schema = 'Schema::table("people", static function (Blueprint $table): void { $table->string("extra"); });';
+$magic = 'public function __call($method, $arguments) { Schema::drop("tokens"); }';
+foreach ([
+    'opaque alone' => '$this->opaque();',
+    'opaque before schema' => '$this->opaque(); '.$schema,
+    'opaque after schema' => $schema.' $this->opaque();',
+    'opaque before schema in conditional' => 'if (true) { $this->opaque(); '.$schema.' }',
+    'opaque after schema in conditional' => 'if (true) { '.$schema.' $this->opaque(); }',
+    'opaque in loop' => 'foreach (["people"] as $name) { '.$schema.' $this->opaque(); }',
+    'opaque in blueprint callback' => 'Schema::table("people", function (Blueprint $table): void { $table->string("extra"); $this->opaque(); });',
+    'opaque in table loop callback' => 'foreach (["people"] as $name) { Schema::table($name, function (Blueprint $table): void { $this->opaque(); }); }',
+    'opaque blueprint macro' => 'Schema::table("people", static function (Blueprint $table): void { $table->unknownColumnType("extra"); });',
+    'opaque blueprint modifier' => 'Schema::table("people", static function (Blueprint $table): void { $table->string("extra")->opaque(); });',
+    'opaque blueprint argument' => 'Schema::table("people", function (Blueprint $table): void { $table->string("extra")->default($this->opaque()); });',
+    'opaque callback' => 'Schema::table("people", $callback);',
+    'escaped blueprint' => 'Schema::table("people", static function (Blueprint $table): void { changeSchema($table); });',
+    'reassigned blueprint' => 'Schema::table("people", static function (Blueprint $table): void { $table = $other; $table->string("extra"); });',
+    'dynamic assignment may rebind blueprint' => 'Schema::table("people", static function (Blueprint $table): void { $$name = $other; $table->string("extra"); });',
+    'shadowed blueprint' => 'Schema::table("people", static function (Blueprint $table): void { $callback = function ($table) { $table->string("extra"); }; $callback($other); });',
+    'nested callback effect' => 'Schema::table("people", static function (Blueprint $table): void { array_map(function () { changeSchema(); }, [1]); });',
+    'schema argument effect' => 'Schema::drop("people", changeSchema());',
+    'opaque schema macro' => 'Schema::opaque("people");',
+    'collection binding does not leak' => 'if (true) { DB::table("people")->chunkById(1, function (\\Illuminate\\Support\\Collection $rows) { $rows->count(); }); '.$schema.' $rows->opaque(); }',
+    'nullsafe collection binding does not leak' => 'if (true) { DB::table("people")->chunkById(1, function (\\Illuminate\\Support\\Collection $rows) { $rows?->count(); }); '.$schema.' $rows?->opaque(); }',
+    'nested collection binding does not leak' => 'if (true) { DB::table("people")->chunkById(1, function (\\Illuminate\\Support\\Collection $rows) { $f = function ($rows) { $rows->opaque(); }; $f($other); }); '.$schema.' }',
+    'table binding does not leak after loop' => 'if (true) { foreach (["people"] as $name) { Schema::table($name, function (Blueprint $table) { $table->string("extra"); }); } $name = $other; Schema::table($name, function (Blueprint $table) { $table->string("extra"); }); }',
+    'table binding does not leak into nested callback' => 'if (true) { foreach (["people"] as $name) { Schema::table($name, function (Blueprint $table) { $table->string("extra"); }); } $callback = function ($name) { Schema::table($name, function (Blueprint $table) { $table->string("extra"); }); }; $callback($other); }',
+    'nested loop rebinds table variable' => 'if (true) { foreach (["people"] as $name) { foreach ($other as [$name]) { Schema::table($name, function (Blueprint $table) { $table->string("extra"); }); } } }',
+] as $name => $body) {
+    $cases[$name] = [$body, false, false, ['all-tables'], $magic];
+}
+$cases['supported conditional is local'] = ['if (true) { '.$schema.' }', false, true, ['tables'], ''];
+$cases['native environment condition is local'] = ['if (getenv("DYNAMIC_SCHEMA")) { '.$schema.' }', false, true, ['tables'], ''];
+$cases['environment argument effect is global'] = ['if (getenv($this->opaque())) { '.$schema.' }', false, false, ['all-tables'], $magic];
+$cases['qualified unknown environment function is global'] = ['if (Other\\getenv("DYNAMIC_SCHEMA")) { '.$schema.' }', false, false, ['all-tables'], ''];
+$cases['supported helper applies schema'] = ['$this->addColumn();', true, true, [], 'private function addColumn(): void { Schema::table("people", static function (Blueprint $table): void { $table->string("extra"); }); }'];
 foreach ($cases as $name => [$body, $peopleKnown, $tokensKnown, $scopes, $extra]) {
     file_put_contents($workspace.'/database/migrations/001.php', $prefix."\n".$body."\n} ".$methods.' '.$extra." };\n");
     $source = new PhpSource($workspace); $index = new SchemaIndex($source); $index->load();
@@ -185,6 +222,16 @@ foreach ($cases as $name => [$body, $peopleKnown, $tokensKnown, $scopes, $extra]
     }
     echo 'PASS: '.$name."\n";
 }
+
+$namespaced = str_replace('<?php', '<?php namespace Opaque; function getenv($name) { \\Illuminate\\Support\\Facades\\Schema::drop("tokens"); }', $prefix);
+file_put_contents($workspace.'/database/migrations/001.php', $namespaced.' if (getenv("DYNAMIC_SCHEMA")) { '.$schema.' } } };');
+$index = new SchemaIndex(new PhpSource($workspace));
+$index->load();
+if ($index->column('people', 'email') !== null || $index->column('tokens', 'expires_at') !== null
+    || array_column($index->uncertainties(), 'scope') !== ['all-tables']) {
+    throw new RuntimeException('A namespaced getenv replacement is not a native read.');
+}
+echo "PASS: namespaced environment replacement stays global\n";
 
 $declaration = 'Schema::table($name, static function (Blueprint $table): void { $table->uuid("public_id")->nullable()->unique(); });';
 $loops = [
@@ -203,9 +250,10 @@ $loops = [
     'assignment in loop' => ['["people", "tokens"]', '$name = "other"; '.$declaration, '', false],
     'conditional loop' => ['["people", "tokens"]', 'if (true) { '.$declaration.' }', '', false, true],
     'break in loop' => ['["people", "tokens"]', $declaration.' break;', '', false, true],
-    'unknown helper in loop' => ['["people", "tokens"]', '$this->changeTables(); '.$declaration, '', false, true],
+    'unknown helper in loop' => ['["people", "tokens"]', '$this->changeTables(); '.$declaration, '', false, false],
     'callback changes loop variable' => ['["people", "tokens"]', 'Schema::table($name, function (Blueprint $table) use (&$name): void { $name = "other"; $table->uuid("public_id"); });', '', false],
-    'known loop unknown blueprint is local' => ['["people", "tokens"]', 'Schema::table($name, function (Blueprint $table): void { $table->unknownColumnType("public_id"); });', '', false, true],
+    'known loop unknown blueprint is global' => ['["people", "tokens"]', 'Schema::table($name, function (Blueprint $table): void { $table->unknownColumnType("public_id"); });', '', false, false],
+    'known loop unknown column is local' => ['["people", "tokens"]', 'Schema::table($name, function (Blueprint $table): void { $table->string($unknown); });', '', false, true],
 ];
 foreach ($loops as $name => $case) {
     [$list, $body, $constants, $known] = $case;

@@ -15,6 +15,14 @@ file_put_contents($workspace.'/composer.json', json_encode([
     'autoload' => ['files' => ['bootstrap/app.php']],
     'extra' => ['laramago' => []],
 ], JSON_THROW_ON_ERROR));
+require __DIR__.'/schema-helper-effects.php';
+$isolated = [
+    'blueprint target',
+    'body helper',
+    'hidden helper',
+    'unknown blueprint method',
+];
+$selected = schema_effects_partition($isolated);
 $preparations = [
     'inline list declaration' => [
         'foreach (["value", "second"] as $column) { $table->integer($column)->change(); }',
@@ -204,7 +212,7 @@ foreach ($preparations as $name => $preparation) {
     $model = 'ContractEntry'.$index;
     $property = $preparation[2] ?? 'value';
     $capture = $preparation[3] ?? '';
-    $migration .=
+    $declaration =
         'Schema::create("'
         .$table
         .'", function ($table)'
@@ -214,6 +222,7 @@ foreach ($preparations as $name => $preparation) {
         .$body
         .' });'
         ."\n";
+    if (schema_effects_selected($name, $isolated, $selected)) { $migration .= $declaration; }
     $models .= str_replace(['<?php', 'ContractModel', 'contract_table'], ['', $model, $table], $modelTemplate)."\n";
     $cases[$name] = [
         'return (new '.$model.')->'.$property.';',
@@ -280,7 +289,7 @@ $config = [
     ],
 ];
 file_put_contents($workspace.'/mago.json', json_encode($config, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
-function check_migration_contracts(array $cases, array $command, string $workspace, bool $expectUncertain = false): void
+function check_migration_contracts(array $cases, array $command, string $workspace, bool $expectUncertain = false, int $expectedExit = 1): void
 {
     $source = "<?php\n";
     $lines = [];
@@ -304,7 +313,7 @@ function check_migration_contracts(array $cases, array $command, string $workspa
     }
     fclose($pipes[0]);
     $exit = proc_close($process);
-    if ($exit !== 1 || preg_match('/provider failed|rejected request/i', file_get_contents($workspace.'/stderr.log'))) {
+    if ($exit !== $expectedExit || preg_match('/provider failed|rejected request/i', file_get_contents($workspace.'/stderr.log'))) {
         throw new RuntimeException('Expected negative diagnostics without extension fallback; inspect '.$workspace);
     }
     $report = json_decode(file_get_contents($workspace.'/report.json'), true, flags: JSON_THROW_ON_ERROR);
@@ -342,8 +351,10 @@ function check_migration_contracts(array $cases, array $command, string $workspa
     }
 }
 
-check_migration_contracts($cases, $command, $workspace, expectUncertain: true);
+$cases = array_filter($cases, static fn (string $name): bool => schema_effects_selected($name, $isolated, $selected), ARRAY_FILTER_USE_KEY);
+check_migration_contracts($cases, $command, $workspace, expectUncertain: true, expectedExit: $selected === null ? 1 : 0);
 
+if ($selected === null) {
 unset($config['extension-hosts']);
 file_put_contents($workspace.'/mago.json', json_encode($config, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
 check_migration_contracts(
@@ -359,6 +370,7 @@ check_migration_contracts(
     $command,
     $workspace,
 );
+}
 foreach (['database/migrations/executed', '.env'] as $file) {
     if (file_exists($workspace.'/'.$file)) {
         throw new RuntimeException('Application execution or environment detected: '.$file);

@@ -16,6 +16,17 @@ file_put_contents($workspace.'/composer.json', json_encode([
     'autoload' => ['files' => ['bootstrap/app.php']],
     'extra' => ['laramago' => ['migration-paths' => ['extra migrations']]],
 ], JSON_THROW_ON_ERROR));
+require __DIR__.'/schema-helper-effects.php';
+$isolated = [
+    'helper hidden in ignored option',
+    'constructor hidden in option',
+    'raw helper argument',
+    'raw query facade method',
+    'shell execution hidden in option',
+    'callable argument',
+    'index helper side effect',
+];
+$selected = schema_effects_partition($isolated);
 $preparations = [
     'literal column name' => ['$name = "value"; $table->integer($name)->change();', 'int'],
     'copied column name' => ['$name = "value"; $copy = $name; $table->integer($copy)->change();', 'int'],
@@ -154,7 +165,7 @@ foreach ($preparations as $name => $preparation) {
     $model = 'LiteralEntry'.$index;
     $property = $preparation[2] ?? 'value';
     $capture = $preparation[3] ?? '';
-    $migration .=
+    $declaration =
         'Schema::create("'
         .$table
         .'", function ($table)'
@@ -164,6 +175,7 @@ foreach ($preparations as $name => $preparation) {
         .$body
         .' });'
         ."\n";
+    if (schema_effects_selected($name, $isolated, $selected)) { $migration .= $declaration; }
     $models .= str_replace(['<?php', 'LiteralModel', 'literal_table'], ['', $model, $table], $modelTemplate)."\n";
     $cases[$name] = [
         'return (new '.$model.')->'.$property.';',
@@ -205,6 +217,7 @@ $cases['literal column write rejects object'] = [
     'void',
     ['invalid-property-assignment-value'],
 ];
+$cases = array_filter($cases, static fn (string $name): bool => schema_effects_selected($name, $isolated, $selected), ARRAY_FILTER_USE_KEY);
 $source = "<?php\n";
 $lines = [];
 foreach ($cases as $name => [$body, $return, $codes]) {
@@ -244,7 +257,7 @@ if (! is_resource($process)) {
 }
 fclose($pipes[0]);
 $exit = proc_close($process);
-if ($exit !== 1 || preg_match('/provider failed|rejected request/i', file_get_contents($workspace.'/stderr.log'))) {
+if ($exit !== ($selected === null ? 1 : 0) || preg_match('/provider failed|rejected request/i', file_get_contents($workspace.'/stderr.log'))) {
     throw new RuntimeException('Expected negative diagnostics without extension fallback; inspect '.$workspace);
 }
 $report = json_decode(file_get_contents($workspace.'/report.json'), true, flags: JSON_THROW_ON_ERROR);

@@ -98,7 +98,7 @@ final class SchemaIndex
                     || $class->getMethod('getConnection') !== null
                 ) {
                     $before = [$this->unreadable, $this->uncertain];
-                    $scan = ['visited' => [], 'schema' => false, 'unknownMethod' => false, 'depth' => 0, 'uses' => $uses];
+                    $scan = ['visited' => [], 'unknownMethod' => false, 'depth' => 0, 'uses' => $uses];
                     $this->invalidateStatements($up, $class, $scan);
                     $this->recordUncertainty($file, $class->getMethod('up') ?? $class, $before);
                     continue;
@@ -177,6 +177,11 @@ final class SchemaIndex
 
             return;
         }
+        $blueprintCalls = $this->schemaBlueprintCalls($call);
+        if ($blueprintCalls === null) { $this->unreadable = true; }
+        $scan = ['visited' => [], 'unknownMethod' => false, 'depth' => 0,
+            'blueprintCalls' => $blueprintCalls ?? []];
+        $this->invalidateStatements($call->args, $class, $scan);
         $method = $call->name instanceof Node\Identifier ? strtolower($call->name->toString()) : '';
         $table = PhpSource::value(PhpSource::argument(
             $call->args,
@@ -362,7 +367,7 @@ final class SchemaIndex
             // Inner statements anchor their own uncertainty records.
             return;
         }
-        $scan = ['visited' => [], 'schema' => false, 'unknownMethod' => false, 'depth' => 0, 'uses' => $uses, 'closures' => $sharedClosures];
+        $scan = ['visited' => [], 'unknownMethod' => false, 'depth' => 0, 'uses' => $uses, 'closures' => $sharedClosures];
         $this->invalidateStatements([$statement], $class, $scan);
         $this->recordUncertainty($file, $statement, $before);
     }
@@ -397,9 +402,9 @@ final class SchemaIndex
 
     /**
      * @param array<array-key, Node> $nodes
-     * @param array{visited:array<int,true>,schema:bool,unknownMethod:bool,depth:int} $scan
+     * @param array{visited:array<int,true>,unknownMethod:bool,depth:int} $scan
      */
-    private function invalidateStatements(array $nodes, ?Node\Stmt\Class_ $class = null, array &$scan = ['visited' => [], 'schema' => false, 'unknownMethod' => false, 'depth' => 0]): void
+    private function invalidateStatements(array $nodes, ?Node\Stmt\Class_ $class = null, array &$scan = ['visited' => [], 'unknownMethod' => false, 'depth' => 0]): void
     {
         ++$scan['depth'];
         if ((new NodeFinder)->findFirst($nodes, static fn (Node $node): bool =>
@@ -407,16 +412,16 @@ final class SchemaIndex
             $this->unreadable = true;
         }
         $guardExceptions = MigrationMetadataRead::guardExceptions($nodes);
-        foreach ($this->loopTables($nodes, $class) as $name => $set) {
+        foreach ($this->loopTables($nodes, $class) as $id => $set) {
             foreach ($set as $table => $_) {
-                $scan['loopTables'][$name][$table] = true;
+                $scan['loopTables'][$id][$table] = true;
             }
         }
         foreach ($this->boundClosures($nodes) as $name => $closure) {
             $scan['closures'][$name] = $closure;
         }
-        foreach ($this->dataReceivers($nodes, $scan['uses'] ?? []) as $name => $_) {
-            $scan['dataVars'][$name] = true;
+        foreach ($this->dataReceivers($nodes, $scan['uses'] ?? []) as $id => $_) {
+            $scan['dataCalls'][$id] = true;
         }
         foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Expr\CallLike::class) as $call) {
             if (isset($guardExceptions[spl_object_id($call)]) || MigrationMetadataRead::connection($call)
@@ -427,7 +432,9 @@ final class SchemaIndex
                 if (MigrationMetadataRead::schema($call) || MigrationMetadataRead::foreignKeys($call)) {
                     continue;
                 }
-                $scan['schema'] = true;
+                $blueprintCalls = $this->schemaBlueprintCalls($call);
+                if ($blueprintCalls === null) { $this->unreadable = true; }
+                foreach ($blueprintCalls ?? [] as $id => $_) { $scan['blueprintCalls'][$id] = true; }
                 $table = PhpSource::value(PhpSource::argument($call->args, 0, 'table'));
                 if (
                     is_string($table)
@@ -527,14 +534,8 @@ final class SchemaIndex
                 // callback rules, not by generic call suspicion.
                 $builder = false;
                 if (! $this->schemaNeutralChain($call, $builder)) {
-                    $root = $call;
-                    while ($root instanceof Node\Expr\MethodCall || $root instanceof Node\Expr\NullsafeMethodCall) {
-                        $root = $root->var;
-                    }
-                    if (
-                        $root instanceof Node\Expr\Variable && is_string($root->name)
-                        && isset($scan['dataVars'][$root->name])
-                    ) {
+                    if (isset($scan['blueprintCalls'][spl_object_id($call)])
+                        || isset($scan['dataCalls'][spl_object_id($call)])) {
                         continue;
                     }
                     $scan['unknownMethod'] = true;
@@ -571,7 +572,7 @@ final class SchemaIndex
             // that cannot be identified from its arguments alone.
             $this->unreadable = true;
         }
-        if (--$scan['depth'] === 0 && ! $scan['schema'] && $scan['unknownMethod']) {
+        if (--$scan['depth'] === 0 && $scan['unknownMethod']) {
             $this->unreadable = true;
         }
     }
@@ -717,7 +718,7 @@ final class SchemaIndex
      * interfaces, string aliases, unresolved files and non-final targets keep
      * the index uncertain — bindings can substitute their construction.
      *
-     * @param array{visited:array<int,true>,schema:bool,unknownMethod:bool,depth:int,uses?:array<string, string>} $scan
+     * @param array{visited:array<int,true>,unknownMethod:bool,depth:int,uses?:array<string, string>} $scan
      */
     private function containerConstruction(Node\Expr\FuncCall $call, array &$scan): bool
     {
@@ -840,7 +841,7 @@ final class SchemaIndex
      * constant table list: their Schema calls only touch the iterated set.
      *
      * @param array<array-key, Node> $nodes
-     * @return array<string, array<string, true>>
+     * @return array<int, array<string, true>>
      */
     private function loopTables(array $nodes, ?Node\Stmt\Class_ $class): array
     {
@@ -857,9 +858,25 @@ final class SchemaIndex
             if ($set === null) {
                 continue;
             }
-            foreach ($set as $table) {
-                $map[$name][$table] = true;
-            }
+            // Bind the actual argument nodes in this loop, not every variable
+            // with the same spelling in the enclosing block or another helper.
+            $walk = function (Node $node) use (&$walk, &$map, $name, $set): void {
+                if ($node instanceof Node\Expr\Closure || $node instanceof Node\Expr\ArrowFunction
+                    || $node instanceof Node\Stmt\Function_ || $node instanceof Node\Stmt\ClassLike) { return; }
+                if ($node instanceof Node\Expr\StaticCall && $this->isSchema($node)) {
+                    $argument = PhpSource::argument($node->args, 0, 'table');
+                    if ($argument instanceof Node\Expr\Variable && $argument->name === $name) {
+                        foreach ($set as $table) { $map[spl_object_id($argument)][$table] = true; }
+                    }
+                }
+                foreach ($node->getSubNodeNames() as $key) {
+                    $value = $node->$key;
+                    foreach (is_array($value) ? $value : [$value] as $child) {
+                        if ($child instanceof Node) { $walk($child); }
+                    }
+                }
+            };
+            foreach ($loop->stmts as $statement) { $walk($statement); }
         }
 
         return $map;
@@ -872,7 +889,10 @@ final class SchemaIndex
     private function loopVarMutated(Node\Stmt\Foreach_ $loop, string $name): bool
     {
         return (new NodeFinder)->findFirst($loop->stmts, static function (Node $node) use ($name): bool {
-            $isName = static fn (?Node $target): bool => $target instanceof Node\Expr\Variable && $target->name === $name;
+            $isName = static fn (?Node $target): bool => $target !== null && (new NodeFinder)->findFirst(
+                [$target], static fn (Node $var): bool => $var instanceof Node\Expr\Variable
+                    && (! is_string($var->name) || $var->name === $name),
+            ) !== null;
             if (
                 ($node instanceof Node\Expr\Assign || $node instanceof Node\Expr\AssignOp
                 || $node instanceof Node\Expr\PreInc || $node instanceof Node\Expr\PreDec
@@ -897,7 +917,8 @@ final class SchemaIndex
             if ($node instanceof Node\Expr\ArrayItem && $node->byRef && $isName($node->value)) {
                 return true;
             }
-            if ($node instanceof Node\Stmt\Foreach_ && $node->byRef && $isName($node->expr)) {
+            if ($node instanceof Node\Stmt\Foreach_ && ($isName($node->valueVar) || $isName($node->keyVar)
+                || ($node->byRef && $isName($node->expr)))) {
                 return true;
             }
 
@@ -905,13 +926,13 @@ final class SchemaIndex
         }) !== null;
     }
 
-    /** @param array{loopTables?:array<string,array<string,true>>} $scan @return list<string>|null */
+    /** @param array{loopTables?:array<int,array<string,true>>} $scan @return list<string>|null */
     private function boundTables(?Node\Expr $argument, array $scan): ?array
     {
         if (! $argument instanceof Node\Expr\Variable || ! is_string($argument->name)) {
             return null;
         }
-        $bound = $scan['loopTables'][$argument->name] ?? null;
+        $bound = $scan['loopTables'][spl_object_id($argument)] ?? null;
 
         return $bound === null ? null : array_keys($bound);
     }
@@ -1001,41 +1022,29 @@ final class SchemaIndex
     }
 
     /**
-     * Closure parameters typed as Laravel collections hold data rows, never
-     * schema or connection handles — calls on them cannot emit DDL.
-     *
      * @param array<array-key, Node> $nodes
      * @param array<string, string> $uses
-     * @return array<string, true>
+     * @return array<int, true>
      */
     private function dataReceivers(array $nodes, array $uses): array
     {
-        $vars = [];
+        $calls = [];
         $finder = new NodeFinder;
-        foreach ($finder->findInstanceOf($nodes, Node\Expr\Closure::class) as $closure) {
+        $closures = [...$finder->findInstanceOf($nodes, Node\Expr\Closure::class),
+            ...$finder->findInstanceOf($nodes, Node\Expr\ArrowFunction::class)];
+        foreach ($closures as $closure) {
             foreach ($closure->params as $param) {
-                if (
-                    $param->var instanceof Node\Expr\Variable && is_string($param->var->name)
-                    && $param->type instanceof Node\Name
-                    && $this->collectionType($param->type->toString(), $uses)
-                ) {
-                    $vars[$param->var->name] = true;
-                }
-            }
-        }
-        foreach ($finder->findInstanceOf($nodes, Node\Expr\ArrowFunction::class) as $fn) {
-            foreach ($fn->params as $param) {
-                if (
-                    $param->var instanceof Node\Expr\Variable && is_string($param->var->name)
-                    && $param->type instanceof Node\Name
-                    && $this->collectionType($param->type->toString(), $uses)
-                ) {
-                    $vars[$param->var->name] = true;
+                if ($param->var instanceof Node\Expr\Variable && is_string($param->var->name)
+                    && $param->type instanceof Node\Name && $this->collectionType($param->type->toString(), $uses)) {
+                    $body = $closure instanceof Node\Expr\Closure ? $closure->stmts : [$closure->expr];
+                    foreach ($this->receiverCalls($body, $param->var->name) as $call) {
+                        $calls[spl_object_id($call)] = true;
+                    }
                 }
             }
         }
 
-        return $vars;
+        return $calls;
     }
 
     /**
@@ -1092,6 +1101,20 @@ final class SchemaIndex
         if (! $call->name instanceof Node\Name) {
             return false;
         }
+        // A literal environment lookup is a native read, including inside a
+        // Blueprint condition. Do not grant this to a namespaced replacement,
+        // callable creation, unpacking or values with implicit user callbacks.
+        if (strtolower($call->name->toString()) === 'getenv') {
+            $namespaced = $call->name->getAttribute('namespacedName');
+            if ($call->isFirstClassCallable() || ($namespaced instanceof Node\Name
+                && strtolower($namespaced->toString()) !== 'getenv')) { return false; }
+            foreach ($call->args as $arg) {
+                if (! $arg instanceof Node\Arg || $arg->unpack || $arg->byRef
+                    || ! is_scalar(PhpSource::value($arg->value))) { return false; }
+            }
+
+            return true;
+        }
         static $pure = [
             'abs', 'array_chunk', 'array_column', 'array_combine', 'array_count_values',
             'array_diff', 'array_diff_key', 'array_fill', 'array_fill_keys', 'array_flip',
@@ -1121,6 +1144,186 @@ final class SchemaIndex
         ];
 
         return in_array(strtolower($call->name->toString()), $pure, true);
+    }
+
+    private function blueprintType(string $method): ?string
+    {
+        return match ($method) {
+            'id',
+            'increments',
+            'tinyincrements',
+            'smallincrements',
+            'mediumincrements',
+            'bigincrements',
+            'integer',
+            'tinyinteger',
+            'smallinteger',
+            'mediuminteger',
+            'biginteger',
+            'unsignedinteger',
+            'unsignedtinyinteger',
+            'unsignedsmallinteger',
+            'unsignedmediuminteger',
+            'unsignedbiginteger',
+            'foreignid',
+                => 'int',
+            'float', 'double', 'real' => 'float',
+            'decimal', 'unsigneddecimal' => 'decimal',
+            'boolean' => 'bool',
+            'date', 'datetime', 'datetimetz', 'timestamp', 'timestamptz' => 'timestamp',
+            'char',
+            'string',
+            'text',
+            'tinytext',
+            'mediumtext',
+            'longtext',
+            'enum',
+            'set',
+            'json',
+            'jsonb',
+            'uuid',
+            'ulid',
+            'foreignuuid',
+            'foreignulid',
+            'time',
+            'timetz',
+            'year',
+            'ipaddress',
+            'macaddress',
+                => 'string',
+            default => null,
+        };
+    }
+
+    private function blueprintModifier(string $method): bool
+    {
+        return $method === 'nullable' || in_array(
+            $method,
+            [
+                'change',
+                'default',
+                'unsigned',
+                'index',
+                'unique',
+                'primary',
+                'constrained',
+                'references',
+                'on',
+                'ondelete',
+                'onupdate',
+                'cascadeondelete',
+                'cascadeonupdate',
+                'restrictondelete',
+                'restrictonupdate',
+                'nullondelete',
+                'nullonupdate',
+                'noactionondelete',
+                'noactiononupdate',
+                'after',
+                'first',
+                'comment',
+                'autoincrement',
+                'usecurrent',
+                'usecurrentonupdate',
+                'storedas',
+                'virtualas',
+                'charset',
+                'collation',
+            ],
+            true,
+        );
+    }
+
+    /**
+     * Only calls bound to this parameter in this lexical scope are permitted.
+     * Rebinding or reference capture loses that proof; aliases are not inferred.
+     *
+     * @param array<array-key, Node> $nodes
+     * @return list<Node\Expr\MethodCall|Node\Expr\NullsafeMethodCall>
+     */
+    private function receiverCalls(array $nodes, string $name): array
+    {
+        $calls = [];
+        $rebound = false;
+        $walk = function (Node $node) use (&$walk, &$calls, &$rebound, $name): void {
+            if ($node instanceof Node\Expr\Closure || $node instanceof Node\Expr\ArrowFunction
+                || $node instanceof Node\Stmt\Function_ || $node instanceof Node\Stmt\ClassLike) {
+                if ($node instanceof Node\Expr\Closure) {
+                    foreach ($node->uses as $use) {
+                        if ($use->byRef && $use->var->name === $name) { $rebound = true; }
+                    }
+                }
+
+                return;
+            }
+            $targets = match (true) {
+                $node instanceof Node\Expr\AssignRef => [$node->var, $node->expr],
+                $node instanceof Node\Expr\Assign,
+                $node instanceof Node\Expr\AssignOp, $node instanceof Node\Expr\PreInc,
+                $node instanceof Node\Expr\PostInc, $node instanceof Node\Expr\PreDec,
+                $node instanceof Node\Expr\PostDec => [$node->var],
+                $node instanceof Node\Stmt\Foreach_ => array_filter([$node->keyVar, $node->valueVar]),
+                $node instanceof Node\Stmt\Unset_ => $node->vars,
+                default => [],
+            };
+            if ((new NodeFinder)->findFirst($targets, static fn (Node $target): bool =>
+                $target instanceof Node\Expr\Variable && (! is_string($target->name) || $target->name === $name)) !== null) {
+                $rebound = true;
+            }
+            if ($node instanceof Node\Expr\MethodCall || $node instanceof Node\Expr\NullsafeMethodCall) {
+                $receiver = $node;
+                while ($receiver instanceof Node\Expr\MethodCall || $receiver instanceof Node\Expr\NullsafeMethodCall) {
+                    $receiver = $receiver->var;
+                }
+                if ($receiver instanceof Node\Expr\Variable && $receiver->name === $name) { $calls[] = $node; }
+            }
+            foreach ($node->getSubNodeNames() as $key) {
+                $value = $node->$key;
+                foreach (is_array($value) ? $value : [$value] as $child) {
+                    if ($child instanceof Node) { $walk($child); }
+                }
+            }
+        };
+        foreach ($nodes as $node) { $walk($node); }
+
+        return $rebound ? [] : $calls;
+    }
+
+    /** @return array<int, true>|null Null means an opaque Schema operation/callback. */
+    private function schemaBlueprintCalls(Node\Expr\StaticCall $call): ?array
+    {
+        $method = $call->name instanceof Node\Identifier ? strtolower($call->name->toString()) : '';
+        if (in_array($method, ['drop', 'dropifexists', 'rename'], true)) { return []; }
+        if (! in_array($method, ['create', 'table'], true)) { return null; }
+        $callback = PhpSource::argument($call->args, 1, 'callback');
+        if (! $callback instanceof Node\Expr\Closure || ! isset($callback->params[0])
+            || ! $callback->params[0]->var instanceof Node\Expr\Variable
+            || ! is_string($callback->params[0]->var->name)) { return null; }
+        $calls = [];
+        foreach ($this->receiverCalls($callback->stmts, $callback->params[0]->var->name) as $candidate) {
+            if (! $candidate instanceof Node\Expr\MethodCall) { continue; }
+            [, $chain] = PhpSource::chain($candidate);
+            $native = true;
+            foreach ($chain as $offset => $part) {
+                $name = $part->name instanceof Node\Identifier ? strtolower($part->name->toString()) : '';
+                if ($offset === 0) {
+                    $native = $this->blueprintType($name) !== null || in_array($name, [
+                        'index', 'unique', 'primary', 'foreign', 'dropindex', 'dropunique', 'dropprimary',
+                        'dropforeign', 'renameindex', 'comment', 'engine', 'charset', 'collation',
+                        'dropcolumn', 'dropconstrainedforeignid', 'renamecolumn', 'timestamps',
+                        'timestampstz', 'nullabletimestamps', 'droptimestamps', 'droptimestampstz',
+                        'remembertoken', 'softdeletes', 'softdeletestz', 'softdeletesdatetime',
+                        'dropsoftdeletes', 'dropsoftdeletestz', 'morphs', 'nullablemorphs', 'uuidmorphs',
+                        'nullableuuidmorphs', 'ulidmorphs', 'nullableulidmorphs', 'dropmorphs',
+                    ], true);
+                } else {
+                    $native = $native && $this->blueprintModifier($name);
+                }
+            }
+            if ($native) { $calls[spl_object_id($candidate)] = true; }
+        }
+
+        return $calls;
     }
 
     /** @param list<Node\Expr\MethodCall> $chain */
@@ -1260,51 +1463,7 @@ final class SchemaIndex
 
             return;
         }
-        $type = match ($method) {
-            'id',
-            'increments',
-            'tinyincrements',
-            'smallincrements',
-            'mediumincrements',
-            'bigincrements',
-            'integer',
-            'tinyinteger',
-            'smallinteger',
-            'mediuminteger',
-            'biginteger',
-            'unsignedinteger',
-            'unsignedtinyinteger',
-            'unsignedsmallinteger',
-            'unsignedmediuminteger',
-            'unsignedbiginteger',
-            'foreignid',
-                => 'int',
-            'float', 'double', 'real' => 'float',
-            'decimal', 'unsigneddecimal' => 'decimal',
-            'boolean' => 'bool',
-            'date', 'datetime', 'datetimetz', 'timestamp', 'timestamptz' => 'timestamp',
-            'char',
-            'string',
-            'text',
-            'tinytext',
-            'mediumtext',
-            'longtext',
-            'enum',
-            'set',
-            'json',
-            'jsonb',
-            'uuid',
-            'ulid',
-            'foreignuuid',
-            'foreignulid',
-            'time',
-            'timetz',
-            'year',
-            'ipaddress',
-            'macaddress',
-                => 'string',
-            default => null,
-        };
+        $type = $this->blueprintType($method);
         if ($method === 'id' && PhpSource::argument($call->args, 0, 'column') === null) {
             $name = 'id';
         }
@@ -1325,41 +1484,7 @@ final class SchemaIndex
                     return;
                 }
                 $nullable = $value;
-            } elseif (! in_array(
-                $modifierName,
-                [
-                    'change',
-                    'default',
-                    'unsigned',
-                    'index',
-                    'unique',
-                    'primary',
-                    'constrained',
-                    'references',
-                    'on',
-                    'ondelete',
-                    'onupdate',
-                    'cascadeondelete',
-                    'cascadeonupdate',
-                    'restrictondelete',
-                    'restrictonupdate',
-                    'nullondelete',
-                    'nullonupdate',
-                    'noactionondelete',
-                    'noactiononupdate',
-                    'after',
-                    'first',
-                    'comment',
-                    'autoincrement',
-                    'usecurrent',
-                    'usecurrentonupdate',
-                    'storedas',
-                    'virtualas',
-                    'charset',
-                    'collation',
-                ],
-                true,
-            )) {
+            } elseif (! $this->blueprintModifier($modifierName)) {
                 unset($this->tables[$table][$name]);
 
                 return;
