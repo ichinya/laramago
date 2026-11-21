@@ -100,6 +100,10 @@ $prefix = <<<'PHP'
     use Illuminate\Database\Schema\Blueprint;
     use Illuminate\Support\Facades\Schema;
     use Illuminate\Support\Facades\DB;
+    final class SchemaTrap {
+        public static function SchemaTrap(): void { Schema::drop('tokens'); }
+        public static function run(mixed $value): string { Schema::drop('tokens'); return 'changed'; }
+    }
     return new class extends Migration {
         public function up(): void {
             Schema::create('people', static function (Blueprint $table): void { $table->id(); $table->string('email'); });
@@ -209,6 +213,137 @@ $cases['native environment condition is local'] = ['if (getenv("DYNAMIC_SCHEMA")
 $cases['environment argument effect is global'] = ['if (getenv($this->opaque())) { '.$schema.' }', false, false, ['all-tables'], $magic];
 $cases['qualified unknown environment function is global'] = ['if (Other\\getenv("DYNAMIC_SCHEMA")) { '.$schema.' }', false, false, ['all-tables'], ''];
 $cases['supported helper applies schema'] = ['$this->addColumn();', true, true, [], 'private function addColumn(): void { Schema::table("people", static function (Blueprint $table): void { $table->string("extra"); }); }'];
+$referenceMethods = <<<'PHP'
+    private $replacement;
+    private $subquery;
+    public function __construct() {
+        $this->subquery = static function ($query): void { Schema::drop('tokens'); };
+        $this->replacement = new class {
+            public function __call($method, $arguments) { Schema::drop('tokens'); }
+            public function __invoke() { Schema::drop('tokens'); }
+        };
+    }
+    private function replace(&$receiver): void { $receiver = $this->replacement; }
+    private function retarget(&$name): void { $name = 'tokens'; }
+    private function ignoreReference(&$unused): void {}
+    private function replaceCopy($receiver): void { $receiver = $this->replacement; }
+    private function replaceItems($items): void { $items[0] = $this->replacement; }
+    private function invokeArgument($action): void { $action(); }
+    PHP;
+file_put_contents($workspace.'/app/Services/ReferenceService.php', <<<'PHP'
+    <?php
+    namespace App\Services;
+    final class ReferenceService {
+        public static function retarget(&$name): void { $name = 'tokens'; }
+        public function ignore(&$unused): void {}
+    }
+    PHP);
+foreach ([
+    'blueprint helper reference escape' => 'Schema::table("people", function (Blueprint $table) { $this->replace($table); $table->string("extra"); });',
+    'blueprint named helper reference escape' => 'Schema::table("people", function (Blueprint $table) { $this->replace(receiver: $table); $table->string("extra"); });',
+    'blueprint reference array escape' => 'Schema::table("people", function (Blueprint $table) { $this->replaceItems([&$table]); $table->string("extra"); });',
+    'collection helper reference escape' => 'DB::table("people")->chunkById(10, function (\\Illuminate\\Support\\Collection $rows) { $this->replace($rows); $rows->count(); });',
+    'loop helper reference escape' => 'if (true) { foreach (["people"] as $name) { $this->retarget($name); Schema::table($name, function (Blueprint $table) { $table->dropColumn("expires_at"); }); } }',
+    'app static helper reference escape' => 'foreach (["people"] as $name) { \\App\\Services\\ReferenceService::retarget($name); Schema::table($name, function (Blueprint $table) { $table->dropColumn("expires_at"); }); }',
+    'app unpacked reference escape' => '$refs = [&$name]; foreach (["people"] as $name) { \\App\\Services\\ReferenceService::retarget(...$refs); Schema::table($name, function (Blueprint $table) { $table->dropColumn("expires_at"); }); }',
+    'app container helper reference escape' => 'foreach (["people"] as $name) { app(\\App\\Services\\ReferenceService::class)->retarget($name); Schema::table($name, function (Blueprint $table) { $table->dropColumn("expires_at"); }); }',
+    'nested closure does not bind outer callable' => '$action = $this->replacement; if (true) { $register = function () { $action = function () {}; }; $action(); }',
+    'closure parameter does not inherit outer binding' => '$action = function () {}; $invoke = function ($action) { $action(); }; $invoke($this->replacement);',
+    'helper parameter does not inherit caller binding' => '$action = function () {}; $this->invokeArgument($this->replacement);',
+    'closure overwrite stays opaque' => '$action = function () {}; $action = $this->replacement; $action();',
+    'closure forward call stays opaque' => '$action(); $action = function () {};',
+    'conditional closure does not bind outside' => 'if (true) { $action = function () {}; } $action();',
+    'loop closure overwrite stays opaque' => '$action = function () {}; foreach ([1, 2] as $n) { $action(); $action = $this->replacement; }',
+    'closure reference carrier stays opaque' => '$action = function () {}; $carrier = [&$action]; $carrier[0] = $this->replacement; $action();',
+    'closure reference capture stays opaque' => '$action = function () {}; $change = function () use (&$action) { $action = $this->replacement; }; $change(); $action();',
+    'closure unset stays opaque' => '$action = function () {}; unset($action); $action();',
+    'dynamic closure overwrite stays opaque' => '$action = function () {}; $$name = $this->replacement; $action();',
+    'closure goto cannot skip binding' => 'goto invoke; $action = function () {}; invoke: $action();',
+    'closure capture cannot regain binding after overwrite' => '$change = function () use (&$action) { $action = $this->replacement; }; if (true) { $action = function () {}; $change(); $action(); }',
+    'unknown transaction callback stays opaque' => '$action = $this->replacement; DB::transaction($action);',
+    'nested closure does not bind transaction' => '$action = $this->replacement; $register = function () { $action = function () {}; }; DB::transaction($action);',
+    'called closure reference escape' => 'Schema::table("people", function (Blueprint $table) { $replace = function (&$receiver) { $receiver = $this->replacement; }; $replace($table); $table->string("extra"); });',
+    'builtin output overwrites called closure' => '$action = function () {}; preg_match("/^(SchemaTrap)$/", "SchemaTrap", $action); $action();',
+    'builtin named output overwrites called closure' => '$action = function () {}; \\PREG_MATCH(subject: "SchemaTrap", matches: $action, pattern: "/^(SchemaTrap)$/"); $action();',
+    'builtin output overwrites arrow closure' => '$action = static fn () => true; preg_match("/^(SchemaTrap)$/", "SchemaTrap", $action); $action();',
+    'builtin output overwrites transaction callback' => '$action = function () {}; preg_match("/^(SchemaTrap)$/", "SchemaTrap", $action); DB::transaction($action);',
+    'builtin named output overwrites transaction callback' => '$action = function () {}; preg_match(pattern: "/^(SchemaTrap)$/", subject: "SchemaTrap", matches: $action); DB::transaction(callback: $action);',
+    'nested builtin output overwrites callable' => 'if (true) { $action = function () {}; preg_match("/^(SchemaTrap)$/", "SchemaTrap", $action); $action(); }',
+    'helper builtin output overwrites callable' => '$this->matchAndInvoke();',
+    'unpacked map callback is opaque' => 'array_map(...["SchemaTrap::run", [1]]);',
+    'unpacked named filter callback is opaque' => 'array_filter(...["array" => [1], "callback" => "SchemaTrap::run"]);',
+    'unpacked replacement callback is opaque' => 'preg_replace_callback(...["/x/", "SchemaTrap::run", "x"]);',
+    'unpack cannot hide later named callback' => 'array_map(...[], callback: "SchemaTrap::run", array: [1]);',
+    'builder tap opaque callback' => 'DB::table("people")->tap("SchemaTrap::run");',
+    'builder chunk opaque callback' => 'DB::table("people")->insert(["email" => "x"]); DB::table("people")->chunkById(10, "SchemaTrap::run");',
+    'collection each opaque callback' => 'DB::table("people")->insert(["email" => "x"]); DB::table("people")->chunkById(10, function (\\Illuminate\\Support\\Collection $rows) { $rows->each("SchemaTrap::run"); });',
+    'builder variable callback' => 'DB::table("people")->tap($this->replacement);',
+    'collection array callback' => 'DB::table("people")->chunkById(10, function (\\Illuminate\\Support\\Collection $rows) { $rows->each([SchemaTrap::class, "run"]); });',
+    'builder opaque method is not DML' => 'DB::table("people")->unknownMacro();',
+    'collection opaque method is not DML' => 'DB::table("people")->chunkById(10, function (\\Illuminate\\Support\\Collection $rows) { $rows->unknownMacro(); });',
+    'builder result callback is checked' => 'DB::table("people")->get()->each("SchemaTrap::run");',
+    'collection mapped result callback is checked' => 'DB::table("people")->chunkById(10, function (\\Illuminate\\Support\\Collection $rows) { $rows->map(static fn ($row) => $row)->each("SchemaTrap::run"); });',
+    'builder terminal result is not a builder' => 'DB::table("people")->first()->where("id", 1);',
+    'opaque root subquery is not DML' => 'DB::table($this->subquery)->count();',
+    'opaque orderBy subquery is not DML' => 'DB::table("people")->orderBy($this->subquery);',
+    'opaque orderByDesc subquery is not DML' => 'DB::table("people")->orderByDesc($this->subquery);',
+    'opaque latest subquery is not DML' => 'DB::table("people")->latest($this->subquery);',
+    'opaque oldest subquery is not DML' => 'DB::table("people")->oldest($this->subquery);',
+    'opaque reorder subquery is not DML' => 'DB::table("people")->reorder($this->subquery);',
+    'opaque named orderBy subquery is not DML' => 'DB::table("people")->orderBy(column: $this->subquery);',
+    'opaque named orderByDesc subquery is not DML' => 'DB::table("people")->orderByDesc(column: $this->subquery);',
+    'opaque named latest subquery is not DML' => 'DB::table("people")->latest(column: $this->subquery);',
+    'opaque named oldest subquery is not DML' => 'DB::table("people")->oldest(column: $this->subquery);',
+    'opaque named reorder subquery is not DML' => 'DB::table("people")->reorder(column: $this->subquery);',
+    'opaque variable orderBy subquery is not DML' => '$column = $this->subquery; DB::table("people")->orderBy($column);',
+    'opaque variable orderByDesc subquery is not DML' => '$column = $this->subquery; DB::table("people")->orderByDesc($column);',
+    'opaque variable latest subquery is not DML' => '$column = $this->subquery; DB::table("people")->latest($column);',
+    'opaque variable oldest subquery is not DML' => '$column = $this->subquery; DB::table("people")->oldest($column);',
+    'opaque variable reorder subquery is not DML' => '$column = $this->subquery; DB::table("people")->reorder($column);',
+] as $name => $body) {
+    $extra = $name === 'helper builtin output overwrites callable'
+        ? $referenceMethods.' private function matchAndInvoke(): void { $action = function () {}; preg_match("/^(SchemaTrap)$/", "SchemaTrap", $action); $action(); }'
+        : $referenceMethods;
+    $cases[$name] = [$body, false, false, ['all-tables'], $extra];
+}
+foreach ([
+    'unused reference helper is neutral' => '$name = "people"; $this->ignoreReference($name);',
+    'unused app reference helper is neutral' => '$name = "people"; app(\\App\\Services\\ReferenceService::class)->ignore($name);',
+    'plain closure binding is neutral' => '$action = function () {}; $action();',
+    'nested write does not invalidate outer binding' => '$action = function () {}; $register = function () { $action = $this->replacement; }; $action();',
+    'arrow closure binding is neutral' => '$action = static fn () => true; $action();',
+    'transaction closure binding is neutral' => '$action = function () {}; DB::transaction($action);',
+    'conditional local closure binding is neutral' => 'if (true) { $action = function () {}; $action(); }',
+    'nested local closure binding is neutral' => '$outer = function () { $action = function () {}; $action(); }; $outer();',
+    'builtin unrelated output preserves closure' => '$action = function () {}; preg_match("/x/", "x", $matches); $action();',
+    'builtin named unrelated output preserves closure' => '$action = function () {}; preg_match(matches: $matches, subject: "x", pattern: "/x/"); DB::transaction($action);',
+    'builtin without output preserves closure' => '$action = function () {}; preg_match("/x/", "x"); $action();',
+    'builtin callable creation preserves closure' => '$action = function () {}; $matcher = preg_match(...); $action();',
+    'inline array callback is neutral' => 'array_map(static fn ($value) => $value, [1]);',
+    'optional array callback may be absent' => 'array_filter([1]);',
+    'iterating builtin callable creation is neutral' => '$mapper = array_map(...);',
+    'inline builder callback is neutral' => 'DB::table("people")->tap(function ($query) {});',
+    'inline collection callback is neutral' => 'DB::table("people")->chunkById(10, function (\\Illuminate\\Support\\Collection $rows) { $rows->each(static fn ($row) => true); $rows->count(); });',
+    'collection result preserves collection context' => 'DB::table("people")->chunkById(10, function (\\Illuminate\\Support\\Collection $rows) { $rows->map(static fn ($row) => $row)->count(); });',
+    'builder result has collection context' => 'DB::table("people")->get()->count();',
+    'known data method callable creation is neutral' => '$chunk = DB::table("people")->chunkById(...);',
+    'literal table loop keeps DML' => 'foreach (["people"] as $name) { DB::table($name)->whereNull("email")->update(["email" => "x"]); }',
+    'literal orderBy column is neutral' => '$direction = "desc"; DB::table("people")->orderBy(column: "email", direction: $direction);',
+    'literal orderByDesc column is neutral' => 'DB::table("people")->orderByDesc("email");',
+    'literal latest column is neutral' => 'DB::table("people")->latest("email");',
+    'literal oldest column is neutral' => 'DB::table("people")->oldest(column: "email");',
+    'literal reorder column is neutral' => '$direction = "desc"; DB::table("people")->reorder(column: "email", direction: $direction);',
+    'omitted ordering column is neutral' => 'DB::table("people")->latest()->oldest()->reorder();',
+    'inline orderBy column is neutral' => 'DB::table("people")->orderBy(static function ($query) {});',
+    'inline orderByDesc column is neutral' => 'DB::table("people")->orderByDesc(column: static function ($query) {});',
+    'inline latest column is neutral' => 'DB::table("people")->latest(static fn ($query) => null);',
+    'inline oldest column is neutral' => 'DB::table("people")->oldest(column: static fn ($query) => null);',
+    'inline reorder column is neutral' => 'DB::table("people")->reorder(static function ($query) {});',
+] as $name => $body) {
+    $cases[$name] = [$body, true, true, [], $referenceMethods];
+}
+$cases['by-value helper does not escape Blueprint'] = ['Schema::table("people", function (Blueprint $table) { $this->replaceCopy($table); $table->string("extra"); });', false, true, ['tables'], $referenceMethods];
+$cases['helper transaction closure is neutral'] = ['$this->transact();', true, true, [], 'private function transact(): void { $action = function () {}; DB::transaction($action); }'];
 foreach ($cases as $name => [$body, $peopleKnown, $tokensKnown, $scopes, $extra]) {
     file_put_contents($workspace.'/database/migrations/001.php', $prefix."\n".$body."\n} ".$methods.' '.$extra." };\n");
     $source = new PhpSource($workspace); $index = new SchemaIndex($source); $index->load();

@@ -43,6 +43,10 @@ $create = <<<'PHP'
     use Illuminate\Support\Facades\Schema;
     use Illuminate\Database\Migrations\Migration;
     use Illuminate\Database\Schema\Blueprint;
+    final class SchemaTrap {
+        public static function SchemaTrap(): void { Schema::drop('tokens'); }
+        public static function run(mixed $value): string { Schema::drop('tokens'); return 'changed'; }
+    }
     file_put_contents(__DIR__.'/executed', 'Migration must not execute.');
     throw new RuntimeException('Source only.');
     return new class extends Migration {
@@ -64,6 +68,18 @@ $change = <<<'PHP'
         private function addColumn(): void {
             Schema::table('people', function (Blueprint $table) { $table->string('extra'); });
         }
+        private $replacement;
+        private $subquery;
+        public function __construct() {
+            $this->subquery = static function ($query): void { Schema::drop('tokens'); };
+            $this->replacement = new class {
+                public function __call($method, $arguments) { Schema::drop('tokens'); }
+                public function __invoke() { Schema::drop('tokens'); }
+            };
+        }
+        private function replace(&$receiver): void { $receiver = $this->replacement; }
+        private function retarget(&$name): void { $name = 'tokens'; }
+        private function ignoreReference(&$unused): void {}
     };
     PHP;
 $schema = 'Schema::table("people", function (Blueprint $table) { $table->string("extra"); });';
@@ -77,6 +93,30 @@ $scenarios = [
     'opaque macro' => ['Schema::table("people", function (Blueprint $table) { $table->unknownColumnType("extra"); });', false, false],
     'opaque callback' => ['Schema::table("people", function (Blueprint $table) { $this->opaque(); });', false, false],
     'warning limit' => ['if (true) { '.$schema.' }', false, true],
+    'blueprint reference escape' => ['Schema::table("people", function (Blueprint $table) { $this->replace($table); $table->string("extra"); });', false, false],
+    'collection reference escape' => ['\\Illuminate\\Support\\Facades\\DB::table("people")->chunkById(10, function (\\Illuminate\\Support\\Collection $rows) { $this->replace($rows); $rows->count(); });', false, false],
+    'table loop reference escape' => ['foreach (["people"] as $name) { $this->retarget($name); Schema::table($name, function (Blueprint $table) { $table->dropColumn("value"); }); }', false, false],
+    'nested closure binding escape' => ['$action = $this->replacement; if (true) { $register = function () { $action = function () {}; }; $action(); }', false, false],
+    'unknown transaction callback' => ['$action = $this->replacement; \\Illuminate\\Support\\Facades\\DB::transaction($action);', false, false],
+    'unused reference helper' => ['$name = "people"; $this->ignoreReference($name);', true, true],
+    'safe closure binding' => ['$action = function () {}; $action();', true, true],
+    'safe transaction binding' => ['$action = function () {}; \\Illuminate\\Support\\Facades\\DB::transaction($action);', true, true],
+    'builtin output overwrites callable' => ['$action = function () {}; preg_match("/^(SchemaTrap)$/", "SchemaTrap", $action); $action();', false, false],
+    'builtin named output overwrites callable' => ['$action = function () {}; \\PREG_MATCH(subject: "SchemaTrap", matches: $action, pattern: "/^(SchemaTrap)$/"); $action();', false, false],
+    'builtin output overwrites transaction' => ['$action = function () {}; preg_match("/^(SchemaTrap)$/", "SchemaTrap", $action); \\Illuminate\\Support\\Facades\\DB::transaction($action);', false, false],
+    'builtin unrelated output preserves callable' => ['$action = function () {}; preg_match("/x/", "x", $matches); $action();', true, true],
+    'builtin without output preserves callable' => ['$action = function () {}; preg_match("/x/", "x"); \\Illuminate\\Support\\Facades\\DB::transaction($action);', true, true],
+    'unpacked map callback' => ['array_map(...["SchemaTrap::run", [1]]);', false, false],
+    'unpacked named filter callback' => ['array_filter(...["array" => [1], "callback" => "SchemaTrap::run"]);', false, false],
+    'unpacked replacement callback' => ['preg_replace_callback(...["/x/", "SchemaTrap::run", "x"]);', false, false],
+    'opaque builder callback' => ['\\Illuminate\\Support\\Facades\\DB::table("people")->tap("SchemaTrap::run");', false, false],
+    'opaque chunk callback' => ['\\Illuminate\\Support\\Facades\\DB::table("people")->chunkById(10, "SchemaTrap::run");', false, false],
+    'opaque collection callback' => ['\\Illuminate\\Support\\Facades\\DB::table("people")->chunkById(10, function (\\Illuminate\\Support\\Collection $rows) { $rows->each("SchemaTrap::run"); });', false, false],
+    'safe inline array callback' => ['array_map(static fn ($value) => $value, [1]); array_filter([1]);', true, true],
+    'safe inline data callback' => ['\\Illuminate\\Support\\Facades\\DB::table("people")->chunkById(10, function (\\Illuminate\\Support\\Collection $rows) { $rows->each(static fn ($row) => true); $rows->count(); });', true, true],
+    'opaque ordering subquery' => ['\\Illuminate\\Support\\Facades\\DB::table("people")->orderBy($this->subquery);', false, false],
+    'opaque named variable ordering subquery' => ['$column = $this->subquery; \\Illuminate\\Support\\Facades\\DB::table("people")->reorder(column: $column);', false, false],
+    'safe literal and inline ordering' => ['$direction = "desc"; \\Illuminate\\Support\\Facades\\DB::table("people")->orderBy(column: "email", direction: $direction)->orderByDesc("email")->latest()->oldest("email")->reorder("email"); \\Illuminate\\Support\\Facades\\DB::table("people")->orderBy(static function ($query) {})->orderByDesc(static function ($query) {})->latest(static fn ($query) => null)->oldest(static fn ($query) => null)->reorder(static function ($query) {});', true, true],
 ];
 foreach (['people', 'tokens'] as $subject) {
 foreach ($scenarios as $name => [$body, $peopleKnown, $tokensKnown]) {

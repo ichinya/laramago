@@ -103,8 +103,9 @@ final class SchemaIndex
                     $this->recordUncertainty($file, $class->getMethod('up') ?? $class, $before);
                     continue;
                 }
+                $closures = $this->boundClosures($up);
                 foreach ($up as $statement) {
-                    $this->migrationStatement($file, $statement, $class, [], $uses);
+                    $this->migrationStatement($file, $statement, $class, [], $uses, $closures);
                 }
             }
         }
@@ -358,9 +359,8 @@ final class SchemaIndex
             $this->invalidateStatements($statement->expr->getArgs(), $class);
             $this->recordUncertainty($file, $statement, $before);
             $visited[spl_object_id($method)] = true;
-            // Closures bound anywhere in the helper body stay visible to
-            // statements that invoke them later, like DB::transaction($alter).
-            $sharedClosures += $this->boundClosures($method->stmts ?? []);
+            // Use-site identities belong to this helper's lexical scope.
+            $sharedClosures = $this->boundClosures($method->stmts ?? []);
             foreach ($method->stmts ?? [] as $inner) {
                 $this->migrationStatement($file, $inner, $class, $visited, $uses, $sharedClosures);
             }
@@ -417,8 +417,8 @@ final class SchemaIndex
                 $scan['loopTables'][$id][$table] = true;
             }
         }
-        foreach ($this->boundClosures($nodes) as $name => $closure) {
-            $scan['closures'][$name] = $closure;
+        if (! array_key_exists('closures', $scan)) {
+            $scan['closures'] = $this->boundClosures($nodes);
         }
         foreach ($this->dataReceivers($nodes, $scan['uses'] ?? []) as $id => $_) {
             $scan['dataCalls'][$id] = true;
@@ -470,6 +470,8 @@ final class SchemaIndex
                     $call->name instanceof Node\Identifier
                     && in_array(strtolower($call->name->toString()), ['table', 'query', 'raw', 'transaction', 'begintransaction', 'commit', 'rollback'], true)
                 ) {
+                    if (in_array(strtolower($call->name->toString()), ['table', 'query'], true)
+                        && ! $this->dataRootNeutral($call, $scan)) { $this->unreadable = true; }
                     if (strtolower($call->name->toString()) === 'transaction') {
                         $this->scanClosureArguments($call, $class, $scan);
                     }
@@ -505,7 +507,7 @@ final class SchemaIndex
                     continue;
                 }
                 $scan['visited'][spl_object_id($method)] = true;
-                $this->invalidateStatements($method->stmts ?? [], $class, $scan);
+                $this->invalidateFunction($method, $class, $scan);
 
                 continue;
             }
@@ -522,7 +524,7 @@ final class SchemaIndex
                 $scan['visited'][spl_object_id($helper[0])] = true;
                 $prevUses = $scan['uses'] ?? [];
                 $scan['uses'] = $helper[2];
-                $this->invalidateStatements($helper[0]->stmts ?? [], $helper[1], $scan);
+                $this->invalidateFunction($helper[0], $helper[1], $scan);
                 $scan['uses'] = $prevUses;
 
                 continue;
@@ -533,7 +535,7 @@ final class SchemaIndex
                 // declarations inside Schema callbacks are judged by the
                 // callback rules, not by generic call suspicion.
                 $builder = false;
-                if (! $this->schemaNeutralChain($call, $builder)) {
+                if (! $this->schemaNeutralChain($call, $builder, $scan)) {
                     if (isset($scan['blueprintCalls'][spl_object_id($call)])
                         || isset($scan['dataCalls'][spl_object_id($call)])) {
                         continue;
@@ -562,7 +564,9 @@ final class SchemaIndex
                         && count($scan['visited']) < 64
                     ) {
                         $scan['visited'][spl_object_id($closure)] = true;
-                        $this->invalidateStatements($closure->stmts ?? [], $class, $scan);
+                        $this->invalidateFunction($closure, $class, $scan);
+                    } elseif (! isset($scan['visited'][spl_object_id($closure)])) {
+                        $this->unreadable = true;
                     }
 
                     continue;
@@ -617,7 +621,68 @@ final class SchemaIndex
             return null;
         }
 
-        return $method;
+        return $this->opaqueReferenceArguments($call, $method) ? null : $method;
+    }
+
+    /** A used reference parameter can replace a caller binding; unused ones cannot. */
+    private function opaqueReferenceArguments(Node\Expr\CallLike $call, Node\FunctionLike $function): bool
+    {
+        $unpacked = false;
+        foreach ($call->getArgs() as $arg) {
+            if ($arg instanceof Node\Arg && $arg->unpack) { $unpacked = true; }
+        }
+        foreach ($function->getParams() as $offset => $parameter) {
+            if (! $parameter->byRef || ! is_string($parameter->var->name)) { continue; }
+            $name = $parameter->var->name;
+            if (! $unpacked && PhpSource::argument($call->getArgs(), $offset, $name) === null
+                && (! $parameter->variadic || $call->getArgs() === [])) { continue; }
+            if ((new NodeFinder)->findFirst($function->getStmts() ?? [], static fn (Node $node): bool =>
+                $node instanceof Node\Expr\Variable && $node->name === $name) !== null) { return true; }
+        }
+
+        return false;
+    }
+
+    /**
+     * Native output parameters write without an explicit call-site `&`.
+     * Keep signatures static for the builtins already accepted by this scan;
+     * source proofs must not depend on the worker's installed extensions.
+     *
+     * @return list<Node\Expr>
+     */
+    private function builtinReferenceArguments(Node\Expr\FuncCall $call): array
+    {
+        if (! $call->name instanceof Node\Name || $call->isFirstClassCallable()) { return []; }
+        $parameter = match (strtolower($call->name->toString())) {
+            'array_walk', 'usort', 'uasort', 'uksort',
+            'array_pop', 'array_push', 'array_shift', 'array_splice', 'array_unshift',
+            'arsort', 'asort', 'krsort', 'ksort', 'natcasesort', 'natsort', 'rsort', 'sort' => [0, 'array'],
+            'preg_match', 'preg_match_all' => [2, 'matches'],
+            'str_replace' => [3, 'count'],
+            'preg_replace', 'preg_replace_callback' => [4, 'count'],
+            default => null,
+        };
+        if ($parameter === null) { return []; }
+        foreach ($call->args as $arg) {
+            if ($arg instanceof Node\Arg && $arg->unpack) {
+                // Unpacking obscures formal positions and may carry references.
+                return array_values(array_map(static fn (Node\Arg $arg): Node\Expr => $arg->value,
+                    array_filter($call->args, static fn (Node $arg): bool => $arg instanceof Node\Arg)));
+            }
+        }
+        $argument = PhpSource::argument($call->args, $parameter[0], $parameter[1]);
+
+        return $argument === null ? [] : [$argument];
+    }
+
+    /** @param array<string, mixed> $scan */
+    private function invalidateFunction(Node\FunctionLike $function, ?Node\Stmt\Class_ $class, array &$scan): void
+    {
+        $previous = $scan['closures'];
+        $body = $function->getStmts() ?? [];
+        $scan['closures'] = $this->boundClosures($body);
+        $this->invalidateStatements($body, $class, $scan);
+        $scan['closures'] = $previous;
     }
 
     private function ownScope(string $scope, Node\Stmt\Class_ $class): bool
@@ -680,7 +745,7 @@ final class SchemaIndex
                 $method !== null && $method->stmts !== null
                 && ($serviceClass->isFinal() || $method->isPrivate() || $call instanceof Node\Expr\StaticCall)
             ) {
-                return [$method, $serviceClass, $serviceUses];
+                return $this->opaqueReferenceArguments($call, $method) ? null : [$method, $serviceClass, $serviceUses];
             }
         }
 
@@ -798,7 +863,7 @@ final class SchemaIndex
         $scan['visited'][spl_object_id($constructor)] = true;
         $prevUses = $scan['uses'] ?? [];
         $scan['uses'] = $serviceUses;
-        $this->invalidateStatements($constructor->stmts, $serviceClass, $scan);
+        $this->invalidateFunction($constructor, $serviceClass, $scan);
         $scan['uses'] = $prevUses;
 
         return true;
@@ -863,7 +928,9 @@ final class SchemaIndex
             $walk = function (Node $node) use (&$walk, &$map, $name, $set): void {
                 if ($node instanceof Node\Expr\Closure || $node instanceof Node\Expr\ArrowFunction
                     || $node instanceof Node\Stmt\Function_ || $node instanceof Node\Stmt\ClassLike) { return; }
-                if ($node instanceof Node\Expr\StaticCall && $this->isSchema($node)) {
+                if ($node instanceof Node\Expr\StaticCall && ($this->isSchema($node)
+                    || (MigrationMetadataRead::database($node) && $node->name instanceof Node\Identifier
+                        && strcasecmp($node->name->toString(), 'table') === 0))) {
                     $argument = PhpSource::argument($node->args, 0, 'table');
                     if ($argument instanceof Node\Expr\Variable && $argument->name === $name) {
                         foreach ($set as $table) { $map[spl_object_id($argument)][$table] = true; }
@@ -888,7 +955,7 @@ final class SchemaIndex
      */
     private function loopVarMutated(Node\Stmt\Foreach_ $loop, string $name): bool
     {
-        return (new NodeFinder)->findFirst($loop->stmts, static function (Node $node) use ($name): bool {
+        return (new NodeFinder)->findFirst($loop->stmts, function (Node $node) use ($name): bool {
             $isName = static fn (?Node $target): bool => $target !== null && (new NodeFinder)->findFirst(
                 [$target], static fn (Node $var): bool => $var instanceof Node\Expr\Variable
                     && (! is_string($var->name) || $var->name === $name),
@@ -917,6 +984,11 @@ final class SchemaIndex
             if ($node instanceof Node\Expr\ArrayItem && $node->byRef && $isName($node->value)) {
                 return true;
             }
+            if ($node instanceof Node\Expr\FuncCall) {
+                foreach ($this->builtinReferenceArguments($node) as $argument) {
+                    if ($isName($argument)) { return true; }
+                }
+            }
             if ($node instanceof Node\Stmt\Foreach_ && ($isName($node->valueVar) || $isName($node->keyVar)
                 || ($node->byRef && $isName($node->expr)))) {
                 return true;
@@ -938,57 +1010,149 @@ final class SchemaIndex
     }
 
     /**
-     * Variables assigned a literal closure: `$alter = function ...`; invoking
-     * `$alter()` or passing `$alter` to `DB::transaction` runs the same body.
+     * Proven variable-use sites, not names shared across lexical scopes.
+     * A single plain assignment must dominate the use in the same statement
+     * list. Rewrites, references, jumps and captured callables stay opaque.
      *
      * @param array<array-key, Node> $nodes
-     * @return array<string, Node\Expr\Closure|Node\Expr\ArrowFunction>
+     * @return array<int, Node\Expr\Closure|Node\Expr\ArrowFunction>
      */
     private function boundClosures(array $nodes): array
     {
-        $closures = [];
-        foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Expr\Assign::class) as $assign) {
-            if (
-                $assign->var instanceof Node\Expr\Variable
-                && is_string($assign->var->name)
-                && ($assign->expr instanceof Node\Expr\Closure || $assign->expr instanceof Node\Expr\ArrowFunction)
-            ) {
-                $closures[$assign->var->name] = $assign->expr;
-            }
-        }
+        $bindings = [];
+        $scope = function (array $body, int $depth, array $blocked = []) use (&$scope, &$bindings): void {
+            if ($depth > 64) { return; }
+            $writes = $this->closureWrites($body);
+            foreach ($blocked as $name) { $writes[$name] = 2; }
+            $allowed = ! isset($writes['*']) && ! isset($writes['@jump']);
+            $count = 0;
+            $region = function (array $parts, array $inherited, int $level) use (&$region, &$scope, &$bindings, $writes, $allowed, &$count): void {
+                if ($level > 64) { return; }
+                $candidates = $inherited;
+                foreach ($parts as $statement) {
+                    $assign = $statement instanceof Node\Stmt\Expression ? $statement->expr : null;
+                    if (! $allowed || ! $assign instanceof Node\Expr\Assign
+                        || ! $assign->var instanceof Node\Expr\Variable || ! is_string($assign->var->name)
+                        || ($writes[$assign->var->name] ?? 0) !== 1
+                        || (! $assign->expr instanceof Node\Expr\Closure && ! $assign->expr instanceof Node\Expr\ArrowFunction)
+                        || $assign->getEndFilePos() < 0 || $count >= 64) { continue; }
+                    $candidates[$assign->var->name] = [$assign->expr, $assign->getEndFilePos()];
+                    ++$count;
+                }
+                $walk = function (Node $node) use (&$walk, &$region, &$scope, &$bindings, $candidates, $level): void {
+                    if ($node instanceof Node\FunctionLike) {
+                        $blocked = [];
+                        foreach ($node->getParams() as $param) {
+                            if ($param->byRef && is_string($param->var->name)) { $blocked[] = $param->var->name; }
+                        }
+                        if ($node instanceof Node\Expr\Closure) {
+                            foreach ($node->uses as $use) {
+                                if ($use->byRef && is_string($use->var->name)) { $blocked[] = $use->var->name; }
+                            }
+                        }
+                        $scope($node->getStmts() ?? [], $level + 1, $blocked);
 
-        return $closures;
+                        return;
+                    }
+                    if ($node instanceof Node\Stmt\ClassLike) {
+                        foreach ($node->getMethods() as $method) { $scope($method->stmts ?? [], $level + 1); }
+
+                        return;
+                    }
+                    if ($node instanceof Node\Expr\Variable && is_string($node->name)
+                        && isset($candidates[$node->name]) && $node->getStartFilePos() > $candidates[$node->name][1]) {
+                        $bindings[spl_object_id($node)] = $candidates[$node->name][0];
+                    }
+                    foreach ($node->getSubNodeNames() as $key) {
+                        $value = $node->$key;
+                        if (is_array($value)) {
+                            $region(array_filter($value, static fn (mixed $child): bool => $child instanceof Node), $candidates, $level + 1);
+                        } elseif ($value instanceof Node) {
+                            $walk($value);
+                        }
+                    }
+                };
+                foreach ($parts as $part) { $walk($part); }
+            };
+            $region($body, [], $depth);
+        };
+        $scope($nodes, 0);
+
+        return $bindings;
     }
 
-    /** @param array{closures?:array<string,Node\Expr\Closure|Node\Expr\ArrowFunction>} $scan */
+    /** @param array<array-key, Node> $nodes @return array<string, int> */
+    private function closureWrites(array $nodes): array
+    {
+        $writes = [];
+        $record = static function (?Node $target, int $weight = 1) use (&$writes): void {
+            foreach ((new NodeFinder)->findInstanceOf($target === null ? [] : [$target], Node\Expr\Variable::class) as $var) {
+                $name = is_string($var->name) ? $var->name : '*';
+                $writes[$name] = ($writes[$name] ?? 0) + $weight;
+            }
+        };
+        $walk = function (Node $node) use (&$walk, &$writes, $record): void {
+            if ($node instanceof Node\FunctionLike || $node instanceof Node\Stmt\ClassLike) {
+                if ($node instanceof Node\Expr\Closure) {
+                    foreach ($node->uses as $use) { if ($use->byRef) { $record($use->var, 2); } }
+                }
+
+                return;
+            }
+            if ($node instanceof Node\Stmt\Goto_ || $node instanceof Node\Stmt\Label) { $writes['@jump'] = 1; }
+            if ($node instanceof Node\Expr\AssignRef) {
+                $record($node->var, 2); $record($node->expr, 2);
+            } elseif ($node instanceof Node\Expr\Assign || $node instanceof Node\Expr\AssignOp
+                || $node instanceof Node\Expr\PreInc || $node instanceof Node\Expr\PostInc
+                || $node instanceof Node\Expr\PreDec || $node instanceof Node\Expr\PostDec) {
+                $record($node->var);
+            } elseif ($node instanceof Node\Stmt\Foreach_) {
+                $record($node->keyVar); $record($node->valueVar);
+                if ($node->byRef) { $record($node->expr, 2); }
+            } elseif ($node instanceof Node\Stmt\Catch_) {
+                $record($node->var);
+            } elseif ($node instanceof Node\Stmt\Unset_ || $node instanceof Node\Stmt\Global_ || $node instanceof Node\Stmt\Static_) {
+                foreach ($node->vars as $var) { $record($var); }
+            } elseif (($node instanceof Node\Expr\ArrayItem || $node instanceof Node\Arg) && $node->byRef) {
+                $record($node->value, 2);
+            }
+            if ($node instanceof Node\Expr\FuncCall) {
+                foreach ($this->builtinReferenceArguments($node) as $argument) { $record($argument, 2); }
+            }
+            foreach ($node->getSubNodeNames() as $key) {
+                $value = $node->$key;
+                foreach (is_array($value) ? $value : [$value] as $child) { if ($child instanceof Node) { $walk($child); } }
+            }
+        };
+        foreach ($nodes as $node) { $walk($node); }
+
+        return $writes;
+    }
+
+    /** @param array{closures?:array<int,Node\Expr\Closure|Node\Expr\ArrowFunction>} $scan */
     private function boundClosure(Node\Expr\FuncCall $call, array $scan): Node\Expr\Closure|Node\Expr\ArrowFunction|null
     {
         if (! $call->name instanceof Node\Expr\Variable || ! is_string($call->name->name)) {
             return null;
         }
 
-        return $scan['closures'][$call->name->name] ?? null;
+        $closure = $scan['closures'][spl_object_id($call->name)] ?? null;
+
+        return $closure === null || $this->opaqueReferenceArguments($call, $closure) ? null : $closure;
     }
 
     /** @param array<string, mixed> $scan */
     private function scanClosureArguments(Node\Expr\StaticCall $call, ?Node\Stmt\Class_ $class, array &$scan): void
     {
-        foreach ($call->args as $arg) {
-            if (! $arg instanceof Node\Arg) {
-                continue;
-            }
-            $closure = $arg->value instanceof Node\Expr\Variable && is_string($arg->value->name)
-                ? $scan['closures'][$arg->value->name] ?? null
-                : ($arg->value instanceof Node\Expr\Closure || $arg->value instanceof Node\Expr\ArrowFunction
-                    ? $arg->value
-                    : null);
-            if ($closure === null || isset($scan['visited'][spl_object_id($closure)]) || count($scan['visited']) >= 64) {
-                continue;
-            }
-            $scan['visited'][spl_object_id($closure)] = true;
-            $body = $closure instanceof Node\Expr\Closure ? $closure->stmts ?? [] : [$closure->expr];
-            $this->invalidateStatements($body, $class, $scan);
-        }
+        $callback = PhpSource::argument($call->args, 0, 'callback');
+        $closure = $callback instanceof Node\Expr\Variable
+            ? $scan['closures'][spl_object_id($callback)] ?? null
+            : ($callback instanceof Node\Expr\Closure || $callback instanceof Node\Expr\ArrowFunction ? $callback : null);
+        if ($closure === null) { $this->unreadable = true; return; }
+        if (isset($scan['visited'][spl_object_id($closure)])) { return; }
+        if (count($scan['visited']) >= 64) { $this->unreadable = true; return; }
+        $scan['visited'][spl_object_id($closure)] = true;
+        $this->invalidateFunction($closure, $class, $scan);
     }
 
     /**
@@ -996,29 +1160,144 @@ final class SchemaIndex
      * getConnection() permits arbitrary SQL, and dynamic dispatch cannot
      * establish that the chain remains on the builder.
      */
-    private function schemaNeutralChain(Node\Expr\CallLike $call, bool &$builder): bool
+    /** @param array<string, mixed> $scan */
+    private function schemaNeutralChain(Node\Expr\CallLike $call, bool &$builder, array $scan): bool
     {
-        $var = $call instanceof Node\Expr\MethodCall || $call instanceof Node\Expr\NullsafeMethodCall
-            ? $call
-            : null;
-        $guard = 0;
-        $safe = true;
-        while ($var instanceof Node\Expr\MethodCall || $var instanceof Node\Expr\NullsafeMethodCall) {
-            if (++$guard > 64) { return false; }
-            if (! $var->name instanceof Node\Identifier
-                || strtolower($var->name->toString()) === 'getconnection') {
-                $safe = false;
-            }
-            $var = $var->var;
-        }
-
-        $builder = $var instanceof Node\Expr\StaticCall
-            && $var->class instanceof Node\Name
-            && in_array(strtolower($var->class->toString()), ['db', 'illuminate\\support\\facades\\db'], true)
+        $chain = $this->dataChain($call);
+        if ($chain === null) { return false; }
+        [$var, $calls] = $chain;
+        $builder = $var instanceof Node\Expr\StaticCall && MigrationMetadataRead::database($var)
             && $var->name instanceof Node\Identifier
             && in_array(strtolower($var->name->toString()), ['table', 'query'], true);
 
-        return $builder && $safe;
+        return $builder && $this->dataRootNeutral($var, $scan) && $this->dataCallsNeutral($calls, 'builder');
+    }
+
+    /** @return array{Node\Expr,list<Node\Expr\MethodCall|Node\Expr\NullsafeMethodCall>}|null */
+    private function dataChain(Node\Expr\CallLike $call): ?array
+    {
+        $var = $call;
+        $calls = [];
+        while ($var instanceof Node\Expr\MethodCall || $var instanceof Node\Expr\NullsafeMethodCall) {
+            if (count($calls) >= 64) { return null; }
+            $calls[] = $var;
+            $var = $var->var;
+        }
+
+        return $calls === [] ? null : [$var, array_reverse($calls)];
+    }
+
+    /** A table source may itself be a subquery closure; unproved sources stay opaque.
+     * @param array<string, mixed> $scan
+     */
+    private function dataRootNeutral(Node\Expr\StaticCall $call, array $scan): bool
+    {
+        if ($call->isFirstClassCallable()) { return false; }
+        foreach ($call->args as $arg) {
+            if (! $arg instanceof Node\Arg || $arg->unpack) { return false; }
+        }
+        if ($call->name instanceof Node\Identifier && strcasecmp($call->name->toString(), 'query') === 0) {
+            return $call->args === [];
+        }
+        $table = PhpSource::argument($call->args, 0, 'table');
+
+        return is_string(PhpSource::value($table)) || $this->boundTables($table, $scan) !== null
+            || $table instanceof Node\Expr\Closure || $table instanceof Node\Expr\ArrowFunction;
+    }
+
+    /** @param list<Node\Expr\MethodCall|Node\Expr\NullsafeMethodCall> $calls */
+    private function dataCallsNeutral(array $calls, string $kind): bool
+    {
+        foreach ($calls as $call) {
+            if (! in_array($kind, ['builder', 'collection'], true)) { return false; }
+            $next = $this->dataMethodResult($call, $kind);
+            if ($next === null) { return false; }
+            $kind = $next;
+        }
+
+        return true;
+    }
+
+    /** A finite native contract: result context and callback positions are both required. */
+    private function dataMethodResult(Node\Expr\MethodCall|Node\Expr\NullsafeMethodCall $call, string $kind): ?string
+    {
+        if (! $call->name instanceof Node\Identifier) { return null; }
+        $name = strtolower($call->name->toString());
+        $callbacks = [];
+        if ($kind === 'builder') {
+            $result = match ($name) {
+                'where', 'orwhere', 'wherenull', 'orwherenull', 'wherenotnull', 'orwherenotnull',
+                'wherein', 'orwherein', 'wherenotin', 'orwherenotin', 'wherecolumn', 'orwherecolumn',
+                'wherebetween', 'wherenotbetween', 'whereexists', 'wherenotexists',
+                'select', 'addselect', 'from', 'orderby', 'orderbydesc', 'latest', 'oldest', 'reorder',
+                'limit', 'take', 'offset', 'skip', 'distinct', 'groupby', 'lockforupdate', 'sharedlock', 'tap' => 'builder',
+                'get', 'pluck', 'chunkmap' => 'collection',
+                'insert', 'insertorignore', 'update', 'upsert', 'delete', 'increment', 'decrement',
+                'count', 'exists', 'doesntexist', 'value', 'first', 'find', 'sole', 'min', 'max', 'avg', 'sum',
+                'chunk', 'chunkbyid', 'chunkbyiddesc', 'orderedchunkbyid', 'each', 'eachbyid',
+                'pipe', 'when', 'unless' => 'value',
+                default => null,
+            };
+            $callbacks = match ($name) {
+                'tap', 'pipe', 'chunkmap', 'each', 'eachbyid' => [[0, 'callback', true]],
+                'chunk', 'chunkbyid', 'chunkbyiddesc', 'orderedchunkbyid' => [[1, 'callback', true]],
+                'when', 'unless' => [[1, 'callback', true], [2, 'default', false]],
+                default => [],
+            };
+        } else {
+            $result = match ($name) {
+                'keys', 'values', 'pluck', 'reverse', 'slice', 'take', 'skip', 'chunk', 'merge', 'push',
+                'prepend', 'put', 'forget', 'only', 'except', 'each', 'map', 'mapwithkeys', 'flatmap', 'filter', 'tap' => 'collection',
+                'all', 'count', 'isempty', 'isnotempty', 'has', 'get', 'first', 'last',
+                'reduce', 'reducespread', 'pipe' => 'value',
+                default => null,
+            };
+            $callbacks = match ($name) {
+                'each', 'map', 'mapwithkeys', 'flatmap', 'tap', 'pipe', 'reduce', 'reducespread' => [[0, 'callback', true]],
+                'filter', 'first', 'last' => [[0, 'callback', false]],
+                default => [],
+            };
+        }
+        if ($result === null) { return null; }
+        if ($call->isFirstClassCallable()) { return 'value'; }
+        foreach ($call->args as $arg) {
+            if (! $arg instanceof Node\Arg || $arg->unpack) { return null; }
+        }
+        foreach ($callbacks as [$position, $parameter, $required]) {
+            $callback = PhpSource::argument($call->args, $position, $parameter);
+            if ($callback === null && ! $required) { continue; }
+            if (! $callback instanceof Node\Expr\Closure && ! $callback instanceof Node\Expr\ArrowFunction) { return null; }
+        }
+        // These native overloads may execute closure-valued query inputs or defaults.
+        if ($kind === 'builder' && in_array($name, ['where', 'orwhere', 'wherein', 'orwherein', 'wherenotin',
+            'orwherenotin', 'whereexists', 'wherenotexists', 'select', 'addselect', 'from', 'find', 'delete'], true)) {
+            foreach ($call->args as $arg) { if (! $this->dataValueVisible($arg->value)) { return null; } }
+        }
+        if ($kind === 'builder' && in_array($name, ['orderby', 'orderbydesc', 'latest', 'oldest', 'reorder'], true)
+            && ! $this->dataValueVisible(PhpSource::argument($call->args, 0, 'column'))) { return null; }
+        if (in_array($name, ['when', 'unless'], true)
+            && ! $this->dataValueVisible(PhpSource::argument($call->args, 0, 'value'))) { return null; }
+        if ($kind === 'collection' && in_array($name, ['get', 'first', 'last'], true)
+            && ! $this->dataValueVisible(PhpSource::argument($call->args, 1, 'default'))) { return null; }
+
+        return $result;
+    }
+
+    /** Visible literals or inline bodies only; this is not variable/return-value interpretation. */
+    private function dataValueVisible(?Node\Expr $value, int $depth = 0): bool
+    {
+        if ($depth > 32) { return false; }
+        if ($value === null || $value instanceof Node\Expr\Closure || $value instanceof Node\Expr\ArrowFunction) { return true; }
+        if ($value instanceof Node\Expr\Array_) {
+            foreach ($value->items as $item) {
+                if ($item === null || $item->unpack || $item->byRef || ! $this->dataValueVisible($item->key, $depth + 1)
+                    || ! $this->dataValueVisible($item->value, $depth + 1)) { return false; }
+            }
+
+            return true;
+        }
+
+        return PhpSource::value($value) !== UnknownValue::Value;
     }
 
     /**
@@ -1038,7 +1317,10 @@ final class SchemaIndex
                     && $param->type instanceof Node\Name && $this->collectionType($param->type->toString(), $uses)) {
                     $body = $closure instanceof Node\Expr\Closure ? $closure->stmts : [$closure->expr];
                     foreach ($this->receiverCalls($body, $param->var->name) as $call) {
-                        $calls[spl_object_id($call)] = true;
+                        $chain = $this->dataChain($call);
+                        if ($chain !== null && $this->dataCallsNeutral($chain[1], 'collection')) {
+                            $calls[spl_object_id($call)] = true;
+                        }
                     }
                 }
             }
@@ -1085,9 +1367,15 @@ final class SchemaIndex
         if (! isset($callbackAt[$name])) {
             return false;
         }
+        $namespaced = $call->name->getAttribute('namespacedName');
+        if ($namespaced instanceof Node\Name && strtolower($namespaced->toString()) !== $name) { return false; }
+        if ($call->isFirstClassCallable()) { return true; }
+        foreach ($call->args as $arg) {
+            if (! $arg instanceof Node\Arg || $arg->unpack) { return false; }
+        }
         $callback = PhpSource::argument($call->args, $callbackAt[$name], 'callback');
 
-        return $callback === null
+        return ($callback === null && $name === 'array_filter')
             || $callback instanceof Node\Expr\Closure
             || $callback instanceof Node\Expr\ArrowFunction;
     }
@@ -1264,6 +1552,9 @@ final class SchemaIndex
                 $node instanceof Node\Expr\PostDec => [$node->var],
                 $node instanceof Node\Stmt\Foreach_ => array_filter([$node->keyVar, $node->valueVar]),
                 $node instanceof Node\Stmt\Unset_ => $node->vars,
+                $node instanceof Node\Expr\ArrayItem && $node->byRef => [$node->value],
+                $node instanceof Node\Arg && $node->byRef => [$node->value],
+                $node instanceof Node\Expr\FuncCall => $this->builtinReferenceArguments($node),
                 default => [],
             };
             if ((new NodeFinder)->findFirst($targets, static fn (Node $target): bool =>
