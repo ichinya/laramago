@@ -244,15 +244,17 @@ file_put_contents($path, $entry);
 $check(CodebaseScanSyntax::query($source, $policy, $diskExtract)['object']->value === 'original' && $diskCalls === 2,
     'tampered query entry is ignored and recomputed');
 CodebaseScanSyntax::clear();
-$compressible = str_repeat('dense-source-facts ', 65536);
-for ($index = 0; $index < 12; ++$index) {
-    $check(CodebaseScanSyntax::query('<?php', 'compressed:'.$index, static fn(): string => $compressible) === $compressible,
-        'compressed query retains exact result '.$index);
+if (function_exists('gzdeflate') && function_exists('gzinflate')) {
+    $compressible = str_repeat('dense-source-facts ', 65536);
+    for ($index = 0; $index < 12; ++$index) {
+        $check(CodebaseScanSyntax::query('<?php', 'compressed:'.$index, static fn(): string => $compressible) === $compressible,
+            'compressed query retains exact result '.$index);
+    }
+    [$packedQueries, $packedBytes] = $state();
+    $check(count($packedQueries) === 12 && $packedBytes < 1024 * 1024 && $packedBytes === array_sum(array_map('strlen', $packedQueries)),
+        'lossless packing keeps compressible facts within the unchanged physical query budget');
+    CodebaseScanSyntax::clear();
 }
-[$packedQueries, $packedBytes] = $state();
-$check(count($packedQueries) === 12 && $packedBytes < 1024 * 1024 && $packedBytes === array_sum(array_map('strlen', $packedQueries)),
-    'lossless packing keeps compressible facts within the unchanged physical query budget');
-CodebaseScanSyntax::clear();
 $check(! is_file($path) && (new ReflectionProperty(CodebaseScanSyntax::class, 'querySpillBytes'))->getValue() === 0,
     'generation reset removes policy-result files and byte accounting');
 $check(CodebaseScanSyntax::query($source, $policy, static fn(): string => 'new extractor') === 'new extractor',
