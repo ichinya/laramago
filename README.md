@@ -28,6 +28,11 @@ Factory, model refresh and defensive boundary scanners share source work while
 keeping their own path policy, scan lifecycle and native contracts. See the
 [source query cache contract](docs/source-query-cache.md) for limits and controls.
 
+Version `0.1.10` reduces repeated parsing during large codebase scans by retaining
+bounded source query results on disk and sharing read-only extraction across more
+scanners. Migration analysis also tracks lexical callback bindings and reference
+writes more conservatively, preserving schema uncertainty when effects are unknown.
+
 Version `0.1.9` bounds generated worker scan packets to 8 MiB, excludes generated
 IDE metadata, and improves migration table-list and schema-read interpretation.
 Constructor effects that cannot be resolved conservatively keep the schema
