@@ -1,0 +1,11 @@
+<?php
+
+declare(strict_types=1);
+
+namespace ScanBenchmark\Controls;
+
+function acceptsInteger(int $value): int { return $value; }
+function safeReturn(): int { return 9; }
+function unsafeReturn(): int { return 'retained-real-error'; }
+function safeArgument(): int { return acceptsInteger(9); }
+function unsafeArgument(): int { return acceptsInteger('retained-real-error'); }

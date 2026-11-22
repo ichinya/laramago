@@ -34,6 +34,7 @@ final class ContextualCollectionMembers implements CodebaseScanHook
 
     public function reset(): void
     {
+        self::registerProjection();
         $this->generation++;
         $this->members = $this->fileMembers = $this->sources = []; $this->fileMemberCount = 0;
         $this->complete = $this->failed = false;
@@ -41,8 +42,31 @@ final class ContextualCollectionMembers implements CodebaseScanHook
         $this->bytes = 0;
     }
 
+    public static function registerProjection(): void
+    {
+        CodebaseScanSyntax::registerProjection(self::class.'::source-members:v1', self::sourceFacts(...));
+    }
+
+    /** Source-only facts; all authority, limits and file freshness stay in scan(). */
+    private static function sourceFacts(array $nodes): array
+    {
+        $fetches = CodebaseScanSyntax::find($nodes, static fn (Node $node): bool =>
+            $node instanceof Node\Expr\PropertyFetch || $node instanceof Node\Expr\NullsafePropertyFetch
+            || $node instanceof Node\Expr\StaticPropertyFetch);
+        if ($fetches === []) { return ['proofs' => [], 'reservations' => []]; }
+        $proofs = [];
+        foreach (self::scopes($nodes) as [$owner, $scope]) {
+            foreach (self::candidates($scope) as $proof) {
+                $proofs[] = [$proof, $owner, $scope];
+                if (count($proofs) > 100_000) { break 2; }
+            }
+        }
+        return ['proofs' => $proofs, 'reservations' => array_map(self::keys(...), $fetches)];
+    }
+
     public function scan(CodebaseScanContext $context): void
     {
+        self::registerProjection();
         if ($context->firstBatch) { $this->reset(); $this->started = true; }
         $this->complete = false;
         if (! $this->started) { $this->failed = true; return; }
@@ -55,28 +79,24 @@ final class ContextualCollectionMembers implements CodebaseScanHook
                 || array_key_exists($path, $this->sources)) { $this->failed = true; break; }
             $this->sources[$path] = hash('sha256', $file->contents);
             try {
-                $nodes = CodebaseScanSyntax::parse($file->contents);
+                $index = CodebaseScanSyntax::query($file->contents, self::class.'::source-members:v1', self::sourceFacts(...));
             } catch (\PhpParser\Error) { $this->failed = true; break; }
             $candidates = [];
-            foreach (self::scopes($nodes) as [$owner, $scope]) {
-                foreach (self::candidates($scope) as $proof) {
-                    $proof['file'] = $path;
-                    $proof['owner'] = $owner;
-                    $proof['scope'] = $scope;
-                    $site = $proof['fetch']->getStartFilePos().':'.($proof['fetch']->getEndFilePos() + 1);
-                    if ($this->fileMemberCount >= 100_000) { $this->failed = true; break 2; }
-                    $this->fileMemberCount++;
-                    $this->fileMembers[$path][$site] = array_key_exists($site, $this->fileMembers[$path] ?? [])
-                        ? null : $proof;
-                    foreach (self::keys($proof['fetch']) as $key) { $candidates[$key] = $proof; }
-                }
+            foreach ($index['proofs'] as [$proof, $owner, $scope]) {
+                $proof['file'] = $path;
+                $proof['owner'] = $owner;
+                $proof['scope'] = $scope;
+                $site = $proof['fetch']->getStartFilePos().':'.($proof['fetch']->getEndFilePos() + 1);
+                if ($this->fileMemberCount >= 100_000) { $this->failed = true; break; }
+                $this->fileMemberCount++;
+                $this->fileMembers[$path][$site] = array_key_exists($site, $this->fileMembers[$path] ?? [])
+                    ? null : $proof;
+                foreach (self::keys($proof['fetch']) as $key) { $candidates[$key] = $proof; }
             }
             // A property provider has no file field. Every property syntax reserves its spans.
-            foreach ((new NodeFinder)->find($nodes, static fn (Node $node): bool =>
-                $node instanceof Node\Expr\PropertyFetch || $node instanceof Node\Expr\NullsafePropertyFetch
-                || $node instanceof Node\Expr\StaticPropertyFetch) as $fetch) {
+            foreach ($index['reservations'] as $keys) {
                 $this->cancellation($context);
-                foreach (self::keys($fetch) as $key) {
+                foreach ($keys as $key) {
                     if (count($this->members) >= 100_000) { $this->failed = true; break 2; }
                     $this->members[$key] = array_key_exists($key, $this->members) ? null : ($candidates[$key] ?? null);
                 }

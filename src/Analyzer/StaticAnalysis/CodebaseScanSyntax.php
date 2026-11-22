@@ -20,6 +20,8 @@ final class CodebaseScanSyntax
     // Keep the encoded-byte budget fixed while accommodating the active source cohort.
     private const MAX_QUERY_ENTRIES = 16384;
     private const SPILL_MAX_FILES = 4096;
+    private const QUERY_SPILL_MAX_FILES = 65536;
+    private const QUERY_SPILL_MAX_BYTES = 64 * 1024 * 1024;
 
     /** @var array<string, string> Serialized resolved trees, ordered by last use. */
     private static array $trees = [];
@@ -28,7 +30,7 @@ final class CodebaseScanSyntax
     private static array $uncompressedSizes = [];
     private static int $uncompressedBytes = 0;
 
-    /** @var array<string, string> Serialized pure extraction results, ordered by last use. */
+    /** @var array<string, string> Length-prefixed, optionally compressed pure results, ordered by last use. */
     private static array $queries = [];
     private static int $queryBytes = 0;
     /** @var array<string, callable(array<array-key, Node>): mixed> Trusted, read-only source projections. */
@@ -47,12 +49,22 @@ final class CodebaseScanSyntax
     private static ?string $spillDir = null;
     private static ?string $spillKey = null;
     private static int $spillFiles = 0;
+    /** @var array<string, int> Authenticated pure query entries in this scan generation. */
+    private static array $querySpillSizes = [];
+    private static int $querySpillBytes = 0;
 
     /** @var array{lookup:int,hit:int,miss:int,evict:int,spill:int} Parse-path counters. */
     public static array $stats = ['lookup' => 0, 'hit' => 0, 'miss' => 0, 'evict' => 0, 'spill' => 0];
 
     public static function clear(): void
     {
+        // Policy identities can be registered again with different extractors.
+        // Unlike source-only trees, extraction results must not cross generations.
+        foreach (self::$querySpillSizes as $key => $_size) {
+            @unlink(self::$spillDir.'/'.$key.'.query');
+        }
+        self::$querySpillSizes = [];
+        self::$querySpillBytes = 0;
         self::$trees = [];
         self::$bytes = 0;
         self::$uncompressedSizes = [];
@@ -94,9 +106,16 @@ final class CodebaseScanSyntax
             self::$queries[$key] = $serialized;
 
             /** @var TResult $result Serialized only by this process. */
-            $result = unserialize($serialized, ['allowed_classes' => true]);
+            $result = unserialize(self::restoredQuery($serialized), ['allowed_classes' => true]);
 
             return $result;
+        }
+
+        $spilled = self::spilledQuery($key);
+        if ($spilled !== null) {
+            self::retainQuery($key, $spilled);
+
+            return unserialize($spilled, ['allowed_classes' => true]);
         }
 
         if (isset(self::$projections[$policyId]) && self::$projectionDepth === 0) {
@@ -128,7 +147,13 @@ final class CodebaseScanSyntax
                 if ($replay && $policyId !== $requested) { continue; }
                 $key = hash('sha256', strlen($policyId).':'.$policyId.$sourceHash);
                 if (isset(self::$queries[$key])) {
-                    if ($policyId === $requested) { $answer = self::$queries[$key]; }
+                    if ($policyId === $requested) { $answer = self::restoredQuery(self::$queries[$key]); }
+                    continue;
+                }
+                $spilled = self::spilledQuery($key);
+                if ($spilled !== null) {
+                    self::retainQuery($key, $spilled);
+                    if ($policyId === $requested) { $answer = $spilled; }
                     continue;
                 }
                 try {
@@ -215,6 +240,11 @@ final class CodebaseScanSyntax
     {
         $size = strlen($serialized);
         if ($size <= self::MAX_QUERY_BYTES) {
+            // Eligibility still uses the original size. Compression only packs
+            // eligible facts more densely into the same physical byte budget.
+            $stored = pack('N', $size).self::storedTree($serialized);
+            $size = strlen($stored);
+            if ($size > self::MAX_QUERY_BYTES) { return; }
             if (isset(self::$queries[$key])) {
                 self::$queryBytes -= strlen(self::$queries[$key]);
                 unset(self::$queries[$key]);
@@ -222,12 +252,61 @@ final class CodebaseScanSyntax
             while (self::$queries !== []
                 && (count(self::$queries) >= self::MAX_QUERY_ENTRIES || self::$queryBytes + $size > self::MAX_QUERY_BYTES)) {
                 $oldest = array_key_first(self::$queries);
+                self::spillQuery($oldest, self::$queries[$oldest]);
                 self::$queryBytes -= strlen(self::$queries[$oldest]);
                 unset(self::$queries[$oldest]);
             }
-            self::$queries[$key] = $serialized;
+            self::$queries[$key] = $stored;
             self::$queryBytes += $size;
         }
+    }
+
+    private static function restoredQuery(string $stored): string
+    {
+        if (strlen($stored) < 5) { throw new \LogicException('Invalid internal query snapshot.'); }
+        $header = unpack('Nsize', substr($stored, 0, 4));
+        if (! is_array($header) || $header['size'] < 1 || $header['size'] > self::MAX_QUERY_BYTES) {
+            throw new \LogicException('Invalid internal query snapshot size.');
+        }
+        $serialized = self::serializedTree(substr($stored, 4), $header['size']);
+        if (strlen($serialized) !== $header['size']) { throw new \LogicException('Invalid internal query snapshot length.'); }
+
+        return $serialized;
+    }
+
+    private static function spillQuery(string $key, string $serialized): void
+    {
+        if (isset(self::$querySpillSizes[$key])) { return; }
+        $size = 32 + strlen($serialized);
+        if (count(self::$querySpillSizes) >= self::QUERY_SPILL_MAX_FILES
+            || self::$querySpillBytes + $size > self::QUERY_SPILL_MAX_BYTES
+            || self::spillDirectory() === null) {
+            return;
+        }
+        $entry = hash_hmac('sha256', 'query:'.$key.':'.$serialized, self::$spillKey, true).$serialized;
+        if (@file_put_contents(self::$spillDir.'/'.$key.'.query', $entry) === $size) {
+            self::$querySpillSizes[$key] = $size;
+            self::$querySpillBytes += $size;
+        } else {
+            @unlink(self::$spillDir.'/'.$key.'.query');
+        }
+    }
+
+    private static function spilledQuery(string $key): ?string
+    {
+        $size = self::$querySpillSizes[$key] ?? null;
+        if ($size === null) { return null; }
+        $path = self::$spillDir.'/'.$key.'.query';
+        clearstatcache(true, $path);
+        if (@filesize($path) !== $size) { return null; }
+        $entry = @file_get_contents($path);
+        if (! is_string($entry) || strlen($entry) !== $size) { return null; }
+        $serialized = substr($entry, 32);
+        if (! hash_equals(substr($entry, 0, 32), hash_hmac('sha256', 'query:'.$key.':'.$serialized, self::$spillKey, true))) {
+            return null;
+        }
+
+        return self::restoredQuery($serialized);
     }
 
     /** @return array<array-key, Node> */
@@ -388,8 +467,10 @@ final class CodebaseScanSyntax
         self::$spillKey = random_bytes(32);
         self::$spillDir = $dir;
         register_shutdown_function(static function () use ($dir): void {
-            foreach (glob($dir.'/*.tree') ?: [] as $file) {
-                @unlink($file);
+            foreach (['tree', 'query'] as $extension) {
+                foreach (glob($dir.'/*.'.$extension) ?: [] as $file) {
+                    @unlink($file);
+                }
             }
             @rmdir($dir);
         });

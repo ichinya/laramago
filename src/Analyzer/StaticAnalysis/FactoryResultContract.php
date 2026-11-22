@@ -60,6 +60,13 @@ final class FactoryResultContract implements CodebaseScanHook
     public function __construct(string $root = '.')
     {
         $this->source = new PhpSource($root);
+        self::registerProjection();
+    }
+
+    public static function registerProjection(): void
+    {
+        CodebaseScanSyntax::registerProjection(self::class.'::all-mapping', self::allMapping(...));
+        CodebaseScanSyntax::registerProjection(self::class.'::outside-class-mapping', self::outsideMapping(...));
     }
 
     public function getTargets(): array
@@ -69,8 +76,7 @@ final class FactoryResultContract implements CodebaseScanHook
 
     public function scan(CodebaseScanContext $context): void
     {
-        CodebaseScanSyntax::registerProjection(self::class.'::all-mapping', self::allMapping(...));
-        CodebaseScanSyntax::registerProjection(self::class.'::outside-class-mapping', self::outsideMapping(...));
+        self::registerProjection();
         if ($context->firstBatch) {
             $this->source = new PhpSource($this->source->root);
             $this->analyzedSources = [];
