@@ -30,6 +30,7 @@ final class ForwardedTransactionTemplateCalls implements CodebaseScanHook
 
     public function reset(): void
     {
+        self::registerProjection();
         $this->generation++;
         $this->calls = $this->sources = [];
         $this->started = $this->complete = $this->failed = false;
@@ -38,8 +39,48 @@ final class ForwardedTransactionTemplateCalls implements CodebaseScanHook
         $this->connectionExtensions = false;
     }
 
+    public static function registerProjection(): void
+    {
+        CodebaseScanSyntax::registerProjection(self::class.'::source-facts:v1', self::sourceFacts(...));
+    }
+
+    private static function sourceFacts(array $nodes): array
+    {
+        $macro = $extensions = $potential = false;
+        foreach (CodebaseScanSyntax::findInstanceOf($nodes, Node\Expr\StaticCall::class) as $dispatch) {
+            if (! $dispatch->class instanceof Node\Name) { continue; }
+            if ($dispatch->class->toString() === 'Illuminate\\Support\\Facades\\DB'
+                && $dispatch->name instanceof Node\Identifier && strcasecmp($dispatch->name->name, 'transaction') === 0) {
+                $potential = true;
+            }
+            if (! in_array(strtolower($dispatch->class->toString()), [
+                'illuminate\\support\\facades\\db', 'illuminate\\database\\databasemanager', 'illuminate\\database\\connection',
+            ], true)) { continue; }
+            if ($dispatch->name instanceof Node\Identifier && strtolower($dispatch->name->name) === 'extend') { $extensions = true; }
+            if (! $dispatch->name instanceof Node\Identifier || in_array(strtolower($dispatch->name->name), [
+                'macro', 'mixin', 'swap', 'setfacadeapplication', 'shouldreceive', 'expects', 'spy', 'partialmock',
+            ], true)) { $macro = true; }
+        }
+        foreach (CodebaseScanSyntax::findInstanceOf($nodes, Node\Expr\MethodCall::class) as $dispatch) {
+            if ($dispatch->name instanceof Node\Identifier && in_array(strtolower($dispatch->name->name), ['macro', 'mixin'], true)) { $macro = true; }
+        }
+        $proofs = [];
+        if ($potential) {
+            foreach (self::scopes($nodes) as [$owner, $scope]) {
+                foreach (self::candidates($scope) as $proof) {
+                    $proof += ['owner' => $owner, 'scope' => $scope];
+                    $proofs[] = $proof;
+                }
+            }
+        }
+        $keys = array_map(self::key(...), CodebaseScanSyntax::find($nodes, static fn (Node $node): bool => $node instanceof Node\Expr\CallLike));
+
+        return ['macro' => $macro, 'extensions' => $extensions, 'proofs' => $proofs, 'keys' => $keys];
+    }
+
     public function scan(CodebaseScanContext $context): void
     {
+        self::registerProjection();
         if ($context->firstBatch) { $this->reset(); $this->started = true; }
         $this->complete = false;
         if (! $this->started) { $this->failed = true; return; }
@@ -53,38 +94,19 @@ final class ForwardedTransactionTemplateCalls implements CodebaseScanHook
                     || array_key_exists($path, $this->sources)) { $this->failed = true; break; }
                 $this->sources[$path] = hash('sha256', $file->contents);
                 try {
-                    $nodes = CodebaseScanSyntax::parse($file->contents);
+                    $index = CodebaseScanSyntax::query($file->contents, self::class.'::source-facts:v1', self::sourceFacts(...));
                 } catch (\PhpParser\Error) { $this->failed = true; break; }
-                // A framework-default dispatch is supplemented only without visible replacements.
-                foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Expr\StaticCall::class) as $dispatch) {
-                    if (! $dispatch->class instanceof Node\Name || ! in_array(strtolower($dispatch->class->toString()), [
-                        'illuminate\\support\\facades\\db', 'illuminate\\database\\databasemanager', 'illuminate\\database\\connection',
-                    ], true)) { continue; }
-                    if ($dispatch->name instanceof Node\Identifier && strtolower($dispatch->name->name) === 'extend') {
-                        $this->connectionExtensions = true;
-                    }
-                    if (! $dispatch->name instanceof Node\Identifier || in_array(strtolower($dispatch->name->name), [
-                        'macro', 'mixin', 'swap', 'setfacadeapplication', 'shouldreceive', 'expects', 'spy', 'partialmock',
-                    ], true)) { $this->macroReplacement = true; }
-                }
-                foreach ((new NodeFinder)->findInstanceOf($nodes, Node\Expr\MethodCall::class) as $dispatch) {
-                    if ($dispatch->name instanceof Node\Identifier && in_array(strtolower($dispatch->name->name), ['macro', 'mixin'], true)) {
-                        $this->macroReplacement = true;
-                    }
-                }
+                $this->macroReplacement = $this->macroReplacement || $index['macro'];
+                $this->connectionExtensions = $this->connectionExtensions || $index['extensions'];
                 $eligible = [];
-                foreach (self::scopes($nodes) as [$owner, $scope]) {
-                    foreach (self::candidates($scope) as $proof) {
-                        $proof += ['owner' => $owner, 'scope' => $scope, 'file' => $path];
-                        $eligible[self::key($proof['call'])] = $proof;
-                    }
+                foreach ($index['proofs'] as $proof) {
+                    $proof += ['file' => $path];
+                    $eligible[self::key($proof['call'])] = $proof;
                 }
                 // Invocation contexts have no file. Incompatible calls reserve the same spans too.
-                foreach ((new NodeFinder)->find($nodes, static fn (Node $node): bool =>
-                    $node instanceof Node\Expr\CallLike) as $call) {
+                foreach ($index['keys'] as $key) {
                     $context->cancellation->throwIfCancelled();
                     if (count($this->calls) >= 100_000) { $this->failed = true; break; }
-                    $key = self::key($call);
                     $this->calls[$key] = array_key_exists($key, $this->calls) ? null : ($eligible[$key] ?? null);
                 }
             }

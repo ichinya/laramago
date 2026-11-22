@@ -17,14 +17,26 @@ $expected=Syntax::query($source,'replay-alpha:v1',$alpha);
 $check($expected===['statements'=>1]&&$calls===['alpha'=>1,'beta'=>1],'Initial batch did not compute both source policies');
 // Two bounded 4-MiB values exceed the actual8-MiB byte budget and evict both
 // small policies. No reflection mutates cache entries to manufacture a miss.
-$large=static fn(array $nodes):string=>str_repeat('x',4*1024*1024);
+$pressure=random_bytes(4*1024*1024);
+$large=static fn(array $nodes):string=>$pressure;
 Syntax::query('<?php','evict-one:v1',$large);
 Syntax::query('<?php','evict-two:v1',$large);
 $check(Syntax::query($source,'replay-alpha:v1',$alpha)===$expected,'Eviction changed the requested source facts');
-$check($calls===['alpha'=>2,'beta'=>1],'A cold sibling was replayed instead of only the requested policy');
-$check(Syntax::query($source,'replay-beta:v1',$beta)===$expected&&$calls===['alpha'=>2,'beta'=>2],'Later sibling request changed source facts');
+$check($calls===['alpha'=>1,'beta'=>1],'An evicted pure query was extracted again instead of restored');
+$check(Syntax::query($source,'replay-beta:v1',$beta)===$expected&&$calls===['alpha'=>1,'beta'=>1],'Later sibling request changed source facts or repeated extraction');
 $copy=Syntax::query($source,'replay-alpha:v1',$alpha);$copy['polluted']=true;
 $check(Syntax::query($source,'replay-alpha:v1',$alpha)===$expected,'Requested output ownership changed');
+// A full disk quota falls back to the bounded, requested-only replay policy.
+Syntax::clear();
+(new ReflectionProperty(Syntax::class, 'querySpillBytes'))->setValue(null, 64 * 1024 * 1024);
+$calls=['alpha'=>0,'beta'=>0];
+Syntax::registerProjection('replay-alpha:v1', $alpha);
+Syntax::registerProjection('replay-beta:v1', $beta);
+Syntax::query($source, 'replay-alpha:v1', $alpha);
+Syntax::query('<?php', 'fallback-evict-one:v1', $large);
+Syntax::query('<?php', 'fallback-evict-two:v1', $large);
+$check(Syntax::query($source,'replay-alpha:v1',$alpha)===$expected&&$calls===['alpha'=>2,'beta'=>1], 'Unavailable query spill repeats only the requested projection');
+$check(Syntax::query($source,'replay-beta:v1',$beta)===$expected&&$calls===['alpha'=>2,'beta'=>2], 'Unavailable query spill preserves later sibling results');
 Syntax::clear();$badCalls=0;
 $bad=static function(array $nodes)use(&$badCalls):never{++$badCalls;throw new RuntimeException('expected-readonly-policy-failure');};
 $good=static fn(array $nodes):bool=>true;
